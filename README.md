@@ -86,39 +86,59 @@ Hệ thống gồm 7 module nghiệp vụ:
 | Elasticsearch / OpenSearch | Không dùng, tìm kiếm bằng PostgreSQL (`tsvector`, GIN) |
 | Kubernetes | Staging chạy Docker Compose trên một máy chủ |
 | Load test | Không thực hiện |
-| `audit-service`, `learning-service` riêng | Gộp vào service nghiệp vụ liên quan |
 
 ## 4. Kiến trúc
 
-Microservice mức vừa: 1 API Gateway, 5 service nghiệp vụ, 1 service AI (Python) và 1 frontend SPA.
+Microservice: 1 API Gateway, 9 service nghiệp vụ (chia theo miền nghiệp vụ), 1 service AI (Python) và 1 frontend SPA.
 
 ```mermaid
 flowchart LR
     FE["Frontend React SPA"] -->|"HTTPS + Bearer JWT"| GW["api-gateway :8080"]
     GW --> AUTH["auth-service :8081"]
-    GW --> CORE["core-service :8082"]
+    GW --> PROF["profile-service :8082"]
     GW --> EVID["evidence-service :8083"]
     GW --> ASSESS["assessment-service :8084"]
+    GW --> JOB["job-service :8085"]
+    GW --> REC["recruitment-service :8086"]
+    GW --> NOTI["notification-service :8087"]
+    GW --> AUDIT["audit-service :8088"]
+    GW --> LEARN["learning-service :8089"]
     GW --> AI["ai-career-service :8090"]
 
-    CORE -->|"REST"| ASSESS
+    REC -->|"REST"| JOB
+    REC -->|"REST"| PROF
+    REC -->|"REST"| ASSESS
+    PROF -->|"REST"| ASSESS
+    ASSESS -->|"REST"| JOB
+    LEARN -->|"REST"| ASSESS
     EVID -->|"Kafka: evidence.changed"| ASSESS
-    CORE -->|"Kafka: jd.published"| ASSESS
-    AI -->|"REST, forward token người dùng"| CORE
+    JOB -->|"Kafka: jd.published, jd.updated"| ASSESS
+    AUTH -->|"Kafka: notification.requested"| NOTI
+    JOB -->|"Kafka: notification.requested"| NOTI
+    REC -->|"Kafka: notification.requested"| NOTI
+    OTHERS["Các service nghiệp vụ"] -.->|"Kafka: audit.recorded"| AUDIT
+    AI -->|"REST, forward token người dùng"| PROF
     AI -->|"REST"| ASSESS
+    AI -->|"REST"| JOB
 
     AUTH --- R1[("Redis")]
     AUTH --- DB1[("auth_db")]
-    CORE --- DB2[("core_db")]
+    PROF --- DB2[("profile_db")]
     EVID --- DB3[("evidence_db")]
     ASSESS --- DB4[("assessment_db")]
+    JOB --- DB5[("job_db")]
+    REC --- DB6[("recruitment_db")]
+    NOTI --- DB7[("notification_db")]
+    AUDIT --- DB8[("audit_db")]
+    LEARN --- DB9[("learning_db")]
     AI --- R2[("Redis")]
-    AI --- DB5[("ai_db")]
+    AI --- DB10[("ai_db")]
 
     EVID -->|"API khóa dịch vụ"| EXT1["LMS / Khảo thí / PM"]
-    CORE -->|"Adapter"| EXT2["Rikkei Meet"]
-    CORE -->|"SMTP"| EXT3["Email"]
-    CORE --- S3[("MinIO / S3")]
+    LEARN -->|"Adapter"| EXT5["LMS (ghi danh, tiến độ)"]
+    REC -->|"Adapter"| EXT2["Rikkei Meet"]
+    NOTI -->|"SMTP"| EXT3["Email"]
+    PROF --- S3[("MinIO / S3")]
     AI -->|"API"| EXT4["LLM API"]
 ```
 
@@ -126,25 +146,41 @@ Frontend gọi mọi API qua gateway. Gateway kiểm tra chữ ký JWT và giớ
 
 ### Danh sách service
 
-| Service | Port | Database | Trách nhiệm |
-|---|---|---|---|
-| `api-gateway` | 8080 | Redis (rate limit) | Định tuyến, kiểm tra JWT, giới hạn tần suất, CORS |
-| `auth-service` | 8081 | `auth_db` | Đổi vé SSO, đăng nhập HR, khóa tài khoản, đặt lại mật khẩu, cấp JWT, JWKS |
-| `core-service` | 8082 | `core_db` | Hồ sơ, CV, portfolio, consent, doanh nghiệp, JD, ứng tuyển, phỏng vấn, offer, IOC, thông báo, audit, xóa dữ liệu |
-| `evidence-service` | 8083 | `evidence_db` | Đồng bộ bằng chứng từ LMS, Khảo thí, PM; ghi nhận chỉnh sửa tay và báo sai |
-| `assessment-service` | 8084 | `assessment_db` | Danh mục kỹ năng, phiếu đánh giá, chỉ số, badge, điểm khớp, thiếu hụt, gợi ý học bù |
-| `ai-career-service` | 8090 | `ai_db`, Redis | Gợi ý việc, review CV, mock interview |
+| Service | Port | Database | Trách nhiệm | Module nội bộ (package) |
+|---|---|---|---|---|
+| `api-gateway` | 8080 | Redis (rate limit) | Định tuyến, kiểm tra JWT, giới hạn tần suất, CORS | Không có |
+| `auth-service` | 8081 | `auth_db` | Đổi vé SSO, đăng nhập HR, khóa tài khoản, đặt lại mật khẩu, cấp JWT, JWKS | `sso`, `hr-account`, `password`, `token` |
+| `profile-service` | 8082 | `profile_db` | Hồ sơ ứng viên, CV, portfolio, chứng chỉ, upload tệp an toàn (MinIO/S3, ClamAV, Tika), consent, tìm kiếm ứng viên công khai, mở khóa liên hệ, xóa dữ liệu theo yêu cầu | `profile`, `file`, `consent`, `search`, `contact` |
+| `evidence-service` | 8083 | `evidence_db` | Đồng bộ bằng chứng từ LMS, Khảo thí, PM. Ghi nhận chỉnh sửa tay và báo sai | `sync`, `source`, `evidence`, `override` |
+| `assessment-service` | 8084 | `assessment_db` | Danh mục kỹ năng, phiếu tự đánh giá và phiếu Mentor, tính chỉ số, badge, điểm khớp, khoảng thiếu hụt (Skill Gap) | `catalog`, `form`, `scoring`, `badge`, `matching`, `gap` |
+| `job-service` | 8085 | `job_db` | Hồ sơ doanh nghiệp, tạo và sửa JD (gồm JD loại "Thực tập"), kỹ năng bắt buộc và ưu tiên, duyệt JD, trạng thái JD | `company`, `job`, `approval` |
+| `recruitment-service` | 8086 | `recruitment_db` | Ứng tuyển, state machine đơn ứng tuyển, phỏng vấn nhiều vòng, offer, hết hạn offer, nhắc lịch, adapter Rikkei Meet; thực tập IOC (nhu cầu, đợt, ghép ứng viên, nghiệm thu) | `application`, `interview`, `offer`, `scheduler`, `meet`, `ioc` |
+| `notification-service` | 8087 | `notification_db` | Nhận sự kiện yêu cầu thông báo, gửi email theo template, thông báo trong ứng dụng | `consumer`, `email`, `inapp` |
+| `audit-service` | 8088 | `audit_db` | Nhận và lưu nhật ký thao tác bất biến (append-only), truy vấn audit log cho cán bộ và Quản trị | `consumer`, `store`, `query` |
+| `learning-service` | 8089 | `learning_db` | Ánh xạ kỹ năng thiếu sang môn học và bài học trên LMS, gợi ý lộ trình, ghi danh, theo dõi tiến độ học bổ sung | `mapping`, `roadmap`, `enrollment`, `progress` |
+| `ai-career-service` | 8090 | `ai_db` (log), Redis (rate limit) | Trợ lý nghề nghiệp: gợi ý việc, review CV, mock interview | `chat`, `masking`, `quota`, `prompts` |
+
+### Quy tắc giao tiếp giữa các service
+
+- **REST đồng bộ** (kèm Resilience4j) cho các lời gọi cần kết quả ngay: `recruitment-service` gọi `job-service`, `profile-service` và `assessment-service`; `assessment-service` gọi `job-service` để lấy yêu cầu kỹ năng của JD; `profile-service` gọi `assessment-service` để lấy điểm khớp; `learning-service` gọi `assessment-service` để lấy Skill Gap.
+- **Kafka bất đồng bộ** (qua Transactional Outbox) cho 5 topic: `evidence.changed`, `jd.published`, `jd.updated`, `notification.requested` và `audit.recorded`.
+- **Thông báo**: các service cần gửi email hoặc thông báo (auth, job, recruitment) chỉ phát `notification.requested`, `notification-service` lo việc gửi.
+- **Audit**: các service nghiệp vụ phát `audit.recorded` cho mọi thao tác nhạy cảm (chỉnh sửa bằng chứng, đổi chỉ số, mở khóa liên hệ, chuyển trạng thái ứng tuyển). `audit-service` chỉ INSERT, không UPDATE hoặc DELETE.
+- **Sở hữu dữ liệu**: `profile-service` giữ consent và tìm kiếm cùng một database nên thu hồi công khai có hiệu lực ngay (D09, D10). Khi đơn ứng tuyển được nộp, `recruitment-service` gọi endpoint nội bộ của `profile-service` để mở khóa email và SĐT cho doanh nghiệp tương ứng.
+- **Ngoại lệ xem hồ sơ sau khi rút công khai**: HR xem hồ sơ gắn với đơn ứng tuyển thông qua `recruitment-service`. Service này kiểm tra đơn thuộc JD của HR đó rồi mới lấy dữ liệu từ endpoint nội bộ của `profile-service`.
+- Các endpoint nội bộ vẫn yêu cầu token hợp lệ và kiểm tra quyền như endpoint công khai, không tin tưởng ngầm giữa các service.
+- Module `common` (do Tech Lead duy trì) chứa cấu hình bảo mật, lỗi chuẩn, audit client và tiện ích dùng chung. Hợp đồng REST (OpenAPI) và schema sự kiện Kafka phải được thống nhất từ tuần 1.
 
 ### Quyết định kiến trúc chính
 
 | Mã | Quyết định |
 |---|---|
-| D01 | Microservice mức vừa (1 gateway, 5 service nghiệp vụ, 1 service AI, 1 SPA) |
+| D01 | Microservice (1 gateway, 9 service nghiệp vụ nhỏ theo miền, 1 service AI, 1 SPA) |
 | D02 | Java source 17, chạy trên JDK 25 LTS, Spring Boot 4.1.1 (cần kiểm tra tương thích ở tuần 1) |
 | D03 | Mỗi service có database/schema PostgreSQL riêng, không truy cập DB của service khác |
-| D04 | REST (kèm Resilience4j) cho đồng bộ; Kafka cho bất đồng bộ, chỉ 3 topic: `evidence.changed`, `jd.published`, `jd.updated` |
+| D04 | REST (kèm Resilience4j) cho đồng bộ; Kafka cho bất đồng bộ, chỉ 5 topic: `evidence.changed`, `jd.published`, `jd.updated`, `notification.requested`, `audit.recorded` |
 | D05 | Transactional Outbox cho mọi sự kiện gửi qua Kafka |
-| D06 | Audit log append-only trong DB của từng service (thu hồi UPDATE/DELETE, có trigger chặn) |
+| D06 | `audit-service` riêng nhận sự kiện `audit.recorded` từ các service, ghi bảng append-only (thu hồi UPDATE/DELETE, có trigger chặn) |
 | D07 | JWT RS256, `auth-service` phát token, các service xác thực qua JWKS |
 | D08 | Vé SSO lưu Redis, TTL 60 giây, tiêu thụ bằng `GETDEL` |
 | D09 | Tìm kiếm ứng viên bằng PostgreSQL (`tsvector`, GIN) |
@@ -174,15 +210,20 @@ Không dùng Lombok. DTO dùng `record`, mapping dùng MapStruct.
 ## 6. Cấu trúc repository
 
 ```
-rikkei-jobs/
+rikkei-job-project/
 ├── backend/
 │   ├── pom.xml                      # Parent POM, quản lý phiên bản chung
-│   ├── common/                      # Lỗi chuẩn, security filter, audit, test utilities
+│   ├── common/                      # Lỗi chuẩn, security filter, audit client, test utilities
 │   ├── api-gateway/
-│   ├── auth-service/
-│   ├── core-service/                # profile, company, job, recruitment, ioc, notification, consent
-│   ├── evidence-service/
-│   └── assessment-service/
+│   ├── assessment-service/          # catalog, form, scoring, badge, matching, gap
+│   ├── audit-service/               # consumer, store, query
+│   ├── auth-service/                # sso, hr-account, password, token
+│   ├── evidence-service/            # sync, source, evidence, override
+│   ├── job-service/                 # company, job, approval
+│   ├── learning-service/            # mapping, roadmap, enrollment, progress
+│   ├── notification-service/        # consumer, email, inapp
+│   ├── profile-service/             # profile, file, consent, search, contact
+│   └── recruitment-service/         # application, interview, offer, scheduler, meet, ioc
 ├── ai-career-service/               # FastAPI, pyproject.toml, uv.lock
 ├── frontend/                        # React, Vite, Tailwind, src/api/, src/features/, e2e/
 ├── infra/
@@ -212,8 +253,8 @@ rikkei-jobs/
 
 ```bash
 # 1. Clone repository
-git clone <repository-url> rikkei-jobs
-cd rikkei-jobs
+git clone <repository-url> rikkei-job-project
+cd rikkei-job-project
 
 # 2. Tạo file biến môi trường (không commit file .env)
 cp .env.example .env
@@ -243,7 +284,9 @@ uv run uvicorn <module>:app --port 8090
 |---|---|
 | Frontend (Vite) | 5173 (proxy `/api` về gateway) |
 | API Gateway | 8080 |
-| auth / core / evidence / assessment | 8081 / 8082 / 8083 / 8084 |
+| auth / profile / evidence / assessment | 8081 / 8082 / 8083 / 8084 |
+| job / recruitment / notification | 8085 / 8086 / 8087 |
+| audit / learning | 8088 / 8089 |
 | AI Career Service | 8090 |
 | PostgreSQL | 5432 |
 | Redis | 6379 |
@@ -331,10 +374,10 @@ Gồm 5 sprint (mỗi sprint 2 tuần), tuần 11 dự phòng.
 | Sprint | Tuần | Mục tiêu chính |
 |---|---|---|
 | S0 | 1 | Dựng repo, Docker Compose, CI. Spike Spring Boot 4.1.1 với Kafka, Batch, Quartz, Gateway. Thống nhất hợp đồng API đầu tiên |
-| S1 | 2–3 | `auth-service`, profile, company, JD CRUD ở `core-service`, khung frontend |
-| S2 | 4–5 | `evidence-service`, `assessment-service` (kỹ năng, phiếu, chỉ số), ứng tuyển và state machine, upload có quét mã độc |
-| S3 | 6–7 | Badge, điểm khớp, thiếu hụt, phỏng vấn, offer, IOC, consent, tìm kiếm, thu hồi tức thì, audit |
-| S4 | 8–9 | `ai-career-service` và masking, module `learning`, test phân quyền đầy đủ, E2E Playwright |
+| S1 | 2–3 | `auth-service`, `profile-service`, `job-service` (company, JD CRUD), khung frontend |
+| S2 | 4–5 | `evidence-service`, `assessment-service` (kỹ năng, phiếu, chỉ số), `recruitment-service` (ứng tuyển, state machine), `notification-service`, `audit-service`, upload có quét mã độc ở `profile-service` |
+| S3 | 6–7 | Badge, điểm khớp, thiếu hụt, phỏng vấn, offer, IOC (trong `recruitment-service`), consent, tìm kiếm, thu hồi tức thì, audit |
+| S4 | 8–9 | `ai-career-service` và masking, `learning-service`, test phân quyền đầy đủ, E2E Playwright |
 | S5 | 10 | Sửa lỗi, hoàn thiện tài liệu, chuẩn bị demo và staging |
 | Dự phòng | 11 | Xử lý phần chậm tiến độ, không thêm tính năng mới |
 
@@ -350,6 +393,7 @@ Gồm 5 sprint (mỗi sprint 2 tuần), tuần 11 dự phòng.
 | API của LMS, Khảo thí, PM, Meet chưa sẵn sàng | Cao | WireMock và adapter ngay từ đầu |
 | Một người làm toàn bộ frontend cho 6 vai trò | Cao | Dùng shadcn/ui, Tech Lead hỗ trợ layout chung |
 | Lỗi bảo mật: IDOR, lộ PII, phát lại vé SSO | Cao | Test phân quyền tự động, test riêng cho vé SSO, review bảo mật trước sprint 5 |
+| Số service tăng (9 service nghiệp vụ), tốn công tích hợp, cấu hình và vận hành | Trung bình | Dùng chung `common`, chạy Docker Compose từng phần, chốt hợp đồng OpenAPI và schema sự kiện từ tuần 1, mỗi service tối thiểu 2 người hiểu code |
 | Phạm vi phình to | Trung bình | Khóa phạm vi theo [mục 3](#3-phạm-vi-mvp) |
 | Công thức điểm và trọng số chưa xác nhận | Trung bình | Lưu trọng số trong `skill_weight_config`, đổi không cần sửa code |
 
@@ -387,10 +431,10 @@ Gồm 5 sprint (mỗi sprint 2 tuần), tuần 11 dự phòng.
 | Vị trí | Phụ trách chính | Thành viên |
 |---|---|---|
 | M1: Tech Lead và DevOps | Kiến trúc, repo, CI/CD, Docker Compose, `api-gateway`, `common`, review PR | |
-| M2: Backend A | `auth-service`, module `profile` và `consent` trong `core-service` | |
-| M3: Backend B | Module `company`, `job`, `recruitment`, `ioc`, `notification` trong `core-service`, Quartz | |
-| M4: Backend C | `evidence-service`, sau đó `ai-career-service` từ tuần 7 | |
-| M5: Backend D | `assessment-service`, module `learning` | |
+| M2: Backend A | `auth-service`, `profile-service` (hồ sơ, consent, tìm kiếm, upload tệp) | |
+| M3: Backend B | `job-service`, `recruitment-service` (gồm IOC), `notification-service`, Quartz | |
+| M4: Backend C | `evidence-service`, `audit-service`, sau đó `ai-career-service` từ tuần 7 | |
+| M5: Backend D | `assessment-service`, `learning-service` | |
 | M6: Frontend | Toàn bộ React SPA, E2E Playwright từ tuần 8 | |
 
 ## 16. Giấy phép
