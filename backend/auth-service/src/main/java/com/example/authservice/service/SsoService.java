@@ -83,7 +83,7 @@ public class SsoService {
         try {
             usedSsoTicketRepository.saveAndFlush(new UsedSsoTicket(ticket, now));
         } catch (DataIntegrityViolationException ex) {
-            log.warn("Race condition / duplicate ticket prevented: {}", ticket);
+            log.warn("Race condition / duplicate ticket prevented for SSO ticket attempt");
             throw new SsoException(ErrorCode.TICKET_ALREADY_USED, "SSO ticket has already been used");
         }
 

@@ -1,5 +1,7 @@
 package com.example.authservice.service;
 
+import com.example.authservice.exception.ErrorCode;
+import com.example.authservice.exception.SsoException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -39,22 +41,29 @@ public class SmtpEmailService implements EmailService {
             + "If you did not request a password reset, please ignore this email.\n";
 
         JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
-        if (mailSender != null) {
-            try {
-                SimpleMailMessage message = new SimpleMailMessage();
-                message.setFrom(fromEmail);
-                message.setTo(toEmail);
-                message.setSubject("Rikkei Jobs - Password Reset Request");
-                message.setText(content);
-                mailSender.send(message);
-                log.info("Password reset email sent to {}", toEmail);
-                return;
-            } catch (Exception ex) {
-                log.warn("Failed to send email via SMTP to {}: {}", toEmail, ex.getMessage());
-            }
+        if (mailSender == null) {
+            log.error("JavaMailSender is not configured. Cannot send password reset email to recipient {}", toEmail);
+            throw new SsoException(
+                ErrorCode.EXTERNAL_UNAVAILABLE,
+                "Mail service is not configured. Please contact system administrator."
+            );
         }
 
-        log.info("Password reset token generated for [{}]: Link={}, Token={}", toEmail, resetLink, resetToken);
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(toEmail);
+            message.setSubject("Rikkei Jobs - Password Reset Request");
+            message.setText(content);
+            mailSender.send(message);
+            log.info("Password reset email successfully sent to {}", toEmail);
+        } catch (Exception ex) {
+            log.error("Failed to deliver password reset email via SMTP to {}: {}", toEmail, ex.getMessage());
+            throw new SsoException(
+                ErrorCode.EXTERNAL_UNAVAILABLE,
+                "Unable to deliver password reset email due to mail service error. Please try again later.",
+                ex
+            );
+        }
     }
 }
-

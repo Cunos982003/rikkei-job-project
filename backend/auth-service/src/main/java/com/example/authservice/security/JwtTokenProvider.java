@@ -81,14 +81,24 @@ public class JwtTokenProvider {
 
     public Authentication getAuthentication(String token) {
         Claims claims = getClaims(token);
-        String role = claims.get("role", String.class);
-        if (role == null) {
-            role = "ROLE_CANDIDATE";
+        List<SimpleGrantedAuthority> authorities;
+        @SuppressWarnings("unchecked")
+        List<String> rolesList = claims.get("roles", List.class);
+        if (rolesList != null && !rolesList.isEmpty()) {
+            authorities = rolesList.stream()
+                .filter(r -> r != null && !r.isBlank())
+                .map(SimpleGrantedAuthority::new)
+                .toList();
+        } else {
+            String role = claims.get("role", String.class);
+            if (role == null || role.isBlank()) {
+                role = "ROLE_CANDIDATE";
+            }
+            authorities = List.of(new SimpleGrantedAuthority(role));
         }
-        SimpleGrantedAuthority authority = new SimpleGrantedAuthority(role);
         String principal = claims.getSubject();
 
-        return new UsernamePasswordAuthenticationToken(principal, token, List.of(authority));
+        return new UsernamePasswordAuthenticationToken(principal, token, authorities);
     }
 
     public long getExpirationSeconds() {

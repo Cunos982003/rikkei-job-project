@@ -196,5 +196,30 @@ class SecurityIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(header().exists("Access-Control-Allow-Origin"));
     }
+
+    @Test
+    @DisplayName("8. JWT claims không chứa thông tin nhạy cảm và bao gồm cấu trúc roles hợp lệ")
+    void jwtClaimsDoNotContainSensitiveData() {
+        User hrUser = new User(
+            null,
+            "sec_hr@rikkei.vn",
+            "Security HR",
+            "ROLE_HR",
+            "$2a$10$hashedPasswordHere1234567890",
+            Instant.now(),
+            Instant.now()
+        );
+        hrUser.setId(UUID.randomUUID());
+
+        String token = jwtTokenProvider.generateToken(hrUser);
+        var claims = jwtTokenProvider.getClaims(token);
+
+        org.assertj.core.api.Assertions.assertThat(claims.get("password")).isNull();
+        org.assertj.core.api.Assertions.assertThat(claims.get("passwordHash")).isNull();
+        org.assertj.core.api.Assertions.assertThat(claims.get("lockedUntil")).isNull();
+        org.assertj.core.api.Assertions.assertThat(claims.get("failedLoginAttempts")).isNull();
+        org.assertj.core.api.Assertions.assertThat(claims.get("role")).isEqualTo("ROLE_HR");
+        org.assertj.core.api.Assertions.assertThat(claims.get("roles")).isNotNull();
+    }
 }
 

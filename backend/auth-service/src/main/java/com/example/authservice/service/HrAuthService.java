@@ -16,6 +16,7 @@ import com.example.authservice.security.JwtTokenProvider;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
@@ -33,6 +34,7 @@ public class HrAuthService {
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final long LOCKOUT_DURATION_MINUTES = 15L;
     private static final long RESET_TOKEN_EXPIRATION_MINUTES = 30L;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
@@ -56,8 +58,8 @@ public class HrAuthService {
 
     @Transactional(noRollbackFor = SsoException.class)
     public AuthResponse login(LoginRequest request) {
-        String email = request.email().trim().toLowerCase(Locale.ROOT);
-        User user = userRepository.findByEmail(email)
+        String email = request.email() != null ? request.email().trim().toLowerCase(Locale.ROOT) : "";
+        User user = userRepository.findByEmailForUpdate(email)
             .orElseThrow(() -> new SsoException(ErrorCode.INVALID_CREDENTIALS, "Invalid email or password"));
 
         // If user has no password configured (e.g. SSO only), reject
@@ -121,12 +123,11 @@ public class HrAuthService {
 
     @Transactional
     public MessageResponse forgotPassword(ForgotPasswordRequest request) {
-        String email = request.email().trim().toLowerCase(Locale.ROOT);
+        String email = request.email() != null ? request.email().trim().toLowerCase(Locale.ROOT) : "";
 
         userRepository.findByEmail(email).ifPresent(user -> {
             if (user.getPassword() != null && !user.getPassword().isBlank()) {
-                String rawToken = UUID.randomUUID().toString().replace("-", "")
-                    + UUID.randomUUID().toString().replace("-", "");
+                String rawToken = generateSecureToken();
                 String tokenHash = hashToken(rawToken);
                 Instant now = Instant.now();
                 Instant expiresAt = now.plus(Duration.ofMinutes(RESET_TOKEN_EXPIRATION_MINUTES));
@@ -144,10 +145,10 @@ public class HrAuthService {
 
     @Transactional
     public MessageResponse resetPassword(ResetPasswordRequest request) {
-        String rawToken = request.token().trim();
+        String rawToken = request.token() != null ? request.token().trim() : "";
         String tokenHash = hashToken(rawToken);
 
-        PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenHash(tokenHash)
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenHashForUpdate(tokenHash)
             .orElseThrow(() -> new SsoException(ErrorCode.RESET_TOKEN_INVALID, "Invalid or unrecognized password reset token"));
 
         if (resetToken.isUsed()) {
@@ -168,10 +169,24 @@ public class HrAuthService {
         user.setUpdatedAt(now);
         userRepository.save(user);
 
+        // Mark this token as used
         resetToken.setUsedAt(now);
         passwordResetTokenRepository.save(resetToken);
 
+        // Invalidate all other pending reset tokens for this user
+        passwordResetTokenRepository.invalidateAllUnusedTokensForUser(user.getId(), now);
+
         return new MessageResponse("Password has been successfully reset. You can now log in with your new password.");
+    }
+
+    private String generateSecureToken() {
+        byte[] bytes = new byte[32];
+        SECURE_RANDOM.nextBytes(bytes);
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 
     private String hashToken(String token) {
@@ -188,4 +203,3 @@ public class HrAuthService {
         }
     }
 }
-
