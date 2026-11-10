@@ -1,4 +1,4 @@
-package com.example.assessmentservice;
+package vn.rikkei.jobs.assessment;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -7,7 +7,5 @@ import org.springframework.boot.test.context.SpringBootTest;
 class AssessmentServiceApplicationTests {
 
     @Test
-    void contextLoads() {
-    }
-
+    void contextLoads() {}
 }

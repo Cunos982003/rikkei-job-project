@@ -1,4 +1,4 @@
-package com.example.assessmentservice;
+package vn.rikkei.jobs.assessment;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -9,5 +9,4 @@ public class AssessmentServiceApplication {
     public static void main(String[] args) {
         SpringApplication.run(AssessmentServiceApplication.class, args);
     }
-
 }

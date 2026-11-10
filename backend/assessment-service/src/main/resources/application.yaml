@@ -1,3 +1,63 @@
+server:
+  port: 8084
+
 spring:
   application:
     name: assessment-service
+  datasource:
+    url: jdbc:h2:mem:assessment_db;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  h2:
+    console:
+      enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+rikkei:
+  security:
+    # Dev/MVP: trusted headers until auth-service JWKS is wired.
+    header-user-id: X-User-Id
+    header-user-email: X-User-Email
+    header-user-role: X-User-Role
+
+logging:
+  level:
+    root: INFO
+    vn.rikkei.jobs.assessment: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/assessment_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  h2:
+    console:
+      enabled: false
