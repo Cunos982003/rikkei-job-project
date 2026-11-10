@@ -1,31 +1,21 @@
 name: Docker Build
 
 on:
-  push:
-    branches: [dev]
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - 'infra/docker-compose.yml'
-      - 'infra/**/Dockerfile*'
-  pull_request:
-    branches: [dev]
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - 'infra/docker-compose.yml'
-      - 'infra/**/Dockerfile*'
+  workflow_call:
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   build-backend-images:
     name: Build Backend Service Images
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    if: ${{ hashFiles('infra/**/Dockerfile*') != '' }}
 
     steps:
       - name: Checkout repository
@@ -42,79 +32,64 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata for backend services
-        id: meta-backend
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push backend service images
+      - name: Build backend service images
+        env:
+          PUSH: ${{ github.event_name != 'pull_request' }}
         run: |
-          cd backend
-          for dir in */; do
-            service_name="${dir%/}"
-            dockerfile_path="${dir}Dockerfile"
-
-            if [ -f "$dockerfile_path" ]; then
-              echo "Building $service_name..."
-              docker buildx build \
-                --push \
-                --tag "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${service_name}:${{ steps.meta-backend.outputs.tags }}" \
-                --tag "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${service_name}:${{ github.sha }}" \
-                --cache-from type=gha \
-                --cache-to type=gha,mode=max \
-                --file "$dockerfile_path" \
-                "."
+          repo="$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
+          found=0
+          for dir in backend/*/; do
+            service="$(basename "$dir")"
+            if [ -f "${dir}Dockerfile" ]; then
+              found=1
+              echo "Building $service..."
+              image="${REGISTRY}/${repo}-${service}"
+              action="--load"
+              [ "$PUSH" = "true" ] && action="--push"
+              docker buildx build $action \
+                --tag "${image}:${{ github.sha }}" \
+                --tag "${image}:latest" \
+                --file "${dir}Dockerfile" \
+                "$dir"
             else
-              echo "No Dockerfile found for $service_name, skipping..."
+              echo "No Dockerfile for $service, skipping..."
             fi
           done
+          [ "$found" = "0" ] && echo "No backend Dockerfiles found."
+          exit 0
 
   build-frontend-image:
     name: Build Frontend Image
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: ${{ hashFiles('frontend/Dockerfile*') != '' }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Check Dockerfile
+        id: check
+        run: |
+          if [ -f frontend/Dockerfile ]; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; echo "No frontend Dockerfile, skipping."; fi
+
       - name: Set up Docker Buildx
+        if: steps.check.outputs.exists == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Login to Container Registry
-        if: github.event_name != 'pull_request'
+        if: steps.check.outputs.exists == 'true' && github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata for frontend
-        id: meta-frontend
-        uses: docker/metadata-action@v5
+      - name: Build frontend image
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/build-push-action@v6
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
+          context: frontend
+          file: frontend/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push frontend image
-        if: ${{ hashFiles('frontend/Dockerfile*') != '' }}
-        run: |
-          docker buildx build \
-            --push \
-            --tag "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ steps.meta-frontend.outputs.tags }}" \
-            --tag "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ github.sha }}" \
-            --cache-from type=gha \
-            --cache-to type=gha,mode=max \
-            --file frontend/Dockerfile \
-            frontend/
+            ${{ env.REGISTRY }}/${{ github.repository }}-frontend:${{ github.sha }}

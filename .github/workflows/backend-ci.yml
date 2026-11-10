@@ -1,18 +1,11 @@
 name: Backend CI
 
 on:
-  push:
-    branches: [dev]
-    paths:
-      - 'backend/**'
-  pull_request:
-    branches: [dev]
-    paths:
-      - 'backend/**'
+  workflow_call:
+  workflow_dispatch:
 
 env:
-  JAVA_VERSION: '25'
-  GRADLE_VERSION: '8.10'
+  JAVA_VERSION: '17'
 
 jobs:
   build-and-test:
@@ -31,11 +24,6 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           cache: 'gradle'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: ${{ env.GRADLE_VERSION }}
-
       - name: Cache Gradle packages
         uses: actions/cache@v4
         with:
@@ -52,17 +40,7 @@ jobs:
           for dir in */; do
             if [ -f "${dir}build.gradle" ] || [ -f "${dir}build.gradle.kts" ]; then
               echo "Building ${dir%/}..."
-              (cd "$dir" && ./gradlew build --no-daemon)
-            fi
-          done
-
-      - name: Run tests for all backend services
-        run: |
-          cd backend
-          for dir in */; do
-            if [ -f "${dir}build.gradle" ] || [ -f "${dir}build.gradle.kts" ]; then
-              echo "Testing ${dir%/}..."
-              (cd "$dir" && ./gradlew test --no-daemon)
+              (cd "$dir" && chmod +x gradlew && ./gradlew build --no-daemon)
             fi
           done
 
@@ -75,3 +53,4 @@ jobs:
             backend/**/build/reports/tests/
             backend/**/build/test-results/
           retention-days: 7
+          if-no-files-found: ignore
