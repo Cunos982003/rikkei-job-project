@@ -1,5 +1,6 @@
 version: 2
 updates:
+  # Backend - Gradle dependencies (each service has its own build.gradle)
   - package-ecosystem: "gradle"
     directory: "/backend"
     schedule:
@@ -40,6 +41,7 @@ updates:
       - dependency-name: "org.springframework.boot*"
         update-types: ["version-update:semver-major"]
 
+  # Frontend - npm dependencies
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
@@ -83,11 +85,13 @@ updates:
     ignore:
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+
+  # Docker - base image updates (only where Dockerfiles exist)
   - package-ecosystem: "docker"
     directories:
-      - "/backend/*"
+      - "/backend"
       - "/frontend"
-      - "/ai-career-service"
+      - "/infra"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -102,6 +106,7 @@ updates:
       prefix: "chore(deps)"
     open-pull-requests-limit: 3
 
+  # Docker Compose - service image updates
   - package-ecosystem: "docker-compose"
     directory: "/infra"
     schedule:
@@ -121,7 +126,7 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # GitHub Actions
+  # GitHub Actions - workflow dependencies
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
