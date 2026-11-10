@@ -301,8 +301,8 @@ uv run uvicorn <module>:app --port 8090
 | Hạng mục | Quy ước |
 |---|---|
 | API | Prefix `/api/v1/`, danh từ số nhiều, JSON camelCase |
-| Lỗi | ProblemDetail (RFC 9457), không trả stack trace |
-| Phân trang | `?page=0&size=20&sort=createdAt,desc` |
+| Định dạng response & lỗi | Chuẩn `ApiResponse` đóng gói (`success`, `statusCode`, `message`, `data`, `timestamp`), thông báo 100% tiếng Việt, xem [docs/quy-chuan-api-response.md](docs/quy-chuan-api-response.md) |
+| Phân trang | `?page=0&size=20&sort=createdAt,desc`, đóng gói cấu trúc `PageData` (`items`, `pagination`) |
 | Thời gian | Lưu UTC (`timestamptz`), trả về ISO-8601 |
 | Khóa định danh | UUID |
 | Phân quyền | Vai trò kiểm tra ở controller (`@PreAuthorize`), quyền sở hữu kiểm tra ở tầng service |
@@ -416,6 +416,7 @@ Gồm 5 sprint (mỗi sprint 2 tuần), tuần 11 dự phòng.
 |---|---|
 | Đặc tả dự án | `docs/mo-ta-du-an-rikkei-jobs.md` |
 | Tech stack và kiến trúc (MVP) | `docs/tech-stack.md` |
+| Quy chuẩn API Response | `docs/quy-chuan-api-response.md` |
 | Architecture Decision Records | `docs/adr/` |
 | Bộ request Bruno và OpenAPI | `docs/api/` |
 

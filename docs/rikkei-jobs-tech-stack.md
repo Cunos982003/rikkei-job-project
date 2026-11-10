@@ -318,8 +318,8 @@ Quy tắc chung: bảng lịch sử (`application_status_history`, `audit_log`, 
 | Hạng mục | Quy ước |
 |---|---|
 | Định dạng API | Prefix `/api/v1/`, danh từ số nhiều (`/jobs`, `/applications`), JSON camelCase |
-| Lỗi | ProblemDetail (RFC 9457). Không trả stack trace ra ngoài |
-| Phân trang | `?page=0&size=20&sort=createdAt,desc` |
+| Định dạng response & lỗi | Chuẩn `ApiResponse` đóng gói (`success`, `statusCode`, `message`, `data`, `timestamp`), thông báo 100% tiếng Việt, xem [docs/quy-chuan-api-response.md](quy-chuan-api-response.md). Không trả stack trace |
+| Phân trang | `?page=0&size=20&sort=createdAt,desc`, đóng gói cấu trúc `PageData` (`items`, `pagination`) |
 | Thời gian | Lưu UTC bằng `timestamptz`. Trả về ISO-8601 |
 | Khóa định danh | UUID |
 | Phân quyền | Kiểm tra vai trò ở controller (`@PreAuthorize`). Kiểm tra quyền sở hữu (object-level) ở tầng service. Không chỉ ẩn nút trên giao diện |
