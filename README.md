@@ -291,10 +291,10 @@ uv run uvicorn <module>:app --port 8090
 | PostgreSQL | 5432 |
 | Redis | 6379 |
 | Kafka | 9092 |
-| MinIO (API / Console) | 9000 / 9001 |
+| MinIO (API / Console) | 9002 / 9001 |
 | ClamAV | 3310 |
 | Mailpit (SMTP / Web) | 1025 / 8025 |
-| WireMock | 8089 |
+| WireMock (Mock API) | 9000 |
 
 ## 8. Quy ước phát triển
 

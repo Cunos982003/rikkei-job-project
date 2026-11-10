@@ -350,10 +350,10 @@ Quy tắc chung: bảng lịch sử (`application_status_history`, `audit_log`, 
 | PostgreSQL | `postgres:17` | 5432 | Script khởi tạo tạo các database `auth_db`, `core_db`, `evidence_db`, `assessment_db`, `ai_db` |
 | Redis | `redis:7` | 6379 | Tách key theo prefix của từng service |
 | Kafka | `apache/kafka` (KRaft) | 9092 | Tạo sẵn 3 topic |
-| MinIO | `minio/minio` | 9000 (API), 9001 (console) | Tạo bucket `rikkei-files` |
+| MinIO | `minio/minio` | 9002 (API), 9001 (console) | Tạo bucket `rikkei-files` (cổng API chuyển sang 9002 để tránh xung đột cổng 9000 với Mock) |
 | ClamAV | `clamav/clamav` | 3310 | Khởi động mất vài phút để tải dữ liệu virus |
 | Mailpit | `axllent/mailpit` | 1025 (SMTP), 8025 (giao diện web) | Xem email gửi đi |
-| WireMock | `wiremock/wiremock` | 8089 | Mapping giả lập LMS, Khảo thí, PM đặt trong `infra/wiremock/` |
+| WireMock | `wiremock/wiremock` | 9000 | Mapping giả lập LMS, Khảo thí, PM đặt trong `infra/wiremock/` |
 | Các service | Chạy bằng `mvn spring-boot:run` hoặc container | Theo mục 5 | Có thể chạy một phần khi chỉ làm một service |
 | Frontend | `npm run dev` | 5173 | Proxy `/api` về gateway |
 | AI service | `uv run uvicorn` | 8090 | Cần biến môi trường cho khóa LLM |
