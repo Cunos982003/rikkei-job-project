@@ -1,0 +1,457 @@
+openapi: 3.0.3
+info:
+  title: Rikkei Jobs - Job Service & Company Management API (DN-01)
+  description: >
+    API quản lý hồ sơ doanh nghiệp và cấp tài khoản HR cho Rikkei Jobs (Task DN-01).
+    Bao gồm các endpoint dành cho Cán bộ (STAFF) và Nhân sự doanh nghiệp (HR).
+  version: 1.0.0
+  contact:
+    name: Rikkei Jobs Team
+    email: dev@rikkei.vn
+
+servers:
+  - url: http://localhost:8085
+    description: Local Job Service
+  - url: http://localhost:8080/api/v1
+    description: API Gateway
+
+paths:
+  /staff/companies:
+    post:
+      tags:
+        - Staff Companies
+      summary: Tạo doanh nghiệp mới (STAFF)
+      description: Cán bộ hệ thống tạo hồ sơ doanh nghiệp mới. Mã số thuế phải gồm 10 hoặc 13 chữ số và không được trùng.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCompanyRequest'
+      responses:
+        '201':
+          description: Doanh nghiệp được tạo thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResponse'
+        '400':
+          description: Dữ liệu không hợp lệ (mã số thuế sai định dạng, thiếu tên, ...)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Mã số thuế đã tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /staff/companies/{id}/hr-accounts:
+    post:
+      tags:
+        - Staff Companies
+      summary: Cấp tài khoản HR cho doanh nghiệp (STAFF)
+      description: Tạo tài khoản HR gắn với công ty, tự động sinh mật khẩu tạm ngẫu nhiên, gắn cờ must_change_password = true và gửi email thông tin đăng nhập.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID của doanh nghiệp
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateHrAccountRequest'
+      responses:
+        '201':
+          description: Tài khoản HR được tạo thành công và thông tin đăng nhập đã gửi email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HrAccountResponse'
+        '404':
+          description: Không tìm thấy doanh nghiệp
+        '409':
+          description: Email HR bị trùng với tài khoản khác trên hệ thống
+
+  /companies/me:
+    get:
+      tags:
+        - Companies
+      summary: Xem hồ sơ công ty của tôi (HR)
+      description: HR đăng nhập xem toàn bộ thông tin chi tiết công ty của mình.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResponse'
+        '404':
+          description: HR chưa được gán công ty hoặc không tìm thấy công ty
+    put:
+      tags:
+        - Companies
+      summary: Tự sửa hồ sơ công ty của mình (HR)
+      description: HR cập nhật thông tin công ty mình. Không được phép chỉnh sửa mã số thuế (tax_code) và trạng thái (status).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCompanyRequest'
+      responses:
+        '200':
+          description: Cập nhật thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResponse'
+        '404':
+          description: Không tìm thấy công ty của HR
+
+  /companies/{id}:
+    put:
+      tags:
+        - Companies
+      summary: Sửa hồ sơ công ty theo ID
+      description: HR chỉ sửa được công ty mình (A); nếu HR cố tình gọi API sửa công ty khác (B) sẽ nhận về 404 Not Found.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCompanyRequest'
+      responses:
+        '200':
+          description: Cập nhật thành công
+        '404':
+          description: Không tìm thấy doanh nghiệp hoặc HR không có quyền truy cập doanh nghiệp này
+
+  /companies/me/logo:
+    post:
+      tags:
+        - Companies
+      summary: Tải lên logo công ty (HR)
+      description: HR upload ảnh logo đại diện của doanh nghiệp. Chỉ chấp nhận JPG/PNG và dung lượng tối đa 2MB.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File ảnh logo (JPG/PNG <= 2MB)
+      responses:
+        '200':
+          description: Upload logo thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoUploadResponse'
+        '400':
+          description: File quá 2MB hoặc sai định dạng (không phải JPG/PNG)
+
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Đăng nhập hệ thống
+      description: Đăng nhập bằng email và mật khẩu. Trả về token và trạng thái mustChangePassword.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Đăng nhập thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Sai email hoặc mật khẩu
+
+  /api/v1/auth/change-password:
+    post:
+      tags:
+        - Authentication
+      summary: Đổi mật khẩu
+      description: Đổi mật khẩu lần đầu bắt buộc cho tài khoản HR được cấp hoặc đổi mật khẩu định kỳ.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Đổi mật khẩu thành công
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    CreateCompanyRequest:
+      type: object
+      required:
+        - name
+        - taxCode
+      properties:
+        name:
+          type: string
+          example: 'Công ty Cổ phần Rikkei'
+        taxCode:
+          type: string
+          description: Gồm 10 hoặc 13 chữ số
+          example: '0101234567'
+        industry:
+          type: string
+          example: 'Công nghệ thông tin'
+        size:
+          type: string
+          enum: ['1-50', '51-200', '201-1000', '1000+']
+          example: '201-1000'
+        address:
+          type: string
+          example: 'Tầng 21, Keangnam Landmark 72, Nam Từ Liêm'
+        city:
+          type: string
+          example: 'Hà Nội'
+        website:
+          type: string
+          example: 'https://rikkeisoft.com'
+        description:
+          type: string
+          example: 'Doanh nghiệp CNTT hàng đầu Việt Nam'
+
+    UpdateCompanyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: 'Công ty Cổ phần Rikkei Mới'
+        industry:
+          type: string
+          example: 'Fintech & AI'
+        size:
+          type: string
+          enum: ['1-50', '51-200', '201-1000', '1000+']
+          example: '201-1000'
+        address:
+          type: string
+          example: 'Tầng 25 Keangnam'
+        city:
+          type: string
+          example: 'Hà Nội'
+        website:
+          type: string
+          example: 'https://rikkeisoft.com'
+        description:
+          type: string
+          example: 'Mô tả cập nhật'
+
+    CompanyResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        name:
+          type: string
+          example: 'Công ty Cổ phần Rikkei'
+        taxCode:
+          type: string
+          example: '0101234567'
+        industry:
+          type: string
+          example: 'Công nghệ thông tin'
+        size:
+          type: string
+          example: '201-1000'
+        address:
+          type: string
+          example: 'Tầng 21 Keangnam'
+        city:
+          type: string
+          example: 'Hà Nội'
+        website:
+          type: string
+          example: 'https://rikkeisoft.com'
+        logoUrl:
+          type: string
+          example: '/uploads/logos/company-1-1731234567.png'
+        description:
+          type: string
+          example: 'Mô tả doanh nghiệp'
+        status:
+          type: string
+          enum: [ACTIVE, LOCKED]
+          example: 'ACTIVE'
+        createdBy:
+          type: string
+          example: 'staff1@rikkei.vn'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateHrAccountRequest:
+      type: object
+      required:
+        - email
+        - fullName
+      properties:
+        email:
+          type: string
+          format: email
+          example: 'hr.nguyen@rikkei.vn'
+        fullName:
+          type: string
+          example: 'Nguyễn Văn Tuyển Dụng'
+
+    HrAccountResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 10
+        email:
+          type: string
+          example: 'hr.nguyen@rikkei.vn'
+        fullName:
+          type: string
+          example: 'Nguyễn Văn Tuyển Dụng'
+        role:
+          type: string
+          example: 'ROLE_HR'
+        companyId:
+          type: integer
+          format: int64
+          example: 1
+        mustChangePassword:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: 'Tạo tài khoản HR thành công. Thông tin đăng nhập đã được gửi tới email.'
+
+    LogoUploadResponse:
+      type: object
+      properties:
+        logoUrl:
+          type: string
+          example: '/uploads/logos/company-1-1731234567.png'
+        message:
+          type: string
+          example: 'Tải lên logo thành công'
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: 'hr1@rikkei.vn'
+        password:
+          type: string
+          example: 'Password@123'
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        id:
+          type: integer
+          format: int64
+        email:
+          type: string
+        fullName:
+          type: string
+        role:
+          type: string
+        companyId:
+          type: integer
+          format: int64
+        mustChangePassword:
+          type: boolean
+        message:
+          type: string
+
+    ChangePasswordRequest:
+      type: object
+      required:
+        - oldPassword
+        - newPassword
+      properties:
+        oldPassword:
+          type: string
+          example: 't3mpP@ssw0rd'
+        newPassword:
+          type: string
+          example: 'NewSecret@2026'
+
+    ProblemDetail:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: string
+
