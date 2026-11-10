@@ -1,0 +1,81 @@
+[
+  {
+    "id": "cand-001",
+    "lmsUserId": "std-001",
+    "email": "candidate1@rikkeijobs.test",
+    "fullName": "Nguyễn Văn An",
+    "phone": "0987654321",
+    "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=candidate1",
+    "title": "Java Backend Developer",
+    "headline": "Học viên xuất sắc khóa Java Fullstack Rikkei Academy, có kinh nghiệm thực tập IOC tại Rikkeisoft",
+    "program": "Lập trình Java Fullstack Chuyên sâu",
+    "classCode": "RA-JAVA-2026",
+    "overallScore": 84.5,
+    "level": "Tốt",
+    "skills": [
+      { "name": "Java", "score": 88, "level": "Xuất sắc", "verified": true },
+      { "name": "Spring Boot", "score": 85, "level": "Xuất sắc", "verified": true },
+      { "name": "SQL", "score": 82, "level": "Tốt", "verified": true },
+      { "name": "Git", "score": 78, "level": "Tốt", "verified": true },
+      { "name": "REST API", "score": 85, "level": "Xuất sắc", "verified": true },
+      { "name": "Docker", "score": 65, "level": "Khá", "verified": true },
+      { "name": "Unit Testing", "score": 75, "level": "Tốt", "verified": true },
+      { "name": "Tiếng Anh", "score": 60, "level": "Khá", "verified": false }
+    ],
+    "isPublic": true,
+    "createdAt": "2026-10-01T08:00:00Z"
+  },
+  {
+    "id": "cand-002",
+    "lmsUserId": "std-002",
+    "email": "candidate2@rikkeijobs.test",
+    "fullName": "Trần Thị Bình",
+    "phone": "0912345678",
+    "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=candidate2",
+    "title": "Frontend React Developer",
+    "headline": "Đam mê xây dựng trải nghiệm người dùng hiện đại với React 19, TypeScript và Tailwind CSS",
+    "program": "Lập trình Web Frontend Chuyên nghiệp",
+    "classCode": "RA-FE-2026",
+    "overallScore": 76.0,
+    "level": "Tốt",
+    "skills": [
+      { "name": "HTML/CSS", "score": 85, "level": "Xuất sắc", "verified": true },
+      { "name": "JavaScript", "score": 80, "level": "Tốt", "verified": true },
+      { "name": "ReactJS", "score": 78, "level": "Tốt", "verified": true },
+      { "name": "TypeScript", "score": 70, "level": "Tốt", "verified": true },
+      { "name": "Tailwind CSS", "score": 82, "level": "Tốt", "verified": true },
+      { "name": "Git", "score": 68, "level": "Khá", "verified": true },
+      { "name": "REST API", "score": 65, "level": "Khá", "verified": true },
+      { "name": "Tiếng Anh", "score": 72, "level": "Tốt", "verified": true }
+    ],
+    "isPublic": true,
+    "createdAt": "2026-10-05T08:00:00Z"
+  },
+  {
+    "id": "cand-003",
+    "lmsUserId": "std-003",
+    "email": "candidate3@rikkeijobs.test",
+    "fullName": "Lê Hoàng Cường",
+    "phone": "0934567890",
+    "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=candidate3",
+    "title": "Fullstack Web Intern (IOC)",
+    "headline": "Thực tập sinh IOC nhóm dự án Rikkei Jobs MVP, hoàn thành xuất sắc các module CSDL và Kafka",
+    "program": "Đào tạo Kỹ sư Phần mềm Toàn diện",
+    "classCode": "RA-FS-2026",
+    "overallScore": 89.0,
+    "level": "Xuất sắc",
+    "skills": [
+      { "name": "Java", "score": 90, "level": "Xuất sắc", "verified": true },
+      { "name": "Spring Boot", "score": 88, "level": "Xuất sắc", "verified": true },
+      { "name": "ReactJS", "score": 84, "level": "Tốt", "verified": true },
+      { "name": "TypeScript", "score": 80, "level": "Tốt", "verified": true },
+      { "name": "SQL", "score": 92, "level": "Xuất sắc", "verified": true },
+      { "name": "Docker", "score": 85, "level": "Xuất sắc", "verified": true },
+      { "name": "Apache Kafka", "score": 82, "level": "Tốt", "verified": true },
+      { "name": "Làm việc nhóm", "score": 95, "level": "Xuất sắc", "verified": true }
+    ],
+    "isPublic": true,
+    "createdAt": "2026-10-10T08:00:00Z"
+  }
+]
+

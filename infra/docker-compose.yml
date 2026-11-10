@@ -1,0 +1,65 @@
+services:
+  # Mock Server (WireMock) chạy trên cổng 9000 theo chuẩn dự án
+  wiremock:
+    image: wiremock/wiremock:3.5.4
+    container_name: rikkei_mock_server
+    ports:
+      - "9000:8080"
+    volumes:
+      - ./wiremock/mappings:/home/wiremock/mappings
+      - ./wiremock/__files:/home/wiremock/__files
+    environment:
+      - WIREMOCK_OPTIONS=--global-response-templating
+    restart: unless-stopped
+
+  # Cơ sở dữ liệu chính (PostgreSQL 17)
+  postgres:
+    image: postgres:17-alpine
+    container_name: rikkei_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-rikkei_jobs}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+
+  # In-memory Caching & Session (Redis 7)
+  redis:
+    image: redis:7-alpine
+    container_name: rikkei_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  # Mock Email Server (Mailpit: SMTP 1025, Web UI 8025)
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: rikkei_mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
+
+  # Object Storage (MinIO: API 9002, Console 9001 - cổng 9002 để tránh trùng Mock 9000)
+  minio:
+    image: minio/minio:latest
+    container_name: rikkei_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password123}
+    ports:
+      - "9002:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  miniodata:
+

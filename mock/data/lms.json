@@ -1,0 +1,94 @@
+{
+  "students": {
+    "std-001": {
+      "lmsUserId": "std-001",
+      "email": "candidate1@rikkeijobs.test",
+      "fullName": "Nguyễn Văn An",
+      "role": "STUDENT",
+      "program": "Lập trình Java Fullstack Chuyên sâu",
+      "classCode": "RA-JAVA-2026",
+      "courseName": "Khóa đào tạo Kỹ sư Phần mềm Java",
+      "results": [
+        { "subjectCode": "JV-01", "subjectName": "Java Core & OOP", "score": 8.8, "attendanceRate": 100.0, "homeworkRate": 96.0, "rpoint": 150 },
+        { "subjectCode": "DB-01", "subjectName": "Cơ sở dữ liệu SQL & PostgreSQL", "score": 8.2, "attendanceRate": 95.0, "homeworkRate": 90.0, "rpoint": 110 },
+        { "subjectCode": "SB-01", "subjectName": "Spring Boot RESTful Microservices", "score": 8.5, "attendanceRate": 98.0, "homeworkRate": 92.0, "rpoint": 130 },
+        { "subjectCode": "GIT-01", "subjectName": "Quản trị mã nguồn Git & GitHub", "score": 8.0, "attendanceRate": 100.0, "homeworkRate": 95.0, "rpoint": 90 }
+      ]
+    },
+    "std-002": {
+      "lmsUserId": "std-002",
+      "email": "candidate2@rikkeijobs.test",
+      "fullName": "Trần Thị Bình",
+      "role": "STUDENT",
+      "program": "Lập trình Web Frontend Chuyên nghiệp",
+      "classCode": "RA-FE-2026",
+      "courseName": "Khóa đào tạo Chuyên viên Frontend React",
+      "results": [
+        { "subjectCode": "FE-01", "subjectName": "HTML5, CSS3 & Responsive Design", "score": 8.6, "attendanceRate": 96.0, "homeworkRate": 95.0, "rpoint": 125 },
+        { "subjectCode": "JS-01", "subjectName": "JavaScript ES6+ & Asynchronous Programming", "score": 8.0, "attendanceRate": 92.0, "homeworkRate": 88.0, "rpoint": 100 },
+        { "subjectCode": "RC-01", "subjectName": "React 19 & TypeScript", "score": 7.8, "attendanceRate": 95.0, "homeworkRate": 90.0, "rpoint": 115 },
+        { "subjectCode": "TW-01", "subjectName": "Tailwind CSS & UI Components", "score": 8.3, "attendanceRate": 100.0, "homeworkRate": 94.0, "rpoint": 105 }
+      ]
+    },
+    "std-003": {
+      "lmsUserId": "std-003",
+      "email": "candidate3@rikkeijobs.test",
+      "fullName": "Lê Hoàng Cường",
+      "role": "STUDENT",
+      "program": "Đào tạo Kỹ sư Phần mềm Toàn diện",
+      "classCode": "RA-FS-2026",
+      "courseName": "Khóa đào tạo Kỹ sư Phần mềm Fullstack",
+      "results": [
+        { "subjectCode": "JV-01", "subjectName": "Java Core & OOP", "score": 9.2, "attendanceRate": 100.0, "homeworkRate": 98.0, "rpoint": 180 },
+        { "subjectCode": "SB-01", "subjectName": "Spring Boot & Cloud Native", "score": 8.9, "attendanceRate": 98.0, "homeworkRate": 95.0, "rpoint": 160 },
+        { "subjectCode": "RC-01", "subjectName": "React 19 & State Management", "score": 8.5, "attendanceRate": 96.0, "homeworkRate": 92.0, "rpoint": 130 },
+        { "subjectCode": "DK-01", "subjectName": "Docker & Kafka Message Queue", "score": 8.7, "attendanceRate": 97.0, "homeworkRate": 94.0, "rpoint": 140 }
+      ]
+    }
+  },
+  "courses": [
+    {
+      "courseId": "CRS-01",
+      "name": "Lập trình Spring Boot nâng cao & Microservices",
+      "skills": ["Spring Boot", "Microservices", "Docker", "Apache Kafka"],
+      "level": "Tốt"
+    },
+    {
+      "courseId": "CRS-02",
+      "name": "React 19 & Next.js Fullstack Architecture",
+      "skills": ["ReactJS", "TypeScript", "Tailwind CSS"],
+      "level": "Tốt"
+    },
+    {
+      "courseId": "CRS-03",
+      "name": "Tối ưu hóa CSDL quan hệ PostgreSQL",
+      "skills": ["SQL", "PostgreSQL", "Database Optimization"],
+      "level": "Khá"
+    },
+    {
+      "courseId": "CRS-04",
+      "name": "DevOps cơ bản: Docker, CI/CD và Linux",
+      "skills": ["Docker", "CI/CD", "Linux / Bash"],
+      "level": "Khá"
+    }
+  ],
+  "enrollments": [
+    {
+      "id": "enr-001",
+      "studentId": "std-001",
+      "courseId": "CRS-04",
+      "status": "IN_PROGRESS",
+      "progress": 45.0,
+      "enrolledAt": "2026-10-15T08:00:00Z"
+    },
+    {
+      "id": "enr-002",
+      "studentId": "std-002",
+      "courseId": "CRS-03",
+      "status": "IN_PROGRESS",
+      "progress": 30.0,
+      "enrolledAt": "2026-10-20T08:00:00Z"
+    }
+  ]
+}
+

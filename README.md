@@ -211,32 +211,14 @@ Không dùng Lombok. DTO dùng `record`, mapping dùng MapStruct.
 
 ```
 rikkei-job-project/
-├── backend/
-│   ├── pom.xml                      # Parent POM, quản lý phiên bản chung
-│   ├── common/                      # Lỗi chuẩn, security filter, audit client, test utilities
-│   ├── api-gateway/
-│   ├── assessment-service/          # catalog, form, scoring, badge, matching, gap
-│   ├── audit-service/               # consumer, store, query
-│   ├── auth-service/                # sso, hr-account, password, token
-│   ├── evidence-service/            # sync, source, evidence, override
-│   ├── job-service/                 # company, job, approval
-│   ├── learning-service/            # mapping, roadmap, enrollment, progress
-│   ├── notification-service/        # consumer, email, inapp
-│   ├── profile-service/             # profile, file, consent, search, contact
-│   └── recruitment-service/         # application, interview, offer, scheduler, meet, ioc
-├── ai-career-service/               # FastAPI, pyproject.toml, uv.lock
-├── frontend/                        # React, Vite, Tailwind, src/api/, src/features/, e2e/
-├── infra/
-│   ├── docker-compose.yml
-│   ├── init-db/                     # Script tạo database
-│   ├── wiremock/mappings/           # Giả lập LMS, Khảo thí, PM, Meet
-│   └── k8s/                         # Để dành giai đoạn sau
-├── docs/
-│   ├── api/                         # Bộ request Bruno và OpenAPI xuất ra
-│   ├── adr/                         # Architecture Decision Records
+├── backend/                         # 1 Gateway & 9 microservices Java (Spring Boot)
+├── frontend/                        # React 19 SPA, TypeScript, Vite, Tailwind CSS
+├── mock/                            # Mock API hệ thống ngoài (LMS, Khảo thí, PM, Meet) - Cổng 9000
+├── docs/                            # Tài liệu đặc tả, conventions, kiến trúc
+│   ├── conventions.md               # Quy ước Git, API, 5 vai trò, tài khoản mẫu, bậc kỹ năng
+│   ├── quy-chuan-api-response.md    # Chuẩn ApiResponse tiếng Việt, phân trang, xử lý lỗi
 │   └── tech-stack.md
-├── .github/workflows/               # CI: build, test, E2E
-├── .env.example
+├── infra/                           # Docker Compose, WireMock mappings, init-db
 └── README.md
 ```
 
@@ -249,31 +231,33 @@ rikkei-job-project/
 - Node.js (bản LTS) và npm
 - Python 3.12 và [uv](https://docs.astral.sh/uv/)
 
-### Cài đặt và chạy
+### Cài đặt và chạy nhanh (Quick Start)
 
+Dự án gồm 3 thành phần chính có thể khởi chạy độc lập:
+
+#### 1. Khởi động Mock Server hệ thống ngoài (LMS, Khảo thí, PM, Meet - Cổng 9000)
 ```bash
-# 1. Clone repository
-git clone <repository-url> rikkei-job-project
-cd rikkei-job-project
+cd mock
+npm start
+# Server lắng nghe tại http://localhost:9000 (Yêu cầu header X-Service-Key: dev-key)
+```
 
-# 2. Tạo file biến môi trường (không commit file .env)
-cp .env.example .env
-
-# 3. Khởi động hạ tầng (PostgreSQL, Redis, Kafka, MinIO, ClamAV, Mailpit, WireMock)
-docker compose -f infra/docker-compose.yml up -d
-
-# 4. Chạy backend (từng service, ví dụ auth-service)
-cd backend
-mvn -pl auth-service spring-boot:run
-
-# 5. Chạy frontend
-cd ../frontend
+#### 2. Khởi động Frontend (React 19 - Cổng 5173)
+```bash
+cd frontend
 npm install
 npm run dev
+# Truy cập giao diện tại http://localhost:5173
+```
 
-# 6. Chạy AI service (cần khóa LLM trong .env)
-cd ../ai-career-service
-uv run uvicorn <module>:app --port 8090
+#### 3. Khởi động Backend (Spring Boot Microservices)
+```bash
+# Tùy chọn A: Khởi động hạ tầng bổ trợ bằng Docker (PostgreSQL, Redis, Kafka, MinIO, Mailpit)
+docker compose -f infra/docker-compose.yml up -d
+
+# Tùy chọn B: Chạy service cụ thể bằng Gradle (ví dụ auth-service)
+cd backend/auth-service
+./gradlew bootRun
 ```
 
 > Lưu ý: ClamAV mất vài phút để tải dữ liệu virus ở lần khởi động đầu. Tên module Uvicorn (`<module>`) sẽ được cập nhật khi service được khởi tạo.
@@ -291,30 +275,29 @@ uv run uvicorn <module>:app --port 8090
 | PostgreSQL | 5432 |
 | Redis | 6379 |
 | Kafka | 9092 |
-| MinIO (API / Console) | 9000 / 9001 |
+| MinIO (API / Console) | 9002 / 9001 |
 | ClamAV | 3310 |
 | Mailpit (SMTP / Web) | 1025 / 8025 |
-| WireMock | 8089 |
+| WireMock (Mock API) | 9000 |
 
 ## 8. Quy ước phát triển
+
+> Chi tiết đầy đủ xem tại: **[docs/conventions.md](docs/conventions.md)**
 
 | Hạng mục | Quy ước |
 |---|---|
 | API | Prefix `/api/v1/`, danh từ số nhiều, JSON camelCase |
-| Lỗi | ProblemDetail (RFC 9457), không trả stack trace |
-| Phân trang | `?page=0&size=20&sort=createdAt,desc` |
-| Thời gian | Lưu UTC (`timestamptz`), trả về ISO-8601 |
-| Khóa định danh | UUID |
-| Phân quyền | Vai trò kiểm tra ở controller (`@PreAuthorize`), quyền sở hữu kiểm tra ở tầng service |
-| Package | `vn.rikkei.jobs.<service>.<module>.{api, application, domain, infrastructure}` |
-| DTO và entity | DTO dùng record, không trả entity trực tiếp ra API |
-| Migration | `V<số>__<mô_tả>.sql`, không sửa migration đã merge |
-| Nhánh Git | `main` được bảo vệ, nhánh tính năng `feature/<service>-<mô-tả>` |
+| Xác thực API | Header `Authorization: Bearer <JWT>` |
+| Lỗi API | Trả về `{code, message}` với HTTP 400, 401, 403, 404, 409, 429 |
+| Phân trang | `?page=1&size=20` (bắt đầu từ 1) trả về `{items, total, page, size}` |
+| Thời gian | Lưu UTC (`timestamptz`), trả về ISO 8601 |
+| 5 Vai trò | `CANDIDATE`, `HR`, `MENTOR`, `STAFF`, `ADMIN` |
+| Tài khoản mẫu | Mật khẩu `Test@123`, đuôi `@rikkeijobs.test` (8 tài khoản mẫu trong conventions.md) |
+| Nhánh Git | `main` (production), `develop` (tích hợp), nhánh tính năng `feature/<mã>-<tên>` (vd: `feature/NT-01-login`) |
+| Pull Request | **Mọi PR đều trỏ vào `develop`**, tiêu đề bắt đầu bằng mã task: `[<mã-task>] ...` (vd: `[NT-01] Xây dựng đăng nhập`) |
 | Commit | [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:` |
-| Pull Request | Tối thiểu 1 người approve, CI phải xanh, ưu tiên PR dưới khoảng 400 dòng thay đổi |
-| Code style | Backend: Spotless (google-java-format). Frontend: ESLint, Prettier. AI: Ruff |
-| Log | Không log email, SĐT, mã học viên, token, mật khẩu |
-| Secret | Không commit secret, mô tả biến môi trường trong `.env.example` |
+| Mock hệ thống ngoài | Chạy tại `mock/`, cổng `9000`, bắt buộc header `X-Service-Key: dev-key` (sai/thiếu -> 401) |
+| Thang bậc kỹ năng | ~20 kỹ năng mẫu; 0–39 Cơ bản, 40–69 Khá, 70–84 Tốt, 85–100 Xuất sắc |
 
 ### Quy ước frontend
 
@@ -416,6 +399,8 @@ Gồm 5 sprint (mỗi sprint 2 tuần), tuần 11 dự phòng.
 |---|---|
 | Đặc tả dự án | `docs/mo-ta-du-an-rikkei-jobs.md` |
 | Tech stack và kiến trúc (MVP) | `docs/tech-stack.md` |
+| Quy chuẩn dự án (Conventions) | `docs/conventions.md` |
+| Quy chuẩn API Response | `docs/quy-chuan-api-response.md` |
 | Architecture Decision Records | `docs/adr/` |
 | Bộ request Bruno và OpenAPI | `docs/api/` |
 

@@ -1,0 +1,23 @@
+[
+  { "id": "skl-01", "name": "Java", "category": "Backend", "description": "Lập trình hướng đối tượng, Java 17+, Stream API" },
+  { "id": "skl-02", "name": "Spring Boot", "category": "Backend", "description": "Spring MVC, Spring Data JPA, Spring Security" },
+  { "id": "skl-03", "name": "SQL", "category": "Database", "description": "PostgreSQL, MySQL, thiết kế quan hệ, tối ưu truy vấn" },
+  { "id": "skl-04", "name": "Git", "category": "DevOps", "description": "Quản lý mã nguồn, Git flow, conflict resolution" },
+  { "id": "skl-05", "name": "REST API", "category": "Architecture", "description": "Thiết kế chuẩn RESTful, status code, OpenAPI/Swagger" },
+  { "id": "skl-06", "name": "HTML/CSS", "category": "Frontend", "description": "Semantic HTML5, Flexbox, Grid, Responsive" },
+  { "id": "skl-07", "name": "JavaScript", "category": "Frontend", "description": "ES6+, Async/Await, Promise, DOM" },
+  { "id": "skl-08", "name": "ReactJS", "category": "Frontend", "description": "React 19, Hooks, State management, Component lifecycle" },
+  { "id": "skl-09", "name": "TypeScript", "category": "Frontend", "description": "Static typing, Interfaces, Generics với React" },
+  { "id": "skl-10", "name": "Docker", "category": "DevOps", "description": "Dockerfile, Docker Compose, containerization" },
+  { "id": "skl-11", "name": "Tiếng Anh", "category": "Language", "description": "Đọc hiểu tài liệu kỹ thuật, giao tiếp cơ bản" },
+  { "id": "skl-12", "name": "Python", "category": "Backend / AI", "description": "Lập trình Python 3+, FastAPI, xử lý dữ liệu" },
+  { "id": "skl-13", "name": "Microservices", "category": "Architecture", "description": "Kiến trúc vi dịch vụ, API Gateway, Service discovery" },
+  { "id": "skl-14", "name": "Redis", "category": "Database", "description": "In-memory caching, Distributed lock, TTL" },
+  { "id": "skl-15", "name": "Apache Kafka", "category": "Messaging", "description": "Event-driven, Pub/Sub, Transactional Outbox" },
+  { "id": "skl-16", "name": "Unit Testing", "category": "Testing", "description": "JUnit 5, Mockito, AssertJ, Vitest" },
+  { "id": "skl-17", "name": "CI/CD", "category": "DevOps", "description": "GitHub Actions, automated build and test pipeline" },
+  { "id": "skl-18", "name": "Linux / Bash", "category": "System", "description": "Lệnh Linux, quản lý tiến trình, shell scripting" },
+  { "id": "skl-19", "name": "Tailwind CSS", "category": "Frontend", "description": "Utility-first styling, responsive UI, shadcn/ui" },
+  { "id": "skl-20", "name": "Làm việc nhóm", "category": "Soft Skills", "description": "Phối hợp Scrum/Agile, giao tiếp và giải quyết vấn đề" }
+]
+
