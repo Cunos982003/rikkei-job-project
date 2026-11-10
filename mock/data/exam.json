@@ -1,0 +1,18 @@
+{
+  "std-001": [
+    { "examCode": "EXAM-JV-2026", "subjectCode": "JV-01", "score": 88.0, "takenAt": "2026-09-20T09:00:00Z" },
+    { "examCode": "EXAM-DB-2026", "subjectCode": "DB-01", "score": 82.0, "takenAt": "2026-09-25T09:00:00Z" },
+    { "examCode": "EXAM-SB-2026", "subjectCode": "SB-01", "score": 85.0, "takenAt": "2026-10-05T09:00:00Z" }
+  ],
+  "std-002": [
+    { "examCode": "EXAM-FE-2026", "subjectCode": "FE-01", "score": 85.0, "takenAt": "2026-09-22T09:00:00Z" },
+    { "examCode": "EXAM-JS-2026", "subjectCode": "JS-01", "score": 80.0, "takenAt": "2026-09-28T09:00:00Z" },
+    { "examCode": "EXAM-RC-2026", "subjectCode": "RC-01", "score": 78.0, "takenAt": "2026-10-08T09:00:00Z" }
+  ],
+  "std-003": [
+    { "examCode": "EXAM-JV-2026", "subjectCode": "JV-01", "score": 92.0, "takenAt": "2026-09-20T09:00:00Z" },
+    { "examCode": "EXAM-SB-2026", "subjectCode": "SB-01", "score": 89.0, "takenAt": "2026-10-05T09:00:00Z" },
+    { "examCode": "EXAM-RC-2026", "subjectCode": "RC-01", "score": 86.0, "takenAt": "2026-10-08T09:00:00Z" }
+  ]
+}
+
