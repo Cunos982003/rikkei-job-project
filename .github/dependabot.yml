@@ -1,0 +1,87 @@
+version: 2
+updates:
+  # Backend - Gradle dependencies
+  - package-ecosystem: "gradle"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    labels:
+      - "dependencies"
+      - "backend"
+    groups:
+      spring-boot:
+        patterns:
+          - "org.springframework.boot*"
+      spring-framework:
+        patterns:
+          - "org.springframework*"
+      testing:
+        patterns:
+          - "*test*"
+          - "*junit*"
+          - "*mockito*"
+          - "*assertj*"
+      security:
+        patterns:
+          - "*security*"
+          - "*crypto*"
+    open-pull-requests-limit: 10
+
+  # Frontend - npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    labels:
+      - "dependencies"
+      - "frontend"
+    groups:
+      react:
+        patterns:
+          - "react*"
+          - "@types/react*"
+      tailwind:
+        patterns:
+          - "tailwind*"
+          - "@tailwindcss*"
+      testing:
+        patterns:
+          - "*test*"
+          - "*vitest*"
+          - "*playwright*"
+          - "@testing-library*"
+      linting:
+        patterns:
+          - "*lint*"
+          - "*eslint*"
+          - "*prettier*"
+          - "oxlint"
+    open-pull-requests-limit: 10
+
+  # Docker - base image updates
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    labels:
+      - "dependencies"
+      - "docker"
+    open-pull-requests-limit: 5
+
+  # GitHub Actions - workflow dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    open-pull-requests-limit: 5

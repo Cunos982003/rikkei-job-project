@@ -1,0 +1,77 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'backend/**'
+  pull_request:
+    branches: [dev]
+    paths:
+      - 'backend/**'
+
+env:
+  JAVA_VERSION: '25'
+  GRADLE_VERSION: '8.10'
+
+jobs:
+  build-and-test:
+    name: Build and Test Backend Services
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: ${{ env.GRADLE_VERSION }}
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Build all backend services
+        run: |
+          cd backend
+          for dir in */; do
+            if [ -f "${dir}build.gradle" ] || [ -f "${dir}build.gradle.kts" ]; then
+              echo "Building ${dir%/}..."
+              (cd "$dir" && ./gradlew build --no-daemon)
+            fi
+          done
+
+      - name: Run tests for all backend services
+        run: |
+          cd backend
+          for dir in */; do
+            if [ -f "${dir}build.gradle" ] || [ -f "${dir}build.gradle.kts" ]; then
+              echo "Testing ${dir%/}..."
+              (cd "$dir" && ./gradlew test --no-daemon)
+            fi
+          done
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: |
+            backend/**/build/reports/tests/
+            backend/**/build/test-results/
+          retention-days: 7
