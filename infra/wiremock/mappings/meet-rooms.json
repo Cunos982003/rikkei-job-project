@@ -1,0 +1,23 @@
+{
+  "priority": 1,
+  "request": {
+    "method": "POST",
+    "urlPattern": "/meet/rooms",
+    "headers": {
+      "X-Service-Key": {
+        "equalTo": "dev-key"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8"
+    },
+    "jsonBody": {
+      "title": "Phỏng vấn ứng viên tuyển dụng Rikkei Jobs",
+      "roomUrl": "https://meet.rikkei.edu.vn/room/mock-wiremock-interview"
+    }
+  }
+}
+

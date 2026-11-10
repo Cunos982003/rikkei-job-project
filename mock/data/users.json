@@ -1,0 +1,60 @@
+[
+  {
+    "id": "usr-001",
+    "email": "candidate1@rikkeijobs.test",
+    "fullName": "Nguyễn Văn An",
+    "role": "CANDIDATE",
+    "lmsUserId": "std-001"
+  },
+  {
+    "id": "usr-002",
+    "email": "candidate2@rikkeijobs.test",
+    "fullName": "Trần Thị Bình",
+    "role": "CANDIDATE",
+    "lmsUserId": "std-002"
+  },
+  {
+    "id": "usr-003",
+    "email": "candidate3@rikkeijobs.test",
+    "fullName": "Lê Hoàng Cường",
+    "role": "CANDIDATE",
+    "lmsUserId": "std-003"
+  },
+  {
+    "id": "usr-004",
+    "email": "hr1@rikkeijobs.test",
+    "fullName": "Trần Thị Mai (HR)",
+    "role": "HR",
+    "companyId": "comp-001",
+    "companyName": "Công ty Cổ phần Rikkeisoft (Công ty A)"
+  },
+  {
+    "id": "usr-005",
+    "email": "hr2@rikkeijobs.test",
+    "fullName": "Lê Hoàng Nam (HR)",
+    "role": "HR",
+    "companyId": "comp-002",
+    "companyName": "Rikkei Digital Solutions (Công ty B)"
+  },
+  {
+    "id": "usr-006",
+    "email": "mentor1@rikkeijobs.test",
+    "fullName": "Phạm Minh Đức",
+    "role": "MENTOR",
+    "specialty": "Java, Cloud & Software Architecture"
+  },
+  {
+    "id": "usr-007",
+    "email": "staff1@rikkeijobs.test",
+    "fullName": "Hoàng Thu Hà",
+    "role": "STAFF",
+    "department": "Phòng Tuyển sinh & Hướng nghiệp"
+  },
+  {
+    "id": "usr-008",
+    "email": "admin1@rikkeijobs.test",
+    "fullName": "Quản trị viên Hệ thống",
+    "role": "ADMIN"
+  }
+]
+
