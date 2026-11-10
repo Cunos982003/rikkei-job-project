@@ -7,6 +7,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.example.ai_career_service.dto.SkillGapResponse;
 import com.example.ai_career_service.model.JobRecommendation;
 import com.example.ai_career_service.provider.AIProvider;
 import com.example.ai_career_service.repository.JobRecommendationRepository;
@@ -38,11 +39,14 @@ class CareerServiceTests {
                 .mapToObj(index -> new RecommendationSnapshot.EligibleJob(
                         "job-" + index,
                         "revision-" + index,
-                        index,
-                        List.of(new RecommendationSnapshot.SkillRequirement("Java", 50))))
+                        List.of(new RecommendationSnapshot.SkillRequirement(
+                                "Java", 100 - index * 5, RecommendationSnapshot.RequirementType.REQUIRED))))
                 .toList();
         when(dataSource.loadSnapshot("candidate-1"))
-                .thenReturn(new RecommendationSnapshot("profile-v1", List.of(), jobs));
+                .thenReturn(new RecommendationSnapshot(
+                        "profile-v1",
+                        List.of(new RecommendationSnapshot.VerifiedSkill("Java", 50)),
+                        jobs));
         when(repository.findByUserIdAndJobId(any(), any())).thenReturn(Optional.empty());
         when(repository.save(any(JobRecommendation.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(aiProvider.generateExplanation(any())).thenReturn("AI explanation");
@@ -64,8 +68,8 @@ class CareerServiceTests {
         var job = new RecommendationSnapshot.EligibleJob(
                 "job-1",
                 "revision-1",
-                72,
-                List.of(new RecommendationSnapshot.SkillRequirement("Java", 70)));
+                List.of(new RecommendationSnapshot.SkillRequirement(
+                        "Java", 70, RecommendationSnapshot.RequirementType.REQUIRED)));
         when(dataSource.loadSnapshot("candidate-1"))
                 .thenReturn(new RecommendationSnapshot(
                         "profile-v1",
@@ -79,7 +83,39 @@ class CareerServiceTests {
         CareerService service = new CareerService(dataSource, repository, aiProvider, directExecutor);
         var recommendation = service.getRecommendations("candidate-1", 10).get(0);
 
+        assertThat(recommendation.score()).isEqualTo(100);
         assertThat(recommendation.explanation()).contains("Java");
         assertThat(recommendation.explanation().split("\\s+")).hasSizeLessThanOrEqualTo(60);
+    }
+
+    @Test
+    void returnsDn06AndSkillGapsIncludingUnmetRequiredSkills() {
+        var job = new RecommendationSnapshot.EligibleJob(
+                "job-1",
+                "revision-1",
+                List.of(
+                        new RecommendationSnapshot.SkillRequirement(
+                                "Java", 80, RecommendationSnapshot.RequirementType.REQUIRED),
+                        new RecommendationSnapshot.SkillRequirement(
+                                "Docker", 50, RecommendationSnapshot.RequirementType.PREFERRED)));
+        when(dataSource.loadSnapshot("candidate-1"))
+                .thenReturn(new RecommendationSnapshot(
+                        "profile-v1",
+                        List.of(new RecommendationSnapshot.VerifiedSkill("Java", 60)),
+                        List.of(job)));
+        when(repository.findByUserIdAndJobId("candidate-1", "job-1")).thenReturn(Optional.empty());
+        when(repository.save(any(JobRecommendation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(aiProvider.generateExplanation(any())).thenReturn("Skills need improvement");
+
+        CareerService service = new CareerService(dataSource, repository, aiProvider, directExecutor);
+        var recommendation = service.getRecommendations("candidate-1", 10).get(0);
+
+        assertThat(recommendation.score()).isEqualTo(37.5);
+        assertThat(recommendation.missingRequiredSkills()).containsExactly("Java");
+        assertThat(recommendation.skillGaps()).containsExactly(
+                new SkillGapResponse(
+                        "Java", 60, 80, 20, true),
+                new SkillGapResponse(
+                        "Docker", null, 50, 50, false));
     }
 }

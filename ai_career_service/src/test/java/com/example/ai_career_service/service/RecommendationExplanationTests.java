@@ -18,16 +18,18 @@ class RecommendationExplanationTests {
         var job = new RecommendationSnapshot.EligibleJob(
                 "job-1",
                 "job-v1",
-                75,
                 List.of(
-                        new RecommendationSnapshot.SkillRequirement("Java", 70),
-                        new RecommendationSnapshot.SkillRequirement("Kotlin", 60),
-                        new RecommendationSnapshot.SkillRequirement("SQL", 50)));
+                        new RecommendationSnapshot.SkillRequirement(
+                                "Java", 70, RecommendationSnapshot.RequirementType.REQUIRED),
+                        new RecommendationSnapshot.SkillRequirement(
+                                "Kotlin", 60, RecommendationSnapshot.RequirementType.PREFERRED),
+                        new RecommendationSnapshot.SkillRequirement(
+                                "SQL", 50, RecommendationSnapshot.RequirementType.REQUIRED)));
 
         String prompt = RecommendationExplanation.createPrompt(snapshot, job).toUserPrompt();
 
-        assertThat(prompt).contains("Java", "85", "70", "Kotlin", "40", "60", "SQL", "chưa có");
-        assertThat(prompt).doesNotContain("profile-v1", "job-1", "job-v1", "75");
+        assertThat(prompt).contains("Java", "85", "70", "bắt buộc", "Kotlin", "40", "60", "ưu tiên", "SQL", "chưa có");
+        assertThat(prompt).doesNotContain("profile-v1", "job-1", "job-v1");
     }
 
     @Test
@@ -39,10 +41,11 @@ class RecommendationExplanationTests {
         var job = new RecommendationSnapshot.EligibleJob(
                 "job-1",
                 "job-v1",
-                75,
                 List.of(
-                        new RecommendationSnapshot.SkillRequirement("Java", 70),
-                        new RecommendationSnapshot.SkillRequirement("Docker", 60)));
+                        new RecommendationSnapshot.SkillRequirement(
+                                "Java", 70, RecommendationSnapshot.RequirementType.REQUIRED),
+                        new RecommendationSnapshot.SkillRequirement(
+                                "Docker", 60, RecommendationSnapshot.RequirementType.PREFERRED)));
 
         String fallback = RecommendationExplanation.fallback(
                 RecommendationExplanation.createPrompt(snapshot, job));

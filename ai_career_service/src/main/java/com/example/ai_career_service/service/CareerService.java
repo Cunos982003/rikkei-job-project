@@ -1,6 +1,7 @@
 package com.example.ai_career_service.service;
 
 import com.example.ai_career_service.dto.JobRecommendationResponse;
+import com.example.ai_career_service.dto.SkillGapResponse;
 import com.example.ai_career_service.dto.prompt.RecommendationPrompt;
 import com.example.ai_career_service.model.JobRecommendation;
 import com.example.ai_career_service.provider.AIProvider;
@@ -36,15 +37,17 @@ public class CareerService {
     public List<JobRecommendationResponse> getRecommendations(String userId, int limit) {
         RecommendationSnapshot snapshot = dataSource.loadSnapshot(userId);
         Instant now = Instant.now();
-        List<RecommendationSnapshot.EligibleJob> jobs = snapshot.eligibleJobs().stream()
-                .sorted((first, second) -> Double.compare(second.dn06Score(), first.dn06Score()))
+        List<ScoredJob> jobs = snapshot.eligibleJobs().stream()
+                .map(job -> new ScoredJob(job, JobMatchScorer.score(snapshot.verifiedSkills(), job.requirements())))
+                .sorted((first, second) -> Double.compare(second.match().score(), first.match().score()))
                 .limit(limit)
                 .toList();
 
         List<PendingRecommendation> pending = new java.util.ArrayList<>();
         JobRecommendationResponse[] results = new JobRecommendationResponse[jobs.size()];
         for (int index = 0; index < jobs.size(); index++) {
-            RecommendationSnapshot.EligibleJob job = jobs.get(index);
+            ScoredJob scoredJob = jobs.get(index);
+            RecommendationSnapshot.EligibleJob job = scoredJob.job();
             RecommendationPrompt prompt = RecommendationExplanation.createPrompt(snapshot, job);
             boolean aiExplanation = index < AI_EXPLANATION_LIMIT;
             String inputHash = inputHash(snapshot, job, aiExplanation);
@@ -54,7 +57,7 @@ public class CareerService {
 
             if (cached.isPresent()) {
                 JobRecommendation recommendation = cached.get();
-                results[index] = toResponse(recommendation);
+                results[index] = toResponse(recommendation, scoredJob.match());
                 continue;
             }
 
@@ -75,43 +78,59 @@ public class CareerService {
                             })
                     : CompletableFuture.completedFuture(fallback);
 
-            pending.add(new PendingRecommendation(index, job, inputHash, cached.orElse(null), explanation, now));
+            pending.add(new PendingRecommendation(
+                    index, job, scoredJob.match(), inputHash, cached.orElse(null), explanation, now));
         }
         for (PendingRecommendation item : pending) {
             JobRecommendation recommendation = item.cached() == null ? new JobRecommendation() : item.cached();
             recommendation.setUserId(userId);
             recommendation.setJobId(item.job().jobId());
-            recommendation.setScore(item.job().dn06Score());
+            recommendation.setScore(item.match().score());
             recommendation.setExplanation(RecommendationExplanation.limitWords(item.explanation().join()));
             recommendation.setCreatedAt(item.createdAt());
             recommendation.setInputHash(item.inputHash());
-            results[item.index()] = toResponse(repository.save(recommendation));
+            results[item.index()] = toResponse(repository.save(recommendation), item.match());
         }
         return java.util.Arrays.asList(results);
+    }
+
+    private record ScoredJob(RecommendationSnapshot.EligibleJob job, JobMatchScorer.MatchResult match) {
     }
 
     private record PendingRecommendation(
             int index,
             RecommendationSnapshot.EligibleJob job,
+            JobMatchScorer.MatchResult match,
             String inputHash,
             JobRecommendation cached,
             CompletableFuture<String> explanation,
             Instant createdAt) {
     }
 
-    private JobRecommendationResponse toResponse(JobRecommendation recommendation) {
+    private JobRecommendationResponse toResponse(
+            JobRecommendation recommendation,
+            JobMatchScorer.MatchResult match) {
         return new JobRecommendationResponse(
                 recommendation.getJobId(),
                 recommendation.getScore(),
                 recommendation.getExplanation(),
-                recommendation.getCreatedAt());
+                recommendation.getCreatedAt(),
+                match.missingRequiredSkills(),
+                match.skillGaps().stream()
+                        .map(gap -> new SkillGapResponse(
+                                gap.name(),
+                                gap.verifiedIndex(),
+                                gap.requiredIndex(),
+                                gap.gap(),
+                                gap.type() == RecommendationSnapshot.RequirementType.REQUIRED))
+                        .toList());
     }
 
     private String inputHash(
             RecommendationSnapshot snapshot,
             RecommendationSnapshot.EligibleJob job,
             boolean aiExplanation) {
-        String canonical = snapshot.profileRevision() + "|" + job.jobRevision() + "|" + job.dn06Score()
+        String canonical = "dn06-v1|" + snapshot.profileRevision() + "|" + job.jobRevision()
                 + "|aiExplanation=" + aiExplanation + "|"
                 + snapshot.verifiedSkills().stream()
                         .sorted(java.util.Comparator.comparing(RecommendationSnapshot.VerifiedSkill::name))
@@ -119,7 +138,7 @@ public class CareerService {
                         .reduce("", (first, second) -> first + "|" + second)
                 + job.requirements().stream()
                         .sorted(java.util.Comparator.comparing(RecommendationSnapshot.SkillRequirement::name))
-                        .map(skill -> "|" + skill.name() + ":" + skill.requiredIndex())
+                        .map(skill -> "|" + skill.name() + ":" + skill.requiredIndex() + ":" + skill.type())
                         .reduce("", String::concat);
         try {
             return HexFormat.of().formatHex(

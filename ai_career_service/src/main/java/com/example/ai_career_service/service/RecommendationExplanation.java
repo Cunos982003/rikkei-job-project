@@ -10,17 +10,17 @@ public final class RecommendationExplanation {
     }
 
     public static RecommendationPrompt createPrompt(RecommendationSnapshot snapshot, RecommendationSnapshot.EligibleJob job) {
-        var verified = snapshot.verifiedSkills().stream()
-                .collect(java.util.stream.Collectors.toMap(
-                        skill -> normalize(skill.name()),
-                        RecommendationSnapshot.VerifiedSkill::index,
-                        Math::max));
+        var verified = JobMatchScorer.verifiedIndexes(snapshot.verifiedSkills());
         var matched = new java.util.ArrayList<SkillComparison>();
         var missing = new java.util.ArrayList<SkillComparison>();
 
         for (var requirement : job.requirements()) {
-            Integer index = verified.get(normalize(requirement.name()));
-            var comparison = new SkillComparison(requirement.name(), index, requirement.requiredIndex());
+            Integer index = verified.get(JobMatchScorer.normalize(requirement.name()));
+            var comparison = new SkillComparison(
+                    requirement.name(),
+                    index,
+                    requirement.requiredIndex(),
+                    requirement.type() == RecommendationSnapshot.RequirementType.REQUIRED);
             if (index != null && index >= requirement.requiredIndex()) {
                 matched.add(comparison);
             } else {
@@ -55,7 +55,4 @@ public final class RecommendationExplanation {
         return skills.stream().map(SkillComparison::name).distinct().reduce((a, b) -> a + ", " + b).orElse("");
     }
 
-    private static String normalize(String value) {
-        return value.trim().toLowerCase(java.util.Locale.ROOT);
-    }
 }

@@ -21,14 +21,21 @@ public record RecommendationPrompt(
             return "không có";
         }
         return skills.stream()
-                .map(skill -> "%s (chỉ số đã xác thực: %s; mức JD yêu cầu: %d)"
+                .map(skill -> "%s (%s; chỉ số đã xác thực: %s; mức JD yêu cầu: %d)"
                         .formatted(
                                 skill.name(),
+                                skill.required()
+                                        ? "bắt buộc"
+                                        : "ưu tiên",
                                 skill.verifiedIndex() == null ? "chưa có" : skill.verifiedIndex(),
                                 skill.requiredIndex()))
                 .collect(Collectors.joining(", "));
     }
 
-    public record SkillComparison(String name, Integer verifiedIndex, int requiredIndex) {
+    public record SkillComparison(
+            String name,
+            Integer verifiedIndex,
+            int requiredIndex,
+            boolean required) {
     }
 }

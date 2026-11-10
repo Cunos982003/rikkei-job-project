@@ -24,25 +24,27 @@ public record RecommendationSnapshot(
     public record EligibleJob(
             String jobId,
             String jobRevision,
-            double dn06Score,
             List<SkillRequirement> requirements) {
         public EligibleJob {
             if (jobId == null || jobId.isBlank()) {
                 throw new IllegalArgumentException("jobId must not be blank");
             }
             jobRevision = Objects.requireNonNull(jobRevision, "jobRevision");
-            if (!Double.isFinite(dn06Score) || dn06Score < 0 || dn06Score > 100) {
-                throw new IllegalArgumentException("DN-06 score must be between 0 and 100");
-            }
             requirements = List.copyOf(requirements);
         }
     }
 
-    public record SkillRequirement(String name, int requiredIndex) {
+    public record SkillRequirement(String name, int requiredIndex, RequirementType type) {
         public SkillRequirement {
             requireSkillName(name);
             requireIndex(requiredIndex);
+            type = Objects.requireNonNull(type, "type");
         }
+    }
+
+    public enum RequirementType {
+        REQUIRED,
+        PREFERRED
     }
 
     private static void requireSkillName(String name) {

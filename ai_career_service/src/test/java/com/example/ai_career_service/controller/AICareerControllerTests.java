@@ -32,7 +32,13 @@ class AICareerControllerTests {
     void delegatesRecommendationsForAuthenticatedCandidate() {
         Principal principal = () -> "candidate-1";
         List<JobRecommendationResponse> expected = List.of(
-                new JobRecommendationResponse("job-1", 87.5, "Strong skill match", Instant.parse("2026-01-01T00:00:00Z")));
+                new JobRecommendationResponse(
+                        "job-1",
+                        87.5,
+                        "Strong skill match",
+                        Instant.parse("2026-01-01T00:00:00Z"),
+                        List.of(),
+                        List.of()));
         when(careerService.getRecommendations("candidate-1", 5)).thenReturn(expected);
 
         List<JobRecommendationResponse> actual = controller.getRecommendations(principal, 5);
