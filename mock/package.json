@@ -1,0 +1,15 @@
+{
+  "name": "rikkei-jobs-mock-server",
+  "version": "1.0.0",
+  "description": "Mock API Server cho dự án Rikkei Jobs chạy trên cổng 9000, tuân thủ ApiResponse chuẩn",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js"
+  },
+  "keywords": ["mock", "rikkei-jobs", "api-mock"],
+  "author": "Rikkei Jobs Team",
+  "license": "ISC"
+}
+

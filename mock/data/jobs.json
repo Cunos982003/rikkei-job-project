@@ -1,0 +1,45 @@
+[
+  {
+    "id": "job-001",
+    "title": "Java Backend Developer (Fresher / Junior)",
+    "companyId": "comp-001",
+    "companyName": "Công ty Cổ phần Rikkeisoft",
+    "location": "Hà Nội",
+    "salaryMin": 12000000,
+    "salaryMax": 18000000,
+    "jobType": "FULL_TIME",
+    "requiredSkills": ["Java", "Spring Boot", "SQL", "Git", "REST API"],
+    "description": "Tham gia phát triển các dự án tài chính, ngân hàng và thương mại điện tử quy mô lớn. Làm việc với Spring Boot, PostgreSQL, Kafka.",
+    "status": "PUBLISHED",
+    "createdAt": "2026-10-15T08:00:00Z"
+  },
+  {
+    "id": "job-002",
+    "title": "Frontend React Developer (Fresher)",
+    "companyId": "comp-002",
+    "companyName": "Rikkei Digital Solutions",
+    "location": "Đà Nẵng",
+    "salaryMin": 10000000,
+    "salaryMax": 16000000,
+    "jobType": "FULL_TIME",
+    "requiredSkills": ["ReactJS", "TypeScript", "HTML/CSS", "JavaScript", "Tailwind CSS"],
+    "description": "Phát triển giao diện ứng dụng web responsive, tích hợp REST API, tối ưu hiệu năng trang web cho thị trường Nhật Bản và Việt Nam.",
+    "status": "PUBLISHED",
+    "createdAt": "2026-10-20T08:00:00Z"
+  },
+  {
+    "id": "job-003",
+    "title": "Thực tập sinh Fullstack (Dự án IOC)",
+    "companyId": "comp-001",
+    "companyName": "Công ty Cổ phần Rikkeisoft",
+    "location": "Hà Nội / Hồ Chí Minh",
+    "salaryMin": 5000000,
+    "salaryMax": 8000000,
+    "jobType": "INTERNSHIP",
+    "requiredSkills": ["Java", "Spring Boot", "ReactJS", "SQL", "Làm việc nhóm"],
+    "description": "Tham gia đợt thực tập dự án thực chiến IOC, được Mentor hướng dẫn 1-1, cơ hội trở thành nhân viên chính thức sau khi tốt nghiệp.",
+    "status": "PUBLISHED",
+    "createdAt": "2026-10-25T08:00:00Z"
+  }
+]
+
