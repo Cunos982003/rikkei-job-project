@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 public class RoleMapper {
 
     private static final Set<String> VALID_LMS_ROLES = Set.of(
+        "STUDENT",
         "CANDIDATE",
         "MENTOR",
         "STAFF",
@@ -30,7 +31,11 @@ public class RoleMapper {
             throw new SsoException(ErrorCode.INVALID_ROLE, "Role '" + rawRole + "' is not a valid LMS role in NT-01");
         }
 
-        return "ROLE_" + normalized;
+        if ("STUDENT".equals(normalized) || "CANDIDATE".equals(normalized)) {
+            return "CANDIDATE";
+        }
+
+        return normalized;
     }
 }
 

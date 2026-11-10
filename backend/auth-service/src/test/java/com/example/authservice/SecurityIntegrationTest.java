@@ -217,7 +217,7 @@ class SecurityIntegrationTest {
         org.assertj.core.api.Assertions.assertThat(claims.get("password")).isNull();
         org.assertj.core.api.Assertions.assertThat(claims.get("passwordHash")).isNull();
         org.assertj.core.api.Assertions.assertThat(claims.get("lockedUntil")).isNull();
-        org.assertj.core.api.Assertions.assertThat(claims.get("failedLoginAttempts")).isNull();
+        org.assertj.core.api.Assertions.assertThat(claims.get("failedLoginCount")).isNull();
         org.assertj.core.api.Assertions.assertThat(claims.get("role")).isEqualTo("ROLE_HR");
         org.assertj.core.api.Assertions.assertThat(claims.get("roles")).isNotNull();
     }

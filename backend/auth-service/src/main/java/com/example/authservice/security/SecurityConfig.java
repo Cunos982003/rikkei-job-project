@@ -79,19 +79,20 @@ public class SecurityConfig {
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                     ErrorResponse error = new ErrorResponse(
                         HttpServletResponse.SC_FORBIDDEN,
-                        "FORBIDDEN",
-                        "Access denied: You do not have permission to access this resource"
+                        "MUST_CHANGE_PASSWORD",
+                        "Access denied: You must change your password before continuing"
                     );
                     objectMapper.writeValue(response.getOutputStream(), error);
                 })
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/auth/sso").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/auth/hr/login").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/auth/forgot-password").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/auth/reset-password").permitAll()
+                .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/sso", "/auth/sso").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/auth/login", "/api/v1/auth/hr/login", "/auth/hr/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/forgot-password", "/auth/forgot-password").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/reset-password", "/auth/reset-password").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/change-password", "/auth/change-password").authenticated()
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated()
             )

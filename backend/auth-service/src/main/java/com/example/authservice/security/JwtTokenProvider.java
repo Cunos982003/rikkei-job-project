@@ -44,14 +44,19 @@ public class JwtTokenProvider {
         Instant now = Instant.now();
         Instant expiry = now.plusSeconds(expirationSeconds);
 
+        String role = user.getRole() == null ? "CANDIDATE" : user.getRole();
+        if (!role.startsWith("ROLE_")) {
+            role = "ROLE_" + role;
+        }
         return Jwts.builder()
             .subject(user.getId().toString())
             .claim("userId", user.getId().toString())
+            .claim("companyId", user.getCompanyId() != null ? user.getCompanyId().toString() : null)
             .claim("lmsUserId", user.getLmsUserId())
             .claim("email", user.getEmail())
             .claim("fullName", user.getFullName())
-            .claim("role", user.getRole())
-            .claim("roles", List.of(user.getRole()))
+            .claim("role", role)
+            .claim("roles", List.of(role))
             .issuedAt(Date.from(now))
             .expiration(Date.from(expiry))
             .signWith(key)

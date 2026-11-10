@@ -1,12 +1,15 @@
 package com.example.authservice.controller;
 
 import com.example.authservice.dto.AuthResponse;
+import com.example.authservice.dto.ChangePasswordRequest;
 import com.example.authservice.dto.ForgotPasswordRequest;
 import com.example.authservice.dto.LoginRequest;
 import com.example.authservice.dto.MessageResponse;
 import com.example.authservice.dto.ResetPasswordRequest;
 import com.example.authservice.dto.SsoRequest;
 import com.example.authservice.dto.UserDto;
+import com.example.authservice.exception.ErrorCode;
+import com.example.authservice.exception.SsoException;
 import com.example.authservice.repository.UserRepository;
 import com.example.authservice.service.HrAuthService;
 import com.example.authservice.service.SsoService;
@@ -21,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping({"/api/v1/auth", "/auth"})
 public class AuthController {
 
     private final SsoService ssoService;
@@ -40,7 +43,8 @@ public class AuthController {
 
     @PostMapping("/sso")
     public ResponseEntity<AuthResponse> ssoLogin(@Valid @RequestBody SsoRequest request) {
-        AuthResponse response = ssoService.authenticateWithTicket(request.ticket());
+        String ticket = request.ticket() == null ? null : request.ticket().trim();
+        AuthResponse response = ssoService.authenticateWithTicket(ticket);
         return ResponseEntity.ok(response);
     }
 
@@ -54,6 +58,17 @@ public class AuthController {
     public ResponseEntity<MessageResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         MessageResponse response = hrAuthService.forgotPassword(request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<MessageResponse> changePassword(@Valid @RequestBody ChangePasswordRequest request, Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Authentication required");
+        }
+        UUID userId = UUID.fromString(authentication.getName());
+        return userRepository.findById(userId)
+            .map(user -> ResponseEntity.ok(hrAuthService.changePassword(user.getEmail(), request.currentPassword(), request.newPassword())))
+            .orElseThrow(() -> new SsoException(ErrorCode.INVALID_CREDENTIALS, "User not found"));
     }
 
     @PostMapping("/reset-password")

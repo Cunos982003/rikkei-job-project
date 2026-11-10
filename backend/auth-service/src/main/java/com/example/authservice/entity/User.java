@@ -1,11 +1,16 @@
+
 package com.example.authservice.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -17,27 +22,37 @@ public class User {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "lms_user_id", unique = true, length = 100)
-    private String lmsUserId;
-
-    @Column(nullable = false, unique = true, length = 255)
+    @Column(name = "email", nullable = false, unique = true, length = 255)
     private String email;
+
+    @JsonIgnore
+    @Column(name = "password_hash", length = 255)
+    private String passwordHash;
 
     @Column(name = "full_name", nullable = false, length = 255)
     private String fullName;
 
-    @Column(nullable = false, length = 50)
+    @Column(name = "role", nullable = false, length = 50)
     private String role;
 
-    @com.fasterxml.jackson.annotation.JsonIgnore
-    @Column(length = 255)
-    private String password;
+    @Column(name = "lms_user_id", unique = true, length = 100)
+    private String lmsUserId;
 
-    @Column(name = "failed_login_attempts", nullable = false)
-    private int failedLoginAttempts = 0;
+    @Column(name = "company_id")
+    private UUID companyId;
+
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword = false;
+
+    @Column(name = "failed_login_count", nullable = false)
+    private int failedLoginCount = 0;
 
     @Column(name = "locked_until")
     private Instant lockedUntil;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private UserStatus status = UserStatus.ACTIVE;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -48,16 +63,31 @@ public class User {
     public User() {
     }
 
-    public User(String lmsUserId, String email, String fullName, String role, Instant createdAt, Instant updatedAt) {
+    public User(
+            String lmsUserId,
+            String email,
+            String fullName,
+            String role,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
         this(lmsUserId, email, fullName, role, null, createdAt, updatedAt);
     }
 
-    public User(String lmsUserId, String email, String fullName, String role, String password, Instant createdAt, Instant updatedAt) {
+    public User(
+            String lmsUserId,
+            String email,
+            String fullName,
+            String role,
+            String passwordHash,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
         this.lmsUserId = lmsUserId;
         this.email = email;
         this.fullName = fullName;
         this.role = role;
-        this.password = password;
+        this.passwordHash = passwordHash;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -70,20 +100,20 @@ public class User {
         this.id = id;
     }
 
-    public String getLmsUserId() {
-        return lmsUserId;
-    }
-
-    public void setLmsUserId(String lmsUserId) {
-        this.lmsUserId = lmsUserId;
-    }
-
     public String getEmail() {
         return email;
     }
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
     }
 
     public String getFullName() {
@@ -102,20 +132,36 @@ public class User {
         this.role = role;
     }
 
-    public String getPassword() {
-        return password;
+    public String getLmsUserId() {
+        return lmsUserId;
     }
 
-    public void setPassword(String password) {
-        this.password = password;
+    public void setLmsUserId(String lmsUserId) {
+        this.lmsUserId = lmsUserId;
     }
 
-    public int getFailedLoginAttempts() {
-        return failedLoginAttempts;
+    public UUID getCompanyId() {
+        return companyId;
     }
 
-    public void setFailedLoginAttempts(int failedLoginAttempts) {
-        this.failedLoginAttempts = failedLoginAttempts;
+    public void setCompanyId(UUID companyId) {
+        this.companyId = companyId;
+    }
+
+    public boolean isMustChangePassword() {
+        return mustChangePassword;
+    }
+
+    public void setMustChangePassword(boolean mustChangePassword) {
+        this.mustChangePassword = mustChangePassword;
+    }
+
+    public int getFailedLoginCount() {
+        return failedLoginCount;
+    }
+
+    public void setFailedLoginCount(int failedLoginCount) {
+        this.failedLoginCount = failedLoginCount;
     }
 
     public Instant getLockedUntil() {
@@ -124,6 +170,14 @@ public class User {
 
     public void setLockedUntil(Instant lockedUntil) {
         this.lockedUntil = lockedUntil;
+    }
+
+    public UserStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(UserStatus status) {
+        this.status = status;
     }
 
     public Instant getCreatedAt() {
@@ -143,6 +197,7 @@ public class User {
     }
 
     public boolean isAccountLocked() {
-        return lockedUntil != null && lockedUntil.isAfter(Instant.now());
+        return status == UserStatus.LOCKED
+                || (lockedUntil != null && lockedUntil.isAfter(Instant.now()));
     }
 }

@@ -127,7 +127,7 @@ class HrAuthenticationIntegrationTest {
             .andExpect(jsonPath("$.code", is("INVALID_CREDENTIALS")));
 
         User updated = userRepository.findByEmail("hr2@rikkei.vn").orElseThrow();
-        assertThat(updated.getFailedLoginAttempts()).isEqualTo(1);
+        assertThat(updated.getFailedLoginCount()).isEqualTo(1);
         assertThat(updated.getLockedUntil()).isNull();
     }
 
@@ -173,7 +173,7 @@ class HrAuthenticationIntegrationTest {
             .andExpect(jsonPath("$.code", is("ACCOUNT_LOCKED")));
 
         User lockedUser = userRepository.findByEmail("hr3@rikkei.vn").orElseThrow();
-        assertThat(lockedUser.getFailedLoginAttempts()).isEqualTo(5);
+        assertThat(lockedUser.getFailedLoginCount()).isEqualTo(5);
         assertThat(lockedUser.getLockedUntil()).isNotNull();
         assertThat(lockedUser.getLockedUntil()).isAfter(Instant.now().plus(14, ChronoUnit.MINUTES));
     }
@@ -190,7 +190,7 @@ class HrAuthenticationIntegrationTest {
             Instant.now(),
             Instant.now()
         );
-        hrUser.setFailedLoginAttempts(5);
+        hrUser.setFailedLoginCount(5);
         hrUser.setLockedUntil(Instant.now().plus(10, ChronoUnit.MINUTES));
         userRepository.save(hrUser);
 
@@ -213,7 +213,7 @@ class HrAuthenticationIntegrationTest {
             Instant.now(),
             Instant.now()
         );
-        hrUser.setFailedLoginAttempts(5);
+        hrUser.setFailedLoginCount(5);
         hrUser.setLockedUntil(Instant.now().minus(1, ChronoUnit.MINUTES));
         userRepository.save(hrUser);
 
@@ -224,7 +224,7 @@ class HrAuthenticationIntegrationTest {
             .andExpect(jsonPath("$.accessToken", notNullValue()));
 
         User resetUser = userRepository.findByEmail("hr5@rikkei.vn").orElseThrow();
-        assertThat(resetUser.getFailedLoginAttempts()).isZero();
+        assertThat(resetUser.getFailedLoginCount()).isZero();
         assertThat(resetUser.getLockedUntil()).isNull();
     }
 

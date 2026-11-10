@@ -8,6 +8,7 @@ import com.example.authservice.dto.ResetPasswordRequest;
 import com.example.authservice.dto.UserDto;
 import com.example.authservice.entity.PasswordResetToken;
 import com.example.authservice.entity.User;
+import com.example.authservice.entity.UserStatus;
 import com.example.authservice.exception.ErrorCode;
 import com.example.authservice.exception.SsoException;
 import com.example.authservice.repository.PasswordResetTokenRepository;
@@ -20,7 +21,6 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
-import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -62,37 +62,34 @@ public class HrAuthService {
         User user = userRepository.findByEmailForUpdate(email)
             .orElseThrow(() -> new SsoException(ErrorCode.INVALID_CREDENTIALS, "Invalid email or password"));
 
-        // If user has no password configured (e.g. SSO only), reject
-        if (user.getPassword() == null || user.getPassword().isBlank()) {
+        if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
             throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Invalid email or password");
         }
 
         Instant now = Instant.now();
 
-        // 1. Check if account is currently locked
-        if (user.getLockedUntil() != null) {
-            if (user.getLockedUntil().isAfter(now)) {
+        if (user.getStatus() == UserStatus.LOCKED || (user.getLockedUntil() != null && user.getLockedUntil().isAfter(now))) {
+            if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(now)) {
                 long remainingMinutes = Math.max(1, Duration.between(now, user.getLockedUntil()).toMinutes() + 1);
                 log.warn("Login attempt for locked account: {}, locked until {}", email, user.getLockedUntil());
                 throw new SsoException(
                     ErrorCode.ACCOUNT_LOCKED,
                     "Account is locked due to 5 consecutive failed login attempts. Please try again in " + remainingMinutes + " minute(s)."
                 );
-            } else {
-                // Lockout period has elapsed: auto-unlock and reset counters
-                user.setFailedLoginAttempts(0);
-                user.setLockedUntil(null);
             }
+            user.setStatus(UserStatus.ACTIVE);
+            user.setFailedLoginCount(0);
+            user.setLockedUntil(null);
         }
 
-        // 2. Validate password
-        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-            int failedAttempts = user.getFailedLoginAttempts() + 1;
-            user.setFailedLoginAttempts(failedAttempts);
+        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            int failedAttempts = user.getFailedLoginCount() + 1;
+            user.setFailedLoginCount(failedAttempts);
 
             if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
+                user.setStatus(UserStatus.LOCKED);
                 user.setLockedUntil(now.plus(Duration.ofMinutes(LOCKOUT_DURATION_MINUTES)));
-                user.setFailedLoginAttempts(MAX_FAILED_ATTEMPTS);
+                user.setFailedLoginCount(MAX_FAILED_ATTEMPTS);
                 userRepository.saveAndFlush(user);
                 log.warn("Account {} exceeded max failed attempts, locked for 15 minutes", email);
                 throw new SsoException(
@@ -105,13 +102,12 @@ public class HrAuthService {
             throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Invalid email or password");
         }
 
-        // 3. Successful login: reset failed counters and unlock
-        user.setFailedLoginAttempts(0);
+        user.setStatus(UserStatus.ACTIVE);
+        user.setFailedLoginCount(0);
         user.setLockedUntil(null);
         user.setUpdatedAt(now);
         userRepository.saveAndFlush(user);
 
-        // 4. Issue JWT
         String accessToken = jwtTokenProvider.generateToken(user);
         return new AuthResponse(
             accessToken,
@@ -122,11 +118,31 @@ public class HrAuthService {
     }
 
     @Transactional
+    public MessageResponse changePassword(String email, String currentPassword, String newPassword) {
+        if (newPassword == null || newPassword.length() < 8 || !newPassword.matches(".*[A-Za-z].*") || !newPassword.matches(".*[0-9].*")) {
+            throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Password must be at least 8 characters long and contain both letters and numbers");
+        }
+
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new SsoException(ErrorCode.INVALID_CREDENTIALS, "Invalid email or password"));
+
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Current password is incorrect");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setMustChangePassword(false);
+        user.setUpdatedAt(Instant.now());
+        userRepository.save(user);
+        return new MessageResponse("Password changed successfully.");
+    }
+
+    @Transactional
     public MessageResponse forgotPassword(ForgotPasswordRequest request) {
         String email = request.email() != null ? request.email().trim().toLowerCase(Locale.ROOT) : "";
 
         userRepository.findByEmail(email).ifPresent(user -> {
-            if (user.getPassword() != null && !user.getPassword().isBlank()) {
+            if (user.getPasswordHash() != null && !user.getPasswordHash().isBlank()) {
                 String rawToken = generateSecureToken();
                 String tokenHash = hashToken(rawToken);
                 Instant now = Instant.now();
@@ -139,15 +155,17 @@ public class HrAuthService {
             }
         });
 
-        // Always return generic message to avoid leaking whether email exists
         return new MessageResponse("If the email is registered, password reset instructions have been sent.");
     }
 
     @Transactional
     public MessageResponse resetPassword(ResetPasswordRequest request) {
         String rawToken = request.token() != null ? request.token().trim() : "";
-        String tokenHash = hashToken(rawToken);
+        if (rawToken.isBlank()) {
+            throw new SsoException(ErrorCode.RESET_TOKEN_INVALID, "Token is required");
+        }
 
+        String tokenHash = hashToken(rawToken);
         PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenHashForUpdate(tokenHash)
             .orElseThrow(() -> new SsoException(ErrorCode.RESET_TOKEN_INVALID, "Invalid or unrecognized password reset token"));
 
@@ -159,21 +177,24 @@ public class HrAuthService {
             throw new SsoException(ErrorCode.RESET_TOKEN_EXPIRED, "Password reset token has expired (valid for 30 minutes)");
         }
 
+        if (request.newPassword() == null || request.newPassword().length() < 8 || !request.newPassword().matches(".*[A-Za-z].*") || !request.newPassword().matches(".*[0-9].*")) {
+            throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Password must be at least 8 characters long and contain both letters and numbers");
+        }
+
         User user = userRepository.findById(resetToken.getUserId())
             .orElseThrow(() -> new SsoException(ErrorCode.RESET_TOKEN_INVALID, "User associated with reset token was not found"));
 
         Instant now = Instant.now();
-        user.setPassword(passwordEncoder.encode(request.newPassword()));
-        user.setFailedLoginAttempts(0);
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setStatus(UserStatus.ACTIVE);
+        user.setFailedLoginCount(0);
         user.setLockedUntil(null);
+        user.setMustChangePassword(false);
         user.setUpdatedAt(now);
         userRepository.save(user);
 
-        // Mark this token as used
         resetToken.setUsedAt(now);
         passwordResetTokenRepository.save(resetToken);
-
-        // Invalidate all other pending reset tokens for this user
         passwordResetTokenRepository.invalidateAllUnusedTokensForUser(user.getId(), now);
 
         return new MessageResponse("Password has been successfully reset. You can now log in with your new password.");

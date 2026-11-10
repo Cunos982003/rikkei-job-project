@@ -290,7 +290,7 @@ class SsoAuthenticationIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/sso")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new SsoRequest(ticket))))
-            .andExpect(status().isBadRequest())
+            .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.code", is("TICKET_EXPIRED")));
 
         // Expired ticket must NOT create user
@@ -306,7 +306,7 @@ class SsoAuthenticationIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/sso")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new SsoRequest(ticket))))
-            .andExpect(status().isConflict())
+            .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.code", is("TICKET_ALREADY_USED")));
     }
 
@@ -340,8 +340,8 @@ class SsoAuthenticationIntegrationTest {
         int s2 = f2.get();
         executor.shutdown();
 
-        // Exactly one request must succeed (200 OK), the other must be rejected (409 Conflict)
-        assertThat(List.of(s1, s2)).containsExactlyInAnyOrder(200, 409);
+        // Exactly one request must succeed (200 OK), the other must be rejected (401 Unauthorized)
+        assertThat(List.of(s1, s2)).containsExactlyInAnyOrder(200, 401);
     }
 
     @Test

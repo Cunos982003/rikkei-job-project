@@ -52,45 +52,46 @@ public class SsoService {
             throw new SsoException(ErrorCode.TICKET_INVALID, "Ticket is required and cannot be blank");
         }
 
-        // 1. Check if ticket has already been used
+        Instant now = Instant.now();
+
         if (usedSsoTicketRepository.existsByTicket(ticket)) {
+            log.warn("Rejected replayed SSO ticket: ticket={} ", ticket);
             throw new SsoException(ErrorCode.TICKET_ALREADY_USED, "SSO ticket has already been used");
         }
 
-        // 2. Verify ticket with Mock LMS
-        LmsUserResponse lmsResponse = lmsClient.verifyTicket(ticket);
+        LmsUserResponse lmsResponse;
+        try {
+            lmsResponse = lmsClient.verifyTicket(ticket);
+        } catch (SsoException ex) {
+            log.warn("Mock LMS verification failed for ticket {}: {}", ticket, ex.getMessage());
+            throw ex;
+        }
+
         if (lmsResponse == null || lmsResponse.lmsUserId() == null || lmsResponse.lmsUserId().isBlank()) {
             throw new SsoException(ErrorCode.TICKET_INVALID, "Mock LMS returned empty or invalid user data");
         }
 
-        // 3. Check ticket expiration (max 60 seconds)
         Instant issuedAt = lmsResponse.getIssuedAtInstant();
         if (issuedAt == null) {
             throw new SsoException(ErrorCode.TICKET_INVALID, "Mock LMS response is missing a valid issuedAt timestamp");
         }
 
-        Instant now = Instant.now();
         long ageInSeconds = Duration.between(issuedAt, now).getSeconds();
         if (ageInSeconds > TICKET_EXPIRATION_SECONDS) {
-            log.warn("SSO ticket expired: issued at {}, age {}s", issuedAt, ageInSeconds);
+            log.warn("SSO ticket expired: issuedAt={}, ageSeconds={}", issuedAt, ageInSeconds);
             throw new SsoException(ErrorCode.TICKET_EXPIRED, "SSO ticket has expired (valid for 60 seconds)");
         }
 
-        // 4. Validate and map role from LMS
         String role = roleMapper.mapAndValidateLmsRole(lmsResponse.role());
 
-        // 5. Persist ticket to database to prevent replay attack and handle race conditions
         try {
             usedSsoTicketRepository.saveAndFlush(new UsedSsoTicket(ticket, now));
         } catch (DataIntegrityViolationException ex) {
-            log.warn("Race condition / duplicate ticket prevented for SSO ticket attempt");
+            log.warn("SSO ticket replay prevented for ticket={} in concurrent request", ticket);
             throw new SsoException(ErrorCode.TICKET_ALREADY_USED, "SSO ticket has already been used");
         }
 
-        // 6. Find or create user
         User user = findOrCreateUser(lmsResponse, role, now);
-
-        // 7. Issue JWT
         String accessToken = jwtTokenProvider.generateToken(user);
 
         return new AuthResponse(
@@ -104,34 +105,54 @@ public class SsoService {
     private User findOrCreateUser(LmsUserResponse lmsResponse, String role, Instant now) {
         return userRepository.findByLmsUserId(lmsResponse.lmsUserId())
             .map(existingUser -> {
+                if (existingUser.getEmail() == null || existingUser.getEmail().isBlank()) {
+                    existingUser.setEmail(lmsResponse.email());
+                }
+                if (existingUser.getFullName() == null || existingUser.getFullName().isBlank()) {
+                    existingUser.setFullName(lmsResponse.fullName());
+                }
                 existingUser.setEmail(lmsResponse.email());
                 existingUser.setFullName(lmsResponse.fullName());
                 existingUser.setRole(role);
                 existingUser.setUpdatedAt(now);
+                existingUser.setStatus(com.example.authservice.entity.UserStatus.ACTIVE);
+                existingUser.setLockedUntil(null);
+                existingUser.setFailedLoginCount(0);
+                if (existingUser.getPasswordHash() == null || existingUser.getPasswordHash().isBlank()) {
+                    existingUser.setMustChangePassword(false);
+                }
                 return userRepository.save(existingUser);
             })
-            .orElseGet(() -> {
-                // If user doesn't exist by lmsUserId, check email uniqueness
-                return userRepository.findByEmail(lmsResponse.email())
-                    .map(existingEmailUser -> {
-                        existingEmailUser.setLmsUserId(lmsResponse.lmsUserId());
-                        existingEmailUser.setFullName(lmsResponse.fullName());
-                        existingEmailUser.setRole(role);
-                        existingEmailUser.setUpdatedAt(now);
-                        return userRepository.save(existingEmailUser);
-                    })
-                    .orElseGet(() -> {
-                        User newUser = new User(
-                            lmsResponse.lmsUserId(),
-                            lmsResponse.email(),
-                            lmsResponse.fullName(),
-                            role,
-                            now,
-                            now
-                        );
-                        return userRepository.save(newUser);
-                    });
-            });
+            .orElseGet(() -> userRepository.findByEmail(lmsResponse.email())
+                .map(existingEmailUser -> {
+                    existingEmailUser.setLmsUserId(lmsResponse.lmsUserId());
+                    existingEmailUser.setFullName(lmsResponse.fullName());
+                    existingEmailUser.setRole(role);
+                    existingEmailUser.setUpdatedAt(now);
+                    existingEmailUser.setStatus(com.example.authservice.entity.UserStatus.ACTIVE);
+                    existingEmailUser.setLockedUntil(null);
+                    existingEmailUser.setFailedLoginCount(0);
+                    if (existingEmailUser.getPasswordHash() == null || existingEmailUser.getPasswordHash().isBlank()) {
+                        existingEmailUser.setMustChangePassword(false);
+                    }
+                    return userRepository.save(existingEmailUser);
+                })
+                .orElseGet(() -> {
+                    User newUser = new User(
+                        lmsResponse.lmsUserId(),
+                        lmsResponse.email(),
+                        lmsResponse.fullName(),
+                        role,
+                        null,
+                        now,
+                        now
+                    );
+                    newUser.setStatus(com.example.authservice.entity.UserStatus.ACTIVE);
+                    newUser.setMustChangePassword(false);
+                    newUser.setFailedLoginCount(0);
+                    newUser.setLockedUntil(null);
+                    return userRepository.save(newUser);
+                }));
     }
 }
 

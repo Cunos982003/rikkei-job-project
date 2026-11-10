@@ -24,7 +24,7 @@ public class LmsClient {
 
     public LmsClient(
         @Value("${app.lms.base-url:http://localhost:9000}") String baseUrl,
-        @Value("${app.lms.service-key:mock-lms-service-key-2026}") String serviceKey,
+        @Value("${app.lms.service-key:dev-key}") String serviceKey,
         @Value("${app.lms.verify-endpoint:/lms/sso/verify}") String verifyEndpoint,
         @Value("${app.lms.timeout-seconds:5}") int timeoutSeconds,
         @Value("${app.lms.max-retries:2}") int maxRetries
@@ -66,22 +66,31 @@ public class LmsClient {
     }
 
     private LmsUserResponse executeVerify(String ticket) {
-        return restClient.post()
-            .uri(verifyEndpoint)
-            .body(new LmsVerifyRequest(ticket))
-            .retrieve()
-            .onStatus(status -> status.value() == 404, (req, resp) -> {
-                throw new SsoException(ErrorCode.TICKET_INVALID, "Ticket not found or invalid in Mock LMS");
-            })
-            .onStatus(status -> status.value() == 503 || status.value() == 504, (req, resp) -> {
-                throw new SsoException(ErrorCode.EXTERNAL_UNAVAILABLE, "Mock LMS service is unavailable or timed out");
-            })
-            .onStatus(HttpStatusCode::is4xxClientError, (req, resp) -> {
-                throw new SsoException(ErrorCode.TICKET_INVALID, "Mock LMS rejected the ticket with status " + resp.getStatusCode());
-            })
-            .onStatus(HttpStatusCode::is5xxServerError, (req, resp) -> {
-                throw new SsoException(ErrorCode.LMS_ERROR, "Mock LMS server responded with error " + resp.getStatusCode());
-            })
-            .body(LmsUserResponse.class);
+       try {
+           return restClient.post()
+               .uri(verifyEndpoint)
+               .body(new LmsVerifyRequest(ticket))
+               .retrieve()
+               .onStatus(status -> status.value() == 401, (req, resp) -> {
+                   throw new SsoException(ErrorCode.LMS_UNAUTHORIZED, "Mock LMS rejected the service key or ticket");
+               })
+               .onStatus(status -> status.value() == 404, (req, resp) -> {
+                   throw new SsoException(ErrorCode.TICKET_INVALID, "Ticket not found or invalid in Mock LMS");
+               })
+               .onStatus(status -> status.value() == 503 || status.value() == 504, (req, resp) -> {
+                   throw new SsoException(ErrorCode.EXTERNAL_UNAVAILABLE, "Mock LMS service is unavailable or timed out");
+               })
+               .onStatus(HttpStatusCode::is4xxClientError, (req, resp) -> {
+                   throw new SsoException(ErrorCode.TICKET_INVALID, "Mock LMS rejected the ticket with status " + resp.getStatusCode());
+               })
+               .onStatus(HttpStatusCode::is5xxServerError, (req, resp) -> {
+                   throw new SsoException(ErrorCode.LMS_ERROR, "Mock LMS server responded with error " + resp.getStatusCode());
+               })
+               .body(LmsUserResponse.class);
+       } catch (SsoException ex) {
+           throw ex;
+       } catch (Exception ex) {
+           throw new SsoException(ErrorCode.EXTERNAL_UNAVAILABLE, "Unable to verify SSO ticket with Mock LMS", ex);
+       }
     }
 }
