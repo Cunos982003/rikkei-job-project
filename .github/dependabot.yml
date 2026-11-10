@@ -1,87 +1,144 @@
 version: 2
 updates:
-  # Backend - Gradle dependencies
   - package-ecosystem: "gradle"
     directory: "/backend"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "06:00"
+      timezone: "Asia/Ho_Chi_Minh"
+    cooldown:
+      default-days: 7
     labels:
       - "dependencies"
       - "backend"
+    commit-message:
+      prefix: "chore(deps)"
+    open-pull-requests-limit: 5
     groups:
       spring-boot:
         patterns:
           - "org.springframework.boot*"
+        update-types: ["minor", "patch"]
       spring-framework:
         patterns:
           - "org.springframework*"
+        update-types: ["minor", "patch"]
       testing:
         patterns:
           - "*test*"
           - "*junit*"
           - "*mockito*"
           - "*assertj*"
+        update-types: ["minor", "patch"]
       security:
         patterns:
           - "*security*"
           - "*crypto*"
-    open-pull-requests-limit: 10
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "org.springframework.boot*"
+        update-types: ["version-update:semver-major"]
 
-  # Frontend - npm dependencies
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "06:00"
+      timezone: "Asia/Ho_Chi_Minh"
+    cooldown:
+      default-days: 7
     labels:
       - "dependencies"
       - "frontend"
+    commit-message:
+      prefix: "chore(deps)"
+    open-pull-requests-limit: 5
     groups:
       react:
         patterns:
           - "react*"
           - "@types/react*"
+        update-types: ["minor", "patch"]
       tailwind:
         patterns:
           - "tailwind*"
           - "@tailwindcss*"
+        update-types: ["minor", "patch"]
       testing:
         patterns:
           - "*test*"
           - "*vitest*"
           - "*playwright*"
           - "@testing-library*"
+        update-types: ["minor", "patch"]
       linting:
         patterns:
           - "*lint*"
           - "*eslint*"
           - "*prettier*"
           - "oxlint"
-    open-pull-requests-limit: 10
-
-  # Docker - base image updates
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "docker"
-    directory: "/"
+    directories:
+      - "/backend/*"
+      - "/frontend"
+      - "/ai-career-service"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "06:00"
+      timezone: "Asia/Ho_Chi_Minh"
+    cooldown:
+      default-days: 7
     labels:
       - "dependencies"
       - "docker"
-    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    open-pull-requests-limit: 3
 
-  # GitHub Actions - workflow dependencies
+  - package-ecosystem: "docker-compose"
+    directory: "/infra"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Ho_Chi_Minh"
+    cooldown:
+      default-days: 7
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(deps)"
+    open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "06:00"
+      timezone: "Asia/Ho_Chi_Minh"
+    cooldown:
+      default-days: 7
     labels:
       - "dependencies"
       - "github-actions"
-    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci(deps)"
+    open-pull-requests-limit: 3
+    groups:
+      actions-minor-patch:
+        patterns:
+          - "*"
+        update-types: ["minor", "patch"]
