@@ -1,11 +1,11 @@
-import { useEffect, useState, Suspense } from "react";
+import { useState, Suspense } from "react";
 import { useParams } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/common/Card";
 import { Badge } from "@/components/common/Badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { useSkillProfile } from "@/api/hooks/useSkillProfile";
+import { useSkillProfile } from "@/features/profile/hooks";
 import type { SkillProfileItem } from "@/api/endpoints/profile.api";
 import { cn } from "@/utils/cn";
 import { Award, User, ChevronDown, ChevronUp, Calendar, CheckCircle2 } from "lucide-react";
@@ -15,25 +15,10 @@ function SkillProfileContent() {
   const isOwnProfile = !userId;
   const { data, isLoading, error, refetch } = useSkillProfile(userId);
 
-  // For demo purposes, we'll show mock data when there's no backend
-  const [useMockData, setUseMockData] = useState(false);
-
-  useEffect(() => {
-    // If backend is not available, fall back to mock data after a short delay
-    const timer = setTimeout(() => {
-      if (isLoading && !error) {
-        // Check if we can connect to backend
-        fetch("/api/v1/profiles/me/skills")
-          .catch(() => setUseMockData(true));
-      }
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [isLoading, error]);
-
-  const skills = useMockData ? [] : (data ?? []);
+  const skills = data ?? [];
   const groups = groupSkillsByGroup(skills);
 
-  if (isLoading && !useMockData) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -55,7 +40,7 @@ function SkillProfileContent() {
     );
   }
 
-  if (error && !useMockData) {
+  if (error) {
     return (
       <div className="text-center py-12">
         <p className="text-red-600 mb-4">Không thể tải hồ sơ kỹ năng</p>

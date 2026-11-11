@@ -1,8 +1,11 @@
+import { useParams } from 'react-router-dom';
+import { useAuthStore } from '@/store/useAuthStore';
 import { MentorEvaluationsBlock } from './components/MentorEvaluations';
 
 export default function EvaluationsPage() {
-    // ID giả lập để kích hoạt gọi Mock Data (khi nào có User thật thì lấy từ Auth Context/Params)
-    const MOCK_USER_ID = "user-123";
+    const { userId: paramUserId } = useParams<{ userId?: string }>();
+    const { user } = useAuthStore();
+    const currentUserId = paramUserId || user?.id;
 
     return (
         <div className="mx-auto max-w-4xl p-6 md:p-8 space-y-6 animate-in fade-in duration-300">
@@ -19,7 +22,7 @@ export default function EvaluationsPage() {
 
             {/* Khối hiển thị danh sách Đánh giá từ Mentor */}
             <div className="mt-4">
-                <MentorEvaluationsBlock userId={MOCK_USER_ID} />
+                <MentorEvaluationsBlock userId={currentUserId} />
             </div>
 
         </div>
