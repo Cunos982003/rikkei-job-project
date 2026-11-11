@@ -1,8 +1,8 @@
 package com.example.ai_career_service.service;
 
 import com.example.ai_career_service.dto.JobRecommendationResponse;
-import com.example.ai_career_service.dto.SkillGapResponse;
 import com.example.ai_career_service.dto.prompt.RecommendationPrompt;
+import com.example.ai_career_service.mapper.JobRecommendationMapper;
 import com.example.ai_career_service.model.JobRecommendation;
 import com.example.ai_career_service.provider.AIProvider;
 import com.example.ai_career_service.repository.JobRecommendationRepository;
@@ -33,6 +33,7 @@ public class CareerService {
     private final RecommendationDataSource dataSource;
     private final JobRecommendationRepository repository;
     private final AIProvider aiProvider;
+    private final JobRecommendationMapper recommendationMapper;
     private final Executor aiExecutor;
 
     public List<JobRecommendationResponse> getRecommendations(UUID userId, int limit) {
@@ -58,7 +59,7 @@ public class CareerService {
 
             if (cached.isPresent()) {
                 JobRecommendation recommendation = cached.get();
-                results[index] = toResponse(recommendation, scoredJob.match());
+                results[index] = recommendationMapper.toResponse(recommendation, scoredJob.match());
                 continue;
             }
 
@@ -90,7 +91,7 @@ public class CareerService {
             recommendation.setExplanation(RecommendationExplanation.limitWords(item.explanation().join()));
             recommendation.setCreatedAt(item.createdAt());
             recommendation.setInputHash(item.inputHash());
-            results[item.index()] = toResponse(repository.save(recommendation), item.match());
+            results[item.index()] = recommendationMapper.toResponse(repository.save(recommendation), item.match());
         }
         return java.util.Arrays.asList(results);
     }
@@ -106,25 +107,6 @@ public class CareerService {
             JobRecommendation cached,
             CompletableFuture<String> explanation,
             Instant createdAt) {
-    }
-
-    private JobRecommendationResponse toResponse(
-            JobRecommendation recommendation,
-            JobMatchScorer.MatchResult match) {
-        return new JobRecommendationResponse(
-                recommendation.getJobId(),
-                recommendation.getScore(),
-                recommendation.getExplanation(),
-                recommendation.getCreatedAt(),
-                match.missingRequiredSkills(),
-                match.skillGaps().stream()
-                        .map(gap -> new SkillGapResponse(
-                                gap.name(),
-                                gap.verifiedIndex(),
-                                gap.requiredIndex(),
-                                gap.gap(),
-                                gap.type() == RecommendationSnapshot.RequirementType.REQUIRED))
-                        .toList());
     }
 
     private String inputHash(

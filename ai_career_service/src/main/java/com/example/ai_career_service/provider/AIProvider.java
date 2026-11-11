@@ -5,4 +5,6 @@ import com.example.ai_career_service.dto.prompt.RecommendationPrompt;
 public interface AIProvider {
     String generateExplanation(
             RecommendationPrompt prompt);
+
+    String generateDraft(String prompt);
 }

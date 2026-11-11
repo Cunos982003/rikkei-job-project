@@ -8,6 +8,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.ai_career_service.dto.SkillGapResponse;
+import com.example.ai_career_service.mapper.JobRecommendationMapper;
+import com.example.ai_career_service.mapper.SkillGapMapper;
 import com.example.ai_career_service.model.JobRecommendation;
 import com.example.ai_career_service.provider.AIProvider;
 import com.example.ai_career_service.repository.JobRecommendationRepository;
@@ -40,6 +42,15 @@ class CareerServiceTests {
 
     private final Executor directExecutor = Runnable::run;
 
+    private CareerService createService() {
+        return new CareerService(
+                dataSource,
+                repository,
+                aiProvider,
+                new JobRecommendationMapper(new SkillGapMapper()),
+                directExecutor);
+    }
+
     @Test
     void ranksResultsAndUsesAiOnlyForTopFive() {
         List<RecommendationSnapshot.EligibleJob> jobs = java.util.stream.IntStream.rangeClosed(1, 7)
@@ -58,7 +69,7 @@ class CareerServiceTests {
         when(repository.save(any(JobRecommendation.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(aiProvider.generateExplanation(any())).thenReturn("AI explanation");
 
-        CareerService service = new CareerService(dataSource, repository, aiProvider, directExecutor);
+        CareerService service = createService();
         var recommendations = service.getRecommendations(USER_ID, 10);
 
         assertThat(recommendations).extracting("jobId")
@@ -87,7 +98,7 @@ class CareerServiceTests {
         doThrow(new IllegalStateException("provider unavailable"))
                 .when(aiProvider).generateExplanation(any());
 
-        CareerService service = new CareerService(dataSource, repository, aiProvider, directExecutor);
+        CareerService service = createService();
         var recommendation = service.getRecommendations(USER_ID, 10).get(0);
 
         assertThat(recommendation.score()).isEqualTo(100);
@@ -114,7 +125,7 @@ class CareerServiceTests {
         when(repository.save(any(JobRecommendation.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(aiProvider.generateExplanation(any())).thenReturn("Skills need improvement");
 
-        CareerService service = new CareerService(dataSource, repository, aiProvider, directExecutor);
+        CareerService service = createService();
         var recommendation = service.getRecommendations(USER_ID, 10).get(0);
 
         assertThat(recommendation.score()).isEqualTo(37.5);

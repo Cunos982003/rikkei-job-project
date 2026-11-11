@@ -9,4 +9,9 @@ public class MockProvider implements AIProvider {
 
         return com.example.ai_career_service.service.RecommendationExplanation.fallback(prompt);
     }
+
+    @Override
+    public String generateDraft(String prompt) {
+        return "{\"content\":\"Bản nháp được tạo từ dữ liệu hồ sơ đã cung cấp.\",\"skills\":[]}";
+    }
 }

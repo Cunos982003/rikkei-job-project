@@ -17,13 +17,16 @@ public class OpenAIProvider extends AbstractHttpAIProvider {
     }
 
     @Override
-    protected HttpRequest createRequest(String prompt) throws IOException {
+    protected HttpRequest createRequest(
+            String systemPrompt,
+            String userPrompt,
+            int maxOutputTokens) throws IOException {
         Map<String, Object> body = Map.of(
                 "model", model,
                 "messages", List.of(
-                        Map.of("role", "system", "content", "Viết giải thích ngắn, chính xác bằng tiếng Việt."),
-                        Map.of("role", "user", "content", prompt)),
-                "max_tokens", 180);
+                        Map.of("role", "system", "content", systemPrompt),
+                        Map.of("role", "user", "content", userPrompt)),
+                "max_tokens", maxOutputTokens);
         return requestBuilder(endpoint())
                 .header("Authorization", "Bearer " + apiKey())
                 .POST(HttpRequest.BodyPublishers.ofByteArray(json(body)))

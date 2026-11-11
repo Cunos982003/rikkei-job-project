@@ -17,11 +17,15 @@ public class ClaudeProvider extends AbstractHttpAIProvider {
     }
 
     @Override
-    protected HttpRequest createRequest(String prompt) throws IOException {
+    protected HttpRequest createRequest(
+            String systemPrompt,
+            String userPrompt,
+            int maxOutputTokens) throws IOException {
         Map<String, Object> body = Map.of(
                 "model", model,
-                "max_tokens", 180,
-                "messages", List.of(Map.of("role", "user", "content", prompt)));
+                "max_tokens", maxOutputTokens,
+                "system", systemPrompt,
+                "messages", List.of(Map.of("role", "user", "content", userPrompt)));
         return requestBuilder(endpoint())
                 .header("x-api-key", apiKey())
                 .header("anthropic-version", "2023-06-01")
