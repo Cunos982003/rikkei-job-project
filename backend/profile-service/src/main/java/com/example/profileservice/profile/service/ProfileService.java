@@ -1,5 +1,6 @@
 package com.example.profileservice.profile.service;
 
+import com.example.profileservice.common.LevelConstants;
 import com.example.profileservice.profile.api.dto.LmsStudentDto;
 import com.example.profileservice.profile.api.dto.SelfSkillDto;
 import com.example.profileservice.profile.domain.CandidateProfile;
@@ -114,7 +115,7 @@ public class ProfileService {
                     .orElseGet(() -> SkillScore.builder()
                             .userId(userId)
                             .skillId(skill.getId())
-                            .level("Cơ bản")
+                            .level(LevelConstants.LEVEL_CO_BAN)
                             .build());
 
             // Update self_score (verified_score is only set by HS-01 recompute)
@@ -122,7 +123,6 @@ public class ProfileService {
             // Level should be based on effective score = verifiedScore ?? selfScore
             Short verifiedScore = score.getVerifiedScore();
             Short effectiveScore = verifiedScore != null ? verifiedScore : dto.getSelfScore().shortValue();
-            score.setSelfScore(dto.getSelfScore().shortValue());
             score.setLevel(computeLevel(effectiveScore));
             score.setUpdatedAt(java.time.OffsetDateTime.now());
             scoreRepo.save(score);
@@ -134,10 +134,10 @@ public class ProfileService {
      * Thresholds: >=85 Nâng cao, >=70 Vững, >=50 Khá, else Cơ bản.
      */
     private String computeLevel(Short score) {
-        if (score == null) return "Cơ bản";
-        if (score >= 85) return "Nâng cao";
-        if (score >= 70) return "Vững";
-        if (score >= 50) return "Khá";
-        return "Cơ bản";
+        if (score == null) return LevelConstants.LEVEL_CO_BAN;
+        if (score >= 85) return LevelConstants.LEVEL_NANG_CAO;
+        if (score >= 70) return LevelConstants.LEVEL_VUNG;
+        if (score >= 50) return LevelConstants.LEVEL_KHA;
+        return LevelConstants.LEVEL_CO_BAN;
     }
-}
+}
