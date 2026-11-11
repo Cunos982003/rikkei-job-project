@@ -43,3 +43,23 @@ export interface Evaluation {
   submittedAt: string | null
   scores: EvaluationScore[]
 }
+
+export interface InternshipTask {
+  id: string;
+  title: string;
+  accepted_score: number;
+  accepted_at: string;
+}
+
+export interface Internship {
+  id: string;
+  user_id: string;
+  batch_id: string;
+  batch_name: string;
+  group_name: string;
+  topic_name: string;
+  mentor_email: string;
+  final_score: number;
+  synced_at: string;
+  tasks: InternshipTask[];
+}
