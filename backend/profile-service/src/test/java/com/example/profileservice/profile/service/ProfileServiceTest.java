@@ -4,6 +4,9 @@ import com.example.profileservice.profile.api.dto.LmsStudentDto;
 import com.example.profileservice.profile.domain.CandidateProfile;
 import com.example.profileservice.profile.infrastructure.CandidateProfileRepository;
 import com.example.profileservice.profile.infrastructure.LmsClient;
+import com.example.profileservice.skill.infrastructure.SkillEvidenceRepository;
+import com.example.profileservice.skill.infrastructure.SkillRepository;
+import com.example.profileservice.skill.infrastructure.SkillScoreRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,11 +34,20 @@ class ProfileServiceTest {
     @Mock
     LmsClient lmsClient;
 
+    @Mock
+    SkillEvidenceRepository skillEvidenceRepository;
+
+    @Mock
+    SkillScoreRepository skillScoreRepository;
+
+    @Mock
+    SkillRepository skillRepository;
+
     ProfileService profileService;
 
     @BeforeEach
     void setup() {
-        profileService = new ProfileService(candidateProfileRepository, lmsClient);
+        profileService = new ProfileService(candidateProfileRepository, lmsClient, skillEvidenceRepository, skillScoreRepository, skillRepository);
     }
 
     @Test
