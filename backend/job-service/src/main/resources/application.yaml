@@ -1,3 +1,89 @@
+server:
+  port: 8085
+
 spring:
   application:
     name: job-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration,classpath:db/dev
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 5MB
+
+  # ── SMTP Mail (default: disabled → MockEmailService logs to console) ──────
+  # Bat email that: dat app.email.enabled=true va cau hinh spring.mail bên duoi
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+        debug: false
+
+app:
+  jwt:
+    secret: "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970"
+    expiration-ms: 86400000
+  upload:
+    dir: "uploads/logos"
+  email:
+    # false (default): dung MockEmailService, chi log ra console — dung cho dev/test
+    # true           : dung SmtpEmailService gui email that qua SMTP
+    enabled: ${EMAIL_ENABLED:false}
+    from: ${MAIL_FROM:noreply@rikkei.vn}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+---
+# Local development profile (H2 in-memory)
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  datasource:
+    url: jdbc:h2:mem:job_db;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration,classpath:db/dev

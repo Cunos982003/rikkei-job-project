@@ -260,6 +260,18 @@ cd backend/auth-service
 ./gradlew bootRun
 ```
 
+##### Auth service và Mock LMS
+```bash
+# Mock LMS bắt buộc header X-Service-Key: dev-key
+cd mock
+npm start
+
+# Auth service mặc định kết nối PostgreSQL auth_db và mock LMS trên http://localhost:9000
+cd ../backend/auth-service
+LMS_BASE_URL=http://localhost:9000 LMS_SERVICE_KEY=dev-key ./gradlew bootRun
+# OpenAPI UI: http://localhost:8081/swagger-ui/index.html
+```
+
 > Lưu ý: ClamAV mất vài phút để tải dữ liệu virus ở lần khởi động đầu. Tên module Uvicorn (`<module>`) sẽ được cập nhật khi service được khởi tạo.
 
 ### Cổng dịch vụ ở môi trường local
