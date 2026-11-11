@@ -75,5 +75,35 @@ class SchemaMigrationTest {
 
         Integer mappingCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM skill_mappings", Integer.class);
         assertThat(mappingCount).isGreaterThanOrEqualTo(8);
+
+        // Check candidate_profiles table
+        List<Map<String, Object>> candidateProfilesColumns = jdbcTemplate.queryForList(
+            "SELECT column_name, column_default FROM information_schema.columns WHERE table_name = 'candidate_profiles'");
+        assertThat(candidateProfilesColumns).extracting(m -> m.get("column_name"))
+            .containsExactlyInAnyOrder("user_id", "full_name", "dob", "gender", "phone", "email", "address", "avatar_url", "headline", "summary", "program", "class_code", "course_name", "visibility", "updated_at");
+
+        // Check visibility default value
+        List<Map<String, Object>> visibilityDefault = jdbcTemplate.queryForList(
+            "SELECT column_default FROM information_schema.columns WHERE table_name = 'candidate_profiles' AND column_name = 'visibility'");
+        assertThat(visibilityDefault).isNotEmpty();
+        assertThat(visibilityDefault.get(0).get("column_default")).isEqualTo("'PRIVATE'::character varying");
+
+        // Check educations table
+        List<Map<String, Object>> educationsColumns = jdbcTemplate.queryForList(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = 'educations'");
+        assertThat(educationsColumns).extracting(m -> m.get("column_name"))
+            .containsExactlyInAnyOrder("id", "user_id", "school", "major", "from_date", "to_date", "gpa", "note");
+
+        // Check certificates table
+        List<Map<String, Object>> certificatesColumns = jdbcTemplate.queryForList(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = 'certificates'");
+        assertThat(certificatesColumns).extracting(m -> m.get("column_name"))
+            .containsExactlyInAnyOrder("id", "user_id", "name", "issuer", "issued_at", "expires_at", "file_url", "file_type");
+
+        // Check indexes on user_id for educations and certificates
+        List<Map<String, Object>> profileIndexes = jdbcTemplate.queryForList(
+            "SELECT indexname FROM pg_indexes WHERE tablename IN ('educations', 'certificates')");
+        assertThat(profileIndexes).extracting(m -> m.get("indexname"))
+            .contains("idx_educations_user_id", "idx_certificates_user_id");
     }
 }
