@@ -1,60 +1,74 @@
 [
   {
-    "id": "usr-001",
+    "id": "user-001",
     "email": "candidate1@rikkeijobs.test",
+    "password": "Test@123",
+    "role": "CANDIDATE",
     "fullName": "Nguyễn Văn An",
-    "role": "CANDIDATE",
-    "lmsUserId": "std-001"
+    "companyId": null,
+    "companyName": null
   },
   {
-    "id": "usr-002",
+    "id": "user-002",
     "email": "candidate2@rikkeijobs.test",
+    "password": "Test@123",
+    "role": "CANDIDATE",
     "fullName": "Trần Thị Bình",
-    "role": "CANDIDATE",
-    "lmsUserId": "std-002"
+    "companyId": null,
+    "companyName": null
   },
   {
-    "id": "usr-003",
+    "id": "user-003",
     "email": "candidate3@rikkeijobs.test",
-    "fullName": "Lê Hoàng Cường",
+    "password": "Test@123",
     "role": "CANDIDATE",
-    "lmsUserId": "std-003"
+    "fullName": "Lê Hoàng Cường",
+    "companyId": null,
+    "companyName": null
   },
   {
-    "id": "usr-004",
+    "id": "user-004",
     "email": "hr1@rikkeijobs.test",
-    "fullName": "Trần Thị Mai (HR)",
+    "password": "Test@123",
     "role": "HR",
+    "fullName": "HR Account One",
     "companyId": "comp-001",
-    "companyName": "Công ty Cổ phần Rikkeisoft (Công ty A)"
+    "companyName": "Công ty Cổ phần Rikkeisoft"
   },
   {
-    "id": "usr-005",
+    "id": "user-005",
     "email": "hr2@rikkeijobs.test",
-    "fullName": "Lê Hoàng Nam (HR)",
+    "password": "Test@123",
     "role": "HR",
+    "fullName": "HR Account Two",
     "companyId": "comp-002",
-    "companyName": "Rikkei Digital Solutions (Công ty B)"
+    "companyName": "Rikkei Digital Solutions"
   },
   {
-    "id": "usr-006",
+    "id": "user-006",
     "email": "mentor1@rikkeijobs.test",
-    "fullName": "Phạm Minh Đức",
+    "password": "Test@123",
     "role": "MENTOR",
-    "specialty": "Java, Cloud & Software Architecture"
+    "fullName": "Phạm Minh Đức",
+    "companyId": null,
+    "companyName": null
   },
   {
-    "id": "usr-007",
+    "id": "user-007",
     "email": "staff1@rikkeijobs.test",
-    "fullName": "Hoàng Thu Hà",
+    "password": "Test@123",
     "role": "STAFF",
-    "department": "Phòng Tuyển sinh & Hướng nghiệp"
+    "fullName": "Hoàng Thu Hà",
+    "companyId": null,
+    "companyName": null
   },
   {
-    "id": "usr-008",
+    "id": "user-008",
     "email": "admin1@rikkeijobs.test",
+    "password": "Test@123",
+    "role": "ADMIN",
     "fullName": "Quản trị viên Hệ thống",
-    "role": "ADMIN"
+    "companyId": null,
+    "companyName": null
   }
 ]
-
