@@ -8,6 +8,7 @@ import { groupSkillsByGroup, isSelfOnly } from "@/lib/utils";
 import { useSkillProfile } from "@/api/hooks/useSkillProfile";
 import type { SkillProfileResponse } from "@/api/types/skill";
 
+
 function SkillProfileContent() {
   const { userId } = useParams<{ userId?: string }>();
   const isOwnProfile = !userId;
@@ -197,6 +198,7 @@ function SkillProfileContent() {
           </p>
         </div>
       </div>
+
 
       {Object.entries(groups).map(([group, groupSkills]) => (
         <section key={group} className="space-y-4">
