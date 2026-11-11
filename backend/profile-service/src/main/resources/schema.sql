@@ -42,6 +42,23 @@ CREATE TABLE IF NOT EXISTS skill_scores (
 CREATE INDEX IF NOT EXISTS idx_skill_evidences_user_skill ON skill_evidences(user_id, skill_id);
 CREATE INDEX IF NOT EXISTS idx_skill_mappings_source_code ON skill_mappings(source, source_code);
 
+CREATE TABLE IF NOT EXISTS internships (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL, batch_id VARCHAR(100) NOT NULL,
+    batch_name VARCHAR(200), group_name VARCHAR(200), topic_name VARCHAR(300), mentor_email VARCHAR(200),
+    start_date DATE, end_date DATE, final_score NUMERIC(5,2), synced_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE(user_id, batch_id)
+);
+CREATE TABLE IF NOT EXISTS internship_tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(), internship_id UUID NOT NULL REFERENCES internships(id) ON DELETE CASCADE,
+    title VARCHAR(300) NOT NULL, accepted_score NUMERIC(5,2), accepted_at TIMESTAMPTZ,
+    UNIQUE(internship_id, title)
+);
+CREATE TABLE IF NOT EXISTS portfolio_projects (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL, source VARCHAR(20) NOT NULL,
+    source_ref VARCHAR(100) NOT NULL, name VARCHAR(300) NOT NULL, role VARCHAR(300), created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE(user_id, source, source_ref)
+);
+
 -- Candidate Profile Tables
 CREATE TABLE IF NOT EXISTS candidate_profiles (
     user_id UUID PRIMARY KEY,

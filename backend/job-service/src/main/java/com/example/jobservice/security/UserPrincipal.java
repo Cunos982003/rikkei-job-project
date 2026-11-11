@@ -17,6 +17,7 @@ public class UserPrincipal implements UserDetails {
     private final String role;
     private final UUID companyId;
     private final String password;
+    private final boolean mustChangePassword;
 
     public UserPrincipal(
             UUID id,
@@ -25,12 +26,24 @@ public class UserPrincipal implements UserDetails {
             String role,
             UUID companyId,
             String password) {
+        this(id, email, fullName, role, companyId, password, false);
+    }
+
+    public UserPrincipal(
+            UUID id,
+            String email,
+            String fullName,
+            String role,
+            UUID companyId,
+            String password,
+            boolean mustChangePassword) {
         this.id = id;
         this.email = email;
         this.fullName = fullName;
         this.role = role;
         this.companyId = companyId;
         this.password = password;
+        this.mustChangePassword = mustChangePassword;
     }
 
     public static UserPrincipal of(
@@ -41,6 +54,17 @@ public class UserPrincipal implements UserDetails {
             UUID companyId) {
         return new UserPrincipal(
                 id, email, fullName, role, companyId, "");
+    }
+
+    public static UserPrincipal of(
+            UUID id,
+            String email,
+            String fullName,
+            String role,
+            UUID companyId,
+            boolean mustChangePassword) {
+        return new UserPrincipal(
+                id, email, fullName, role, companyId, "", mustChangePassword);
     }
 
     public UUID getId() {
@@ -61,6 +85,10 @@ public class UserPrincipal implements UserDetails {
 
     public UUID getCompanyId() {
         return companyId;
+    }
+
+    public boolean isMustChangePassword() {
+        return mustChangePassword;
     }
 
     @Override

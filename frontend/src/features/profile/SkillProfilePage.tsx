@@ -1,12 +1,14 @@
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useParams } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { SkillGroupCard } from "./components/SkillGroupCard";
-import { groupSkillsByGroup, isSelfOnly } from "@/lib/utils";
+import { Card, CardContent, CardHeader } from "@/components/common/Card";
+import { Badge } from "@/components/common/Badge";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 import { useSkillProfile } from "@/api/hooks/useSkillProfile";
-import type { SkillProfileResponse } from "@/api/types/skill";
+import type { SkillProfileItem } from "@/api/endpoints/profile.api";
+import { cn } from "@/utils/cn";
+import { Award, User, ChevronDown, ChevronUp, Calendar, CheckCircle2 } from "lucide-react";
 
 function SkillProfileContent() {
   const { userId } = useParams<{ userId?: string }>();
@@ -28,123 +30,7 @@ function SkillProfileContent() {
     return () => clearTimeout(timer);
   }, [isLoading, error]);
 
-  // Mock data for demo when backend is not available
-  const mockData: SkillProfileResponse[] = [
-    {
-      skillId: "1",
-      skillCode: "JAVA_CORE",
-      skillName: "Java Core",
-      group: "Programming",
-      verifiedScore: 85,
-      selfScore: null,
-      level: "Nâng cao",
-      evidences: [
-        { source: "LMS", sourceRef: "JAVA01", title: "Java Core Course", score: 85, recordedAt: "2026-10-15T10:30:00Z", verified: true },
-        { source: "EXAM", sourceRef: "JAVA_MID", title: "Java Midterm", score: 90, recordedAt: "2026-09-20T14:00:00Z", verified: true },
-      ],
-    },
-    {
-      skillId: "2",
-      skillCode: "SPRING_BOOT",
-      skillName: "Spring Boot",
-      group: "Framework",
-      verifiedScore: 78,
-      selfScore: null,
-      level: "Vững",
-      evidences: [
-        { source: "LMS", sourceRef: "SPRING01", title: "Spring Boot Course", score: 80, recordedAt: "2026-10-10T10:00:00Z", verified: true },
-        { source: "PM", sourceRef: "IOC_JAVA", title: "IOC Java Project", score: 70, recordedAt: "2026-08-15T16:00:00Z", verified: true },
-      ],
-    },
-    {
-      skillId: "3",
-      skillCode: "SQL",
-      skillName: "SQL",
-      group: "Database",
-      verifiedScore: 72,
-      selfScore: null,
-      level: "Vững",
-      evidences: [
-        { source: "LMS", sourceRef: "JAVA01", title: "Java Core Course (SQL part)", score: 75, recordedAt: "2026-10-15T10:30:00Z", verified: true },
-        { source: "EXAM", sourceRef: "SQL_FINAL", title: "SQL Final Exam", score: 75, recordedAt: "2026-09-25T10:00:00Z", verified: true },
-      ],
-    },
-    {
-      skillId: "4",
-      skillCode: "REACT",
-      skillName: "React",
-      group: "Frontend",
-      verifiedScore: null,
-      selfScore: 88,
-      level: "Nâng cao",
-      evidences: [
-        { source: "SELF", sourceRef: "SELF_REACT", title: "Self-reported React", score: 88, recordedAt: "2026-10-01T12:00:00Z", verified: false },
-      ],
-    },
-    {
-      skillId: "5",
-      skillCode: "JAVASCRIPT",
-      skillName: "JavaScript",
-      group: "Frontend",
-      verifiedScore: 65,
-      selfScore: 70,
-      level: "Khá",
-      evidences: [
-        { source: "LMS", sourceRef: "WEB01", title: "JavaScript Basics", score: 65, recordedAt: "2026-09-01T10:00:00Z", verified: true },
-        { source: "SELF", sourceRef: "SELF_JS", title: "Self-reported JavaScript", score: 70, recordedAt: "2026-10-01T12:00:00Z", verified: false },
-      ],
-    },
-    {
-      skillId: "6",
-      skillCode: "DOCKER",
-      skillName: "Docker",
-      group: "DevOps",
-      verifiedScore: 60,
-      selfScore: null,
-      level: "Khá",
-      evidences: [
-        { source: "LMS", sourceRef: "DOCKER01", title: "Docker Fundamentals", score: 60, recordedAt: "2026-08-20T10:00:00Z", verified: true },
-      ],
-    },
-    {
-      skillId: "7",
-      skillCode: "COMMUNICATION",
-      skillName: "Communication",
-      group: "Soft Skill",
-      verifiedScore: null,
-      selfScore: 82,
-      level: "Nâng cao",
-      evidences: [
-        { source: "SELF", sourceRef: "SELF_COMM", title: "Self-reported Communication", score: 82, recordedAt: "2026-10-01T12:00:00Z", verified: false },
-      ],
-    },
-    {
-      skillId: "8",
-      skillCode: "TEAMWORK",
-      skillName: "Teamwork",
-      group: "Soft Skill",
-      verifiedScore: 75,
-      selfScore: null,
-      level: "Vững",
-      evidences: [
-        { source: "PM", sourceRef: "IOC_JAVA", title: "IOC Java Project (Teamwork)", score: 75, recordedAt: "2026-08-15T16:00:00Z", verified: true },
-      ],
-    },
-    {
-      skillId: "9",
-      skillCode: "GIT",
-      skillName: "Git",
-      group: "Tool",
-      verifiedScore: 70,
-      selfScore: null,
-      level: "Vững",
-      evidences: [
-        { source: "LMS", sourceRef: "GIT01", title: "Version Control with Git", score: 70, recordedAt: "2026-09-10T10:00:00Z", verified: true },
-      ],
-    },
-  ];
-
-  const skills = useMockData ? mockData : (data ?? []);
+  const skills = useMockData ? [] : (data ?? []);
   const groups = groupSkillsByGroup(skills);
 
   if (isLoading && !useMockData) {
@@ -152,7 +38,7 @@ function SkillProfileContent() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Hồ sơ kỹ năng</h1>
-          <Badge variant="secondary">Đang tải...</Badge>
+          <Badge variant="default">Đang tải...</Badge>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
@@ -192,8 +78,8 @@ function SkillProfileContent() {
           </h1>
           <p className="text-muted-foreground">
             {skills.length} kỹ năng •
-            {skills.filter((s: SkillProfileResponse) => s.verifiedScore !== null).length} đã xác thực •
-            {skills.filter((s: SkillProfileResponse) => isSelfOnly(s)).length} tự khai
+            {skills.filter((s: SkillProfileItem) => s.verifiedScore !== null).length} đã xác thực •
+            {skills.filter((s: SkillProfileItem) => isSelfOnly(s)).length} tự khai
           </p>
         </div>
       </div>
@@ -209,7 +95,7 @@ function SkillProfileContent() {
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {groupSkills.map((skill) => (
-              <SkillGroupCard key={skill.skillId} skill={skill} />
+              <SkillCard key={skill.skillId} skill={skill} />
             ))}
           </div>
         </section>
@@ -228,30 +114,189 @@ function SkillProfileContent() {
   );
 }
 
-export function SkillProfilePage() {
+function SkillCard({ skill }: { skill: SkillProfileItem }) {
+  const [showEvidences, setShowEvidences] = useState(false);
+  const displayScore = skill.verifiedScore ?? skill.selfScore ?? 0;
+
   return (
-    <div className="container mx-auto py-6 px-4">
-      <Suspense fallback={
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-6 w-24" />
+    <Card className="overflow-hidden transition-shadow hover:shadow-md">
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-foreground truncate">{skill.skillName}</h3>
+            <p className="text-sm text-muted-foreground">{skill.skillCode}</p>
           </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {[...Array(6)].map((_, i) => (
-              <Card key={i} className="h-32">
-                <CardContent>
-                  <Skeleton className="h-6 w-3/4 mb-4" />
-                  <Skeleton className="h-4 w-1/2 mb-2" />
-                  <Skeleton className="h-4 w-1/4" />
-                </CardContent>
-              </Card>
-            ))}
+          <div className="flex items-center gap-1.5">
+            {skill.verifiedScore !== null && (
+              <Badge variant="verified" className="text-xs gap-1">
+                <Award className="h-3 w-3" />
+                Xác thực
+              </Badge>
+            )}
+            {skill.verifiedScore === null && skill.selfScore !== null && (
+              <Badge variant="self" className="text-xs gap-1">
+                <User className="h-3 w-3" />
+                Tự khai
+              </Badge>
+            )}
+            <button
+              onClick={() => setShowEvidences(!showEvidences)}
+              className="p-1 hover:bg-accent rounded transition-colors"
+              aria-label={showEvidences ? "Ẩn bằng chứng" : "Hiện bằng chứng"}
+            >
+              {showEvidences ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
           </div>
         </div>
-      }>
-        <SkillProfileContent />
-      </Suspense>
-    </div>
+      </CardHeader>
+
+      <CardContent className="space-y-3 pb-3">
+        <div className="flex items-end justify-between gap-2">
+          <Progress value={displayScore} className="flex-1" />
+          <span className="text-lg font-bold text-foreground whitespace-nowrap">
+            {displayScore}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <Badge variant="outline" className="text-xs">
+            {skill.level}
+          </Badge>
+          {skill.evidences.length > 0 && (
+            <button
+              onClick={() => setShowEvidences(!showEvidences)}
+              className="text-xs text-primary hover:underline"
+            >
+              {showEvidences ? "Ẩn bằng chứng" : `${skill.evidences.length} bằng chứng`}
+            </button>
+          )}
+        </div>
+
+        {showEvidences && skill.evidences.length > 0 && (
+          <>
+            <Separator />
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {skill.evidences.map((evidence: typeof skill.evidences[0], index: number) => (
+                <div
+                  key={`${evidence.source}-${evidence.title}-${index}`}
+                  className="p-3 bg-card border rounded-lg hover:bg-accent/50 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-foreground truncate">{evidence.title}</h4>
+                      <p className="text-sm text-muted-foreground">{evidence.source}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge variant={getSourceVariant(evidence.source)} className="gap-1">
+                        {getSourceIcon(evidence.source)}
+                        {evidence.source}
+                      </Badge>
+                      <Badge variant={evidence.verified ? "verified" : "self"} className="gap-1">
+                        {evidence.verified ? (
+                          <>
+                            <CheckCircle2 className="h-3 w-3" />
+                            Đã xác thực
+                          </>
+                        ) : (
+                          <>
+                            <User className="h-3 w-3" />
+                            Chưa xác thực
+                          </>
+                        )}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        "font-semibold px-2 py-0.5 rounded",
+                        evidence.score >= 80 && "text-green-700 bg-green-100",
+                        evidence.score >= 60 && evidence.score < 80 && "text-yellow-700 bg-yellow-100",
+                        evidence.score >= 40 && evidence.score < 60 && "text-orange-700 bg-orange-100",
+                        evidence.score < 40 && "text-red-700 bg-red-100"
+                      )}>
+                        {evidence.score}/100
+                      </span>
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(evidence.recordedAt).toLocaleDateString("vi-VN")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
+}
+
+export function SkillProfilePage() {
+  return (
+    <Suspense fallback={
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-6 w-24" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[...Array(6)].map((_, i) => (
+            <Card key={i} className="h-32">
+              <CardContent>
+                <Skeleton className="h-6 w-3/4 mb-4" />
+                <Skeleton className="h-4 w-1/2 mb-2" />
+                <Skeleton className="h-4 w-1/4" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    }>
+      <div className="container mx-auto py-6 px-4">
+        <SkillProfileContent />
+      </div>
+    </Suspense>
+  );
+}
+
+// Helper functions
+function groupSkillsByGroup(skills: SkillProfileItem[]): Record<string, SkillProfileItem[]> {
+  return skills.reduce((acc, skill) => {
+    if (!acc[skill.group]) {
+      acc[skill.group] = [];
+    }
+    acc[skill.group].push(skill);
+    return acc;
+  }, {} as Record<string, SkillProfileItem[]>);
+}
+
+function isSelfOnly(skill: SkillProfileItem): boolean {
+  return skill.verifiedScore === null && skill.selfScore !== null;
+}
+
+function getSourceVariant(source: string): "default" | "primary" | "warning" | "danger" | "outline" | "verified" | "self" {
+  const variants: Record<string, "default" | "primary" | "warning" | "danger" | "outline" | "verified" | "self"> = {
+    LMS: "default",
+    EXAM: "default",
+    PM: "primary",
+    INTERNSHIP: "primary",
+    MENTOR: "outline",
+    SELF: "self",
+  };
+  return variants[source] || "outline";
+}
+
+function getSourceIcon(source: string) {
+  const icons: Record<string, React.ReactNode> = {
+    LMS: <Award className="h-3 w-3" />,
+    EXAM: <Award className="h-3 w-3" />,
+    PM: <Award className="h-3 w-3" />,
+    INTERNSHIP: <User className="h-3 w-3" />,
+    MENTOR: <User className="h-3 w-3" />,
+    SELF: <User className="h-3 w-3" />,
+  };
+  return icons[source] || <User className="h-3 w-3" />;
 }

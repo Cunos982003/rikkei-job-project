@@ -8,12 +8,16 @@ import com.example.jobservice.company.domain.Company;
 import com.example.jobservice.company.domain.CompanyRepository;
 import com.example.jobservice.company.domain.CompanyStatus;
 import com.example.jobservice.company.dto.*;
-import com.example.jobservice.email.EmailService;
 import com.example.jobservice.security.UserPrincipal;
 import com.example.jobservice.user.domain.User;
 import com.example.jobservice.user.domain.UserRepository;
 
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +36,7 @@ import java.util.regex.Pattern;
 @Service
 public class CompanyService {
 
+    private static final Logger log = LoggerFactory.getLogger(CompanyService.class);
     private static final Pattern TAX_CODE_PATTERN = Pattern.compile("^(\\d{10}|\\d{13})$");
 
     private static final List<String> ALLOWED_IMAGE_TYPES = List.of("image/jpeg", "image/png", "image/jpg");
@@ -52,7 +57,7 @@ public class CompanyService {
     private final CompanyRepository companyRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService;
+    private final ApplicationEventPublisher eventPublisher;
     private final String uploadDir;
 
     private final SecureRandom secureRandom = new SecureRandom();
@@ -61,13 +66,13 @@ public class CompanyService {
             CompanyRepository companyRepository,
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            EmailService emailService,
+            ApplicationEventPublisher eventPublisher,
             @Value("${app.upload.dir:uploads/logos}") String uploadDir) {
 
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.emailService = emailService;
+        this.eventPublisher = eventPublisher;
         this.uploadDir = uploadDir;
     }
 
@@ -141,21 +146,22 @@ public class CompanyService {
 
         User savedUser = userRepository.save(user);
 
-        emailService.sendHrAccountCredentials(
-                savedUser.getEmail(),
-                savedUser.getFullName(),
-                company.getName(),
-                temporaryPassword);
-
-        return new HrAccountResponse(
+        HrAccountResponse response = new HrAccountResponse(
                 savedUser.getId(),
                 savedUser.getEmail(),
                 savedUser.getFullName(),
                 savedUser.getRole(),
                 savedUser.getCompanyId(),
-                savedUser.isMustChangePassword(),
-                "Tạo tài khoản HR thành công. Thông tin đăng nhập đã được gửi tới email "
-                        + email);
+                savedUser.isMustChangePassword());
+
+        eventPublisher.publishEvent(new HrAccountCreatedEvent(
+                savedUser.getEmail(),
+                savedUser.getFullName(),
+                company.getName(),
+                temporaryPassword,
+                response));
+
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -264,6 +270,7 @@ public class CompanyService {
             Path targetDir = Paths.get(uploadDir);
 
             Files.createDirectories(targetDir);
+            String previousLogoUrl = company.getLogoUrl();
 
             String filename = "company-"
                     + company.getId()
@@ -279,6 +286,7 @@ public class CompanyService {
             company.setLogoUrl(logoUrl);
 
             companyRepository.save(company);
+            deletePreviousLogoAfterCommit(previousLogoUrl, targetDir);
 
             return new LogoUploadResponse(
                     logoUrl,
@@ -287,6 +295,42 @@ public class CompanyService {
         } catch (IOException e) {
             throw new BadRequestException(
                     "Không thể lưu tệp tải lên");
+        }
+    }
+
+    private void deletePreviousLogoAfterCommit(String previousLogoUrl, Path targetDir) {
+        if (previousLogoUrl == null || previousLogoUrl.isBlank()) {
+            return;
+        }
+
+        Path previousLogo = targetDir.resolve(
+                Paths.get(previousLogoUrl).getFileName()).normalize();
+        if (!previousLogo.startsWith(targetDir.toAbsolutePath().normalize())
+                && !previousLogo.startsWith(targetDir.normalize())) {
+            return;
+        }
+
+        Runnable deleteLogo = () -> {
+            try {
+                Files.deleteIfExists(previousLogo);
+            } catch (IOException e) {
+                throw new IllegalStateException("Không thể xóa logo cũ: " + previousLogo, e);
+            }
+        };
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        deleteLogo.run();
+                    } catch (RuntimeException e) {
+                        log.warn("Không thể xóa logo cũ {}", previousLogo, e);
+                    }
+                }
+            });
+        } else {
+            deleteLogo.run();
         }
     }
 
