@@ -1,5 +1,6 @@
 package com.example.profileservice.profile.service;
 
+import com.example.profileservice.common.LevelConstants;
 import com.example.profileservice.profile.api.dto.LmsStudentDto;
 import com.example.profileservice.profile.api.dto.SelfSkillDto;
 import com.example.profileservice.profile.domain.CandidateProfile;
@@ -24,6 +25,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -155,7 +157,7 @@ class ProfileServiceTest {
         assertThat(savedScore.getSkillId()).isEqualTo(SKILL_ID);
         assertThat(savedScore.getSelfScore()).isEqualTo((short) 85);
         assertThat(savedScore.getVerifiedScore()).isNull();
-        assertThat(savedScore.getLevel()).isEqualTo("Nâng cao");
+        assertThat(savedScore.getLevel()).isEqualTo(LevelConstants.LEVEL_NANG_CAO);
         assertThat(savedScore.getUpdatedAt()).isNotNull();
     }
 
@@ -184,7 +186,7 @@ class ProfileServiceTest {
                 .userId(TEST_USER_ID)
                 .skillId(SKILL_ID)
                 .selfScore((short) 50)
-                .level("Khá")
+                .level(LevelConstants.LEVEL_KHA)
                 .updatedAt(OffsetDateTime.now().minusDays(10))
                 .build();
 
@@ -200,8 +202,143 @@ class ProfileServiceTest {
         assertThat(existingEvidence.getScore()).isEqualTo((short) 70);
         assertThat(existingEvidence.isVerified()).isFalse();
         assertThat(existingScore.getSelfScore()).isEqualTo((short) 70);
-        assertThat(existingScore.getLevel()).isEqualTo("Vững");
+        assertThat(existingScore.getLevel()).isEqualTo(LevelConstants.LEVEL_VUNG);
         verify(skillEvidenceRepository).save(existingEvidence);
         verify(skillScoreRepository).save(existingScore);
     }
-}
+
+    @Test
+    void upsertSelfSkills_level_82_is_Vung_on_the_shared_scale() {
+        // 82 sits between the two candidate scales. The shared HS-01 scale (85/70/50)
+        // puts it at "Vững"; a stricter 80-floor scale would wrongly report "Năng cao".
+        assertThat(levelForSelfScore(82)).isEqualTo(LevelConstants.LEVEL_VUNG);
+    }
+
+    @Test
+    void upsertSelfSkills_level_60_is_Kha_on_the_shared_scale() {
+        // 60 is below the shared "Vững" floor of 70, so it must fall to "Khá".
+        assertThat(levelForSelfScore(60)).isEqualTo(LevelConstants.LEVEL_KHA);
+    }
+
+    private String levelForSelfScore(int selfScore) {
+        Skill javaSkill = Skill.builder()
+                .id(SKILL_ID)
+                .code("JAVA_CORE")
+                .name("Java Core")
+                .group("Programming")
+                .build();
+
+        when(skillRepository.findById(SKILL_ID)).thenReturn(Optional.of(javaSkill));
+        when(skillEvidenceRepository.findByUserIdAndSkillIdAndSourceAndSourceRef(
+                TEST_USER_ID, SKILL_ID, "SELF", "SELF_JAVA_CORE")).thenReturn(Optional.empty());
+        when(skillScoreRepository.findByUserIdAndSkillId(TEST_USER_ID, SKILL_ID)).thenReturn(Optional.empty());
+
+        profileService.upsertSelfSkills(TEST_USER_ID, List.of(new SelfSkillDto(SKILL_ID, selfScore)));
+
+        ArgumentCaptor<SkillScore> scoreCaptor = ArgumentCaptor.forClass(SkillScore.class);
+        verify(skillScoreRepository).save(scoreCaptor.capture());
+        return scoreCaptor.getValue().getLevel();
+    }
+
+    @Test
+    void upsertSelfSkills_rejects_negative_score() {
+        assertThatThrownBy(() -> profileService.upsertSelfSkills(TEST_USER_ID,
+                List.of(new SelfSkillDto(SKILL_ID, -1))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("selfScore must be between 0 and 100");
+    }
+
+    @Test
+    void upsertSelfSkills_rejects_score_above_100() {
+        assertThatThrownBy(() -> profileService.upsertSelfSkills(TEST_USER_ID,
+                List.of(new SelfSkillDto(SKILL_ID, 101))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("selfScore must be between 0 and 100");
+    }
+
+    @Test
+    void upsertSelfSkills_rejects_null_score() {
+        assertThatThrownBy(() -> profileService.upsertSelfSkills(TEST_USER_ID,
+                List.of(new SelfSkillDto(SKILL_ID, null))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("selfScore must be between 0 and 100");
+    }
+
+    @Test
+    void upsertSelfSkills_rejects_null_skillId() {
+        assertThatThrownBy(() -> profileService.upsertSelfSkills(TEST_USER_ID,
+                List.of(new SelfSkillDto(null, 85))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("skillId must not be null");
+    }
+
+    @Test
+    void upsertSelfSkills_handles_null_list() {
+        // Should not throw, just return silently
+        profileService.upsertSelfSkills(TEST_USER_ID, null);
+        verifyNoInteractions(skillRepository, skillEvidenceRepository, skillScoreRepository);
+    }
+
+    @Test
+    void upsertSelfSkills_handles_empty_list() {
+        // Should not throw, just return silently
+        profileService.upsertSelfSkills(TEST_USER_ID, List.of());
+        verifyNoInteractions(skillRepository, skillEvidenceRepository, skillScoreRepository);
+    }
+
+    @Test
+    void upsertSelfSkills_existing_verifiedScore_takes_precedence_over_selfScore() {
+        // Given — existing skill with verifiedScore = 85 (level "Năng cao")
+        Skill javaSkill = Skill.builder()
+                .id(SKILL_ID)
+                .code("JAVA_CORE")
+                .name("Java Core")
+                .group("Programming")
+                .build();
+
+        SkillScore existingScore = SkillScore.builder()
+                .userId(TEST_USER_ID)
+                .skillId(SKILL_ID)
+                .verifiedScore((short) 85)  // Verified score = 85 → "Năng cao"
+                .selfScore((short) 50)       // Previous self score = 50
+                .level(LevelConstants.LEVEL_NANG_CAO)
+                .updatedAt(OffsetDateTime.now().minusDays(10))
+                .build();
+
+        SkillEvidence existingLmsEvidence = SkillEvidence.builder()
+                .userId(TEST_USER_ID)
+                .skill(javaSkill)
+                .source("LMS")  // Verified evidence
+                .sourceRef("JAVA01")
+                .title("Java Core Course")
+                .score((short) 85)
+                .recordedAt(OffsetDateTime.now().minusDays(10))
+                .verified(true)
+                .build();
+
+        when(skillRepository.findById(SKILL_ID)).thenReturn(Optional.of(javaSkill));
+        when(skillEvidenceRepository.findByUserIdAndSkillIdAndSourceAndSourceRef(
+                TEST_USER_ID, SKILL_ID, "SELF", "SELF_JAVA_CORE")).thenReturn(Optional.empty());
+        when(skillScoreRepository.findByUserIdAndSkillId(TEST_USER_ID, SKILL_ID)).thenReturn(Optional.of(existingScore));
+
+        // When — user submits a lower selfScore (70) for the same skill
+        profileService.upsertSelfSkills(TEST_USER_ID, List.of(new SelfSkillDto(SKILL_ID, 70)));
+
+        // Then — verifiedScore (85) takes precedence, level remains "Năng cao" (≥85)
+        ArgumentCaptor<SkillScore> scoreCaptor = ArgumentCaptor.forClass(SkillScore.class);
+        verify(skillScoreRepository).save(scoreCaptor.capture());
+        SkillScore savedScore = scoreCaptor.getValue();
+        assertThat(savedScore.getVerifiedScore()).isEqualTo((short) 85);
+        assertThat(savedScore.getSelfScore()).isEqualTo((short) 70);  // selfScore updated
+        assertThat(savedScore.getLevel()).isEqualTo(LevelConstants.LEVEL_NANG_CAO);     // Level based on verifiedScore (85)
+
+        // Verify a NEW self-evidence is created (not the existing LMS evidence)
+        ArgumentCaptor<SkillEvidence> evidenceCaptor = ArgumentCaptor.forClass(SkillEvidence.class);
+        verify(skillEvidenceRepository).save(evidenceCaptor.capture());
+        SkillEvidence savedSelfEvidence = evidenceCaptor.getValue();
+        assertThat(savedSelfEvidence.getSource()).isEqualTo("SELF");
+        assertThat(savedSelfEvidence.getSourceRef()).isEqualTo("SELF_JAVA_CORE");
+        assertThat(savedSelfEvidence.getScore()).isEqualTo((short) 70);
+        assertThat(savedSelfEvidence.isVerified()).isFalse();
+    }
+}
