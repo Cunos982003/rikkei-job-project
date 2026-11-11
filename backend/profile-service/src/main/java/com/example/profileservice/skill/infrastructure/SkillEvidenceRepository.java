@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface SkillEvidenceRepository extends JpaRepository<SkillEvidence, UUID> {
@@ -22,4 +23,9 @@ public interface SkillEvidenceRepository extends JpaRepository<SkillEvidence, UU
     );
 
     // Upsert via save() — unique constraint handles idempotency
+
+    List<SkillEvidence> findByUserIdAndSource(UUID userId, String source);
+
+    Optional<SkillEvidence> findByUserIdAndSkillIdAndSourceAndSourceRef(
+            UUID userId, UUID skillId, String source, String sourceRef);
 }

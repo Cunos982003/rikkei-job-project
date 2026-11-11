@@ -41,3 +41,47 @@ CREATE TABLE IF NOT EXISTS skill_scores (
 
 CREATE INDEX IF NOT EXISTS idx_skill_evidences_user_skill ON skill_evidences(user_id, skill_id);
 CREATE INDEX IF NOT EXISTS idx_skill_mappings_source_code ON skill_mappings(source, source_code);
+
+-- Candidate Profile Tables
+CREATE TABLE IF NOT EXISTS candidate_profiles (
+    user_id UUID PRIMARY KEY,
+    full_name VARCHAR(200),
+    dob DATE,
+    gender VARCHAR(20),
+    phone VARCHAR(50),
+    email VARCHAR(200),
+    address VARCHAR(500),
+    avatar_url VARCHAR(500),
+    headline VARCHAR(500),
+    summary TEXT,
+    program VARCHAR(100),
+    class_code VARCHAR(50),
+    course_name VARCHAR(200),
+    visibility VARCHAR(20) NOT NULL DEFAULT 'PRIVATE' CHECK (visibility IN ('PRIVATE', 'PUBLIC', 'RECRUITER')),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS educations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    school VARCHAR(200) NOT NULL,
+    major VARCHAR(200),
+    from_date DATE,
+    to_date DATE,
+    gpa NUMERIC(3,2),
+    note TEXT
+);
+
+CREATE TABLE IF NOT EXISTS certificates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    name VARCHAR(200) NOT NULL,
+    issuer VARCHAR(200),
+    issued_at DATE,
+    expires_at DATE,
+    file_url VARCHAR(500),
+    file_type VARCHAR(50)
+);
+
+CREATE INDEX IF NOT EXISTS idx_educations_user_id ON educations(user_id);
+CREATE INDEX IF NOT EXISTS idx_certificates_user_id ON certificates(user_id);
