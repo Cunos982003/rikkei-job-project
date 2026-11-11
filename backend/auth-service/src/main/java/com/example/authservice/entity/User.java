@@ -9,7 +9,11 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -20,6 +24,7 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @JdbcTypeCode(SqlTypes.UUID)
     private UUID id;
 
     @Column(name = "email", nullable = false, unique = true, length = 255)
@@ -61,6 +66,10 @@ public class User {
     private Instant updatedAt;
 
     public User() {
+        this.createdAt = Instant.now();
+        this.updatedAt = Instant.now();
+        this.failedLoginCount = 0;
+        this.mustChangePassword = false;
     }
 
     public User(
@@ -88,8 +97,29 @@ public class User {
         this.fullName = fullName;
         this.role = role;
         this.passwordHash = passwordHash;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
+        this.createdAt = createdAt != null ? createdAt : Instant.now();
+        this.updatedAt = updatedAt != null ? updatedAt : this.createdAt;
+        this.failedLoginCount = 0;
+        this.mustChangePassword = false;
+        this.status = UserStatus.ACTIVE;
+    }
+
+    @PrePersist
+    @PreUpdate
+    public void syncTimestamps() {
+        if (this.createdAt == null) {
+            this.createdAt = Instant.now();
+        }
+        this.updatedAt = Instant.now();
+        if (this.failedLoginCount < 0) {
+            this.failedLoginCount = 0;
+        }
+        if (this.status == null) {
+            this.status = UserStatus.ACTIVE;
+        }
+        if (this.mustChangePassword) {
+            this.mustChangePassword = true;
+        }
     }
 
     public UUID getId() {
