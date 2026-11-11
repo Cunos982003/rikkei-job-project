@@ -5,9 +5,9 @@ spring:
   application:
     name: job-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/postgres}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/postgres
+    SPRING_DATASOURCE_USERNAME: postgres
+    SPRING_DATASOURCE_PASSWORD: postgres
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
