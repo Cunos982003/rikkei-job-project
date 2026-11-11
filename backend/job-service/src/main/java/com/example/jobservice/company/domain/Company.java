@@ -1,16 +1,18 @@
+
 package com.example.jobservice.company.domain;
 
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.UUID;
 
 @Entity
 @Table(name = "companies")
 public class Company {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(nullable = false)
     private String name;
@@ -60,9 +62,11 @@ public class Company {
         if (createdAt == null) {
             createdAt = OffsetDateTime.now(ZoneOffset.UTC);
         }
+
         if (updatedAt == null) {
             updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
         }
+
         if (status == null) {
             status = CompanyStatus.ACTIVE;
         }
@@ -73,11 +77,11 @@ public class Company {
         updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 
@@ -185,4 +189,3 @@ public class Company {
         this.updatedAt = updatedAt;
     }
 }
-
