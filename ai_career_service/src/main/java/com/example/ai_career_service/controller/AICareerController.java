@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.security.Principal;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
@@ -30,6 +31,15 @@ public class AICareerController {
         if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated candidate is required");
         }
-        return careerService.getRecommendations(principal.getName(), limit);
+        UUID userId;
+        try {
+            userId = UUID.fromString(principal.getName());
+            if (!userId.toString().equalsIgnoreCase(principal.getName())) {
+                throw new IllegalArgumentException("Invalid UUID format");
+            }
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated candidate ID must be a UUID", exception);
+        }
+        return careerService.getRecommendations(userId, limit);
     }
 }

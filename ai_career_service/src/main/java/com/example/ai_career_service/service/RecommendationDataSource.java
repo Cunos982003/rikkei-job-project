@@ -1,5 +1,7 @@
 package com.example.ai_career_service.service;
 
+import java.util.UUID;
+
 /**
  * Integration boundary for profile-service, job-service, and assessment-service.
  * Implementations must return only the authenticated user's verified indicators,
@@ -8,5 +10,5 @@ package com.example.ai_career_service.service;
  */
 public interface RecommendationDataSource {
 
-    RecommendationSnapshot loadSnapshot(String userId);
+    RecommendationSnapshot loadSnapshot(UUID userId);
 }

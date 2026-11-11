@@ -3,6 +3,7 @@ package com.example.ai_career_service.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class RecommendationExplanationTests {
@@ -16,7 +17,7 @@ class RecommendationExplanationTests {
                         new RecommendationSnapshot.VerifiedSkill("Kotlin", 40)),
                 List.of());
         var job = new RecommendationSnapshot.EligibleJob(
-                "job-1",
+                new UUID(0, 1),
                 "job-v1",
                 List.of(
                         new RecommendationSnapshot.SkillRequirement(
@@ -39,7 +40,7 @@ class RecommendationExplanationTests {
                 List.of(new RecommendationSnapshot.VerifiedSkill("Java", 85)),
                 List.of());
         var job = new RecommendationSnapshot.EligibleJob(
-                "job-1",
+                new UUID(0, 1),
                 "job-v1",
                 List.of(
                         new RecommendationSnapshot.SkillRequirement(

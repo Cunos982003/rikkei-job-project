@@ -2,6 +2,7 @@ package com.example.ai_career_service.service;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 public record RecommendationSnapshot(
         String profileRevision,
@@ -22,13 +23,11 @@ public record RecommendationSnapshot(
     }
 
     public record EligibleJob(
-            String jobId,
+            UUID jobId,
             String jobRevision,
             List<SkillRequirement> requirements) {
         public EligibleJob {
-            if (jobId == null || jobId.isBlank()) {
-                throw new IllegalArgumentException("jobId must not be blank");
-            }
+            jobId = Objects.requireNonNull(jobId, "jobId");
             jobRevision = Objects.requireNonNull(jobRevision, "jobRevision");
             requirements = List.copyOf(requirements);
         }

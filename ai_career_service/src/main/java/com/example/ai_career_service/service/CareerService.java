@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -34,7 +35,7 @@ public class CareerService {
     private final AIProvider aiProvider;
     private final Executor aiExecutor;
 
-    public List<JobRecommendationResponse> getRecommendations(String userId, int limit) {
+    public List<JobRecommendationResponse> getRecommendations(UUID userId, int limit) {
         RecommendationSnapshot snapshot = dataSource.loadSnapshot(userId);
         Instant now = Instant.now();
         List<ScoredJob> jobs = snapshot.eligibleJobs().stream()
