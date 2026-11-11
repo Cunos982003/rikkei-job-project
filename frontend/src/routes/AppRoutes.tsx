@@ -9,6 +9,7 @@ import { RoleGuard } from "../components/auth/RoleGuard";
 import { LoginPage } from "../pages/auth/LoginPage";
 import { UnauthorizedPage } from "../pages/common/UnauthorizedPage";
 import { NotFoundPage } from "../pages/common/NotFoundPage";
+import EvaluationsPage from "../features/profile/EvaluationsPage";
 
 // Role Dashboard Pages
 import { CandidateProfilePage } from "../pages/candidate/CandidateProfilePage";
@@ -66,6 +67,9 @@ export function AppRoutes() {
             <Route path="/candidate/jobs" element={<CandidateProfilePage />} />
             <Route path="/candidate/applications" element={<CandidateProfilePage />} />
             <Route path="/candidate/learning" element={<CandidateProfilePage />} />
+            <Route path="/candidate/evaluations" element={<EvaluationsPage />} />
+            <Route path="/profile/evaluations" element={<EvaluationsPage />} />
+            <Route path="/profile/skills" element={<CandidateProfilePage />} />
           </Route>
 
           {/* Phân hệ HR (Doanh nghiệp) */}
