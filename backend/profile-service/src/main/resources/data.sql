@@ -34,6 +34,15 @@ INSERT INTO skill_mappings (source, source_code, skill_id, weight) VALUES
 ('PM', 'IOC_JAVA', (SELECT id FROM skills WHERE code='TEAMWORK'), 0.40)
 ON CONFLICT (source, source_code, skill_id) DO NOTHING;
 
+INSERT INTO skill_mappings (source, source_code, skill_id, weight) VALUES
+('PM', 'JAVA_BACKEND', (SELECT id FROM skills WHERE code='JAVA_CORE'), 0.40),
+('PM', 'JAVA_BACKEND', (SELECT id FROM skills WHERE code='SPRING_BOOT'), 0.35),
+('PM', 'JAVA_BACKEND', (SELECT id FROM skills WHERE code='SQL'), 0.25),
+('PM', 'JAVA', (SELECT id FROM skills WHERE code='JAVA_CORE'), 0.50),
+('PM', 'JAVA', (SELECT id FROM skills WHERE code='SPRING_BOOT'), 0.25),
+('PM', 'JAVA', (SELECT id FROM skills WHERE code='SQL'), 0.25)
+ON CONFLICT (source, source_code, skill_id) DO NOTHING;
+
 -- Seed skill evidences for demo user (550e8400-e29b-41d4-a716-446655440000)
 INSERT INTO skill_evidences (user_id, skill_id, source, source_ref, title, score, recorded_at, verified) VALUES
 ('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='JAVA_CORE'), 'LMS', 'JAVA01', 'Java Core Course', 85, now() - interval '30 days', true),
