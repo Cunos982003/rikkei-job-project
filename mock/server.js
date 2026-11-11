@@ -31,6 +31,7 @@ const examData = loadData('exam.json') || {};
 const pmData = loadData('pm.json') || { internships: {}, batches: [] };
 const skillsData = loadData('skills.json') || [];
 const jobsData = loadData('jobs.json') || [];
+const evaluationsData = loadData('evaluations.json') || [];
 
 // Helper helper gửi response JSON
 function sendJson(res, statusCode, data) {
@@ -283,6 +284,18 @@ async function requestHandler(req, res) {
     });
   }
 
+  // 1.05 GET /api/v1/auth/demo-accounts (Danh sách tài khoản mẫu hỗ trợ đăng nhập nhanh)
+  if (method === 'GET' && (pathname === '/api/v1/auth/demo-accounts' || pathname === '/auth/demo-accounts')) {
+    const demoAccounts = [
+      { role: "CANDIDATE", email: "candidate1@rikkeijobs.test", label: "Ứng viên (Nguyễn Văn An)" },
+      { role: "HR", email: "hr1@rikkeijobs.test", label: "Doanh nghiệp HR (Rikkeisoft)" },
+      { role: "MENTOR", email: "mentor1@rikkeijobs.test", label: "Mentor (Phạm Minh Đức)" },
+      { role: "STAFF", email: "staff1@rikkeijobs.test", label: "Cán bộ tuyển dụng" },
+      { role: "ADMIN", email: "admin1@rikkeijobs.test", label: "Quản trị hệ thống" }
+    ];
+    return sendJson(res, 200, demoAccounts);
+  }
+
   // 1.1 GET /api/v1/auth/me (Lấy thông tin tài khoản hiện tại)
   if (method === 'GET' && (pathname === '/api/v1/auth/me' || pathname === '/auth/me')) {
     const authHeader = req.headers['authorization'] || '';
@@ -294,20 +307,25 @@ async function requestHandler(req, res) {
     return sendJson(res, 200, matchedUser);
   }
 
-  // 1.2 GET /api/v1/profiles/me/skills (Hồ sơ kỹ năng cá nhân cho Frontend)
-  if (method === 'GET' && (pathname === '/api/v1/profiles/me/skills' || pathname === '/profiles/me/skills')) {
-    const defaultCand = candidates[0];
-    const formattedSkills = (defaultCand.skills || []).map((s, idx) => ({
+  // 1.2 GET /api/v1/profiles/:userId/skills & /profiles/me/skills (Hồ sơ kỹ năng cho Frontend)
+  const profileSkillsMatch = pathname.match(/^\/(?:api\/v1\/)?profiles\/(me|[^\/]+)\/skills$/);
+  if (method === 'GET' && profileSkillsMatch) {
+    const targetId = profileSkillsMatch[1];
+    let cand = candidates[0];
+    if (targetId !== 'me') {
+      cand = candidates.find(c => c.id === targetId || c.lmsUserId === targetId || c.email === targetId) || candidates[0];
+    }
+    const formattedSkills = (cand.skills || []).map((s, idx) => ({
       skillId: String(idx + 1),
-      skillCode: s.name.toUpperCase().replace(/[^A-Z0-9]/g, '_'),
+      skillCode: s.skillCode || s.name.toUpperCase().replace(/[^A-Z0-9]/g, '_'),
       skillName: s.name,
-      group: s.name.includes('Java') || s.name.includes('Spring') ? 'Backend' :
+      group: s.group || (s.name.includes('Java') || s.name.includes('Spring') ? 'Backend' :
              s.name.includes('React') || s.name.includes('HTML') || s.name.includes('Tailwind') ? 'Frontend' :
-             s.name.includes('SQL') ? 'Database' : 'Chung',
-      verifiedScore: s.verified ? s.score : null,
-      selfScore: !s.verified ? s.score : null,
+             s.name.includes('SQL') ? 'Database' : 'Chung'),
+      verifiedScore: s.verified ? (s.verifiedScore !== undefined ? s.verifiedScore : s.score) : null,
+      selfScore: s.selfScore !== undefined ? s.selfScore : (!s.verified ? s.score : null),
       level: s.level || 'Khá',
-      evidences: [
+      evidences: s.evidences || [
         {
           source: s.verified ? 'LMS' : 'SELF',
           title: `Đánh giá năng lực môn ${s.name}`,
@@ -318,6 +336,17 @@ async function requestHandler(req, res) {
       ]
     }));
     return sendJson(res, 200, formattedSkills);
+  }
+
+  // 1.25 GET /api/v1/profiles/:userId/evaluations & /profiles/me/evaluations (Đánh giá Mentor)
+  const profileEvaluationsMatch = pathname.match(/^\/(?:api\/v1\/)?profiles\/(me|[^\/]+)\/evaluations$/);
+  if (method === 'GET' && profileEvaluationsMatch) {
+    const targetId = profileEvaluationsMatch[1];
+    if (targetId === 'me') {
+      return sendJson(res, 200, evaluationsData);
+    }
+    const matched = evaluationsData.filter(e => e.userId === targetId || e.candidateId === targetId);
+    return sendJson(res, 200, matched.length > 0 ? matched : evaluationsData);
   }
 
   // 1.3 GET /api/v1/companies/me & /companies/me (Thông tin công ty của HR)
