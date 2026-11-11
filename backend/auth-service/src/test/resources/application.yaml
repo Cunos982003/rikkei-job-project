@@ -5,17 +5,18 @@ spring:
   application:
     name: auth-service-test
   datasource:
-    url: jdbc:h2:mem:auth_db;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: ""
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/postgres}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
   jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: create-drop
     open-in-view: false
     show-sql: false
   flyway:
-    enabled: false
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
 
 app:
   jwt:
