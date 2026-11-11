@@ -75,6 +75,11 @@ public class ProfileService {
     @Transactional
     public void upsertSelfSkills(UUID userId, List<SelfSkillDto> skills) {
         for (SelfSkillDto dto : skills) {
+            if (dto.getSelfScore() == null || dto.getSelfScore() < 0 || dto.getSelfScore() > 100) {
+                throw new IllegalArgumentException(
+                        "selfScore must be between 0 and 100 for skill: " + dto.getSkillId());
+            }
+
             Skill skill = skillRepo.findById(dto.getSkillId())
                     .orElseThrow(() -> new IllegalArgumentException("Skill not found: " + dto.getSkillId()));
 
