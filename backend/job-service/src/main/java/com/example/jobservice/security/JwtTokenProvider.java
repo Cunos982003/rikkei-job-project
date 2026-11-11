@@ -19,7 +19,7 @@ public class JwtTokenProvider {
     private final long expirationMs;
 
     public JwtTokenProvider(
-            @Value("${app.jwt.secret:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}") String secret,
+            @Value("${app.jwt.secret}") String secret,
             @Value("${app.jwt.expiration-ms:86400000}") long expirationMs) {
 
         this.key = Keys.hmacShaKeyFor(
@@ -36,6 +36,7 @@ public class JwtTokenProvider {
                 .claim("userId", principal.getId().toString())
                 .claim("fullName", principal.getFullName())
                 .claim("role", principal.getRole())
+                .claim("mustChangePassword", principal.isMustChangePassword())
                 .claim(
                         "companyId",
                         principal.getCompanyId() != null
@@ -68,13 +69,15 @@ public class JwtTokenProvider {
         String email = claims.getSubject();
         String fullName = claims.get("fullName", String.class);
         String role = claims.get("role", String.class);
+        Boolean mustChangePassword = claims.get("mustChangePassword", Boolean.class);
 
         return UserPrincipal.of(
                 userId,
                 email,
                 fullName,
                 role,
-                companyId);
+                companyId,
+                Boolean.TRUE.equals(mustChangePassword));
     }
 
     public boolean validateToken(String token) {

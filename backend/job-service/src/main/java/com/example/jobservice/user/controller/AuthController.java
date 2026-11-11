@@ -38,7 +38,9 @@ public class AuthController {
     public ResponseEntity<Map<String, String>> changePassword(
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody ChangePasswordRequest request) {
-        userService.changePassword(principal, request);
-        return ResponseEntity.ok(Map.of("message", "Doi mat khau thanh cong"));
+            String token = userService.changePassword(principal, request);
+            return ResponseEntity.ok(Map.of(
+                    "message", "Đổi mật khẩu thành công",
+                    "token", token));
     }
 }

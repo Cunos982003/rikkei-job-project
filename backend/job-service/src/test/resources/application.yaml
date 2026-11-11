@@ -22,7 +22,9 @@ spring:
 
 app:
   jwt:
-    secret: "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970"
+    secret: ${APP_JWT_SECRET:test-only-jwt-secret-not-for-production}
     expiration-ms: 86400000
+  cors:
+    allowed-origins: http://localhost:5173,http://localhost:3000
   upload:
     dir: "build/test-uploads/logos"

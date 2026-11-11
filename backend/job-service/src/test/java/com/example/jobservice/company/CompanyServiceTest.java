@@ -8,6 +8,8 @@ import com.example.jobservice.company.domain.Company;
 import com.example.jobservice.company.domain.CompanyRepository;
 import com.example.jobservice.company.domain.CompanyStatus;
 import com.example.jobservice.company.dto.*;
+import com.example.jobservice.company.service.HrAccountCreatedEvent;
+import com.example.jobservice.company.service.HrAccountEmailListener;
 import com.example.jobservice.company.service.CompanyService;
 import com.example.jobservice.email.MockEmailService;
 import com.example.jobservice.security.UserPrincipal;
@@ -21,6 +23,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.io.IOException;
@@ -55,6 +58,9 @@ class CompanyServiceTest {
         @Mock
         private PasswordEncoder passwordEncoder;
 
+        @Mock
+        private ApplicationEventPublisher eventPublisher;
+
         private MockEmailService mockEmailService;
         private CompanyService companyService;
         private Path tempUploadDir;
@@ -68,7 +74,7 @@ class CompanyServiceTest {
                                 companyRepository,
                                 userRepository,
                                 passwordEncoder,
-                                mockEmailService,
+                                eventPublisher,
                                 tempUploadDir.toString());
         }
 
@@ -200,12 +206,18 @@ class CompanyServiceTest {
                 HrAccountResponse response = companyService.createHrAccount(COMPANY_ID, request);
 
                 assertThat(response).isNotNull();
-                assertThat(response.id()).isEqualTo(HR_USER_ID);
-                assertThat(response.email()).isEqualTo("hr.new@rikkei.vn");
-                assertThat(response.role()).isEqualTo("ROLE_HR");
-                assertThat(response.companyId()).isEqualTo(COMPANY_ID);
-                assertThat(response.mustChangePassword()).isTrue();
+                assertThat(response.getId()).isEqualTo(HR_USER_ID);
+                assertThat(response.getEmail()).isEqualTo("hr.new@rikkei.vn");
+                assertThat(response.getRole()).isEqualTo("ROLE_HR");
+                assertThat(response.getCompanyId()).isEqualTo(COMPANY_ID);
+                assertThat(response.isMustChangePassword()).isTrue();
 
+                org.mockito.ArgumentCaptor<HrAccountCreatedEvent> eventCaptor =
+                                org.mockito.ArgumentCaptor.forClass(HrAccountCreatedEvent.class);
+                verify(eventPublisher).publishEvent(eventCaptor.capture());
+                new HrAccountEmailListener(mockEmailService).sendCredentials(eventCaptor.getValue());
+
+                assertThat(response.isEmailSent()).isTrue();
                 assertThat(mockEmailService.getSentEmails()).hasSize(1);
 
                 MockEmailService.SentEmail sentEmail = mockEmailService.getSentEmails().get(0);
@@ -384,6 +396,36 @@ class CompanyServiceTest {
                 assertThat(response.logoUrl())
                                 .startsWith("/uploads/logos/company-" + COMPANY_ID + "-");
                 assertThat(response.logoUrl()).endsWith(".png");
+        }
+
+        @Test
+        @DisplayName("Upload logo mới xóa logo cũ")
+        void uploadLogo_replacesPreviousLogo() throws IOException {
+                UserPrincipal hr1 = UserPrincipal.of(
+                                USER_ID, "hr1@rikkei.vn", "HR 1", "ROLE_HR", COMPANY_ID);
+
+                Company company = new Company();
+                company.setId(COMPANY_ID);
+                String oldFilename = "company-" + COMPANY_ID + "-old.png";
+                Path oldLogo = tempUploadDir.resolve(oldFilename);
+                Files.write(oldLogo, new byte[] { 1 });
+                company.setLogoUrl("/uploads/logos/" + oldFilename);
+
+                when(companyRepository.findById(COMPANY_ID))
+                                .thenReturn(Optional.of(company));
+                when(companyRepository.save(any(Company.class)))
+                                .thenAnswer(invocation -> invocation.getArgument(0));
+
+                MockMultipartFile file = new MockMultipartFile(
+                                "file", "logo.png", "image/png",
+                                new byte[] {
+                                                (byte) 0x89, 0x50, 0x4E, 0x47,
+                                                0x0D, 0x0A, 0x1A, 0x0A
+                                });
+
+                companyService.uploadLogo(hr1, file);
+
+                assertThat(oldLogo).doesNotExist();
         }
 
         @Test
