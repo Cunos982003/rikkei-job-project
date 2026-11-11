@@ -5,9 +5,9 @@ spring:
   application:
     name: job-service
   datasource:
-    SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/postgres
-    SPRING_DATASOURCE_USERNAME: postgres
-    SPRING_DATASOURCE_PASSWORD: postgres
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -62,14 +62,6 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
----
-# Local development profile (H2 in-memory, khong can Postgres)
-spring:
-  config:
-    activate:
-      on-profile: local
-  datasource:
-    
 ---
 # Local development profile (H2 in-memory)
 spring:
