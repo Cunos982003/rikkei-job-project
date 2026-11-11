@@ -74,7 +74,17 @@ public class ProfileService {
 
     @Transactional
     public void upsertSelfSkills(UUID userId, List<SelfSkillDto> skills) {
+        // Handle null skills list
+        if (skills == null || skills.isEmpty()) {
+            return;
+        }
+
         for (SelfSkillDto dto : skills) {
+            // Handle null skillId
+            if (dto.getSkillId() == null) {
+                throw new IllegalArgumentException("skillId must not be null");
+            }
+
             if (dto.getSelfScore() == null || dto.getSelfScore() < 0 || dto.getSelfScore() > 100) {
                 throw new IllegalArgumentException(
                         "selfScore must be between 0 and 100 for skill: " + dto.getSkillId());
@@ -95,7 +105,7 @@ public class ProfileService {
                             .verified(false)
                             .build());
 
-            evidence.setScore(dto.getSelfScore() != null ? dto.getSelfScore().shortValue() : null);
+            evidence.setScore(dto.getSelfScore().shortValue());
             evidence.setRecordedAt(java.time.OffsetDateTime.now());
             evidenceRepo.save(evidence);
 
@@ -107,18 +117,27 @@ public class ProfileService {
                             .level("Cơ bản")
                             .build());
 
-            score.setSelfScore(dto.getSelfScore() != null ? dto.getSelfScore().shortValue() : null);
-            score.setLevel(computeLevel(dto.getSelfScore()));
+            // Update self_score (verified_score is only set by HS-01 recompute)
+            score.setSelfScore(dto.getSelfScore().shortValue());
+            // Level should be based on effective score = verifiedScore ?? selfScore
+            Short verifiedScore = score.getVerifiedScore();
+            Short effectiveScore = verifiedScore != null ? verifiedScore : dto.getSelfScore().shortValue();
+            score.setSelfScore(dto.getSelfScore().shortValue());
+            score.setLevel(computeLevel(effectiveScore));
             score.setUpdatedAt(java.time.OffsetDateTime.now());
             scoreRepo.save(score);
         }
     }
 
-    private String computeLevel(Integer score) {
+    /**
+     * Compute level based on score using shared scale with HS-01.
+     * Thresholds: >=85 Nâng cao, >=70 Vững, >=50 Khá, else Cơ bản.
+     */
+    private String computeLevel(Short score) {
         if (score == null) return "Cơ bản";
-        if (score >= 80) return "Nâng cao";
-        if (score >= 60) return "Vững";
-        if (score >= 40) return "Khá";
+        if (score >= 85) return "Nâng cao";
+        if (score >= 70) return "Vững";
+        if (score >= 50) return "Khá";
         return "Cơ bản";
     }
 }

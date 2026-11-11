@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -203,5 +204,84 @@ class ProfileServiceTest {
         assertThat(existingScore.getLevel()).isEqualTo("Vững");
         verify(skillEvidenceRepository).save(existingEvidence);
         verify(skillScoreRepository).save(existingScore);
+    }
+
+    @Test
+    void upsertSelfSkills_level_82_is_Vung_on_the_shared_scale() {
+        // 82 sits between the two candidate scales. The shared HS-01 scale (85/70/50)
+        // puts it at "Vững"; a stricter 80-floor scale would wrongly report "Nâng cao".
+        assertThat(levelForSelfScore(82)).isEqualTo("Vững");
+    }
+
+    @Test
+    void upsertSelfSkills_level_60_is_Kha_on_the_shared_scale() {
+        // 60 is below the shared "Vững" floor of 70, so it must fall to "Khá".
+        assertThat(levelForSelfScore(60)).isEqualTo("Khá");
+    }
+
+    private String levelForSelfScore(int selfScore) {
+        Skill javaSkill = Skill.builder()
+                .id(SKILL_ID)
+                .code("JAVA_CORE")
+                .name("Java Core")
+                .group("Programming")
+                .build();
+
+        when(skillRepository.findById(SKILL_ID)).thenReturn(Optional.of(javaSkill));
+        when(skillEvidenceRepository.findByUserIdAndSkillIdAndSourceAndSourceRef(
+                TEST_USER_ID, SKILL_ID, "SELF", "SELF_JAVA_CORE")).thenReturn(Optional.empty());
+        when(skillScoreRepository.findByUserIdAndSkillId(TEST_USER_ID, SKILL_ID)).thenReturn(Optional.empty());
+
+        profileService.upsertSelfSkills(TEST_USER_ID, List.of(new SelfSkillDto(SKILL_ID, selfScore)));
+
+        ArgumentCaptor<SkillScore> scoreCaptor = ArgumentCaptor.forClass(SkillScore.class);
+        verify(skillScoreRepository).save(scoreCaptor.capture());
+        return scoreCaptor.getValue().getLevel();
+    }
+
+    @Test
+    void upsertSelfSkills_rejects_negative_score() {
+        assertThatThrownBy(() -> profileService.upsertSelfSkills(TEST_USER_ID,
+                List.of(new SelfSkillDto(SKILL_ID, -1))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("selfScore must be between 0 and 100");
+    }
+
+    @Test
+    void upsertSelfSkills_rejects_score_above_100() {
+        assertThatThrownBy(() -> profileService.upsertSelfSkills(TEST_USER_ID,
+                List.of(new SelfSkillDto(SKILL_ID, 101))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("selfScore must be between 0 and 100");
+    }
+
+    @Test
+    void upsertSelfSkills_rejects_null_score() {
+        assertThatThrownBy(() -> profileService.upsertSelfSkills(TEST_USER_ID,
+                List.of(new SelfSkillDto(SKILL_ID, null))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("selfScore must be between 0 and 100");
+    }
+
+    @Test
+    void upsertSelfSkills_rejects_null_skillId() {
+        assertThatThrownBy(() -> profileService.upsertSelfSkills(TEST_USER_ID,
+                List.of(new SelfSkillDto(null, 85))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("skillId must not be null");
+    }
+
+    @Test
+    void upsertSelfSkills_handles_null_list() {
+        // Should not throw, just return silently
+        profileService.upsertSelfSkills(TEST_USER_ID, null);
+        verifyNoInteractions(skillRepository, skillEvidenceRepository, skillScoreRepository);
+    }
+
+    @Test
+    void upsertSelfSkills_handles_empty_list() {
+        // Should not throw, just return silently
+        profileService.upsertSelfSkills(TEST_USER_ID, List.of());
+        verifyNoInteractions(skillRepository, skillEvidenceRepository, skillScoreRepository);
     }
 }
