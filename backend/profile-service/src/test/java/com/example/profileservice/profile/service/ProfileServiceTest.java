@@ -1,0 +1,207 @@
+package com.example.profileservice.profile.service;
+
+import com.example.profileservice.profile.api.dto.LmsStudentDto;
+import com.example.profileservice.profile.api.dto.SelfSkillDto;
+import com.example.profileservice.profile.domain.CandidateProfile;
+import com.example.profileservice.profile.infrastructure.CandidateProfileRepository;
+import com.example.profileservice.profile.infrastructure.LmsClient;
+import com.example.profileservice.skill.domain.Skill;
+import com.example.profileservice.skill.domain.SkillEvidence;
+import com.example.profileservice.skill.domain.SkillScore;
+import com.example.profileservice.skill.infrastructure.SkillEvidenceRepository;
+import com.example.profileservice.skill.infrastructure.SkillRepository;
+import com.example.profileservice.skill.infrastructure.SkillScoreRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+
+import reactor.core.publisher.Mono;
+
+@ExtendWith(MockitoExtension.class)
+class ProfileServiceTest {
+
+    private static final UUID TEST_USER_ID = UUID.randomUUID();
+    private static final UUID SKILL_ID = UUID.randomUUID();
+
+    @Mock
+    CandidateProfileRepository candidateProfileRepository;
+
+    @Mock
+    LmsClient lmsClient;
+
+    @Mock
+    SkillEvidenceRepository skillEvidenceRepository;
+
+    @Mock
+    SkillScoreRepository skillScoreRepository;
+
+    @Mock
+    SkillRepository skillRepository;
+
+    ProfileService profileService;
+
+    @BeforeEach
+    void setup() {
+        profileService = new ProfileService(candidateProfileRepository, lmsClient, skillEvidenceRepository, skillScoreRepository, skillRepository);
+    }
+
+    @Test
+    void getOrCreateProfile_fetches_from_lms_on_first_call() {
+        // Given
+        LmsStudentDto mockStudent = new LmsStudentDto(
+                "Test User",
+                "test@example.com",
+                "Test Program",
+                "Class 1A",
+                "Java Course"
+        );
+        when(lmsClient.getStudent(TEST_USER_ID)).thenReturn(Mono.just(mockStudent));
+        when(candidateProfileRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.empty());
+        when(candidateProfileRepository.save(any(CandidateProfile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        CandidateProfile profile = profileService.getOrCreateProfile(TEST_USER_ID);
+
+        // Then
+        assertThat(profile).isNotNull();
+        assertThat(profile.getFullName()).isEqualTo("Test User");
+        assertThat(profile.getEmail()).isEqualTo("test@example.com");
+        assertThat(profile.getProgram()).isEqualTo("Test Program");
+        assertThat(profile.getClassCode()).isEqualTo("Class 1A");
+        assertThat(profile.getCourseName()).isEqualTo("Java Course");
+        assertThat(profile.getVisibility()).isEqualTo(CandidateProfile.Visibility.PRIVATE);
+        verify(lmsClient).getStudent(TEST_USER_ID);
+        verify(candidateProfileRepository).save(any(CandidateProfile.class));
+    }
+
+    @Test
+    void getOrCreateProfile_returns_existing_on_second_call() {
+        // Given
+        CandidateProfile existingProfile = CandidateProfile.builder()
+                .userId(TEST_USER_ID)
+                .fullName("Existing User")
+                .email("existing@example.com")
+                .program("Existing Program")
+                .classCode("Class 2B")
+                .courseName("Spring Course")
+                .visibility(CandidateProfile.Visibility.PUBLIC)
+                .build();
+
+        when(candidateProfileRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(existingProfile));
+
+        // When
+        CandidateProfile profile = profileService.getOrCreateProfile(TEST_USER_ID);
+
+        // Then
+        assertThat(profile).isNotNull();
+        assertThat(profile.getFullName()).isEqualTo("Existing User");
+        assertThat(profile.getEmail()).isEqualTo("existing@example.com");
+        assertThat(profile.getProgram()).isEqualTo("Existing Program");
+        assertThat(profile.getClassCode()).isEqualTo("Class 2B");
+        assertThat(profile.getCourseName()).isEqualTo("Spring Course");
+        assertThat(profile.getVisibility()).isEqualTo(CandidateProfile.Visibility.PUBLIC);
+        verify(lmsClient, never()).getStudent(any());
+        verify(candidateProfileRepository, never()).save(any());
+    }
+
+    @Test
+    void upsertSelfSkills_creates_self_evidence_unverified() {
+        // Given
+        Skill javaSkill = Skill.builder()
+                .id(SKILL_ID)
+                .code("JAVA_CORE")
+                .name("Java Core")
+                .group("Programming")
+                .build();
+
+        when(skillRepository.findById(SKILL_ID)).thenReturn(Optional.of(javaSkill));
+        when(skillEvidenceRepository.findByUserIdAndSkillIdAndSourceAndSourceRef(
+                TEST_USER_ID, SKILL_ID, "SELF", "SELF_JAVA_CORE")).thenReturn(Optional.empty());
+        when(skillScoreRepository.findByUserIdAndSkillId(TEST_USER_ID, SKILL_ID)).thenReturn(Optional.empty());
+
+        // When
+        profileService.upsertSelfSkills(TEST_USER_ID, List.of(new SelfSkillDto(SKILL_ID, 85)));
+
+        // Then — evidence is recorded as self-declared and NOT verified
+        ArgumentCaptor<SkillEvidence> evidenceCaptor = ArgumentCaptor.forClass(SkillEvidence.class);
+        verify(skillEvidenceRepository).save(evidenceCaptor.capture());
+        SkillEvidence savedEvidence = evidenceCaptor.getValue();
+        assertThat(savedEvidence.getUserId()).isEqualTo(TEST_USER_ID);
+        assertThat(savedEvidence.getSkill().getId()).isEqualTo(SKILL_ID);
+        assertThat(savedEvidence.getSource()).isEqualTo("SELF");
+        assertThat(savedEvidence.getSourceRef()).isEqualTo("SELF_JAVA_CORE");
+        assertThat(savedEvidence.getScore()).isEqualTo((short) 85);
+        assertThat(savedEvidence.isVerified()).isFalse();
+        assertThat(savedEvidence.getRecordedAt()).isNotNull();
+
+        // Then — skill_score carries selfScore only, never verifiedScore
+        ArgumentCaptor<SkillScore> scoreCaptor = ArgumentCaptor.forClass(SkillScore.class);
+        verify(skillScoreRepository).save(scoreCaptor.capture());
+        SkillScore savedScore = scoreCaptor.getValue();
+        assertThat(savedScore.getUserId()).isEqualTo(TEST_USER_ID);
+        assertThat(savedScore.getSkillId()).isEqualTo(SKILL_ID);
+        assertThat(savedScore.getSelfScore()).isEqualTo((short) 85);
+        assertThat(savedScore.getVerifiedScore()).isNull();
+        assertThat(savedScore.getLevel()).isEqualTo("Nâng cao");
+        assertThat(savedScore.getUpdatedAt()).isNotNull();
+    }
+
+    @Test
+    void upsertSelfSkills_updates_existing_evidence_in_place() {
+        // Given — an existing self-declared skill at 50
+        Skill javaSkill = Skill.builder()
+                .id(SKILL_ID)
+                .code("JAVA_CORE")
+                .name("Java Core")
+                .group("Programming")
+                .build();
+
+        SkillEvidence existingEvidence = SkillEvidence.builder()
+                .userId(TEST_USER_ID)
+                .skill(javaSkill)
+                .source("SELF")
+                .sourceRef("SELF_JAVA_CORE")
+                .title("Self-reported Java Core")
+                .score((short) 50)
+                .recordedAt(OffsetDateTime.now().minusDays(10))
+                .verified(false)
+                .build();
+
+        SkillScore existingScore = SkillScore.builder()
+                .userId(TEST_USER_ID)
+                .skillId(SKILL_ID)
+                .selfScore((short) 50)
+                .level("Khá")
+                .updatedAt(OffsetDateTime.now().minusDays(10))
+                .build();
+
+        when(skillRepository.findById(SKILL_ID)).thenReturn(Optional.of(javaSkill));
+        when(skillEvidenceRepository.findByUserIdAndSkillIdAndSourceAndSourceRef(
+                TEST_USER_ID, SKILL_ID, "SELF", "SELF_JAVA_CORE")).thenReturn(Optional.of(existingEvidence));
+        when(skillScoreRepository.findByUserIdAndSkillId(TEST_USER_ID, SKILL_ID)).thenReturn(Optional.of(existingScore));
+
+        // When — re-submit the same skill with a new score
+        profileService.upsertSelfSkills(TEST_USER_ID, List.of(new SelfSkillDto(SKILL_ID, 70)));
+
+        // Then — the same row is updated, not duplicated
+        assertThat(existingEvidence.getScore()).isEqualTo((short) 70);
+        assertThat(existingEvidence.isVerified()).isFalse();
+        assertThat(existingScore.getSelfScore()).isEqualTo((short) 70);
+        assertThat(existingScore.getLevel()).isEqualTo("Vững");
+        verify(skillEvidenceRepository).save(existingEvidence);
+        verify(skillScoreRepository).save(existingScore);
+    }
+}

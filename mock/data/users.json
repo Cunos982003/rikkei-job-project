@@ -1,0 +1,74 @@
+[
+  {
+    "id": "user-001",
+    "email": "candidate1@rikkeijobs.test",
+    "password": "Test@123",
+    "role": "CANDIDATE",
+    "fullName": "Nguyễn Văn An",
+    "companyId": null,
+    "companyName": null
+  },
+  {
+    "id": "user-002",
+    "email": "candidate2@rikkeijobs.test",
+    "password": "Test@123",
+    "role": "CANDIDATE",
+    "fullName": "Trần Thị Bình",
+    "companyId": null,
+    "companyName": null
+  },
+  {
+    "id": "user-003",
+    "email": "candidate3@rikkeijobs.test",
+    "password": "Test@123",
+    "role": "CANDIDATE",
+    "fullName": "Lê Hoàng Cường",
+    "companyId": null,
+    "companyName": null
+  },
+  {
+    "id": "user-004",
+    "email": "hr1@rikkeijobs.test",
+    "password": "Test@123",
+    "role": "HR",
+    "fullName": "HR Account One",
+    "companyId": "comp-001",
+    "companyName": "Công ty Cổ phần Rikkeisoft"
+  },
+  {
+    "id": "user-005",
+    "email": "hr2@rikkeijobs.test",
+    "password": "Test@123",
+    "role": "HR",
+    "fullName": "HR Account Two",
+    "companyId": "comp-002",
+    "companyName": "Rikkei Digital Solutions"
+  },
+  {
+    "id": "user-006",
+    "email": "mentor1@rikkeijobs.test",
+    "password": "Test@123",
+    "role": "MENTOR",
+    "fullName": "Phạm Minh Đức",
+    "companyId": null,
+    "companyName": null
+  },
+  {
+    "id": "user-007",
+    "email": "staff1@rikkeijobs.test",
+    "password": "Test@123",
+    "role": "STAFF",
+    "fullName": "Hoàng Thu Hà",
+    "companyId": null,
+    "companyName": null
+  },
+  {
+    "id": "user-008",
+    "email": "admin1@rikkeijobs.test",
+    "password": "Test@123",
+    "role": "ADMIN",
+    "fullName": "Quản trị viên Hệ thống",
+    "companyId": null,
+    "companyName": null
+  }
+]

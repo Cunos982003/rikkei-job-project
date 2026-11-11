@@ -1,0 +1,22 @@
+{
+  "priority": 10,
+  "request": {
+    "urlPattern": "/(lms|exam|pm|meet)/.*",
+    "headers": {
+      "X-Service-Key": {
+        "absent": true
+      }
+    }
+  },
+  "response": {
+    "status": 401,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8"
+    },
+    "jsonBody": {
+      "code": 401,
+      "message": "Khóa dịch vụ không hợp lệ hoặc bị thiếu"
+    }
+  }
+}
+

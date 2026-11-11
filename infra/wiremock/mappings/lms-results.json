@@ -1,0 +1,25 @@
+{
+  "priority": 1,
+  "request": {
+    "method": "GET",
+    "urlPattern": "/lms/students/std-001/results",
+    "headers": {
+      "X-Service-Key": {
+        "equalTo": "dev-key"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8"
+    },
+    "jsonBody": [
+      { "subjectCode": "JV-01", "subjectName": "Java Core & OOP", "score": 8.8, "attendanceRate": 100.0, "homeworkRate": 96.0, "rpoint": 150 },
+      { "subjectCode": "DB-01", "subjectName": "Cơ sở dữ liệu SQL & PostgreSQL", "score": 8.2, "attendanceRate": 95.0, "homeworkRate": 90.0, "rpoint": 110 },
+      { "subjectCode": "SB-01", "subjectName": "Spring Boot RESTful Microservices", "score": 8.5, "attendanceRate": 98.0, "homeworkRate": 92.0, "rpoint": 130 },
+      { "subjectCode": "GIT-01", "subjectName": "Quản trị mã nguồn Git & GitHub", "score": 8.0, "attendanceRate": 100.0, "homeworkRate": 95.0, "rpoint": 90 }
+    ]
+  }
+}
+

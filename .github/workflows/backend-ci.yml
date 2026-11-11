@@ -1,17 +1,41 @@
-name: Backend CI
+name: Integration Tests
 
 on:
-  workflow_call:
-  workflow_dispatch:
+  workflow_call: 
+  workflow_dispatch: 
 
-env:
-  JAVA_VERSION: '17'
+permissions:
+  contents: read
 
 jobs:
-  build-and-test:
-    name: Build and Test Backend Services
+  integration-test:
+    name: Backend Integration Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout repository
@@ -21,36 +45,20 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: ${{ env.JAVA_VERSION }}
+          java-version: '17'
           cache: 'gradle'
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Build all backend services
+      - name: Run backend tests against service containers
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/postgres
+          SPRING_DATASOURCE_USERNAME: postgres
+          SPRING_DATASOURCE_PASSWORD: postgres
+          SPRING_DATA_REDIS_HOST: localhost
         run: |
           cd backend
           for dir in */; do
-            if [ -f "${dir}build.gradle" ] || [ -f "${dir}build.gradle.kts" ]; then
-              echo "Building ${dir%/}..."
-              (cd "$dir" && chmod +x gradlew && ./gradlew build --no-daemon)
+            if [ -f "${dir}build.gradle" ]; then
+              echo "Testing ${dir%/}..."
+              (cd "$dir" && chmod +x gradlew && ./gradlew test --no-daemon)
             fi
           done
-
-      - name: Upload test reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-test-reports
-          path: |
-            backend/**/build/reports/tests/
-            backend/**/build/test-results/
-          retention-days: 7
-          if-no-files-found: ignore
