@@ -1,14 +1,14 @@
 package com.example.jobservice.user.dto;
 
-public record LoginResponse(
-        String token,
-        Long id,
-        String email,
-        String fullName,
-        String role,
-        Long companyId,
-        boolean mustChangePassword,
-        String message
-) {
-}
+import java.util.UUID;
 
+public record LoginResponse(
+                String token,
+                UUID id,
+                String email,
+                String fullName,
+                String role,
+                UUID companyId,
+                boolean mustChangePassword,
+                String message) {
+}
