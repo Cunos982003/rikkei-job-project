@@ -1,29 +1,14 @@
-import { forwardRef } from "react";
-import { cn } from "@/lib/utils";
+import * as React from "react";
+import { Badge as CommonBadge, type BadgeProps as CommonBadgeProps } from "../common/Badge";
 
-interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: "default" | "secondary" | "destructive" | "outline";
+export interface BadgeProps extends Omit<CommonBadgeProps, "variant"> {
+  variant?: CommonBadgeProps["variant"] | "secondary";
+  children?: React.ReactNode;
 }
 
-export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
-  ({ className, variant = "default", ...props }, ref) => {
-    return (
-      <span
-        ref={ref}
-        className={cn(
-          "inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-          {
-            "border-transparent bg-primary text-primary-foreground hover:bg-primary/80": variant === "default",
-            "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80": variant === "secondary",
-            "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80": variant === "destructive",
-            "text-foreground": variant === "outline",
-          },
-          className
-        )}
-        {...props}
-      />
-    );
-  }
-);
+export function Badge({ variant = "default", ...props }: BadgeProps) {
+  const mappedVariant = variant === "secondary" ? "default" : variant;
+  return <CommonBadge variant={mappedVariant} {...props} />;
+}
 
-Badge.displayName = "Badge";
+export default Badge;

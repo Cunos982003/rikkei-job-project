@@ -283,6 +283,58 @@ async function requestHandler(req, res) {
     });
   }
 
+  // 1.1 GET /api/v1/auth/me (Lấy thông tin tài khoản hiện tại)
+  if (method === 'GET' && (pathname === '/api/v1/auth/me' || pathname === '/auth/me')) {
+    const authHeader = req.headers['authorization'] || '';
+    let matchedUser = users[0]; // Mặc định candidate1
+    if (authHeader.includes('hr')) matchedUser = users[3]; // hr1
+    else if (authHeader.includes('mentor')) matchedUser = users[5]; // mentor1
+    else if (authHeader.includes('staff')) matchedUser = users[6]; // staff1
+    else if (authHeader.includes('admin')) matchedUser = users[7]; // admin1
+    return sendJson(res, 200, matchedUser);
+  }
+
+  // 1.2 GET /api/v1/profiles/me/skills (Hồ sơ kỹ năng cá nhân cho Frontend)
+  if (method === 'GET' && (pathname === '/api/v1/profiles/me/skills' || pathname === '/profiles/me/skills')) {
+    const defaultCand = candidates[0];
+    const formattedSkills = (defaultCand.skills || []).map((s, idx) => ({
+      skillId: String(idx + 1),
+      skillCode: s.name.toUpperCase().replace(/[^A-Z0-9]/g, '_'),
+      skillName: s.name,
+      group: s.name.includes('Java') || s.name.includes('Spring') ? 'Backend' :
+             s.name.includes('React') || s.name.includes('HTML') || s.name.includes('Tailwind') ? 'Frontend' :
+             s.name.includes('SQL') ? 'Database' : 'Chung',
+      verifiedScore: s.verified ? s.score : null,
+      selfScore: !s.verified ? s.score : null,
+      level: s.level || 'Khá',
+      evidences: [
+        {
+          source: s.verified ? 'LMS' : 'SELF',
+          title: `Đánh giá năng lực môn ${s.name}`,
+          score: s.score,
+          recordedAt: '2026-10-15T08:00:00Z',
+          verified: s.verified
+        }
+      ]
+    }));
+    return sendJson(res, 200, formattedSkills);
+  }
+
+  // 1.3 GET /api/v1/companies/me & /companies/me (Thông tin công ty của HR)
+  if (method === 'GET' && (pathname === '/api/v1/companies/me' || pathname === '/companies/me')) {
+    return sendJson(res, 200, {
+      id: 1,
+      name: "Công ty Cổ phần Rikkeisoft",
+      taxCode: "0101234567",
+      industry: "Công nghệ thông tin",
+      size: "1000+",
+      address: "Tầng 21 Keangnam Landmark 72",
+      city: "Hà Nội",
+      website: "https://rikkeisoft.com",
+      status: "ACTIVE"
+    });
+  }
+
   // 2. GET /api/v1/candidates (Phân trang chuẩn ?page=1&size=20 -> { items, total, page, size })
   if (method === 'GET' && pathname === '/api/v1/candidates') {
     const page = parseInt(query.page) || 1;
