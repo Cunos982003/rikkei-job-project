@@ -8,6 +8,7 @@ import com.example.jobservice.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.UUID;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -48,7 +49,7 @@ public class CompanyController {
     @PreAuthorize("hasAnyRole('HR', 'STAFF', 'ADMIN')")
     @Operation(summary = "Chinh sua ho so cong ty theo ID", description = "HR chi sua duoc cong ty minh; neu goi sua cong ty khac se tra ve 404.")
     public ResponseEntity<CompanyResponse> updateCompanyById(
-            @PathVariable("id") Long id,
+            @PathVariable("id") UUID id,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody UpdateCompanyRequest request) {
         CompanyResponse response = companyService.updateCompanyById(id, principal, request);

@@ -1,5 +1,6 @@
 package com.example.jobservice.user.domain;
 
+import java.util.UUID;
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -9,8 +10,8 @@ import java.time.ZoneOffset;
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(nullable = false, unique = true)
     private String email;
@@ -25,7 +26,7 @@ public class User {
     private String role;
 
     @Column(name = "company_id")
-    private Long companyId;
+    private UUID companyId;
 
     @Column(name = "must_change_password", nullable = false)
     private boolean mustChangePassword = false;
@@ -43,11 +44,11 @@ public class User {
         }
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 
@@ -83,11 +84,11 @@ public class User {
         this.role = role;
     }
 
-    public Long getCompanyId() {
+    public UUID getCompanyId() {
         return companyId;
     }
 
-    public void setCompanyId(Long companyId) {
+    public void setCompanyId(UUID companyId) {
         this.companyId = companyId;
     }
 
@@ -107,4 +108,3 @@ public class User {
         this.createdAt = createdAt;
     }
 }
-

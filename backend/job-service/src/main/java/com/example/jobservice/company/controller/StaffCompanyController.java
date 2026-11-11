@@ -6,6 +6,7 @@ import com.example.jobservice.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -37,7 +38,7 @@ public class StaffCompanyController {
     @PostMapping("/{id}/hr-accounts")
     @Operation(summary = "Cap tai khoan HR cho doanh nghiep", description = "Tao user role HR, mat khau tam ngau nhien, must_change_password=true, gui email thong tin dang nhap.")
     public ResponseEntity<HrAccountResponse> createHrAccount(
-            @PathVariable("id") Long id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody CreateHrAccountRequest request) {
         HrAccountResponse response = companyService.createHrAccount(id, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -45,7 +46,7 @@ public class StaffCompanyController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Xem chi tiet doanh nghiep theo ID", description = "Can bo xem thong tin chi tiet mot doanh nghiep.")
-    public ResponseEntity<CompanyResponse> getCompanyById(@PathVariable("id") Long id) {
+    public ResponseEntity<CompanyResponse> getCompanyById(@PathVariable("id") UUID id) {
         CompanyResponse response = companyService.getCompanyById(id);
         return ResponseEntity.ok(response);
     }

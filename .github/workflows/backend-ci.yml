@@ -13,6 +13,9 @@ on:
       - 'infra/**'
       - 'backend/**'
 
+permissions:
+  contents: read
+
 jobs:
   integration-test:
     name: Backend Integration Tests

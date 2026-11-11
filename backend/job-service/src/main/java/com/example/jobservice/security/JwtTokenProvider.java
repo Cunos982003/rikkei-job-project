@@ -1,3 +1,4 @@
+
 package com.example.jobservice.security;
 
 import io.jsonwebtoken.Claims;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 
 @Component
 public class JwtTokenProvider {
@@ -19,7 +21,9 @@ public class JwtTokenProvider {
     public JwtTokenProvider(
             @Value("${app.jwt.secret:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}") String secret,
             @Value("${app.jwt.expiration-ms:86400000}") long expirationMs) {
-        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+
+        this.key = Keys.hmacShaKeyFor(
+                secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
     }
 
@@ -29,10 +33,14 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(principal.getEmail())
-                .claim("userId", principal.getId())
+                .claim("userId", principal.getId().toString())
                 .claim("fullName", principal.getFullName())
                 .claim("role", principal.getRole())
-                .claim("companyId", principal.getCompanyId())
+                .claim(
+                        "companyId",
+                        principal.getCompanyId() != null
+                                ? principal.getCompanyId().toString()
+                                : null)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(key)
@@ -46,30 +54,39 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token)
                 .getPayload();
 
-        Long userId = claims.get("userId", Long.class);
-        if (userId == null && claims.get("userId") instanceof Integer intVal) {
-            userId = intVal.longValue();
-        }
+        String userIdClaim = claims.get("userId", String.class);
+        String companyIdClaim = claims.get("companyId", String.class);
 
-        Long companyId = claims.get("companyId", Long.class);
-        if (companyId == null && claims.get("companyId") instanceof Integer intVal) {
-            companyId = intVal.longValue();
-        }
+        UUID userId = userIdClaim != null
+                ? UUID.fromString(userIdClaim)
+                : null;
+
+        UUID companyId = companyIdClaim != null
+                ? UUID.fromString(companyIdClaim)
+                : null;
 
         String email = claims.getSubject();
         String fullName = claims.get("fullName", String.class);
         String role = claims.get("role", String.class);
 
-        return UserPrincipal.of(userId, email, fullName, role, companyId);
+        return UserPrincipal.of(
+                userId,
+                email,
+                fullName,
+                role,
+                companyId);
     }
 
     public boolean validateToken(String token) {
         try {
-            Jwts.parser().verifyWith(key).build().parseSignedClaims(token);
+            Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token);
+
             return true;
         } catch (Exception e) {
             return false;
         }
     }
 }
-

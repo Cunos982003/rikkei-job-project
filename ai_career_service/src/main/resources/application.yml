@@ -1,0 +1,30 @@
+spring:
+  config:
+    import: optional:file:../.env[.properties]
+  application:
+    name: ai_career_service
+  datasource:
+    url: ${DATABASE_URL:jdbc:h2:mem:ai_career_service;DB_CLOSE_DELAY=-1}
+    username: ${DATABASE_USERNAME:sa}
+    password: ${DATABASE_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+app:
+  ai:
+    provider: ${AI_PROVIDER:mock}
+    openai:
+      api-key: ${AI_OPENAI_API_KEY:}
+      endpoint: ${AI_OPENAI_ENDPOINT:https://api.openai.com/v1/chat/completions}
+      model: ${AI_OPENAI_MODEL:gpt-4o-mini}
+    gemini:
+      api-key: ${AI_GEMINI_API_KEY:}
+      endpoint: ${AI_GEMINI_ENDPOINT:https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent}
+    claude:
+      api-key: ${AI_CLAUDE_API_KEY:}
+      endpoint: ${AI_CLAUDE_ENDPOINT:https://api.anthropic.com/v1/messages}
+      model: ${AI_CLAUDE_MODEL:claude-3-5-haiku-latest}
+
+server:
+  port: 8090

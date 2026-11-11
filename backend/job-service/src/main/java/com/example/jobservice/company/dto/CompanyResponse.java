@@ -1,11 +1,11 @@
 package com.example.jobservice.company.dto;
 
 import com.example.jobservice.company.domain.Company;
-
+import java.util.UUID;
 import java.time.OffsetDateTime;
 
 public record CompanyResponse(
-        Long id,
+        UUID id,
         String name,
         String taxCode,
         String industry,
@@ -18,8 +18,7 @@ public record CompanyResponse(
         String status,
         String createdBy,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
-) {
+        OffsetDateTime updatedAt) {
     public static CompanyResponse fromEntity(Company company) {
         return new CompanyResponse(
                 company.getId(),
@@ -35,8 +34,6 @@ public record CompanyResponse(
                 company.getStatus() != null ? company.getStatus().name() : "ACTIVE",
                 company.getCreatedBy(),
                 company.getCreatedAt(),
-                company.getUpdatedAt()
-        );
+                company.getUpdatedAt());
     }
 }
-

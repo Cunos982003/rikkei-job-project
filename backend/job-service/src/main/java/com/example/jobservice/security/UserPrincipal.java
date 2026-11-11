@@ -1,3 +1,4 @@
+
 package com.example.jobservice.security;
 
 import org.springframework.security.core.GrantedAuthority;
@@ -6,17 +7,24 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 
 public class UserPrincipal implements UserDetails {
 
-    private final Long id;
+    private final UUID id;
     private final String email;
     private final String fullName;
     private final String role;
-    private final Long companyId;
+    private final UUID companyId;
     private final String password;
 
-    public UserPrincipal(Long id, String email, String fullName, String role, Long companyId, String password) {
+    public UserPrincipal(
+            UUID id,
+            String email,
+            String fullName,
+            String role,
+            UUID companyId,
+            String password) {
         this.id = id;
         this.email = email;
         this.fullName = fullName;
@@ -25,11 +33,17 @@ public class UserPrincipal implements UserDetails {
         this.password = password;
     }
 
-    public static UserPrincipal of(Long id, String email, String fullName, String role, Long companyId) {
-        return new UserPrincipal(id, email, fullName, role, companyId, "");
+    public static UserPrincipal of(
+            UUID id,
+            String email,
+            String fullName,
+            String role,
+            UUID companyId) {
+        return new UserPrincipal(
+                id, email, fullName, role, companyId, "");
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 
@@ -45,13 +59,16 @@ public class UserPrincipal implements UserDetails {
         return role;
     }
 
-    public Long getCompanyId() {
+    public UUID getCompanyId() {
         return companyId;
     }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        String authority = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+        String authority = role.startsWith("ROLE_")
+                ? role
+                : "ROLE_" + role;
+
         return List.of(new SimpleGrantedAuthority(authority));
     }
 
@@ -85,4 +102,3 @@ public class UserPrincipal implements UserDetails {
         return true;
     }
 }
-
