@@ -47,7 +47,7 @@ public class CompanyController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('HR', 'STAFF', 'ADMIN')")
-    @Operation(summary = "Chinh sua ho so cong ty theo ID", description = "HR chi sua duoc cong ty minh; neu goi sua cong ty khac se tra ve 404.")
+    @Operation(summary = "Chỉnh sửa hồ sơ công ty theo ID", description = "Endpoint được giữ cho STAFF/ADMIN và HR. HR chỉ sửa công ty được gán; sửa công ty khác trả về 404.")
     public ResponseEntity<CompanyResponse> updateCompanyById(
             @PathVariable("id") UUID id,
             @AuthenticationPrincipal UserPrincipal principal,
