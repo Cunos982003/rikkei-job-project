@@ -4,6 +4,7 @@ import { defineConfig } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 
 const proxyTarget = process.env.VITE_BACKEND_URL || 'http://localhost:9001';
+const careerProxyTarget = process.env.VITE_AI_CAREER_URL || 'http://localhost:8090';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -19,6 +20,11 @@ export default defineConfig({
       '/api': {
         target: proxyTarget,
         changeOrigin: true
+      },
+      '/ai-career': {
+        target: careerProxyTarget,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/ai-career(?=\/|$)/, '')
       }
     }
   }

@@ -26,6 +26,12 @@ import { MentorStudentsPage } from "../pages/mentor/MentorStudentsPage";
 import { StaffJobsPage } from "../pages/staff/StaffJobsPage";
 import { AdminSkillsPage } from "../pages/admin/AdminSkillsPage";
 
+// AI-01 Feature
+import { CareerLayout } from "../features/career/CareerLayout";
+import { OverviewPage } from "../pages/career/OverviewPage";
+import { RecommendationsPage } from "../pages/career/RecommendationsPage";
+import { SkillsPage } from "../pages/career/SkillsPage";
+
 /**
  * Điều hướng trang chủ thông minh theo vai trò người dùng
  */
@@ -80,6 +86,12 @@ export function AppRoutes() {
               <Route path="/profile/evaluations" element={<EvaluationsPage />} />
               <Route path="/profile/skills" element={<SkillProfilePage />} />
               <Route path="/profile/internships" element={<InternshipsPage />} />
+
+              <Route path="/candidate/career" element={<CareerLayout />}>
+                <Route index element={<OverviewPage />} />
+                <Route path="recommendations" element={<RecommendationsPage />} />
+                <Route path="skills" element={<SkillsPage />} />
+              </Route>
             </Route>
 
             {/* Phân hệ HR (Doanh nghiệp) */}
@@ -115,6 +127,7 @@ export function AppRoutes() {
               <Route path="/admin/overrides" element={<AdminSkillsPage />} />
               <Route path="/admin/audit-logs" element={<AdminSkillsPage />} />
             </Route>
+
           </Route>
         </Route>
 
