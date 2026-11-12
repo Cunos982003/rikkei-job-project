@@ -13,17 +13,234 @@
     "overallScore": 84.5,
     "level": "Tốt",
     "skills": [
-      { "name": "Java", "score": 88, "level": "Xuất sắc", "verified": true },
-      { "name": "Spring Boot", "score": 85, "level": "Xuất sắc", "verified": true },
-      { "name": "SQL", "score": 82, "level": "Tốt", "verified": true },
-      { "name": "Git", "score": 78, "level": "Tốt", "verified": true },
-      { "name": "REST API", "score": 85, "level": "Xuất sắc", "verified": true },
-      { "name": "Docker", "score": 65, "level": "Khá", "verified": true },
-      { "name": "Unit Testing", "score": 75, "level": "Tốt", "verified": true },
-      { "name": "Tiếng Anh", "score": 60, "level": "Khá", "verified": false }
+      {
+        "name": "Java Core",
+        "group": "Programming",
+        "score": 85,
+        "level": "Nâng cao",
+        "verified": true,
+        "evidences": [
+          {
+            "source": "LMS",
+            "title": "Java Core Course",
+            "score": 85,
+            "recordedAt": "2026-10-15T10:30:00Z",
+            "verified": true
+          },
+          {
+            "source": "EXAM",
+            "title": "Java Midterm",
+            "score": 90,
+            "recordedAt": "2026-09-20T14:00:00Z",
+            "verified": true
+          }
+        ]
+      },
+      {
+        "name": "Spring Boot",
+        "group": "Framework",
+        "score": 78,
+        "level": "Vững",
+        "verified": true,
+        "evidences": [
+          {
+            "source": "LMS",
+            "title": "Spring Boot Course",
+            "score": 80,
+            "recordedAt": "2026-10-10T10:00:00Z",
+            "verified": true
+          },
+          {
+            "source": "PM",
+            "title": "IOC Java Project",
+            "score": 70,
+            "recordedAt": "2026-08-15T16:00:00Z",
+            "verified": true
+          }
+        ]
+      },
+      {
+        "name": "SQL",
+        "group": "Database",
+        "score": 72,
+        "level": "Vững",
+        "verified": true,
+        "evidences": [
+          {
+            "source": "LMS",
+            "title": "Java Core Course (SQL part)",
+            "score": 75,
+            "recordedAt": "2026-10-15T10:30:00Z",
+            "verified": true
+          },
+          {
+            "source": "EXAM",
+            "title": "SQL Final Exam",
+            "score": 75,
+            "recordedAt": "2026-09-25T10:00:00Z",
+            "verified": true
+          }
+        ]
+      },
+      {
+        "name": "React",
+        "group": "Frontend",
+        "score": null,
+        "selfScore": 88,
+        "level": "Nâng cao",
+        "verified": false,
+        "evidences": [
+          {
+            "source": "SELF",
+            "title": "Self-reported React",
+            "score": 88,
+            "recordedAt": "2026-10-01T12:00:00Z",
+            "verified": false
+          }
+        ]
+      },
+      {
+        "name": "JavaScript",
+        "group": "Frontend",
+        "score": 65,
+        "selfScore": 70,
+        "level": "Khá",
+        "verified": true,
+        "evidences": [
+          {
+            "source": "LMS",
+            "title": "JavaScript Basics",
+            "score": 65,
+            "recordedAt": "2026-09-01T10:00:00Z",
+            "verified": true
+          },
+          {
+            "source": "SELF",
+            "title": "Self-reported JavaScript",
+            "score": 70,
+            "recordedAt": "2026-10-01T12:00:00Z",
+            "verified": false
+          }
+        ]
+      },
+      {
+        "name": "Docker",
+        "group": "DevOps",
+        "score": 60,
+        "level": "Khá",
+        "verified": true,
+        "evidences": [
+          {
+            "source": "LMS",
+            "title": "Docker Fundamentals",
+            "score": 60,
+            "recordedAt": "2026-08-20T10:00:00Z",
+            "verified": true
+          }
+        ]
+      },
+      {
+        "name": "Communication",
+        "group": "Soft Skill",
+        "score": null,
+        "selfScore": 82,
+        "level": "Nâng cao",
+        "verified": false,
+        "evidences": [
+          {
+            "source": "SELF",
+            "title": "Self-reported Communication",
+            "score": 82,
+            "recordedAt": "2026-10-01T12:00:00Z",
+            "verified": false
+          }
+        ]
+      },
+      {
+        "name": "Teamwork",
+        "group": "Soft Skill",
+        "score": 75,
+        "level": "Vững",
+        "verified": true,
+        "evidences": [
+          {
+            "source": "PM",
+            "title": "IOC Java Project (Teamwork)",
+            "score": 75,
+            "recordedAt": "2026-08-15T16:00:00Z",
+            "verified": true
+          }
+        ]
+      },
+      {
+        "name": "Git",
+        "group": "Tool",
+        "score": 70,
+        "level": "Vững",
+        "verified": true,
+        "evidences": [
+          {
+            "source": "LMS",
+            "title": "Version Control with Git",
+            "score": 70,
+            "recordedAt": "2026-09-10T10:00:00Z",
+            "verified": true
+          }
+        ]
+      }
     ],
-    "isPublic": true,
-    "createdAt": "2026-10-01T08:00:00Z"
+    "educations": [
+      {
+        "id": "edu-001",
+        "userId": "user-001",
+        "school": "Đại học Bách Khoa Hà Nội",
+        "major": "Kỹ thuật phần mềm",
+        "fromDate": "2021-09-01",
+        "toDate": "2025-06-30",
+        "gpa": 3.45,
+        "note": ""
+      },
+      {
+        "id": "edu-002",
+        "userId": "user-001",
+        "school": "Rikkei Academy",
+        "major": "Lập trình Java Fullstack Chuyên sâu",
+        "fromDate": "2026-01-15",
+        "toDate": "2026-09-30",
+        "gpa": 3.8,
+        "note": ""
+      }
+    ],
+    "certificates": [
+      {
+        "id": "cert-001",
+        "userId": "user-001",
+        "name": "Oracle Certified Professional, Java SE 11 Developer",
+        "issuer": "Oracle",
+        "issuedAt": "2026-05-20",
+        "expiresAt": null,
+        "fileUrl": "https://credly.com/badges/ocp-java-11",
+        "fileType": "PDF"
+      },
+      {
+        "id": "cert-002",
+        "userId": "user-001",
+        "name": "AWS Certified Cloud Practitioner",
+        "issuer": "Amazon Web Services",
+        "issuedAt": "2026-07-11",
+        "expiresAt": null,
+        "fileUrl": "https://credly.com/badges/aws-ccp",
+        "fileType": "PDF"
+      }
+    ],
+    "createdAt": "2026-10-01T08:00:00Z",
+    "userId": "user-001",
+    "visibility": "PUBLIC",
+    "dob": "2003-04-12",
+    "gender": "MALE",
+    "address": "Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội",
+    "summary": "Học viên xuất sắc khóa Java Fullstack Rikkei Academy, có kinh nghiệm thực tập IOC tại Rikkeisoft",
+    "courseName": "Lập trình Java Fullstack Chuyên sâu"
   },
   {
     "id": "cand-002",
@@ -36,20 +253,66 @@
     "headline": "Đam mê xây dựng trải nghiệm người dùng hiện đại với React 19, TypeScript và Tailwind CSS",
     "program": "Lập trình Web Frontend Chuyên nghiệp",
     "classCode": "RA-FE-2026",
-    "overallScore": 76.0,
+    "overallScore": 76,
     "level": "Tốt",
     "skills": [
-      { "name": "HTML/CSS", "score": 85, "level": "Xuất sắc", "verified": true },
-      { "name": "JavaScript", "score": 80, "level": "Tốt", "verified": true },
-      { "name": "ReactJS", "score": 78, "level": "Tốt", "verified": true },
-      { "name": "TypeScript", "score": 70, "level": "Tốt", "verified": true },
-      { "name": "Tailwind CSS", "score": 82, "level": "Tốt", "verified": true },
-      { "name": "Git", "score": 68, "level": "Khá", "verified": true },
-      { "name": "REST API", "score": 65, "level": "Khá", "verified": true },
-      { "name": "Tiếng Anh", "score": 72, "level": "Tốt", "verified": true }
+      {
+        "name": "HTML/CSS",
+        "score": 85,
+        "level": "Xuất sắc",
+        "verified": true
+      },
+      {
+        "name": "JavaScript",
+        "score": 80,
+        "level": "Tốt",
+        "verified": true
+      },
+      {
+        "name": "ReactJS",
+        "score": 78,
+        "level": "Tốt",
+        "verified": true
+      },
+      {
+        "name": "TypeScript",
+        "score": 70,
+        "level": "Tốt",
+        "verified": true
+      },
+      {
+        "name": "Tailwind CSS",
+        "score": 82,
+        "level": "Tốt",
+        "verified": true
+      },
+      {
+        "name": "Git",
+        "score": 68,
+        "level": "Khá",
+        "verified": true
+      },
+      {
+        "name": "REST API",
+        "score": 65,
+        "level": "Khá",
+        "verified": true
+      },
+      {
+        "name": "Tiếng Anh",
+        "score": 72,
+        "level": "Tốt",
+        "verified": true
+      }
     ],
-    "isPublic": true,
-    "createdAt": "2026-10-05T08:00:00Z"
+    "createdAt": "2026-10-05T08:00:00Z",
+    "userId": "user-002",
+    "visibility": "PUBLIC",
+    "dob": "2003-04-12",
+    "gender": "MALE",
+    "address": "Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội",
+    "summary": "Đam mê xây dựng trải nghiệm người dùng hiện đại với React 19, TypeScript và Tailwind CSS",
+    "courseName": "Lập trình Web Frontend Chuyên nghiệp"
   },
   {
     "id": "cand-003",
@@ -62,20 +325,65 @@
     "headline": "Thực tập sinh IOC nhóm dự án Rikkei Jobs MVP, hoàn thành xuất sắc các module CSDL và Kafka",
     "program": "Đào tạo Kỹ sư Phần mềm Toàn diện",
     "classCode": "RA-FS-2026",
-    "overallScore": 89.0,
+    "overallScore": 89,
     "level": "Xuất sắc",
     "skills": [
-      { "name": "Java", "score": 90, "level": "Xuất sắc", "verified": true },
-      { "name": "Spring Boot", "score": 88, "level": "Xuất sắc", "verified": true },
-      { "name": "ReactJS", "score": 84, "level": "Tốt", "verified": true },
-      { "name": "TypeScript", "score": 80, "level": "Tốt", "verified": true },
-      { "name": "SQL", "score": 92, "level": "Xuất sắc", "verified": true },
-      { "name": "Docker", "score": 85, "level": "Xuất sắc", "verified": true },
-      { "name": "Apache Kafka", "score": 82, "level": "Tốt", "verified": true },
-      { "name": "Làm việc nhóm", "score": 95, "level": "Xuất sắc", "verified": true }
+      {
+        "name": "Java",
+        "score": 90,
+        "level": "Xuất sắc",
+        "verified": true
+      },
+      {
+        "name": "Spring Boot",
+        "score": 88,
+        "level": "Xuất sắc",
+        "verified": true
+      },
+      {
+        "name": "ReactJS",
+        "score": 84,
+        "level": "Tốt",
+        "verified": true
+      },
+      {
+        "name": "TypeScript",
+        "score": 80,
+        "level": "Tốt",
+        "verified": true
+      },
+      {
+        "name": "SQL",
+        "score": 92,
+        "level": "Xuất sắc",
+        "verified": true
+      },
+      {
+        "name": "Docker",
+        "score": 85,
+        "level": "Xuất sắc",
+        "verified": true
+      },
+      {
+        "name": "Apache Kafka",
+        "score": 82,
+        "level": "Tốt",
+        "verified": true
+      },
+      {
+        "name": "Làm việc nhóm",
+        "score": 95,
+        "level": "Xuất sắc",
+        "verified": true
+      }
     ],
-    "isPublic": true,
-    "createdAt": "2026-10-10T08:00:00Z"
+    "createdAt": "2026-10-10T08:00:00Z",
+    "userId": "user-003",
+    "visibility": "PUBLIC",
+    "dob": "2003-04-12",
+    "gender": "MALE",
+    "address": "Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội",
+    "summary": "Thực tập sinh IOC nhóm dự án Rikkei Jobs MVP, hoàn thành xuất sắc các module CSDL và Kafka",
+    "courseName": "Đào tạo Kỹ sư Phần mềm Toàn diện"
   }
 ]
-

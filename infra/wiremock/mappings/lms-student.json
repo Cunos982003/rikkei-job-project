@@ -1,0 +1,25 @@
+{
+  "priority": 2,
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "^/lms/students/[^/]+$",
+    "headers": {
+      "X-Service-Key": {
+        "equalTo": "dev-key"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8"
+    },
+    "jsonBody": {
+      "fullName": "Nguyễn Văn An",
+      "email": "candidate1@rikkeijobs.test",
+      "program": "Lập trình Java Fullstack Chuyên sâu",
+      "classCode": "RA-JAVA-2026",
+      "courseName": "Lập trình Java Fullstack Chuyên sâu"
+    }
+  }
+}

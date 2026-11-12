@@ -29,10 +29,23 @@ export interface AuthResponseData {
   user: UserProfile;
 }
 
+export interface DemoAccount {
+  role: Role;
+  email: string;
+  label: string;
+}
+
 /**
  * Endpoints xác thực người dùng (auth-service)
  */
 export const authApi = {
+  /**
+   * Lấy danh sách tài khoản demo phục vụ kiểm thử nhanh
+   */
+  getDemoAccounts(): Promise<ApiResponse<DemoAccount[]>> {
+    return api.get<DemoAccount[]>("/auth/demo-accounts");
+  },
+
   /**
    * Đăng nhập HR / Cán bộ bằng email & mật khẩu
    */

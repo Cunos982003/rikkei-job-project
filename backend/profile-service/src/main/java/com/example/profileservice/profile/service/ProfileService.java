@@ -1,7 +1,9 @@
 package com.example.profileservice.profile.service;
 
+import com.example.profileservice.common.LevelConstants;
 import com.example.profileservice.profile.api.dto.LmsStudentDto;
 import com.example.profileservice.profile.api.dto.SelfSkillDto;
+import com.example.profileservice.profile.api.dto.UpdateProfileRequest;
 import com.example.profileservice.profile.domain.CandidateProfile;
 import com.example.profileservice.profile.infrastructure.CandidateProfileRepository;
 import com.example.profileservice.profile.infrastructure.LmsClient;
@@ -53,28 +55,37 @@ public class ProfileService {
     }
 
     @Transactional
-    public CandidateProfile updateProfile(UUID userId, CandidateProfile update) {
+    public CandidateProfile updateProfile(UUID userId, UpdateProfileRequest update) {
         CandidateProfile existing = profileRepo.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Profile not found for userId: " + userId));
 
-        // LMS-sourced fields are immutable - do not update
-        existing.setFullName(update.getFullName());
-        existing.setDob(update.getDob());
-        existing.setGender(update.getGender());
-        existing.setPhone(update.getPhone());
-        existing.setEmail(update.getEmail());
-        existing.setAddress(update.getAddress());
-        existing.setAvatarUrl(update.getAvatarUrl());
-        existing.setHeadline(update.getHeadline());
-        existing.setSummary(update.getSummary());
-        // program, classCode, courseName are NOT updated (immutable from LMS)
+        // Only candidate-owned fields are writable here, and a null field means "leave as is".
+        // fullName, email, program, classCode and courseName are LMS-sourced and stay immutable.
+        if (update.getDob() != null) existing.setDob(update.getDob());
+        if (update.getGender() != null) existing.setGender(update.getGender());
+        if (update.getPhone() != null) existing.setPhone(update.getPhone());
+        if (update.getAddress() != null) existing.setAddress(update.getAddress());
+        if (update.getAvatarUrl() != null) existing.setAvatarUrl(update.getAvatarUrl());
+        if (update.getHeadline() != null) existing.setHeadline(update.getHeadline());
+        if (update.getSummary() != null) existing.setSummary(update.getSummary());
+        if (update.getVisibility() != null) existing.setVisibility(update.getVisibility());
 
         return profileRepo.save(existing);
     }
 
     @Transactional
     public void upsertSelfSkills(UUID userId, List<SelfSkillDto> skills) {
+        // Handle null skills list
+        if (skills == null || skills.isEmpty()) {
+            return;
+        }
+
         for (SelfSkillDto dto : skills) {
+            // Handle null skillId
+            if (dto.getSkillId() == null) {
+                throw new IllegalArgumentException("skillId must not be null");
+            }
+
             if (dto.getSelfScore() == null || dto.getSelfScore() < 0 || dto.getSelfScore() > 100) {
                 throw new IllegalArgumentException(
                         "selfScore must be between 0 and 100 for skill: " + dto.getSkillId());
@@ -95,7 +106,7 @@ public class ProfileService {
                             .verified(false)
                             .build());
 
-            evidence.setScore(dto.getSelfScore() != null ? dto.getSelfScore().shortValue() : null);
+            evidence.setScore(dto.getSelfScore().shortValue());
             evidence.setRecordedAt(java.time.OffsetDateTime.now());
             evidenceRepo.save(evidence);
 
@@ -104,21 +115,29 @@ public class ProfileService {
                     .orElseGet(() -> SkillScore.builder()
                             .userId(userId)
                             .skillId(skill.getId())
-                            .level("Cơ bản")
+                            .level(LevelConstants.LEVEL_CO_BAN)
                             .build());
 
-            score.setSelfScore(dto.getSelfScore() != null ? dto.getSelfScore().shortValue() : null);
-            score.setLevel(computeLevel(dto.getSelfScore()));
+            // Update self_score (verified_score is only set by HS-01 recompute)
+            score.setSelfScore(dto.getSelfScore().shortValue());
+            // Level should be based on effective score = verifiedScore ?? selfScore
+            Short verifiedScore = score.getVerifiedScore();
+            Short effectiveScore = verifiedScore != null ? verifiedScore : dto.getSelfScore().shortValue();
+            score.setLevel(computeLevel(effectiveScore));
             score.setUpdatedAt(java.time.OffsetDateTime.now());
             scoreRepo.save(score);
         }
     }
 
-    private String computeLevel(Integer score) {
-        if (score == null) return "Cơ bản";
-        if (score >= 80) return "Nâng cao";
-        if (score >= 60) return "Vững";
-        if (score >= 40) return "Khá";
-        return "Cơ bản";
+    /**
+     * Compute level based on score using shared scale with HS-01.
+     * Thresholds: >=85 Nâng cao, >=70 Vững, >=50 Khá, else Cơ bản.
+     */
+    private String computeLevel(Short score) {
+        if (score == null) return LevelConstants.LEVEL_CO_BAN;
+        if (score >= 85) return LevelConstants.LEVEL_NANG_CAO;
+        if (score >= 70) return LevelConstants.LEVEL_VUNG;
+        if (score >= 50) return LevelConstants.LEVEL_KHA;
+        return LevelConstants.LEVEL_CO_BAN;
     }
-}
+}
