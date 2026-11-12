@@ -3,6 +3,7 @@ package com.example.profileservice.profile.service;
 import com.example.profileservice.common.LevelConstants;
 import com.example.profileservice.profile.api.dto.LmsStudentDto;
 import com.example.profileservice.profile.api.dto.SelfSkillDto;
+import com.example.profileservice.profile.api.dto.UpdateProfileRequest;
 import com.example.profileservice.profile.domain.CandidateProfile;
 import com.example.profileservice.profile.infrastructure.CandidateProfileRepository;
 import com.example.profileservice.profile.infrastructure.LmsClient;
@@ -117,6 +118,104 @@ class ProfileServiceTest {
         assertThat(profile.getVisibility()).isEqualTo(CandidateProfile.Visibility.PUBLIC);
         verify(lmsClient, never()).getStudent(any());
         verify(candidateProfileRepository, never()).save(any());
+    }
+
+    @Test
+    void updateProfile_persists_editable_fields() {
+        CandidateProfile existing = CandidateProfile.builder()
+                .userId(TEST_USER_ID)
+                .fullName("LMS Name")
+                .email("lms@example.com")
+                .program("LMS Program")
+                .classCode("LMS-CLASS")
+                .courseName("LMS Course")
+                .build();
+
+        UpdateProfileRequest update = UpdateProfileRequest.builder()
+                .phone("0987654321")
+                .dob(java.time.LocalDate.of(2003, 4, 12))
+                .gender("MALE")
+                .address("Hà Nội")
+                .avatarUrl("https://example.com/a.png")
+                .headline("Java Backend Developer")
+                .summary("Tóm tắt")
+                .build();
+
+        when(candidateProfileRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(existing));
+        when(candidateProfileRepository.save(any(CandidateProfile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CandidateProfile result = profileService.updateProfile(TEST_USER_ID, update);
+
+        assertThat(result.getPhone()).isEqualTo("0987654321");
+        assertThat(result.getDob()).isEqualTo(java.time.LocalDate.of(2003, 4, 12));
+        assertThat(result.getGender()).isEqualTo("MALE");
+        assertThat(result.getAddress()).isEqualTo("Hà Nội");
+        assertThat(result.getAvatarUrl()).isEqualTo("https://example.com/a.png");
+        assertThat(result.getHeadline()).isEqualTo("Java Backend Developer");
+        assertThat(result.getSummary()).isEqualTo("Tóm tắt");
+    }
+
+    @Test
+    void updateProfile_updates_visibility() {
+        CandidateProfile existing = CandidateProfile.builder()
+                .userId(TEST_USER_ID)
+                .visibility(CandidateProfile.Visibility.PRIVATE)
+                .build();
+
+        UpdateProfileRequest update = UpdateProfileRequest.builder()
+                .visibility(CandidateProfile.Visibility.PUBLIC)
+                .build();
+
+        when(candidateProfileRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(existing));
+        when(candidateProfileRepository.save(any(CandidateProfile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CandidateProfile result = profileService.updateProfile(TEST_USER_ID, update);
+
+        assertThat(result.getVisibility()).isEqualTo(CandidateProfile.Visibility.PUBLIC);
+    }
+
+    @Test
+    void updateProfile_keeps_existing_visibility_when_not_supplied() {
+        CandidateProfile existing = CandidateProfile.builder()
+                .userId(TEST_USER_ID)
+                .visibility(CandidateProfile.Visibility.PUBLIC)
+                .build();
+
+        when(candidateProfileRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(existing));
+        when(candidateProfileRepository.save(any(CandidateProfile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CandidateProfile result = profileService.updateProfile(TEST_USER_ID, UpdateProfileRequest.builder().build());
+
+        assertThat(result.getVisibility()).isEqualTo(CandidateProfile.Visibility.PUBLIC);
+    }
+
+    @Test
+    void updateProfile_leaves_lms_sourced_fields_untouched() {
+        CandidateProfile existing = CandidateProfile.builder()
+                .userId(TEST_USER_ID)
+                .fullName("LMS Name")
+                .email("lms@example.com")
+                .program("LMS Program")
+                .classCode("LMS-CLASS")
+                .courseName("LMS Course")
+                .build();
+
+        // The request type has no LMS-owned fields at all, so they cannot be rewritten.
+        // A caller that sends them anyway must not affect the stored profile.
+        UpdateProfileRequest update = UpdateProfileRequest.builder()
+                .phone("0900000000")
+                .build();
+
+        when(candidateProfileRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(existing));
+        when(candidateProfileRepository.save(any(CandidateProfile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CandidateProfile result = profileService.updateProfile(TEST_USER_ID, update);
+
+        assertThat(result.getFullName()).isEqualTo("LMS Name");
+        assertThat(result.getEmail()).isEqualTo("lms@example.com");
+        assertThat(result.getProgram()).isEqualTo("LMS Program");
+        assertThat(result.getClassCode()).isEqualTo("LMS-CLASS");
+        assertThat(result.getCourseName()).isEqualTo("LMS Course");
     }
 
     @Test
