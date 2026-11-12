@@ -1,5 +1,6 @@
 import { api } from "../client";
 import type { ApiResponse } from "../types/api";
+import type { MentorEvaluation } from "../types/evaluation";
 
 export interface SkillEvidenceItem {
   source: string;
@@ -78,6 +79,15 @@ export const profileApi = {
    */
   getMyProfile(): Promise<ApiResponse<CandidateDetailProfile>> {
     return api.get<CandidateDetailProfile>("/profiles/me");
+  },
+
+  /**
+   * Lấy danh sách đánh giá của Mentor dành cho ứng viên
+   * @param userId ID của ứng viên (hoặc để trống/undefined nếu lấy của chính mình)
+   */
+  getEvaluations(userId?: string): Promise<ApiResponse<MentorEvaluation[]>> {
+    const url = userId ? `/profiles/${userId}/evaluations` : "/profiles/me/evaluations";
+    return api.get<MentorEvaluation[]>(url);
   },
 
   /**

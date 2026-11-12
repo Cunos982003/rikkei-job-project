@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useProfileEvaluations } from '@/api/hooks/useProfileEvaluations'
+import { useProfileEvaluations } from '@/features/profile/hooks'
 import type { MentorEvaluation } from '@/api/types/evaluation'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
