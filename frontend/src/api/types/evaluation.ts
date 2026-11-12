@@ -64,3 +64,25 @@ export interface Internship {
   finalScore: number;
   tasks: InternshipTask[];
 }
+
+export interface EvaluationTask {
+  id: string;
+  candidateName: string;
+  context: 'INTERNSHIP' | 'INTERVIEW';
+  batchOrRoundName: string; // Tên đợt (nếu Thực tập) hoặc Vòng (nếu Phỏng vấn)
+  deadline: string;
+  status: 'PENDING' | 'DRAFT' | 'SUBMITTED';
+}
+
+export interface EvaluationFormData {
+  id: string;
+  candidateName: string;
+  skillsSummary: string;
+  internshipTasks?: { title: string; score: number }[]; // Chỉ có khi là Thực tập
+  criteria: {
+    id: string;
+    name: string;
+    description: string;
+    weight: number;
+  }[];
+}
