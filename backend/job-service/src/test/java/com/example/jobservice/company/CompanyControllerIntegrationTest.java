@@ -66,9 +66,9 @@ class CompanyControllerIntegrationTest {
                                 .apply(springSecurity())
                                 .build();
 
-                // Lấy HR1 đã được seed trong database test
+                // Lấy HR1 được nạp từ mock/data/users.json
                 User hr1 = userRepository.findAll().stream()
-                                .filter(user -> "hr1@rikkei.vn".equals(user.getEmail()))
+                                .filter(user -> "hr1@rikkeijobs.test".equals(user.getEmail()))
                                 .findFirst()
                                 .orElseThrow(() -> new IllegalStateException("Không tìm thấy HR1 trong dữ liệu test"));
 
@@ -89,7 +89,7 @@ class CompanyControllerIntegrationTest {
                 staffToken = "Bearer " + tokenProvider.generateToken(
                                 UserPrincipal.of(
                                                 UUID.randomUUID(),
-                                                "staff1@rikkei.vn",
+                                                "staff1@rikkeijobs.test",
                                                 "Staff 1",
                                                 "ROLE_STAFF",
                                                 null));
@@ -187,7 +187,7 @@ class CompanyControllerIntegrationTest {
         @DisplayName("Tạo HR trùng email → 409 Conflict")
         void staffCreateHrAccount_duplicateEmail_returns409() throws Exception {
                 CreateHrAccountRequest request = new CreateHrAccountRequest(
-                                "hr1@rikkei.vn",
+                                "hr1@rikkeijobs.test",
                                 "Trùng Tên");
 
                 mockMvc.perform(post("/staff/companies/" + companyAId + "/hr-accounts")
@@ -256,7 +256,7 @@ class CompanyControllerIntegrationTest {
         @Test
         @DisplayName("HR chưa đổi mật khẩu bị chặn tới khi đổi mật khẩu")
         void mustChangePassword_blocksCompanyApiAndChangePasswordReturnsNewToken() throws Exception {
-                User hr1 = userRepository.findByEmail("hr1@rikkei.vn").orElseThrow();
+                User hr1 = userRepository.findByEmail("hr1@rikkeijobs.test").orElseThrow();
                 String originalPasswordHash = hr1.getPasswordHash();
                 boolean originalMustChangePassword = hr1.isMustChangePassword();
 
@@ -268,7 +268,7 @@ class CompanyControllerIntegrationTest {
                                         mockMvc.perform(post("/api/v1/auth/login")
                                                         .contentType(MediaType.APPLICATION_JSON)
                                                         .content("""
-                                                                        {"email":"hr1@rikkei.vn","password":"Password@123"}
+                                                                        {"email":"hr1@rikkeijobs.test","password":"Test@123"}
                                                                         """))
                                                         .andExpect(status().isOk())
                                                         .andReturn()
@@ -286,7 +286,7 @@ class CompanyControllerIntegrationTest {
                                         .header("Authorization", passwordChangeToken)
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content("""
-                                                        {"oldPassword":"Password@123","newPassword":"NewPassword@123"}
+                                                        {"oldPassword":"Test@123","newPassword":"NewPassword@123"}
                                                         """))
                                         .andExpect(status().isOk())
                                         .andExpect(jsonPath("$.token").isString())
@@ -312,7 +312,7 @@ class CompanyControllerIntegrationTest {
                 mockMvc.perform(post("/api/v1/auth/change-password")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
-                                                {"oldPassword":"Password@123","newPassword":"NewPassword@123"}
+                                                {"oldPassword":"Test@123","newPassword":"NewPassword@123"}
                                                 """))
                                 .andExpect(status().isUnauthorized());
         }

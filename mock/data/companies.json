@@ -1,0 +1,26 @@
+[
+  {
+    "id": "comp-001",
+    "name": "Công ty Cổ phần Rikkeisoft",
+    "taxCode": "0101234567",
+    "industry": "Công nghệ thông tin",
+    "size": "201-1000",
+    "address": "Tầng 21, Tháp Keangnam, Mễ Trì",
+    "city": "Hà Nội",
+    "website": "https://rikkeisoft.com",
+    "description": "Doanh nghiệp phát triển phần mềm và đào tạo công nghệ",
+    "status": "ACTIVE"
+  },
+  {
+    "id": "comp-002",
+    "name": "Rikkei Digital Solutions",
+    "taxCode": "0107654321",
+    "industry": "Công nghệ thông tin",
+    "size": "51-200",
+    "address": "Quận Hải Châu",
+    "city": "Đà Nẵng",
+    "website": "https://rikkeidigital.com",
+    "description": "Doanh nghiệp phát triển giải pháp số",
+    "status": "ACTIVE"
+  }
+]

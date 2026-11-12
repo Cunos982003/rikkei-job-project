@@ -1,4 +1,4 @@
-package com.example.recruitmentservice;
+package com.example.recruitment_service;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

@@ -1,3 +1,32 @@
 spring:
+  config:
+    import: optional:file:../.env[.properties]
   application:
     name: recruitment-service
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:25}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:false}
+          starttls:
+            enable: ${SMTP_STARTTLS:false}
+
+server:
+  port: ${SERVER_PORT:8086}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+  integrations:
+    job-service-url: ${JOB_SERVICE_URL:http://localhost:8085}
+    job-details-path: ${JOB_DETAILS_PATH:/jobs/{jobId}}
+    profile-service-url: ${PROFILE_SERVICE_URL:http://localhost:8082}
+    cv-pdf-path: ${CV_PDF_PATH:/api/v1/cvs/{cvId}/pdf}
+  cv:
+    snapshot-directory: ${CV_SNAPSHOT_DIRECTORY:uploads/recruitments}
+    max-pdf-bytes: ${CV_MAX_PDF_BYTES:10485760}
+  public-base-url: ${PUBLIC_BASE_URL:}

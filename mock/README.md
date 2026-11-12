@@ -16,6 +16,10 @@ npm start
 
 Server sẽ lắng nghe tại: **`http://localhost:9000`**
 
+Các integration test của `backend/job-service` dùng trực tiếp `mock/data/users.json`
+và `mock/data/companies.json`; `companyId` trong user mock phải khớp với `id`
+của công ty mock.
+
 ---
 
 ## 2. Quy Tắc Bảo Mật: `X-Service-Key`
@@ -81,4 +85,3 @@ curl -i -H "X-Service-Key: dev-key" http://localhost:9000/lms/students/std-001/r
 | `GET` | `/api/v1/jobs` | Danh sách việc làm tuyển dụng (Có phân trang) |
 | `GET` | `/api/v1/mock/error-:code` | Test các mã lỗi HTTP: 400, 401, 403, 404, 409, 429, 500 |
 | `GET` | `/health` | Kiểm tra trạng thái hoạt động của Mock Server |
-

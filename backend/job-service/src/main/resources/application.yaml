@@ -88,7 +88,6 @@ spring:
 
   flyway:
     enabled: true
-    locations: classpath:db/migration,classpath:db/dev
 
 app:
   jwt:

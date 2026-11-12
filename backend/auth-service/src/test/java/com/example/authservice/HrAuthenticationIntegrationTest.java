@@ -74,9 +74,9 @@ class HrAuthenticationIntegrationTest {
     @BeforeEach
     void setup() {
         mockMvc = MockMvcBuilders
-            .webAppContextSetup(context)
-            .apply(SecurityMockMvcConfigurers.springSecurity())
-            .build();
+                .webAppContextSetup(context)
+                .apply(SecurityMockMvcConfigurers.springSecurity())
+                .build();
         passwordResetTokenRepository.deleteAll();
         userRepository.deleteAll();
     }
@@ -85,46 +85,44 @@ class HrAuthenticationIntegrationTest {
     @DisplayName("1. HR đăng nhập thành công bằng email và mật khẩu - trả về JWT và thông tin user")
     void hrLoginSuccess() throws Exception {
         User hrUser = new User(
-            null,
-            "hr1@rikkei.vn",
-            "HR Manager",
-            "ROLE_HR",
-            passwordEncoder.encode("Password123@"),
-            Instant.now(),
-            Instant.now()
-        );
+                null,
+                "hr1@rikkei.vn",
+                "HR Manager",
+                "ROLE_HR",
+                passwordEncoder.encode("Password123@"),
+                Instant.now(),
+                Instant.now());
         userRepository.save(hrUser);
 
         mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest("hr1@rikkei.vn", "Password123@"))))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.accessToken", notNullValue()))
-            .andExpect(jsonPath("$.tokenType", is("Bearer")))
-            .andExpect(jsonPath("$.user.email", is("hr1@rikkei.vn")))
-            .andExpect(jsonPath("$.user.fullName", is("HR Manager")))
-            .andExpect(jsonPath("$.user.role", is("ROLE_HR")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken", notNullValue()))
+                .andExpect(jsonPath("$.tokenType", is("Bearer")))
+                .andExpect(jsonPath("$.user.email", is("hr1@rikkei.vn")))
+                .andExpect(jsonPath("$.user.fullName", is("HR Manager")))
+                .andExpect(jsonPath("$.user.role", is("ROLE_HR")));
     }
 
     @Test
     @DisplayName("2. HR đăng nhập sai mật khẩu - trả 401 INVALID_CREDENTIALS và tăng bộ đếm")
     void hrLoginWrongPassword() throws Exception {
         User hrUser = new User(
-            null,
-            "hr2@rikkei.vn",
-            "HR Specialist",
-            "ROLE_HR",
-            passwordEncoder.encode("CorrectPassword123"),
-            Instant.now(),
-            Instant.now()
-        );
+                null,
+                "hr2@rikkei.vn",
+                "HR Specialist",
+                "ROLE_HR",
+                passwordEncoder.encode("CorrectPassword123"),
+                Instant.now(),
+                Instant.now());
         userRepository.save(hrUser);
 
         mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest("hr2@rikkei.vn", "WrongPassword!"))))
-            .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.code", is("INVALID_CREDENTIALS")));
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code", is("INVALID_CREDENTIALS")));
 
         User updated = userRepository.findByEmail("hr2@rikkei.vn").orElseThrow();
         assertThat(updated.getFailedLoginCount()).isEqualTo(1);
@@ -137,23 +135,22 @@ class HrAuthenticationIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest("nonexistent@rikkei.vn", "Password123@"))))
-            .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.code", is("INVALID_CREDENTIALS")))
-            .andExpect(jsonPath("$.accessToken").doesNotExist());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code", is("INVALID_CREDENTIALS")))
+                .andExpect(jsonPath("$.accessToken").doesNotExist());
     }
 
     @Test
     @DisplayName("3. Đăng nhập sai 5 lần liên tiếp - tài khoản bị khóa 15 phút")
     void hrAccountLockoutAfter5FailedAttempts() throws Exception {
         User hrUser = new User(
-            null,
-            "hr3@rikkei.vn",
-            "HR Officer",
-            "ROLE_HR",
-            passwordEncoder.encode("RealPassword"),
-            Instant.now(),
-            Instant.now()
-        );
+                null,
+                "hr3@rikkei.vn",
+                "HR Officer",
+                "ROLE_HR",
+                passwordEncoder.encode("RealPassword"),
+                Instant.now(),
+                Instant.now());
         userRepository.save(hrUser);
 
         // First 4 failed attempts -> 401
@@ -161,16 +158,16 @@ class HrAuthenticationIntegrationTest {
             mockMvc.perform(post("/api/v1/auth/login")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(new LoginRequest("hr3@rikkei.vn", "Wrong" + i))))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code", is("INVALID_CREDENTIALS")));
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.code", is("INVALID_CREDENTIALS")));
         }
 
         // 5th failed attempt -> 423 LOCKED
         mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest("hr3@rikkei.vn", "Wrong5"))))
-            .andExpect(status().isLocked())
-            .andExpect(jsonPath("$.code", is("ACCOUNT_LOCKED")));
+                .andExpect(status().isLocked())
+                .andExpect(jsonPath("$.code", is("ACCOUNT_LOCKED")));
 
         User lockedUser = userRepository.findByEmail("hr3@rikkei.vn").orElseThrow();
         assertThat(lockedUser.getFailedLoginCount()).isEqualTo(5);
@@ -182,14 +179,13 @@ class HrAuthenticationIntegrationTest {
     @DisplayName("4. Tài khoản đang bị khóa không thể đăng nhập kể cả khi nhập đúng mật khẩu")
     void hrAccountLockedCannotLoginEvenWithCorrectPassword() throws Exception {
         User hrUser = new User(
-            null,
-            "hr4@rikkei.vn",
-            "HR Locked",
-            "ROLE_HR",
-            passwordEncoder.encode("RealPassword"),
-            Instant.now(),
-            Instant.now()
-        );
+                null,
+                "hr4@rikkei.vn",
+                "HR Locked",
+                "ROLE_HR",
+                passwordEncoder.encode("RealPassword"),
+                Instant.now(),
+                Instant.now());
         hrUser.setFailedLoginCount(5);
         hrUser.setLockedUntil(Instant.now().plus(10, ChronoUnit.MINUTES));
         userRepository.save(hrUser);
@@ -197,22 +193,21 @@ class HrAuthenticationIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest("hr4@rikkei.vn", "RealPassword"))))
-            .andExpect(status().isLocked())
-            .andExpect(jsonPath("$.code", is("ACCOUNT_LOCKED")));
+                .andExpect(status().isLocked())
+                .andExpect(jsonPath("$.code", is("ACCOUNT_LOCKED")));
     }
 
     @Test
     @DisplayName("5. Hết 15 phút khóa - tài khoản tự động mở và đăng nhập bình thường")
     void hrAccountAutoUnlockAfter15Minutes() throws Exception {
         User hrUser = new User(
-            null,
-            "hr5@rikkei.vn",
-            "HR Unlocked",
-            "ROLE_HR",
-            passwordEncoder.encode("RealPassword"),
-            Instant.now(),
-            Instant.now()
-        );
+                null,
+                "hr5@rikkei.vn",
+                "HR Unlocked",
+                "ROLE_HR",
+                passwordEncoder.encode("RealPassword"),
+                Instant.now(),
+                Instant.now());
         hrUser.setFailedLoginCount(5);
         hrUser.setLockedUntil(Instant.now().minus(1, ChronoUnit.MINUTES));
         userRepository.save(hrUser);
@@ -220,8 +215,8 @@ class HrAuthenticationIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest("hr5@rikkei.vn", "RealPassword"))))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.accessToken", notNullValue()));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken", notNullValue()));
 
         User resetUser = userRepository.findByEmail("hr5@rikkei.vn").orElseThrow();
         assertThat(resetUser.getFailedLoginCount()).isZero();
@@ -232,21 +227,20 @@ class HrAuthenticationIntegrationTest {
     @DisplayName("6. Quên mật khẩu - gửi email kèm token và lưu hash token trong database")
     void hrForgotPasswordSendsEmail() throws Exception {
         User hrUser = new User(
-            null,
-            "hr6@rikkei.vn",
-            "HR Forgot",
-            "ROLE_HR",
-            passwordEncoder.encode("OldPassword"),
-            Instant.now(),
-            Instant.now()
-        );
+                null,
+                "hr6@rikkei.vn",
+                "HR Forgot",
+                "ROLE_HR",
+                passwordEncoder.encode("OldPassword"),
+                Instant.now(),
+                Instant.now());
         userRepository.save(hrUser);
 
         mockMvc.perform(post("/api/v1/auth/forgot-password")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new ForgotPasswordRequest("hr6@rikkei.vn"))))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message", notNullValue()));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message", notNullValue()));
 
         ArgumentCaptor<String> tokenCaptor = ArgumentCaptor.forClass(String.class);
         verify(emailService).sendPasswordResetEmail(eq("hr6@rikkei.vn"), tokenCaptor.capture());
@@ -267,8 +261,8 @@ class HrAuthenticationIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/forgot-password")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new ForgotPasswordRequest("unknown@rikkei.vn"))))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message", notNullValue()));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message", notNullValue()));
 
         org.mockito.Mockito.verifyNoInteractions(emailService);
     }
@@ -277,32 +271,30 @@ class HrAuthenticationIntegrationTest {
     @DisplayName("7. Đặt lại mật khẩu thành công bằng token hợp lệ - mật khẩu mới đăng nhập được")
     void hrResetPasswordSuccess() throws Exception {
         User hrUser = new User(
-            null,
-            "hr7@rikkei.vn",
-            "HR Reset",
-            "ROLE_HR",
-            passwordEncoder.encode("OldPassword123"),
-            Instant.now(),
-            Instant.now()
-        );
+                null,
+                "hr7@rikkei.vn",
+                "HR Reset",
+                "ROLE_HR",
+                passwordEncoder.encode("OldPassword123"),
+                Instant.now(),
+                Instant.now());
         userRepository.save(hrUser);
 
         String rawToken = "valid-reset-token-777";
         String tokenHash = sha256(rawToken);
         PasswordResetToken resetToken = new PasswordResetToken(
-            hrUser.getId(),
-            tokenHash,
-            Instant.now().plus(30, ChronoUnit.MINUTES),
-            Instant.now()
-        );
+                hrUser.getId(),
+                tokenHash,
+                Instant.now().plus(30, ChronoUnit.MINUTES),
+                Instant.now());
         passwordResetTokenRepository.save(resetToken);
 
         // Reset password
         mockMvc.perform(post("/api/v1/auth/reset-password")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new ResetPasswordRequest(rawToken, "NewBrandPassword2026@"))))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.message", notNullValue()));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message", notNullValue()));
 
         // Token marked used
         PasswordResetToken usedToken = passwordResetTokenRepository.findByTokenHash(tokenHash).orElseThrow();
@@ -312,159 +304,151 @@ class HrAuthenticationIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest("hr7@rikkei.vn", "OldPassword123"))))
-            .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized());
 
         // New password succeeds
         mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest("hr7@rikkei.vn", "NewBrandPassword2026@"))))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.accessToken", notNullValue()));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken", notNullValue()));
 
         // Second reset attempt with same token fails immediately
         mockMvc.perform(post("/api/v1/auth/reset-password")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new ResetPasswordRequest(rawToken, "AnotherPassword2026@"))))
-            .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.code", is("RESET_TOKEN_ALREADY_USED")));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("RESET_TOKEN_ALREADY_USED")));
     }
 
     @Test
     @DisplayName("8. Token khôi phục mật khẩu đã hết hạn sau 30 phút - bị từ chối")
     void hrResetPasswordExpiredToken() throws Exception {
         User hrUser = new User(
-            null,
-            "hr8@rikkei.vn",
-            "HR Expired",
-            "ROLE_HR",
-            passwordEncoder.encode("Pass123"),
-            Instant.now(),
-            Instant.now()
-        );
+                null,
+                "hr8@rikkei.vn",
+                "HR Expired",
+                "ROLE_HR",
+                passwordEncoder.encode("Pass123"),
+                Instant.now(),
+                Instant.now());
         userRepository.save(hrUser);
 
         String rawToken = "expired-token-888";
         String tokenHash = sha256(rawToken);
         PasswordResetToken resetToken = new PasswordResetToken(
-            hrUser.getId(),
-            tokenHash,
-            Instant.now().minus(5, ChronoUnit.MINUTES),
-            Instant.now().minus(35, ChronoUnit.MINUTES)
-        );
+                hrUser.getId(),
+                tokenHash,
+                Instant.now().minus(5, ChronoUnit.MINUTES),
+                Instant.now().minus(35, ChronoUnit.MINUTES));
         passwordResetTokenRepository.save(resetToken);
 
         mockMvc.perform(post("/api/v1/auth/reset-password")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new ResetPasswordRequest(rawToken, "NewPass456"))))
-            .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.code", is("RESET_TOKEN_EXPIRED")));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("RESET_TOKEN_EXPIRED")));
     }
 
     @Test
     @DisplayName("9. Token khôi phục mật khẩu đã dùng - không thể sử dụng lại")
     void hrResetPasswordAlreadyUsedToken() throws Exception {
         User hrUser = new User(
-            null,
-            "hr9@rikkei.vn",
-            "HR Reused",
-            "ROLE_HR",
-            passwordEncoder.encode("Pass123"),
-            Instant.now(),
-            Instant.now()
-        );
+                null,
+                "hr9@rikkei.vn",
+                "HR Reused",
+                "ROLE_HR",
+                passwordEncoder.encode("Pass123"),
+                Instant.now(),
+                Instant.now());
         userRepository.save(hrUser);
 
         String rawToken = "already-used-token-999";
         String tokenHash = sha256(rawToken);
         PasswordResetToken resetToken = new PasswordResetToken(
-            hrUser.getId(),
-            tokenHash,
-            Instant.now().plus(20, ChronoUnit.MINUTES),
-            Instant.now()
-        );
+                hrUser.getId(),
+                tokenHash,
+                Instant.now().plus(20, ChronoUnit.MINUTES),
+                Instant.now());
         resetToken.setUsedAt(Instant.now().minusSeconds(60));
         passwordResetTokenRepository.save(resetToken);
 
         mockMvc.perform(post("/api/v1/auth/reset-password")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new ResetPasswordRequest(rawToken, "NewPass789"))))
-            .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.code", is("RESET_TOKEN_ALREADY_USED")));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("RESET_TOKEN_ALREADY_USED")));
     }
 
     @Test
     @DisplayName("10. JWT của HR hoạt động chính xác với Spring Security trên endpoint được bảo vệ")
     void hrJwtProtectedEndpointAccess() throws Exception {
         User hrUser = new User(
-            null,
-            "hr10@rikkei.vn",
-            "HR Security Test",
-            "ROLE_HR",
-            passwordEncoder.encode("SecurePass123"),
-            Instant.now(),
-            Instant.now()
-        );
+                null,
+                "hr10@rikkei.vn",
+                "HR Security Test",
+                "ROLE_HR",
+                passwordEncoder.encode("SecurePass123"),
+                Instant.now(),
+                Instant.now());
         userRepository.save(hrUser);
 
         String responseStr = mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest("hr10@rikkei.vn", "SecurePass123"))))
-            .andExpect(status().isOk())
-            .andReturn().getResponse().getContentAsString();
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
 
         String token = objectMapper.readTree(responseStr).get("accessToken").asText();
 
         // Access /api/v1/auth/me with Bearer token
         mockMvc.perform(get("/api/v1/auth/me")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.email", is("hr10@rikkei.vn")))
-            .andExpect(jsonPath("$.role", is("ROLE_HR")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email", is("hr10@rikkei.vn")))
+                .andExpect(jsonPath("$.role", is("ROLE_HR")));
     }
 
     @Test
     @DisplayName("11. Tài khoản LMS SSO không thể đăng nhập bằng mật khẩu khi không có mật khẩu")
     void ssoUserCannotLoginWithPassword() throws Exception {
         User ssoUser = new User(
-            "lms-student-99",
-            "student99@rikkei.edu.vn",
-            "SSO Student",
-            "ROLE_CANDIDATE",
-            null,
-            Instant.now(),
-            Instant.now()
-        );
+                "lms-student-99",
+                "student99@rikkei.edu.vn",
+                "SSO Student",
+                "ROLE_CANDIDATE",
+                null,
+                Instant.now(),
+                Instant.now());
         userRepository.save(ssoUser);
 
         mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest("student99@rikkei.edu.vn", "AnyPass"))))
-            .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.code", is("INVALID_CREDENTIALS")));
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code", is("INVALID_CREDENTIALS")));
     }
 
     @Test
     @DisplayName("12. Xử lý đồng thời hai request sử dụng cùng reset token - chỉ một request thành công")
     void concurrentResetPasswordRequestsSameToken() throws Exception {
         User hrUser = new User(
-            null,
-            "hr12@rikkei.vn",
-            "HR Concurrency Test",
-            "ROLE_HR",
-            passwordEncoder.encode("OldPass123"),
-            Instant.now(),
-            Instant.now()
-        );
+                null,
+                "hr12@rikkei.vn",
+                "HR Concurrency Test",
+                "ROLE_HR",
+                passwordEncoder.encode("OldPass123"),
+                Instant.now(),
+                Instant.now());
         userRepository.save(hrUser);
 
         String rawToken = "concurrent-reset-token-12";
         String tokenHash = sha256(rawToken);
         PasswordResetToken resetToken = new PasswordResetToken(
-            hrUser.getId(),
-            tokenHash,
-            Instant.now().plus(30, ChronoUnit.MINUTES),
-            Instant.now()
-        );
+                hrUser.getId(),
+                tokenHash,
+                Instant.now().plus(30, ChronoUnit.MINUTES),
+                Instant.now());
         passwordResetTokenRepository.save(resetToken);
 
         CountDownLatch startLatch = new CountDownLatch(1);
@@ -474,14 +458,14 @@ class HrAuthenticationIntegrationTest {
             return mockMvc.perform(post("/api/v1/auth/reset-password")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(new ResetPasswordRequest(rawToken, "NewPassThread1@"))))
-                .andReturn().getResponse().getStatus();
+                    .andReturn().getResponse().getStatus();
         };
         Callable<Integer> call2 = () -> {
             startLatch.await();
             return mockMvc.perform(post("/api/v1/auth/reset-password")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(new ResetPasswordRequest(rawToken, "NewPassThread2@"))))
-                .andReturn().getResponse().getStatus();
+                    .andReturn().getResponse().getStatus();
         };
 
         Future<Integer> f1 = executor.submit(call1);
@@ -492,7 +476,8 @@ class HrAuthenticationIntegrationTest {
         int s2 = f2.get();
         executor.shutdown();
 
-        // One request must succeed (200 OK) and the other must be rejected (400 Bad Request)
+        // One request must succeed (200 OK) and the other must be rejected (400 Bad
+        // Request)
         assertThat(List.of(s1, s2)).containsExactlyInAnyOrder(200, 400);
     }
 
@@ -500,68 +485,64 @@ class HrAuthenticationIntegrationTest {
     @DisplayName("13. Đặt lại mật khẩu thành công sẽ vô hiệu hóa tất cả các reset token còn lại của tài khoản")
     void resetPasswordInvalidatesOtherPendingTokensForSameUser() throws Exception {
         User hrUser = new User(
-            null,
-            "hr13@rikkei.vn",
-            "HR Invalidation Test",
-            "ROLE_HR",
-            passwordEncoder.encode("InitialPassword123"),
-            Instant.now(),
-            Instant.now()
-        );
+                null,
+                "hr13@rikkei.vn",
+                "HR Invalidation Test",
+                "ROLE_HR",
+                passwordEncoder.encode("InitialPassword123"),
+                Instant.now(),
+                Instant.now());
         userRepository.save(hrUser);
 
         String token1 = "token-first-13";
         String token2 = "token-second-13";
 
         passwordResetTokenRepository.save(new PasswordResetToken(
-            hrUser.getId(),
-            sha256(token1),
-            Instant.now().plus(30, ChronoUnit.MINUTES),
-            Instant.now()
-        ));
+                hrUser.getId(),
+                sha256(token1),
+                Instant.now().plus(30, ChronoUnit.MINUTES),
+                Instant.now()));
         passwordResetTokenRepository.save(new PasswordResetToken(
-            hrUser.getId(),
-            sha256(token2),
-            Instant.now().plus(30, ChronoUnit.MINUTES),
-            Instant.now()
-        ));
+                hrUser.getId(),
+                sha256(token2),
+                Instant.now().plus(30, ChronoUnit.MINUTES),
+                Instant.now()));
 
         // Use token2 to reset password
         mockMvc.perform(post("/api/v1/auth/reset-password")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new ResetPasswordRequest(token2, "BrandNewPassword123@"))))
-            .andExpect(status().isOk());
+                .andExpect(status().isOk());
 
         // Token1 must now be marked used and rejected
         mockMvc.perform(post("/api/v1/auth/reset-password")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new ResetPasswordRequest(token1, "AnotherPassword123@"))))
-            .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.code", is("RESET_TOKEN_ALREADY_USED")));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("RESET_TOKEN_ALREADY_USED")));
     }
 
     @Test
     @DisplayName("14. Khi dịch vụ gửi mail gặp sự cố - trả lỗi 503 EXTERNAL_UNAVAILABLE và không lưu token")
     void forgotPasswordWhenEmailServiceFailsReturns503() throws Exception {
         User hrUser = new User(
-            null,
-            "hr14@rikkei.vn",
-            "HR Smtp Fail Test",
-            "ROLE_HR",
-            passwordEncoder.encode("ValidPass123"),
-            Instant.now(),
-            Instant.now()
-        );
+                null,
+                "hr14@rikkei.vn",
+                "HR Smtp Fail Test",
+                "ROLE_HR",
+                passwordEncoder.encode("ValidPass123"),
+                Instant.now(),
+                Instant.now());
         userRepository.save(hrUser);
 
         doThrow(new SsoException(ErrorCode.EXTERNAL_UNAVAILABLE, "SMTP server unreachable"))
-            .when(emailService).sendPasswordResetEmail(anyString(), anyString());
+                .when(emailService).sendPasswordResetEmail(anyString(), anyString());
 
         mockMvc.perform(post("/api/v1/auth/forgot-password")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new ForgotPasswordRequest("hr14@rikkei.vn"))))
-            .andExpect(status().isServiceUnavailable())
-            .andExpect(jsonPath("$.code", is("EXTERNAL_UNAVAILABLE")));
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code", is("EXTERNAL_UNAVAILABLE")));
 
         // Transaction rollback: no reset token should be saved in DB
         assertThat(passwordResetTokenRepository.findAll()).isEmpty();
@@ -571,21 +552,20 @@ class HrAuthenticationIntegrationTest {
     @DisplayName("15. Không làm lộ mật khẩu, mã băm hoặc thông tin nội bộ trong API response")
     void noSensitiveInformationExposedInApiResponses() throws Exception {
         User hrUser = new User(
-            null,
-            "hr15@rikkei.vn",
-            "HR Privacy Test",
-            "ROLE_HR",
-            passwordEncoder.encode("PrivatePassword123@"),
-            Instant.now(),
-            Instant.now()
-        );
+                null,
+                "hr15@rikkei.vn",
+                "HR Privacy Test",
+                "ROLE_HR",
+                passwordEncoder.encode("PrivatePassword123@"),
+                Instant.now(),
+                Instant.now());
         userRepository.save(hrUser);
 
         String loginResponse = mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest("hr15@rikkei.vn", "PrivatePassword123@"))))
-            .andExpect(status().isOk())
-            .andReturn().getResponse().getContentAsString();
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
 
         assertThat(loginResponse).doesNotContain("password");
         assertThat(loginResponse).doesNotContain("passwordHash");

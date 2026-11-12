@@ -43,3 +43,46 @@ export interface Evaluation {
   submittedAt: string | null
   scores: EvaluationScore[]
 }
+
+// Kiểu dữ liệu Task nghiệm thu
+export interface InternshipTask {
+  id: string;
+  title: string;
+  acceptedScore: number;
+  acceptedAt: string | null;
+}
+
+// Kiểu dữ liệu Đợt thực tập
+export interface Internship {
+  id: string;
+  batchName: string;
+  groupName: string;
+  topicName: string;
+  mentorEmail: string;
+  startDate: string | null;
+  endDate: string | null;
+  finalScore: number;
+  tasks: InternshipTask[];
+}
+
+export interface EvaluationTask {
+  id: string;
+  candidateName: string;
+  context: 'INTERNSHIP' | 'INTERVIEW';
+  batchOrRoundName: string; // Tên đợt (nếu Thực tập) hoặc Vòng (nếu Phỏng vấn)
+  deadline: string;
+  status: 'PENDING' | 'DRAFT' | 'SUBMITTED';
+}
+
+export interface EvaluationFormData {
+  id: string;
+  candidateName: string;
+  skillsSummary: string;
+  internshipTasks?: { title: string; score: number }[]; // Chỉ có khi là Thực tập
+  criteria: {
+    id: string;
+    name: string;
+    description: string;
+    weight: number;
+  }[];
+}
