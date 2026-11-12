@@ -43,3 +43,24 @@ export interface Evaluation {
   submittedAt: string | null
   scores: EvaluationScore[]
 }
+
+// Kiểu dữ liệu Task nghiệm thu
+export interface InternshipTask {
+  id: string;
+  title: string;
+  acceptedScore: number;
+  acceptedAt: string | null;
+}
+
+// Kiểu dữ liệu Đợt thực tập
+export interface Internship {
+  id: string;
+  batchName: string;
+  groupName: string;
+  topicName: string;
+  mentorEmail: string;
+  startDate: string | null;
+  endDate: string | null;
+  finalScore: number;
+  tasks: InternshipTask[];
+}

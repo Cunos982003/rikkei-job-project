@@ -10,6 +10,7 @@ import { LoginPage } from "../pages/auth/LoginPage";
 import { UnauthorizedPage } from "../pages/common/UnauthorizedPage";
 import { NotFoundPage } from "../pages/common/NotFoundPage";
 import EvaluationsPage from "../features/profile/EvaluationsPage";
+import InternshipsPage from "../features/profile/InternshipsPage";
 import { SkillProfilePage } from "../features/profile/SkillProfilePage";
 
 // Role Dashboard Pages
@@ -46,69 +47,72 @@ function RootRedirect() {
 
 export function AppRoutes() {
   return (
-    <Routes>
-      {/* 1. Public Authentication Routes (Bọc trong AuthLayout) */}
-      <Route element={<AuthLayout />}>
-        <Route path="/login" element={<LoginPage />} />
-      </Route>
+      <Routes>
+        {/* 1. Public Authentication Routes (Bọc trong AuthLayout) */}
+        <Route element={<AuthLayout />}>
+          <Route path="/login" element={<LoginPage />} />
+        </Route>
 
-      {/* 2. Error Fallback Routes */}
-      <Route path="/unauthorized" element={<UnauthorizedPage />} />
+        {/* 2. Error Fallback Routes */}
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-      {/* 3. Protected Workspace Routes (Bọc trong MainLayout) */}
-      <Route element={<ProtectedRoute />}>
-        <Route element={<MainLayout />}>
-          {/* Trang chủ điều hướng thông minh */}
-          <Route path="/" element={<RootRedirect />} />
-          <Route path="/profile" element={<RootRedirect />} />
+        {/* 3. Protected Workspace Routes (Bọc trong MainLayout) */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<MainLayout />}>
+            {/* Trang chủ điều hướng thông minh */}
+            <Route path="/" element={<RootRedirect />} />
+            <Route path="/profile" element={<RootRedirect />} />
 
-          {/* Phân hệ CANDIDATE */}
-          <Route element={<RoleGuard allowedRoles={["CANDIDATE"]} />}>
-            <Route path="/candidate/profile" element={<CandidateProfilePage />} />
-            <Route path="/candidate/jobs" element={<CandidateProfilePage />} />
-            <Route path="/candidate/applications" element={<CandidateProfilePage />} />
-            <Route path="/candidate/learning" element={<CandidateProfilePage />} />
-            <Route path="/candidate/evaluations" element={<EvaluationsPage />} />
-            <Route path="/profile/evaluations" element={<EvaluationsPage />} />
-            <Route path="/profile/skills" element={<SkillProfilePage />} />
-          </Route>
+            {/* Phân hệ CANDIDATE */}
+            <Route element={<RoleGuard allowedRoles={["CANDIDATE"]} />}>
+              <Route path="/candidate/profile" element={<CandidateProfilePage />} />
+              <Route path="/candidate/jobs" element={<CandidateProfilePage />} />
+              <Route path="/candidate/applications" element={<CandidateProfilePage />} />
+              <Route path="/candidate/learning" element={<CandidateProfilePage />} />
+              <Route path="/candidate/evaluations" element={<EvaluationsPage />} />
 
-          {/* Phân hệ HR (Doanh nghiệp) */}
-          <Route element={<RoleGuard allowedRoles={["HR"]} />}>
-            <Route path="/hr/company" element={<HrCompanyPage />} />
-            <Route path="/hr/jobs" element={<HrCompanyPage />} />
-            <Route path="/hr/candidates" element={<HrCompanyPage />} />
-            <Route path="/hr/interviews" element={<HrCompanyPage />} />
-            <Route path="/hr/ioc" element={<HrCompanyPage />} />
-          </Route>
+              <Route path="/profile/evaluations" element={<EvaluationsPage />} />
+              <Route path="/profile/skills" element={<SkillProfilePage />} />
 
-          {/* Phân hệ MENTOR */}
-          <Route element={<RoleGuard allowedRoles={["MENTOR"]} />}>
-            <Route path="/mentor/students" element={<MentorStudentsPage />} />
-            <Route path="/mentor/evaluations" element={<MentorStudentsPage />} />
-          </Route>
+              {/* Route cho Thực tập IOC */}
+              <Route path="/profile/internships" element={<InternshipsPage />} />
+            </Route>
 
-          {/* Phân hệ STAFF (Cán bộ tuyển dụng & Quản trị) */}
-          <Route element={<RoleGuard allowedRoles={["STAFF", "ADMIN"]} />}>
-            <Route path="/staff/jobs" element={<StaffJobsPage />} />
-            <Route path="/staff/companies" element={<StaffJobsPage />} />
-            <Route path="/staff/ioc" element={<StaffJobsPage />} />
-            <Route path="/staff/unlock-contacts" element={<StaffJobsPage />} />
-          </Route>
+            {/* Phân hệ HR (Doanh nghiệp) */}
+            <Route element={<RoleGuard allowedRoles={["HR"]} />}>
+              <Route path="/hr/company" element={<HrCompanyPage />} />
+              <Route path="/hr/jobs" element={<HrCompanyPage />} />
+              <Route path="/hr/candidates" element={<HrCompanyPage />} />
+              <Route path="/hr/interviews" element={<HrCompanyPage />} />
+              <Route path="/hr/ioc" element={<HrCompanyPage />} />
+            </Route>
 
-          {/* Phân hệ ADMIN (Quản trị hệ thống) */}
-          <Route element={<RoleGuard allowedRoles={["ADMIN"]} />}>
-            <Route path="/admin/skills" element={<AdminSkillsPage />} />
-            <Route path="/admin/badges" element={<AdminSkillsPage />} />
-            <Route path="/admin/overrides" element={<AdminSkillsPage />} />
-            <Route path="/admin/audit-logs" element={<AdminSkillsPage />} />
+            {/* Phân hệ MENTOR */}
+            <Route element={<RoleGuard allowedRoles={["MENTOR"]} />}>
+              <Route path="/mentor/students" element={<MentorStudentsPage />} />
+              <Route path="/mentor/evaluations" element={<MentorStudentsPage />} />
+            </Route>
+
+            {/* Phân hệ STAFF (Cán bộ tuyển dụng & Quản trị) */}
+            <Route element={<RoleGuard allowedRoles={["STAFF", "ADMIN"]} />}>
+              <Route path="/staff/jobs" element={<StaffJobsPage />} />
+              <Route path="/staff/companies" element={<StaffJobsPage />} />
+              <Route path="/staff/ioc" element={<StaffJobsPage />} />
+              <Route path="/staff/unlock-contacts" element={<StaffJobsPage />} />
+            </Route>
+
+            {/* Phân hệ ADMIN (Quản trị hệ thống) */}
+            <Route element={<RoleGuard allowedRoles={["ADMIN"]} />}>
+              <Route path="/admin/skills" element={<AdminSkillsPage />} />
+              <Route path="/admin/badges" element={<AdminSkillsPage />} />
+              <Route path="/admin/overrides" element={<AdminSkillsPage />} />
+              <Route path="/admin/audit-logs" element={<AdminSkillsPage />} />
+            </Route>
           </Route>
         </Route>
-      </Route>
 
-      {/* 4. Catch-all 404 Route */}
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+        {/* 4. Catch-all 404 Route */}
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
   );
 }
-
