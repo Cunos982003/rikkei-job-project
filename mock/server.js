@@ -1,6 +1,6 @@
 /**
  * Rikkei Jobs Mock Server
- * Cổng: 9000
+ * Cổng: 9001
  * Yêu cầu: Xác thực header X-Service-Key: dev-key cho các endpoint hệ thống ngoài (LMS, Khảo thí, PM, Meet)
  * Hỗ trợ: CORS, JSON parsing, phân trang (?page=1&size=20), mã lỗi HTTP chuẩn (400, 401, 403, 404, 409, 429, 500)
  */
@@ -10,7 +10,7 @@ const url = require('url');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 9000;
+const PORT = 9001;
 const SERVICE_KEY = 'dev-key';
 
 // Đọc dữ liệu mẫu từ mock/data/
@@ -75,7 +75,7 @@ function parseBody(req) {
 
 // Handler xử lý toàn bộ request
 async function requestHandler(req, res) {
-  const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost:9000'}`);
+  const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost:9001'}`);
   const pathname = parsedUrl.pathname;
   const method = req.method.toUpperCase();
   const query = Object.fromEntries(parsedUrl.searchParams.entries());
@@ -431,6 +431,192 @@ async function requestHandler(req, res) {
   }
   if (pathname === '/api/v1/mock/error-500') {
     return sendError(res, 500, 'Lỗi hệ thống máy chủ nội bộ');
+  }
+
+  // =============================================================
+  // F. PROFILE SERVICE MOCK ENDPOINTS (HS-02)
+  // Phản chiếu profile-service: xác thực bằng header X-User-Id,
+  // cập nhật bằng PUT, DTO trùng tên trường với backend.
+  // =============================================================
+
+  // Frontend gọi qua baseURL /api/v1 nên bỏ tiền tố trước khi so khớp
+  const profilePath = pathname.replace(/^\/api\/v1/, '');
+
+  // Danh tính do gateway truyền xuống qua X-User-Id (UUID)
+  const currentUserId = req.headers['x-user-id'];
+  const isProfileRoute =
+    profilePath === '/profiles/me' ||
+    profilePath.startsWith('/profiles/me/');
+
+  if (isProfileRoute && !currentUserId) {
+    return sendError(res, 401, 'Thiếu header X-User-Id');
+  }
+
+  const currentUser = currentUserId ? users.find(u => u.id === currentUserId) : null;
+  const currentCandidate = currentUser
+    ? candidates.find(c => c.email === currentUser.email)
+    : null;
+
+  if (isProfileRoute && !currentCandidate) {
+    return sendError(res, 404, 'Không tìm thấy hồ sơ ứng viên');
+  }
+
+  // 1. GET /profiles/me
+  if (method === 'GET' && profilePath === '/profiles/me') {
+    return sendJson(res, 200, currentCandidate);
+  }
+
+  // 2. PUT /profiles/me — bỏ qua các trường đồng bộ từ LMS
+  if (method === 'PUT' && profilePath === '/profiles/me') {
+    const body = await parseBody(req);
+    const editable = ['phone', 'dob', 'gender', 'address', 'avatarUrl', 'headline', 'summary', 'visibility'];
+    editable.forEach(field => {
+      if (body[field] !== undefined) currentCandidate[field] = body[field];
+    });
+    currentCandidate.updatedAt = new Date().toISOString();
+    return sendJson(res, 200, currentCandidate);
+  }
+
+  // 3. PUT /profiles/me/self-skills — [{ skillId, selfScore }]
+  if (method === 'PUT' && profilePath === '/profiles/me/self-skills') {
+    const body = await parseBody(req);
+    const list = Array.isArray(body) ? body : [];
+    list.forEach(({ skillId, selfScore }) => {
+      const skill = (currentCandidate.skills || []).find(
+        (s, idx) => String(idx + 1) === String(skillId) || s.name === skillId);
+      if (!skill) return;
+      skill.selfScore = selfScore;
+      if (!skill.evidences) skill.evidences = [];
+      const existing = skill.evidences.find(e => e.source === 'SELF');
+      if (existing) {
+        existing.score = selfScore;
+        existing.recordedAt = new Date().toISOString();
+      } else {
+        skill.evidences.push({
+          source: 'SELF',
+          title: 'Self-reported ' + skill.name,
+          score: selfScore,
+          recordedAt: new Date().toISOString(),
+          verified: false
+        });
+      }
+    });
+    return sendJson(res, 200, { success: true });
+  }
+
+  // 4. GET /profiles/me/educations
+  if (method === 'GET' && profilePath === '/profiles/me/educations') {
+    return sendJson(res, 200, currentCandidate.educations || []);
+  }
+
+  // 5. POST /profiles/me/educations
+  if (method === 'POST' && profilePath === '/profiles/me/educations') {
+    const body = await parseBody(req);
+    if (!currentCandidate.educations) currentCandidate.educations = [];
+    const created = {
+      id: 'edu-' + Date.now(),
+      userId: currentUserId,
+      school: body.school,
+      major: body.major,
+      fromDate: body.fromDate,
+      toDate: body.toDate || null,
+      gpa: body.gpa === undefined ? null : body.gpa,
+      note: body.note || ''
+    };
+    currentCandidate.educations.push(created);
+    return sendJson(res, 201, created);
+  }
+
+  // 6. PUT /profiles/me/educations/:id
+  const eduMatch = profilePath.match(/^\/profiles\/me\/educations\/([^\/]+)$/);
+  if (method === 'PUT' && eduMatch) {
+    const body = await parseBody(req);
+    const index = (currentCandidate.educations || []).findIndex(e => e.id === eduMatch[1]);
+    if (index === -1) {
+      return sendError(res, 404, 'Không tìm thấy học vấn');
+    }
+    const updated = {
+      ...currentCandidate.educations[index],
+      school: body.school,
+      major: body.major,
+      fromDate: body.fromDate,
+      toDate: body.toDate || null,
+      gpa: body.gpa === undefined ? null : body.gpa,
+      note: body.note || ''
+    };
+    currentCandidate.educations[index] = updated;
+    return sendJson(res, 200, updated);
+  }
+
+  // 7. DELETE /profiles/me/educations/:id
+  if (method === 'DELETE' && eduMatch) {
+    const index = (currentCandidate.educations || []).findIndex(e => e.id === eduMatch[1]);
+    if (index === -1) {
+      return sendError(res, 404, 'Không tìm thấy học vấn');
+    }
+    currentCandidate.educations.splice(index, 1);
+    res.writeHead(204, { 'Access-Control-Allow-Origin': '*' });
+    return res.end();
+  }
+
+  // 8. GET /profiles/me/certificates
+  if (method === 'GET' && profilePath === '/profiles/me/certificates') {
+    return sendJson(res, 200, currentCandidate.certificates || []);
+  }
+
+  // 9. POST /profiles/me/certificates
+  if (method === 'POST' && profilePath === '/profiles/me/certificates') {
+    const body = await parseBody(req);
+    if (!currentCandidate.certificates) currentCandidate.certificates = [];
+    const created = {
+      id: 'cert-' + Date.now(),
+      userId: currentUserId,
+      name: body.name,
+      issuer: body.issuer,
+      issuedAt: body.issuedAt,
+      expiresAt: body.expiresAt || null,
+      fileUrl: body.fileUrl || null,
+      fileType: body.fileType || null
+    };
+    currentCandidate.certificates.push(created);
+    return sendJson(res, 201, created);
+  }
+
+  // 10. PUT /profiles/me/certificates/:id
+  const certMatch = profilePath.match(/^\/profiles\/me\/certificates\/([^\/]+)$/);
+  if (method === 'PUT' && certMatch) {
+    const body = await parseBody(req);
+    const index = (currentCandidate.certificates || []).findIndex(c => c.id === certMatch[1]);
+    if (index === -1) {
+      return sendError(res, 404, 'Không tìm thấy chứng chỉ');
+    }
+    const updated = {
+      ...currentCandidate.certificates[index],
+      name: body.name,
+      issuer: body.issuer,
+      issuedAt: body.issuedAt,
+      expiresAt: body.expiresAt || null,
+      fileUrl: body.fileUrl || null,
+      fileType: body.fileType || null
+    };
+    currentCandidate.certificates[index] = updated;
+    return sendJson(res, 200, updated);
+  }
+
+  // 11. DELETE /profiles/me/certificates/:id
+  if (method === 'DELETE' && certMatch) {
+    const index = (currentCandidate.certificates || []).findIndex(c => c.id === certMatch[1]);
+    if (index === -1) {
+      return sendError(res, 404, 'Không tìm thấy chứng chỉ');
+    }
+    currentCandidate.certificates.splice(index, 1);
+    res.writeHead(204, { 'Access-Control-Allow-Origin': '*' });
+    return res.end();
+  }
+
+  // 12. POST /files — mock upload, trả URL tương đối như backend
+  if (method === 'POST' && profilePath === '/files') {
+    return sendJson(res, 200, { url: '/files/mock-' + Date.now() + '.pdf' });
   }
 
   // Health check endpoint

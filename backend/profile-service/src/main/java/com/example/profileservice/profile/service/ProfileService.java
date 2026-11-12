@@ -3,6 +3,7 @@ package com.example.profileservice.profile.service;
 import com.example.profileservice.common.LevelConstants;
 import com.example.profileservice.profile.api.dto.LmsStudentDto;
 import com.example.profileservice.profile.api.dto.SelfSkillDto;
+import com.example.profileservice.profile.api.dto.UpdateProfileRequest;
 import com.example.profileservice.profile.domain.CandidateProfile;
 import com.example.profileservice.profile.infrastructure.CandidateProfileRepository;
 import com.example.profileservice.profile.infrastructure.LmsClient;
@@ -54,21 +55,20 @@ public class ProfileService {
     }
 
     @Transactional
-    public CandidateProfile updateProfile(UUID userId, CandidateProfile update) {
+    public CandidateProfile updateProfile(UUID userId, UpdateProfileRequest update) {
         CandidateProfile existing = profileRepo.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Profile not found for userId: " + userId));
 
-        // LMS-sourced fields are immutable - do not update
-        existing.setFullName(update.getFullName());
-        existing.setDob(update.getDob());
-        existing.setGender(update.getGender());
-        existing.setPhone(update.getPhone());
-        existing.setEmail(update.getEmail());
-        existing.setAddress(update.getAddress());
-        existing.setAvatarUrl(update.getAvatarUrl());
-        existing.setHeadline(update.getHeadline());
-        existing.setSummary(update.getSummary());
-        // program, classCode, courseName are NOT updated (immutable from LMS)
+        // Only candidate-owned fields are writable here, and a null field means "leave as is".
+        // fullName, email, program, classCode and courseName are LMS-sourced and stay immutable.
+        if (update.getDob() != null) existing.setDob(update.getDob());
+        if (update.getGender() != null) existing.setGender(update.getGender());
+        if (update.getPhone() != null) existing.setPhone(update.getPhone());
+        if (update.getAddress() != null) existing.setAddress(update.getAddress());
+        if (update.getAvatarUrl() != null) existing.setAvatarUrl(update.getAvatarUrl());
+        if (update.getHeadline() != null) existing.setHeadline(update.getHeadline());
+        if (update.getSummary() != null) existing.setSummary(update.getSummary());
+        if (update.getVisibility() != null) existing.setVisibility(update.getVisibility());
 
         return profileRepo.save(existing);
     }

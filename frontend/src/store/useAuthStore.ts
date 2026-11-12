@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { setAccessToken, registerUnauthorizedHandler } from "../api/client";
+import { setAccessToken, setCurrentUserId, registerUnauthorizedHandler } from "../api/client";
 import { authApi, type Role, type UserProfile, type AuthResponseData } from "../api/endpoints/auth.api";
 
 interface AuthState {
@@ -39,6 +39,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = data.user;
 
       setAccessToken(token);
+      setCurrentUserId(user.id);
       set({
         user,
         accessToken: token,
@@ -62,6 +63,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = data.user;
 
       setAccessToken(token);
+      setCurrentUserId(user.id);
       set({
         user,
         accessToken: token,
@@ -79,6 +81,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   fetchMe: async () => {
     try {
       const res = await authApi.getMe();
+      setCurrentUserId(res.data.id);
       set({ user: res.data, isAuthenticated: true });
     } catch {
       // Lỗi 401 được interceptor xử lý tự động
@@ -87,6 +90,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: () => {
     setAccessToken(null);
+    setCurrentUserId(null);
     set({
       user: null,
       accessToken: null,

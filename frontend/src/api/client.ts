@@ -18,6 +18,7 @@ declare module "axios" {
  * giảm thiểu rủi ro XSS so với localStorage / sessionStorage.
  */
 let inMemoryAccessToken: string | null = null;
+let inMemoryUserId: string | null = null;
 let onUnauthorizedCallback: (() => void) | null = null;
 
 export const setAccessToken = (token: string | null) => {
@@ -25,6 +26,16 @@ export const setAccessToken = (token: string | null) => {
 };
 
 export const getAccessToken = (): string | null => inMemoryAccessToken;
+
+/**
+ * Các service nội bộ (profile-service, evidence-service...) xác định danh tính
+ * qua header X-User-Id do gateway truyền xuống, không đọc JWT.
+ */
+export const setCurrentUserId = (userId: string | null) => {
+  inMemoryUserId = userId;
+};
+
+export const getCurrentUserId = (): string | null => inMemoryUserId;
 
 export const registerUnauthorizedHandler = (handler: () => void) => {
   onUnauthorizedCallback = handler;
@@ -50,6 +61,17 @@ axiosInstance.interceptors.request.use(
     if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    const userId = getCurrentUserId();
+    if (userId && !config.headers["X-User-Id"]) {
+      config.headers["X-User-Id"] = userId;
+    }
+
+    // Để trình duyệt tự sinh boundary cho multipart/form-data
+    if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+    }
+
     return config;
   },
   (error: AxiosError) => {
