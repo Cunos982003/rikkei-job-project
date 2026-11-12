@@ -1,3 +1,32 @@
 .idea
 .env
 .vscode
+
+# Local environment files
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build output and caches
+.gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+dist/
+dist-ssr/
+coverage/
+*.tsbuildinfo
+*.class
+out/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Operating system files
+.DS_Store
+Thumbs.db
