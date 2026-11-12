@@ -40,7 +40,8 @@ public class UserService {
                 user.getEmail(),
                 user.getFullName(),
                 user.getRole(),
-                user.getCompanyId()
+                user.getCompanyId(),
+                user.isMustChangePassword()
         );
 
         String token = tokenProvider.generateToken(principal);
@@ -61,7 +62,7 @@ public class UserService {
     }
 
     @Transactional
-    public void changePassword(UserPrincipal principal, ChangePasswordRequest request) {
+    public String changePassword(UserPrincipal principal, ChangePasswordRequest request) {
         User user = userRepository.findByEmail(principal.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung"));
 
@@ -72,5 +73,14 @@ public class UserService {
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         user.setMustChangePassword(false);
         userRepository.save(user);
+
+        UserPrincipal updatedPrincipal = UserPrincipal.of(
+                user.getId(),
+                user.getEmail(),
+                user.getFullName(),
+                user.getRole(),
+                user.getCompanyId(),
+                false);
+        return tokenProvider.generateToken(updatedPrincipal);
     }
 }

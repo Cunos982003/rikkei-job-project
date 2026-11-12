@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -51,7 +52,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
+        if (requiresPasswordChange(request)
+                && SecurityContextHolder.getContext().getAuthentication() != null
+                && SecurityContextHolder.getContext().getAuthentication().getPrincipal() instanceof UserPrincipal principal
+                && principal.isMustChangePassword()) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.setContentType("application/problem+json");
+            response.setCharacterEncoding("UTF-8");
+            response.getWriter().write(
+                    "{\"title\":\"Forbidden\",\"status\":403,\"detail\":\"Bạn phải đổi mật khẩu trước khi sử dụng API này\"}");
+            return;
+        }
+
         filterChain.doFilter(request, response);
+    }
+
+    private boolean requiresPasswordChange(HttpServletRequest request) {
+        if (!HttpMethod.POST.matches(request.getMethod())) {
+            return true;
+        }
+
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        return !"/api/v1/auth/login".equals(path)
+                && !"/api/v1/auth/change-password".equals(path);
     }
 
     private String resolveToken(HttpServletRequest request) {

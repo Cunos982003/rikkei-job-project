@@ -5,9 +5,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Lock, Mail, Eye, EyeOff, LogIn, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "../../store/useAuthStore";
 import { Button } from "../../components/common/Button";
 import { Input } from "../../components/common/Input";
+import { authApi, type DemoAccount } from "@/api";
 
 const loginSchema = z.object({
   email: z.string().min(1, "Vui lòng nhập địa chỉ email").email("Email không đúng định dạng"),
@@ -16,21 +18,21 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-// Danh sách tài khoản mẫu theo mock/data/users.json để hỗ trợ kiểm thử nhanh
-const MOCK_ACCOUNTS = [
-  { role: "CANDIDATE", email: "candidate1@rikkeijobs.test", label: "Ứng viên (Nguyễn Văn An)" },
-  { role: "HR", email: "hr1@rikkeijobs.test", label: "Doanh nghiệp HR (Rikkeisoft)" },
-  { role: "MENTOR", email: "mentor1@rikkeijobs.test", label: "Mentor (Phạm Minh Đức)" },
-  { role: "STAFF", email: "staff1@rikkeijobs.test", label: "Cán bộ tuyển dụng" },
-  { role: "ADMIN", email: "admin1@rikkeijobs.test", label: "Quản trị hệ thống" },
-];
-
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { data: demoAccounts } = useQuery<DemoAccount[]>({
+    queryKey: ["demo-accounts"],
+    queryFn: async () => {
+      const res = await authApi.getDemoAccounts();
+      return res.data;
+    },
+    staleTime: Infinity,
+  });
 
   const {
     register,
@@ -169,7 +171,7 @@ export function LoginPage() {
           <span className="text-[11px] text-muted-light">Mật khẩu: Test@123</span>
         </div>
         <div className="flex flex-wrap gap-2">
-          {MOCK_ACCOUNTS.map((acc) => (
+          {(demoAccounts ?? []).map((acc) => (
             <button
               key={acc.email}
               type="button"

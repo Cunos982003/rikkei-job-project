@@ -45,7 +45,7 @@ public class StaffCompanyController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Xem chi tiet doanh nghiep theo ID", description = "Can bo xem thong tin chi tiet mot doanh nghiep.")
+    @Operation(summary = "Xem chi tiết doanh nghiệp theo ID", description = "Endpoint được giữ cho STAFF/ADMIN để xem thông tin doanh nghiệp.")
     public ResponseEntity<CompanyResponse> getCompanyById(@PathVariable("id") UUID id) {
         CompanyResponse response = companyService.getCompanyById(id);
         return ResponseEntity.ok(response);

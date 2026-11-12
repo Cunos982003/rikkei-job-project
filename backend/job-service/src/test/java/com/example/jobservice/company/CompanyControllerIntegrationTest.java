@@ -26,6 +26,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.util.UUID;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -145,6 +147,24 @@ class CompanyControllerIntegrationTest {
         }
 
         @Test
+        @DisplayName("Mã số thuế đã tồn tại → 409 Conflict")
+        void staffCreateCompany_duplicateTaxCode_returns409() throws Exception {
+                CreateCompanyRequest request = new CreateCompanyRequest(
+                                "Công ty Trùng MST",
+                                "0101234567",
+                                "CNTT",
+                                "1-50",
+                                null, null, null, null);
+
+                mockMvc.perform(post("/staff/companies")
+                                .header("Authorization", staffToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                                .andExpect(status().isConflict())
+                                .andExpect(jsonPath("$.detail", containsString("đã tồn tại")));
+        }
+
+        @Test
         @DisplayName("STAFF tạo HR cho doanh nghiệp thành công")
         void staffCreateHrAccount_shouldReturn201WithTemporaryPassword() throws Exception {
                 CreateHrAccountRequest request = new CreateHrAccountRequest(
@@ -159,7 +179,8 @@ class CompanyControllerIntegrationTest {
                                 .andExpect(jsonPath("$.email", is("hr.test.create@rikkei.vn")))
                                 .andExpect(jsonPath("$.role", is("ROLE_HR")))
                                 .andExpect(jsonPath("$.companyId", is(companyAId.toString())))
-                                .andExpect(jsonPath("$.mustChangePassword", is(true)));
+                                .andExpect(jsonPath("$.mustChangePassword", is(true)))
+                                .andExpect(jsonPath("$.emailSent", is(true)));
         }
 
         @Test
@@ -233,6 +254,70 @@ class CompanyControllerIntegrationTest {
         }
 
         @Test
+        @DisplayName("HR chưa đổi mật khẩu bị chặn tới khi đổi mật khẩu")
+        void mustChangePassword_blocksCompanyApiAndChangePasswordReturnsNewToken() throws Exception {
+                User hr1 = userRepository.findByEmail("hr1@rikkei.vn").orElseThrow();
+                String originalPasswordHash = hr1.getPasswordHash();
+                boolean originalMustChangePassword = hr1.isMustChangePassword();
+
+                try {
+                        hr1.setMustChangePassword(true);
+                        userRepository.saveAndFlush(hr1);
+
+                        String passwordChangeToken = "Bearer " + objectMapper.readTree(
+                                        mockMvc.perform(post("/api/v1/auth/login")
+                                                        .contentType(MediaType.APPLICATION_JSON)
+                                                        .content("""
+                                                                        {"email":"hr1@rikkei.vn","password":"Password@123"}
+                                                                        """))
+                                                        .andExpect(status().isOk())
+                                                        .andReturn()
+                                                        .getResponse()
+                                                        .getContentAsString())
+                                        .get("token").asText();
+
+                        mockMvc.perform(get("/companies/me")
+                                        .header("Authorization", passwordChangeToken))
+                                        .andExpect(status().isForbidden())
+                                        .andExpect(jsonPath("$.detail",
+                                                        containsString("phải đổi mật khẩu")));
+
+                        mockMvc.perform(post("/api/v1/auth/change-password")
+                                        .header("Authorization", passwordChangeToken)
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content("""
+                                                        {"oldPassword":"Password@123","newPassword":"NewPassword@123"}
+                                                        """))
+                                        .andExpect(status().isOk())
+                                        .andExpect(jsonPath("$.token").isString())
+                                        .andExpect(jsonPath("$.message", is("Đổi mật khẩu thành công")))
+                                        .andDo(result -> {
+                                                String newToken = objectMapper.readTree(
+                                                                result.getResponse().getContentAsString())
+                                                                .get("token").asText();
+                                                mockMvc.perform(get("/companies/me")
+                                                                .header("Authorization", "Bearer " + newToken))
+                                                                .andExpect(status().isOk());
+                                        });
+                } finally {
+                        hr1.setPasswordHash(originalPasswordHash);
+                        hr1.setMustChangePassword(originalMustChangePassword);
+                        userRepository.saveAndFlush(hr1);
+                }
+        }
+
+        @Test
+        @DisplayName("Đổi mật khẩu không có token → 401")
+        void changePassword_withoutToken_returns401() throws Exception {
+                mockMvc.perform(post("/api/v1/auth/change-password")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                                {"oldPassword":"Password@123","newPassword":"NewPassword@123"}
+                                                """))
+                                .andExpect(status().isUnauthorized());
+        }
+
+        @Test
         @DisplayName("Logo lớn hơn 2MB → 400 Bad Request")
         void uploadLogo_exceeds2MB_returns400() throws Exception {
                 byte[] largeBytes = new byte[2 * 1024 * 1024 + 10];
@@ -263,11 +348,41 @@ class CompanyControllerIntegrationTest {
                                                 0x0D, 0x0A, 0x1A, 0x0A
                                 });
 
-                mockMvc.perform(multipart("/companies/me/logo")
+                String oldLogoUrl = mockMvc.perform(multipart("/companies/me/logo")
                                 .file(file)
                                 .header("Authorization", hr1Token))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.logoUrl",
-                                                startsWith("/uploads/logos/company-" + companyAId + "-")));
+                                                startsWith("/uploads/logos/company-" + companyAId + "-")))
+                                .andReturn()
+                                .getResponse()
+                                .getContentAsString();
+                String oldLogo = objectMapper.readTree(oldLogoUrl).get("logoUrl").asText();
+
+                mockMvc.perform(multipart("/companies/me/logo")
+                                .file(file)
+                                .header("Authorization", hr1Token))
+                                .andExpect(status().isOk());
+
+                Path oldLogoFile = Path.of("build/test-uploads/logos")
+                                .resolve(Path.of(oldLogo).getFileName());
+                org.assertj.core.api.Assertions.assertThat(Files.exists(oldLogoFile)).isFalse();
+        }
+
+        @Test
+        @DisplayName("OpenAPI liệt kê API DN-01 và Swagger UI tồn tại")
+        void openApiDocumentsCompanyEndpoints() throws Exception {
+                mockMvc.perform(get("/v3/api-docs"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.paths['/staff/companies'].post").exists())
+                                .andExpect(jsonPath("$.paths['/staff/companies/{id}/hr-accounts'].post").exists())
+                                .andExpect(jsonPath("$.paths['/companies/me'].get").exists())
+                                .andExpect(jsonPath("$.paths['/companies/me'].put").exists())
+                                .andExpect(jsonPath("$.paths['/companies/me/logo'].post").exists())
+                                .andExpect(jsonPath("$.paths['/companies/{id}'].put").exists())
+                                .andExpect(jsonPath("$.paths['/staff/companies/{id}'].get").exists());
+
+                mockMvc.perform(get("/swagger-ui.html"))
+                                .andExpect(status().is3xxRedirection());
         }
 }

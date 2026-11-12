@@ -51,9 +51,9 @@ public class SmtpEmailService implements EmailService {
       MimeMessage message = mailSender.createMimeMessage();
       MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-      helper.setFrom(fromAddress, "Rikkei Jobs - He thong Tuyen dung");
+      helper.setFrom(fromAddress, "Rikkei Jobs - Hệ thống Tuyển dụng");
       helper.setTo(recipientEmail);
-      helper.setSubject("[Rikkei Jobs] Thong tin tai khoan HR - Doanh nghiep: " + companyName);
+      helper.setSubject("[Rikkei Jobs] Thông tin tài khoản HR - Doanh nghiệp: " + companyName);
       helper.setText(buildHtmlBody(recipientName, companyName, recipientEmail, temporaryPassword), true);
 
       mailSender.send(message);
@@ -61,10 +61,7 @@ public class SmtpEmailService implements EmailService {
       log.info("[EMAIL SENT] To: {} | Company: {}", recipientEmail, companyName);
 
     } catch (MessagingException | java.io.UnsupportedEncodingException e) {
-      log.error("[EMAIL ERROR] Failed to send credentials email to {}: {}", recipientEmail, e.getMessage(), e);
-      // Do NOT rethrow — email failure should not roll back HR account creation.
-      // The temporary password is returned in the API response so staff can copy it
-      // manually.
+      throw new IllegalStateException("Không thể tạo email thông tin tài khoản HR", e);
     }
   }
 
@@ -87,20 +84,20 @@ public class SmtpEmailService implements EmailService {
                            font-size:28px; font-weight:900; width:48px; height:48px;
                            line-height:48px; border-radius:10px;">R</span>
               <h2 style="margin:12px 0 4px; color:#1e293b;">Rikkei Jobs</h2>
-              <p style="color:#64748b; font-size:13px; margin:0;">He thong quan ly tuyen dung</p>
+              <p style="color:#64748b; font-size:13px; margin:0;">Hệ thống quản lý tuyển dụng</p>
             </div>
 
-            <p style="color:#334155;">Xin chao <strong>%s</strong>,</p>
+            <p style="color:#334155;">Xin chào <strong>%s</strong>,</p>
 
             <p style="color:#334155;">
-              Can bo tuyen dung vua cap tai khoan HR cho ban tai doanh nghiep
-              <strong>%s</strong> tren he thong <strong>Rikkei Jobs</strong>.
+              Cán bộ tuyển dụng vừa cấp tài khoản HR cho bạn tại doanh nghiệp
+              <strong>%s</strong> trên hệ thống <strong>Rikkei Jobs</strong>.
             </p>
 
             <div style="background:#f1f5f9; border-left:4px solid #2563eb;
                         border-radius:6px; padding:16px; margin:20px 0;">
               <p style="margin:0 0 8px; font-size:13px; color:#64748b;">
-                THONG TIN DANG NHAP
+                THÔNG TIN ĐĂNG NHẬP
               </p>
               <table style="width:100%; font-size:14px; color:#1e293b;">
                 <tr>
@@ -108,7 +105,7 @@ public class SmtpEmailService implements EmailService {
                   <td style="font-weight:600;">%s</td>
                 </tr>
                 <tr>
-                  <td style="padding:4px 0; color:#64748b;">Mat khau tam thoi:</td>
+                  <td style="padding:4px 0; color:#64748b;">Mật khẩu tạm thời:</td>
                   <td>
                     <code style="background:#fef3c7; border:1px solid #fcd34d;
                                  border-radius:4px; padding:2px 8px; font-size:15px;
@@ -123,20 +120,28 @@ public class SmtpEmailService implements EmailService {
             <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:6px;
                         padding:12px 16px; margin-bottom:20px;">
               <p style="margin:0; font-size:13px; color:#991b1b;">
-                &#9888; <strong>Bat buoc doi mat khau:</strong>
-                Ban se bi yeu cau doi mat khau ngay trong lan dang nhap dau tien.
-                Vui long doi sang mat khau rieng cua ban de bao mat tai khoan.
+                &#9888; <strong>Bắt buộc đổi mật khẩu:</strong>
+                Bạn sẽ được yêu cầu đổi mật khẩu ngay trong lần đăng nhập đầu tiên.
+                Vui lòng đổi sang mật khẩu riêng để bảo mật tài khoản.
               </p>
             </div>
 
             <p style="color:#64748b; font-size:12px; margin-top:24px; border-top:1px solid #e2e8f0; padding-top:16px;">
-              Email nay duoc gui tu he thong tu dong. Neu ban khong yeu cau tai khoan nay,
-              vui long lien he quan tri vien.<br><br>
-              &copy; 2026 Rikkei Jobs — He thong Tuyen dung Rikkei Education
+              Email này được gửi tự động. Nếu bạn không yêu cầu tài khoản này,
+              vui lòng liên hệ quản trị viên.<br><br>
+              &copy; 2026 Rikkei Jobs — Hệ thống Tuyển dụng Rikkei Education
             </p>
           </div>
         </body>
         </html>
-        """.formatted(name, companyName, email, temporaryPassword);
+        """.formatted(escapeHtml(name), escapeHtml(companyName), escapeHtml(email), escapeHtml(temporaryPassword));
+  }
+
+  private String escapeHtml(String value) {
+    return value.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&#39;");
   }
 }
