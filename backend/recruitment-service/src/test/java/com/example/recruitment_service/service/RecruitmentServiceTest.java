@@ -60,7 +60,7 @@ class RecruitmentServiceTest {
     private final ApplyRequest request = new ApplyRequest(CV_ID, "Please consider my recruitment");
 
     @Test
-    void applyStoresPdfSnapshotAndCreatesInitialHistory() {
+    void recruitStoresPdfSnapshotAndCreatesInitialHistory() {
         when(jobServiceClient.getJob(eq(JOB_ID), any())).thenReturn(new JobServiceClient.JobDetails(
                 "APPROVED", Instant.now().plusSeconds(172800), UUID.randomUUID(), List.of("hr@example.test")));
         when(recruitmentRepository.save(any(Recruitment.class))).thenAnswer(invocation -> {
@@ -73,7 +73,7 @@ class RecruitmentServiceTest {
         when(cvServiceClient.downloadPdf(CV_ID, "Bearer token")).thenReturn(new byte[] {'%', 'P', 'D', 'F', '-'});
         when(snapshotStorage.store(eq(APPLICATION_ID), any())).thenReturn("/recruitments/" + APPLICATION_ID + "/cv-snapshot");
 
-        var result = recruitmentService.apply(JOB_ID, request, candidate, "Bearer token");
+        var result = recruitmentService.recruit(JOB_ID, request, candidate, "Bearer token");
 
         assertEquals(RecruitmentStatus.SUBMITTED, result.status());
         assertEquals("/recruitments/" + APPLICATION_ID + "/cv-snapshot", result.cvSnapshotUrl());
@@ -85,7 +85,7 @@ class RecruitmentServiceTest {
     }
 
     @Test
-    void applyRejectsSecondActiveRecruitmentForSameJob() {
+    void recruitRejectsSecondActiveRecruitmentForSameJob() {
         when(jobServiceClient.getJob(eq(JOB_ID), any())).thenReturn(new JobServiceClient.JobDetails(
                 "APPROVED", Instant.now().plusSeconds(172800), UUID.randomUUID(), List.of()));
         when(recruitmentRepository.existsActiveByJobAndUser(JOB_ID, USER_ID, RecruitmentStatus.WITHDRAWN))
@@ -93,7 +93,7 @@ class RecruitmentServiceTest {
 
         ApiException exception = assertThrows(
                 ApiException.class,
-                () -> recruitmentService.apply(JOB_ID, request, candidate, ""));
+                () -> recruitmentService.recruit(JOB_ID, request, candidate, ""));
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatus());
         verify(cvServiceClient, never()).downloadPdf(any(), any());
@@ -101,7 +101,7 @@ class RecruitmentServiceTest {
     }
 
     @Test
-    void applyAllowsNewRecruitmentAfterPreviousOneWasWithdrawn() {
+    void recruitAllowsNewRecruitmentAfterPreviousOneWasWithdrawn() {
         when(jobServiceClient.getJob(eq(JOB_ID), any())).thenReturn(new JobServiceClient.JobDetails(
                 "APPROVED", Instant.now().plusSeconds(172800), UUID.randomUUID(), List.of()));
         when(recruitmentRepository.existsActiveByJobAndUser(JOB_ID, USER_ID, RecruitmentStatus.WITHDRAWN))
@@ -114,7 +114,7 @@ class RecruitmentServiceTest {
         when(cvServiceClient.downloadPdf(CV_ID, "")).thenReturn(new byte[] {'%', 'P', 'D', 'F', '-'});
         when(snapshotStorage.store(eq(APPLICATION_ID), any())).thenReturn("/recruitments/" + APPLICATION_ID + "/cv-snapshot");
 
-        var result = recruitmentService.apply(JOB_ID, request, candidate, "");
+        var result = recruitmentService.recruit(JOB_ID, request, candidate, "");
 
         assertEquals(RecruitmentStatus.SUBMITTED, result.status());
         verify(recruitmentRepository).existsActiveByJobAndUser(JOB_ID, USER_ID, RecruitmentStatus.WITHDRAWN);
@@ -122,13 +122,13 @@ class RecruitmentServiceTest {
     }
 
     @Test
-    void applyRejectsUnapprovedJob() {
+    void recruitRejectsUnapprovedJob() {
         when(jobServiceClient.getJob(eq(JOB_ID), any())).thenReturn(new JobServiceClient.JobDetails(
                 "PENDING", Instant.now().plusSeconds(172800), UUID.randomUUID(), List.of()));
 
         ApiException exception = assertThrows(
                 ApiException.class,
-                () -> recruitmentService.apply(JOB_ID, request, candidate, "Bearer token"));
+                () -> recruitmentService.recruit(JOB_ID, request, candidate, "Bearer token"));
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatus());
         verify(cvServiceClient, never()).downloadPdf(any(), any());
@@ -136,13 +136,13 @@ class RecruitmentServiceTest {
     }
 
     @Test
-    void applyRejectsExpiredJob() {
+    void recruitRejectsExpiredJob() {
         when(jobServiceClient.getJob(eq(JOB_ID), any())).thenReturn(new JobServiceClient.JobDetails(
                 "APPROVED", Instant.now().minusSeconds(1), UUID.randomUUID(), List.of()));
 
         ApiException exception = assertThrows(
                 ApiException.class,
-                () -> recruitmentService.apply(JOB_ID, request, candidate, "Bearer token"));
+                () -> recruitmentService.recruit(JOB_ID, request, candidate, "Bearer token"));
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatus());
         verify(cvServiceClient, never()).downloadPdf(any(), any());

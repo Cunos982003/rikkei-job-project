@@ -49,14 +49,14 @@ public class RecruitmentService {
     }
 
     @Transactional
-    public RecruitmentSummary apply(
+    public RecruitmentSummary recruit(
             UUID jobId,
             ApplyRequest request,
             UserPrincipal candidate,
             String authorization) {
         var job = jobServiceClient.getJob(jobId, authorization);
         if (!"APPROVED".equalsIgnoreCase(job.status())) {
-            throw new ApiException(HttpStatus.CONFLICT, "The job must be approved before applying");
+            throw new ApiException(HttpStatus.CONFLICT, "The job must be approved before recruiting");
         }
         if (job.expiresAt() != null && !job.expiresAt().isAfter(Instant.now())) {
             throw new ApiException(HttpStatus.CONFLICT, "The job recruitment deadline has passed");
