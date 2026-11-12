@@ -2,7 +2,7 @@
 
 Dịch vụ cung cấp các API ứng tuyển sau:
 
-- `POST /jobs/{id}/apply` với dữ liệu `{ "cvId": "...", "coverLetter": "..." }`
+- `POST /jobs/{id}/recruit` với dữ liệu `{ "cvId": "...", "coverLetter": "..." }`
 - `GET /me/recruitments?status=SUBMITTED`
 - `GET /me/recruitments/{id}` (bao gồm lịch sử trạng thái)
 - `POST /me/recruitments/{id}/withdraw` với dữ liệu `{ "reason": "..." }`

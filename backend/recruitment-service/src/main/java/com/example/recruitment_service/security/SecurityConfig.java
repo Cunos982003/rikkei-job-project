@@ -26,7 +26,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/jobs/*/apply", "/me/recruitments/*/withdraw")
+                        .requestMatchers(HttpMethod.POST, "/jobs/*/recruit", "/me/recruitments/*/withdraw")
                         .hasRole("CANDIDATE")
                         .requestMatchers(HttpMethod.GET, "/me/recruitments", "/me/recruitments/**")
                         .hasRole("CANDIDATE")

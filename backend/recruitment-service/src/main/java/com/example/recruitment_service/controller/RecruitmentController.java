@@ -29,6 +29,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @Validated
+@RequestMapping("/api/v1")
 public class RecruitmentController {
     private final RecruitmentService recruitmentService;
 
@@ -36,13 +37,13 @@ public class RecruitmentController {
         this.recruitmentService = recruitmentService;
     }
 
-    @PostMapping("/jobs/{id}/apply")
-    public ResponseEntity<RecruitmentSummary> apply(
+    @PostMapping("/jobs/{id}/recruit")
+    public ResponseEntity<RecruitmentSummary> recruit(
             @PathVariable UUID id,
             @Valid @RequestBody ApplyRequest request,
             @AuthenticationPrincipal UserPrincipal candidate,
             @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
-        return ResponseEntity.status(201).body(recruitmentService.apply(id, request, candidate, authorization));
+        return ResponseEntity.status(201).body(recruitmentService.recruit(id, request, candidate, authorization));
     }
 
     @GetMapping("/me/recruitments")
