@@ -52,4 +52,5 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    systemProperty 'mock.data.dir', rootProject.file('../../mock/data').canonicalPath
 }
