@@ -29,6 +29,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @Validated
+@RequestMapping("/api/v1")
 public class RecruitmentController {
     private final RecruitmentService recruitmentService;
 
