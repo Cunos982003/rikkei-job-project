@@ -9,9 +9,15 @@ import { RoleGuard } from "../components/auth/RoleGuard";
 import { LoginPage } from "../pages/auth/LoginPage";
 import { UnauthorizedPage } from "../pages/common/UnauthorizedPage";
 import { NotFoundPage } from "../pages/common/NotFoundPage";
+
+// Feature Profile Pages
 import EvaluationsPage from "../features/profile/EvaluationsPage";
 import InternshipsPage from "../features/profile/InternshipsPage";
 import { SkillProfilePage } from "../features/profile/SkillProfilePage";
+
+// DG-04 Mentor Evaluation Pages (MỚI IMPORT VÀO)
+import MentorTaskListPage from "../features/profile/MentorTaskListPage";
+import MentorEvaluationFormPage from "../features/profile/MentorEvaluationFormPage";
 
 // Role Dashboard Pages
 import { CandidateProfilePage } from "../pages/candidate/CandidateProfilePage";
@@ -73,8 +79,6 @@ export function AppRoutes() {
 
               <Route path="/profile/evaluations" element={<EvaluationsPage />} />
               <Route path="/profile/skills" element={<SkillProfilePage />} />
-
-              {/* Route cho Thực tập IOC */}
               <Route path="/profile/internships" element={<InternshipsPage />} />
             </Route>
 
@@ -90,7 +94,10 @@ export function AppRoutes() {
             {/* Phân hệ MENTOR */}
             <Route element={<RoleGuard allowedRoles={["MENTOR"]} />}>
               <Route path="/mentor/students" element={<MentorStudentsPage />} />
-              <Route path="/mentor/evaluations" element={<MentorStudentsPage />} />
+
+              {/* DG-04: Thêm 2 Route cho Mentor Đánh giá */}
+              <Route path="/mentor/evaluations" element={<MentorTaskListPage />} />
+              <Route path="/mentor/evaluations/:id" element={<MentorEvaluationFormPage />} />
             </Route>
 
             {/* Phân hệ STAFF (Cán bộ tuyển dụng & Quản trị) */}
