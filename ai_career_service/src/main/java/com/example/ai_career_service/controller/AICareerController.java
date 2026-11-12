@@ -25,7 +25,7 @@ public class AICareerController {
     @GetMapping
     public List<JobRecommendationResponse> getRecommendations(
             Principal principal,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(50) int limit) {
+            @RequestParam(name = "limit", defaultValue = "10") @Min(1) @Max(50) int limit) {
         return careerService.getRecommendations(AuthenticatedCandidate.requireUserId(principal), limit);
     }
 }

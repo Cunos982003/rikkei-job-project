@@ -1,3 +1,25 @@
-.idea
+# IDE and editor files
+.idea/
+.vscode/
+
+# Environment files
 .env
-.vscode
+.env.*
+!.env.example
+
+# Java / Gradle build output
+.gradle/
+**/.gradle/
+build/
+**/build/
+bin/
+**/bin/
+*.class
+
+# Node.js
+node_modules/
+dist/
+**/dist/
+
+# Logs
+*.log
