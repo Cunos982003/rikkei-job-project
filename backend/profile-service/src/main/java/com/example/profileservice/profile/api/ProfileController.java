@@ -1,6 +1,7 @@
 package com.example.profileservice.profile.api;
 
 import com.example.profileservice.profile.api.dto.SelfSkillDto;
+import com.example.profileservice.profile.api.dto.UpdateProfileRequest;
 import com.example.profileservice.profile.domain.CandidateProfile;
 import com.example.profileservice.profile.service.ProfileService;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +31,7 @@ public class ProfileController {
     @PutMapping("/me")
     public ResponseEntity<CandidateProfile> updateMyProfile(
             @RequestHeader(value = "X-User-Id", required = false) UUID userId,
-            @RequestBody CandidateProfile update) {
+            @RequestBody UpdateProfileRequest update) {
         if (userId == null) {
             return ResponseEntity.status(401).build();
         }
