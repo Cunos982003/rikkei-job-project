@@ -61,7 +61,6 @@ public class ProfileService {
                 .program(lmsStudent != null && lmsStudent.getProgram() != null ? lmsStudent.getProgram() : "Lập trình Java Fullstack Chuyên sâu")
                 .classCode(lmsStudent != null && lmsStudent.getClassCode() != null ? lmsStudent.getClassCode() : "RA-JAVA-2026")
                 .courseName(lmsStudent != null && lmsStudent.getCourseName() != null ? lmsStudent.getCourseName() : "Khóa đào tạo Kỹ sư Phần mềm Java")
-                .visibility(CandidateProfile.Visibility.PUBLIC)
                 .build();
 
         return profileRepo.save(profile);
