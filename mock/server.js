@@ -10,7 +10,7 @@ const url = require('url');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 9001;
+const PORT = process.env.PORT || 9000;
 const SERVICE_KEY = 'dev-key';
 
 // Đọc dữ liệu mẫu từ mock/data/
@@ -312,8 +312,11 @@ async function requestHandler(req, res) {
   if (method === 'GET' && profileSkillsMatch) {
     const targetId = profileSkillsMatch[1];
     let cand = candidates[0];
-    if (targetId !== 'me') {
-      cand = candidates.find(c => c.id === targetId || c.lmsUserId === targetId || c.email === targetId) || candidates[0];
+    const xUserId = req.headers['x-user-id'];
+    if (targetId === 'me' && xUserId) {
+      cand = candidates.find(c => c.id === xUserId || c.userId === xUserId || c.lmsUserId === xUserId || c.email === xUserId) || candidates[0];
+    } else if (targetId !== 'me') {
+      cand = candidates.find(c => c.id === targetId || c.userId === targetId || c.lmsUserId === targetId || c.email === targetId) || candidates[0];
     }
     const formattedSkills = (cand.skills || []).map((s, idx) => ({
       skillId: String(idx + 1),
@@ -408,6 +411,28 @@ async function requestHandler(req, res) {
       page: page,
       size: size
     });
+  }
+
+  // 5.1 GET /api/v1/jobs/:id (Chi tiết JD kèm yêu cầu kỹ năng jobSkills)
+  const jobDetailMatch = pathname.match(/^\/api\/v1\/jobs\/([^\/]+)$/);
+  if (method === 'GET' && jobDetailMatch) {
+    const jobId = jobDetailMatch[1];
+    const job = jobsData.find(j => j.id === jobId);
+    if (!job) {
+      return sendError(res, 404, `Không tìm thấy tin tuyển dụng với mã ${jobId}`);
+    }
+    return sendJson(res, 200, job);
+  }
+
+  // 5.2 GET /api/v1/jobs/:id/skills (Lấy riêng danh sách kỹ năng của JD)
+  const jobSkillsMatch = pathname.match(/^\/api\/v1\/jobs\/([^\/]+)\/skills$/);
+  if (method === 'GET' && jobSkillsMatch) {
+    const jobId = jobSkillsMatch[1];
+    const job = jobsData.find(j => j.id === jobId);
+    if (!job) {
+      return sendError(res, 404, `Không tìm thấy tin tuyển dụng với mã ${jobId}`);
+    }
+    return sendJson(res, 200, job.jobSkills || []);
   }
 
   // 6. Test Error Endpoints (Phục vụ Frontend kiểm thử xử lý lỗi)

@@ -1,6 +1,9 @@
+server:
+  port: ${PORT:8080}
+
 spring:
   config:
-    import: optional:file:../../.env[.properties],optional:file:.env[.properties]
+    import: optional:file:../../.env[.properties],optional:file:../.env[.properties],optional:file:.env[.properties]
   application:
     name: api-gateway
   data:
@@ -128,10 +131,15 @@ spring:
               predicates:
                 - Path=/me/job-recommendations,/me/job-recommendations/**
               filters: *cors-response-filters
+            - id: learning
+              uri: ${GATEWAY_LEARNING_URL:http://localhost:8089}
+              predicates:
+                - Path=/api/v1/learning/**,/api/v1/me/target,/api/v1/me/gap-analysis
+              filters: *cors-response-filters
 
 app:
   jwt:
-    secret: ${JWT_SECRET}
+    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
   gateway:
     allowed-origins: ${GATEWAY_ALLOWED_ORIGINS:http://localhost:5173}
     rate-limit-per-minute: ${GATEWAY_RATE_LIMIT_PER_MINUTE:60}

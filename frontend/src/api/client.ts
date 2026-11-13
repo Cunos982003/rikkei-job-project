@@ -13,19 +13,40 @@ declare module "axios" {
   export interface InternalAxiosRequestConfig extends CustomRequestConfig {}
 }
 
-/**
- * Token lưu trong bộ nhớ (In-memory) theo chuẩn bảo mật D11,
- * giảm thiểu rủi ro XSS so với localStorage / sessionStorage.
- */
-let inMemoryAccessToken: string | null = null;
-let inMemoryUserId: string | null = null;
+const TOKEN_STORAGE_KEY = "rikkei_access_token";
+const USER_ID_STORAGE_KEY = "rikkei_user_id";
+
+let inMemoryAccessToken: string | null =
+  typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : null;
+let inMemoryUserId: string | null =
+  typeof window !== "undefined" ? localStorage.getItem(USER_ID_STORAGE_KEY) : null;
 let onUnauthorizedCallback: (() => void) | null = null;
 
 export const setAccessToken = (token: string | null) => {
   inMemoryAccessToken = token;
+  if (typeof window !== "undefined") {
+    if (token) {
+      try {
+        localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      } catch {}
+    } else {
+      try {
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+      } catch {}
+    }
+  }
 };
 
-export const getAccessToken = (): string | null => inMemoryAccessToken;
+export const getAccessToken = (): string | null => {
+  if (inMemoryAccessToken) return inMemoryAccessToken;
+  if (typeof window !== "undefined") {
+    try {
+      inMemoryAccessToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+      return inMemoryAccessToken;
+    } catch {}
+  }
+  return null;
+};
 
 /**
  * Các service nội bộ (profile-service, evidence-service...) xác định danh tính
@@ -33,9 +54,29 @@ export const getAccessToken = (): string | null => inMemoryAccessToken;
  */
 export const setCurrentUserId = (userId: string | null) => {
   inMemoryUserId = userId;
+  if (typeof window !== "undefined") {
+    if (userId) {
+      try {
+        localStorage.setItem(USER_ID_STORAGE_KEY, userId);
+      } catch {}
+    } else {
+      try {
+        localStorage.removeItem(USER_ID_STORAGE_KEY);
+      } catch {}
+    }
+  }
 };
 
-export const getCurrentUserId = (): string | null => inMemoryUserId;
+export const getCurrentUserId = (): string | null => {
+  if (inMemoryUserId) return inMemoryUserId;
+  if (typeof window !== "undefined") {
+    try {
+      inMemoryUserId = localStorage.getItem(USER_ID_STORAGE_KEY);
+      return inMemoryUserId;
+    } catch {}
+  }
+  return null;
+};
 
 export const registerUnauthorizedHandler = (handler: () => void) => {
   onUnauthorizedCallback = handler;

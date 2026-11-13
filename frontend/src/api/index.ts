@@ -7,3 +7,4 @@ export * from "./endpoints/jobs.api";
 export * from "./endpoints/candidates.api";
 export * from "./endpoints/skills.api";
 export * from "./endpoints/companies.api";
+export * from "./endpoints/learning.api";
