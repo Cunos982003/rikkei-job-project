@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { useAuthStore } from "../store/useAuthStore";
+import { useAuthStore, normalizeRole } from "../store/useAuthStore";
 import { MainLayout } from "../layouts/MainLayout";
 import { AuthLayout } from "../layouts/AuthLayout";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
@@ -21,6 +21,8 @@ import MentorEvaluationFormPage from "../features/profile/MentorEvaluationFormPa
 
 // Role Dashboard Pages
 import { CandidateProfilePage } from "../pages/candidate/CandidateProfilePage";
+import { CandidateLearningPage } from "../pages/candidate/CandidateLearningPage";
+import { CandidateJobsPage } from "../pages/candidate/CandidateJobsPage";
 import { HrCompanyPage } from "../pages/hr/HrCompanyPage";
 import { MentorStudentsPage } from "../pages/mentor/MentorStudentsPage";
 import { StaffJobsPage } from "../pages/staff/StaffJobsPage";
@@ -42,7 +44,9 @@ function RootRedirect() {
     return <Navigate to="/login" replace />;
   }
 
-  switch (user.role) {
+  const role = normalizeRole(user.role);
+
+  switch (role) {
     case "HR":
       return <Navigate to="/hr/company" replace />;
     case "MENTOR":
@@ -53,7 +57,7 @@ function RootRedirect() {
       return <Navigate to="/admin/skills" replace />;
     case "CANDIDATE":
     default:
-      return <Navigate to="/candidate/profile" replace />;
+      return <Navigate to="/candidate/learning" replace />;
   }
 }
 
@@ -78,9 +82,9 @@ export function AppRoutes() {
             {/* Phân hệ CANDIDATE */}
             <Route element={<RoleGuard allowedRoles={["CANDIDATE"]} />}>
               <Route path="/candidate/profile" element={<CandidateProfilePage />} />
-              <Route path="/candidate/jobs" element={<CandidateProfilePage />} />
+              <Route path="/candidate/jobs" element={<CandidateJobsPage />} />
               <Route path="/candidate/applications" element={<CandidateProfilePage />} />
-              <Route path="/candidate/learning" element={<CandidateProfilePage />} />
+              <Route path="/candidate/learning" element={<CandidateLearningPage />} />
               <Route path="/candidate/evaluations" element={<EvaluationsPage />} />
 
               <Route path="/profile/evaluations" element={<EvaluationsPage />} />
