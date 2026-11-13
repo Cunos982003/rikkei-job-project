@@ -3,26 +3,143 @@ server:
 
 spring:
   config:
-    import:
-      - optional:file:.env[.properties]
-      - optional:file:../.env[.properties]
+    import: optional:file:../../.env[.properties],optional:file:../.env[.properties],optional:file:.env[.properties]
   application:
     name: api-gateway
-
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      username: ${REDIS_USERNAME:}
+      password: ${REDIS_PASSWORD:}
+      connect-timeout: 2s
+      timeout: 2s
   cloud:
     gateway:
       server:
         webmvc:
           routes:
-            - id: auth-service
-              uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+            - id: auth-scoped
+              uri: ${GATEWAY_AUTH_URL:http://localhost:8081}
               predicates:
-                - Path=/api/v1/auth/**
-            - id: learning-service
-              uri: ${LEARNING_SERVICE_URL:http://localhost:8089}
+                - Path=/api/services/auth/**
+              filters: &scoped-filters
+                - StripPrefix=3
+                - RemoveResponseHeader=Access-Control-Allow-Origin
+                - RemoveResponseHeader=Access-Control-Allow-Credentials
+                - RemoveResponseHeader=Access-Control-Expose-Headers
+                - RemoveResponseHeader=Access-Control-Allow-Methods
+                - RemoveResponseHeader=Access-Control-Allow-Headers
+                - RemoveResponseHeader=Access-Control-Max-Age
+            - id: profile-scoped
+              uri: ${GATEWAY_PROFILE_URL:http://localhost:8082}
               predicates:
-                - Path=/api/v1/learning/**
-            - id: learning-service-me
-              uri: ${LEARNING_SERVICE_URL:http://localhost:8089}
+                - Path=/api/services/profile/**
+              filters: *scoped-filters
+            - id: evidence-scoped
+              uri: ${GATEWAY_EVIDENCE_URL:http://localhost:8083}
               predicates:
-                - Path=/api/v1/me/**
+                - Path=/api/services/evidence/**
+              filters: *scoped-filters
+            - id: assessment-scoped
+              uri: ${GATEWAY_ASSESSMENT_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/services/assessment/**
+              filters: *scoped-filters
+            - id: job-scoped
+              uri: ${GATEWAY_JOB_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/services/job/**
+              filters: *scoped-filters
+            - id: recruitment-scoped
+              uri: ${GATEWAY_RECRUITMENT_URL:http://localhost:8086}
+              predicates:
+                - Path=/api/services/recruitment/**
+              filters: *scoped-filters
+            - id: notification-scoped
+              uri: ${GATEWAY_NOTIFICATION_URL:http://localhost:8087}
+              predicates:
+                - Path=/api/services/notification/**
+              filters: *scoped-filters
+            - id: audit-scoped
+              uri: ${GATEWAY_AUDIT_URL:http://localhost:8088}
+              predicates:
+                - Path=/api/services/audit/**
+              filters: *scoped-filters
+            - id: learning-scoped
+              uri: ${GATEWAY_LEARNING_URL:http://localhost:8089}
+              predicates:
+                - Path=/api/services/learning/**
+              filters: *scoped-filters
+            - id: ai-scoped
+              uri: ${GATEWAY_AI_URL:http://localhost:8090}
+              predicates:
+                - Path=/api/services/ai/**
+              filters: *scoped-filters
+            - id: auth
+              uri: ${GATEWAY_AUTH_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/v1/auth/**,/auth/**
+              filters: &cors-response-filters
+                - RemoveResponseHeader=Access-Control-Allow-Origin
+                - RemoveResponseHeader=Access-Control-Allow-Credentials
+                - RemoveResponseHeader=Access-Control-Expose-Headers
+                - RemoveResponseHeader=Access-Control-Allow-Methods
+                - RemoveResponseHeader=Access-Control-Allow-Headers
+                - RemoveResponseHeader=Access-Control-Max-Age
+            - id: profile
+              uri: ${GATEWAY_PROFILE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/v1/profiles/**,/api/v1/files/**
+              filters: *cors-response-filters
+            - id: job
+              uri: ${GATEWAY_JOB_URL:http://localhost:8085}
+              predicates:
+                - Path=/companies/**,/staff/**
+              filters: *cors-response-filters
+            - id: recruitment
+              uri: ${GATEWAY_RECRUITMENT_URL:http://localhost:8086}
+              predicates:
+                - Path=/api/v1/jobs/*/recruit,/api/v1/me/recruitments,/api/v1/me/recruitments/**,/api/v1/recruitments/**
+              filters: *cors-response-filters
+            - id: recruitment-snapshot
+              uri: ${GATEWAY_RECRUITMENT_URL:http://localhost:8086}
+              predicates:
+                - Path=/recruitments/*/cv-snapshot
+              filters:
+                - PrefixPath=/api/v1
+                - RemoveResponseHeader=Access-Control-Allow-Origin
+                - RemoveResponseHeader=Access-Control-Allow-Credentials
+                - RemoveResponseHeader=Access-Control-Expose-Headers
+                - RemoveResponseHeader=Access-Control-Allow-Methods
+                - RemoveResponseHeader=Access-Control-Allow-Headers
+                - RemoveResponseHeader=Access-Control-Max-Age
+            - id: ai-career
+              uri: ${GATEWAY_AI_URL:http://localhost:8090}
+              predicates:
+                - Path=/ai-career/**
+              filters:
+                - StripPrefix=1
+                - RemoveResponseHeader=Access-Control-Allow-Origin
+                - RemoveResponseHeader=Access-Control-Allow-Credentials
+                - RemoveResponseHeader=Access-Control-Expose-Headers
+                - RemoveResponseHeader=Access-Control-Allow-Methods
+                - RemoveResponseHeader=Access-Control-Allow-Headers
+                - RemoveResponseHeader=Access-Control-Max-Age
+            - id: ai-career-direct
+              uri: ${GATEWAY_AI_URL:http://localhost:8090}
+              predicates:
+                - Path=/me/job-recommendations,/me/job-recommendations/**
+              filters: *cors-response-filters
+            - id: learning
+              uri: ${GATEWAY_LEARNING_URL:http://localhost:8089}
+              predicates:
+                - Path=/api/v1/learning/**,/api/v1/me/target,/api/v1/me/gap-analysis
+              filters: *cors-response-filters
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+  gateway:
+    allowed-origins: ${GATEWAY_ALLOWED_ORIGINS:http://localhost:5173}
+    rate-limit-per-minute: ${GATEWAY_RATE_LIMIT_PER_MINUTE:60}

@@ -7,7 +7,7 @@ import org.springframework.cloud.gateway.server.mvc.config.GatewayMvcProperties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
+@SpringBootTest(properties = "app.jwt.secret=test-only-signing-key-not-for-production")
 class ApiGatewayApplicationTests {
 
     @Autowired
