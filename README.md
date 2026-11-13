@@ -251,6 +251,33 @@ npm run dev
 ```
 
 #### 3. Khởi động Backend (Spring Boot Microservices)
+
+##### PostgreSQL cho AI Career và Recruitment
+
+Tạo `.env` ở thư mục gốc từ `.env.example`, sau đó điền mật khẩu PostgreSQL,
+`JWT_SECRET` (trùng với auth-service) và các API key hoặc thông tin SMTP cần
+dùng. Không commit `.env`; giá trị mẫu cần được thay trước khi chạy.
+Hai service đọc `.env` khi chạy từ thư mục gốc hoặc thư mục service; cũng có
+thể cung cấp các biến này qua môi trường chạy. Tạo hai database `ai_db` và
+`recruitment_db` trên PostgreSQL trước khi khởi động, ví dụ với Docker Compose:
+
+```bash
+docker compose -f infra/docker-compose.yml up -d postgres
+docker compose -f infra/docker-compose.yml exec postgres createdb -U postgres ai_db
+docker compose -f infra/docker-compose.yml exec postgres createdb -U postgres recruitment_db
+```
+
+Mặc định Compose dùng người dùng và mật khẩu PostgreSQL `postgres`; cấu hình
+thông tin kết nối tương ứng trong `.env`. Nếu thay đổi cấu hình Compose, dùng
+người dùng và mật khẩu tương ứng. Hai lệnh `createdb` chỉ chạy một lần cho
+mỗi database. Hibernate tạo/cập nhật schema khi service khởi động; thao tác này
+không di chuyển dữ liệu H2 hoặc dữ liệu PostgreSQL cũ. Hãy sao lưu và thực
+hiện migration riêng nếu cần giữ dữ liệu hiện có.
+
+Chạy từ các thư mục `ai_career_service` và `backend/recruitment-service` bằng
+`./gradlew bootRun` (Windows: `gradlew.bat bootRun`). Các kiểm thử tự động dùng
+H2 riêng, không dùng database PostgreSQL thật.
+
 ```bash
 # Tùy chọn A: Khởi động hạ tầng bổ trợ bằng Docker (PostgreSQL, Redis, Kafka, MinIO, Mailpit)
 docker compose -f infra/docker-compose.yml up -d
@@ -271,6 +298,57 @@ cd ../backend/auth-service
 LMS_BASE_URL=http://localhost:9000 LMS_SERVICE_KEY=dev-key ./gradlew bootRun
 # OpenAPI UI: http://localhost:8081/swagger-ui/index.html
 ```
+
+##### API Gateway
+
+Gateway dùng cổng `8080`, Spring Cloud Gateway MVC và Redis để giới hạn request.
+Cấu hình `JWT_SECRET` trong `.env` ở thư mục gốc (tối thiểu 32 byte, trùng khóa
+ký của auth-service); auth-service phải được cung cấp cùng `JWT_SECRET` qua môi
+trường chạy của nó. Nếu Redis yêu cầu xác thực, đặt `REDIS_USERNAME` và
+`REDIS_PASSWORD` trong `.env`. Không dùng khóa mẫu cho môi trường thực tế.
+
+Khởi động Redis và các service cần dùng, sau đó chạy `./gradlew bootRun` trong
+`backend/api-gateway` (Windows: `gradlew.bat bootRun`). Các URL service có thể
+ghi đè qua các biến `GATEWAY_AUTH_URL`, `GATEWAY_PROFILE_URL`,
+`GATEWAY_EVIDENCE_URL`, `GATEWAY_ASSESSMENT_URL`, `GATEWAY_JOB_URL`,
+`GATEWAY_RECRUITMENT_URL`, `GATEWAY_NOTIFICATION_URL`, `GATEWAY_AUDIT_URL`,
+`GATEWAY_LEARNING_URL` và `GATEWAY_AI_URL`; mặc định là `localhost` với các
+cổng trong bảng bên dưới. Một số service hiện mới là skeleton và cần được
+cấu hình chạy đúng cổng trước khi có thể nhận request.
+
+- Các route hiện có của auth (`/api/v1/auth/**`, `/auth/**`), profile
+  (`/api/v1/profiles/**`, `/api/v1/files/**`), job (`/companies/**`,
+  `/staff/**`) và recruitment được chuyển tiếp giữ nguyên đường dẫn.
+  URL snapshot `/recruitments/{id}/cv-snapshot` cũng được chuyển tới
+  `/api/v1/recruitments/{id}/cv-snapshot`. Đặt `PUBLIC_BASE_URL` của
+  recruitment-service thành origin gateway nếu cần URL snapshot tuyệt đối.
+- AI nhận `/ai-career/me/job-recommendations` hoặc `/me/job-recommendations`;
+  tiền tố `/ai-career` được bỏ trước khi chuyển tiếp.
+- Mọi service còn có route `/api/services/{service}/{đường-dẫn-nội-bộ}`.
+  Tên service là `auth`, `profile`, `evidence`, `assessment`, `job`,
+  `recruitment`, `notification`, `audit`, `learning` hoặc `ai`. Ví dụ
+  `/api/services/job/api/v1/auth/login` đi đến login của job-service; route
+  `/api/v1/auth/login` đi đến auth-service vì hai service trùng đường dẫn.
+- Gateway kiểm tra chữ ký và thời hạn JWT cho các route, trừ POST đăng nhập,
+  SSO và quên/đặt lại mật khẩu của auth-service, cùng login của job-service
+  qua route có tiền tố service. Service đích vẫn phải tự kiểm tra quyền.
+  AI service hiện chỉ hỗ trợ principal qua bộ lọc `dev`; việc xác thực riêng
+  cho AI ngoài profile này vẫn cần được triển khai.
+- Gateway thay `X-User-Id` do client gửi bằng user ID từ JWT đã xác minh; không
+  tin giá trị định danh do client tự khai báo. Các service dùng header này cần
+  chỉ cho phép truy cập qua gateway hoặc một proxy nội bộ đáng tin cậy.
+- Gateway tạm chặn `/api/v1/profiles/me/internships` (kể cả route theo service):
+  profile-service hiện cho chọn PM student ID qua header hoặc dùng ID mặc định
+  mà chưa kiểm tra quyền sở hữu. Cần bổ sung ánh xạ danh tính đáng tin cậy
+  trước khi mở route này.
+- CORS mặc định chỉ cho `http://localhost:5173`, có thể đổi bằng
+  `GATEWAY_ALLOWED_ORIGINS` (danh sách cách nhau bởi dấu phẩy). Giới hạn mặc
+  định là 60 request/phút cho từng IP **và** từng tài khoản, đổi bằng
+  `GATEWAY_RATE_LIMIT_PER_MINUTE`. Khi Redis lỗi, gateway trả `503`; quá giới
+  hạn trả `429`. IP được lấy từ kết nối trực tiếp, không tin
+  `X-Forwarded-For`; cần cấu hình proxy tin cậy trước khi dùng sau load balancer.
+- Frontend Vite có thể đi qua gateway bằng `VITE_BACKEND_URL=http://localhost:8080`
+  và `VITE_AI_CAREER_URL=http://localhost:8080`.
 
 > Lưu ý: ClamAV mất vài phút để tải dữ liệu virus ở lần khởi động đầu. Tên module Uvicorn (`<module>`) sẽ được cập nhật khi service được khởi tạo.
 
