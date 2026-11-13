@@ -156,22 +156,21 @@ class ProfileServiceTest {
     }
 
     @Test
-    void updateProfile_updates_visibility() {
+    void updateProfile_cannot_change_visibility() {
+        // Trạng thái công khai chỉ đổi qua luồng duyệt (gửi duyệt / rút / duyệt / từ chối),
+        // nên PUT hồ sơ không được phép tự đặt PUBLIC.
         CandidateProfile existing = CandidateProfile.builder()
                 .userId(TEST_USER_ID)
                 .visibility(CandidateProfile.Visibility.PRIVATE)
                 .build();
 
-        UpdateProfileRequest update = UpdateProfileRequest.builder()
-                .visibility(CandidateProfile.Visibility.PUBLIC)
-                .build();
-
         when(candidateProfileRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(existing));
         when(candidateProfileRepository.save(any(CandidateProfile.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        CandidateProfile result = profileService.updateProfile(TEST_USER_ID, update);
+        CandidateProfile result = profileService.updateProfile(TEST_USER_ID,
+                UpdateProfileRequest.builder().phone("0900000000").build());
 
-        assertThat(result.getVisibility()).isEqualTo(CandidateProfile.Visibility.PUBLIC);
+        assertThat(result.getVisibility()).isEqualTo(CandidateProfile.Visibility.PRIVATE);
     }
 
     @Test

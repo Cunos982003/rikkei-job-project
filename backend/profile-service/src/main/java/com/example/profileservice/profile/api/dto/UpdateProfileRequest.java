@@ -1,6 +1,5 @@
 package com.example.profileservice.profile.api.dto;
 
-import com.example.profileservice.profile.domain.CandidateProfile;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -13,6 +12,9 @@ import java.time.LocalDate;
  *
  * <p>Các trường do LMS quản lý (fullName, email, program, classCode, courseName)
  * cố tình không có mặt ở đây để không thể ghi đè.
+ *
+ * <p>{@code visibility} cũng không có mặt: trạng thái công khai chỉ đổi được qua
+ * luồng duyệt (gửi duyệt / rút / duyệt / từ chối), không ghi trực tiếp.
  */
 @Data
 @Builder
@@ -26,5 +28,4 @@ public class UpdateProfileRequest {
     private String avatarUrl;
     private String headline;
     private String summary;
-    private CandidateProfile.Visibility visibility;
 }

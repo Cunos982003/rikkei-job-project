@@ -61,6 +61,7 @@ public class ProfileService {
 
         // Only candidate-owned fields are writable here, and a null field means "leave as is".
         // fullName, email, program, classCode and courseName are LMS-sourced and stay immutable.
+        // visibility is deliberately absent: it only changes through the review workflow.
         if (update.getDob() != null) existing.setDob(update.getDob());
         if (update.getGender() != null) existing.setGender(update.getGender());
         if (update.getPhone() != null) existing.setPhone(update.getPhone());
@@ -68,7 +69,6 @@ public class ProfileService {
         if (update.getAvatarUrl() != null) existing.setAvatarUrl(update.getAvatarUrl());
         if (update.getHeadline() != null) existing.setHeadline(update.getHeadline());
         if (update.getSummary() != null) existing.setSummary(update.getSummary());
-        if (update.getVisibility() != null) existing.setVisibility(update.getVisibility());
 
         return profileRepo.save(existing);
     }

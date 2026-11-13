@@ -484,7 +484,8 @@ async function requestHandler(req, res) {
   // 2. PUT /profiles/me — bỏ qua các trường đồng bộ từ LMS
   if (method === 'PUT' && profilePath === '/profiles/me') {
     const body = await parseBody(req);
-    const editable = ['phone', 'dob', 'gender', 'address', 'avatarUrl', 'headline', 'summary', 'visibility'];
+    // visibility không nằm trong danh sách: trạng thái công khai chỉ đổi qua luồng duyệt
+    const editable = ['phone', 'dob', 'gender', 'address', 'avatarUrl', 'headline', 'summary'];
     editable.forEach(field => {
       if (body[field] !== undefined) currentCandidate[field] = body[field];
     });

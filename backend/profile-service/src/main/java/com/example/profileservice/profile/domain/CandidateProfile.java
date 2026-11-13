@@ -80,6 +80,6 @@ public class CandidateProfile {
     }
 
     public enum Visibility {
-        PRIVATE, PUBLIC, RECRUITER
+        PRIVATE, PENDING, PUBLIC, REJECTED, RECRUITER
     }
 }

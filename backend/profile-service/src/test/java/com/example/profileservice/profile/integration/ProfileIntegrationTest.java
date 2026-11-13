@@ -142,7 +142,8 @@ class ProfileIntegrationTest {
                 .andExpect(jsonPath("$.phone").value("0987654321"))
                 .andExpect(jsonPath("$.address").value("Hà Nội"))
                 .andExpect(jsonPath("$.headline").value("Java Backend Developer"))
-                .andExpect(jsonPath("$.visibility").value("PUBLIC"))
+                // visibility is workflow-owned: a PUT cannot self-publish
+                .andExpect(jsonPath("$.visibility").value("PRIVATE"))
                 // LMS-owned fields must survive untouched
                 .andExpect(jsonPath("$.fullName").value("Nguyễn Văn An"))
                 .andExpect(jsonPath("$.email").value("an@rikkeijobs.test"))
@@ -164,7 +165,7 @@ class ProfileIntegrationTest {
                         .content("{\"phone\":\"0900000000\",\"headline\":\"Dev\"}"))
                 .andExpect(status().isOk());
 
-        // A visibility-only update must leave phone and headline alone
+        // A visibility-only update must leave phone and headline alone, and must not self-publish
         mvc.perform(put("/api/v1/profiles/me")
                         .header("X-User-Id", userId.toString())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -172,7 +173,7 @@ class ProfileIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.phone").value("0900000000"))
                 .andExpect(jsonPath("$.headline").value("Dev"))
-                .andExpect(jsonPath("$.visibility").value("PUBLIC"));
+                .andExpect(jsonPath("$.visibility").value("PRIVATE"));
     }
 
     @Test
