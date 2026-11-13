@@ -33,6 +33,13 @@ const skillsData = loadData('skills.json') || [];
 const jobsData = loadData('jobs.json') || [];
 const evaluationsData = loadData('evaluations.json') || [];
 
+// Bỏ trường password trước khi trả user ra ngoài (đăng nhập, /auth/me).
+function publicUser(user) {
+  if (!user) return user;
+  const { password, ...safe } = user;
+  return safe;
+}
+
 // Helper helper gửi response JSON
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {
@@ -280,7 +287,7 @@ async function requestHandler(req, res) {
       accessToken: `mock-jwt-token-for-${user.role.toLowerCase()}-${Date.now()}`,
       tokenType: 'Bearer',
       expiresIn: 3600,
-      user: user
+      user: publicUser(user)
     });
   }
 
@@ -304,16 +311,24 @@ async function requestHandler(req, res) {
     else if (authHeader.includes('mentor')) matchedUser = users[5]; // mentor1
     else if (authHeader.includes('staff')) matchedUser = users[6]; // staff1
     else if (authHeader.includes('admin')) matchedUser = users[7]; // admin1
-    return sendJson(res, 200, matchedUser);
+    return sendJson(res, 200, publicUser(matchedUser));
   }
 
   // 1.2 GET /api/v1/profiles/:userId/skills & /profiles/me/skills (Hồ sơ kỹ năng cho Frontend)
   const profileSkillsMatch = pathname.match(/^\/(?:api\/v1\/)?profiles\/(me|[^\/]+)\/skills$/);
   if (method === 'GET' && profileSkillsMatch) {
     const targetId = profileSkillsMatch[1];
-    let cand = candidates[0];
-    if (targetId !== 'me') {
-      cand = candidates.find(c => c.id === targetId || c.lmsUserId === targetId || c.email === targetId) || candidates[0];
+    // Backend thật xác định danh tính qua X-User-Id; thiếu header trả 401.
+    const requesterId = req.headers['x-user-id'];
+    if (!requesterId) {
+      return sendError(res, 401, 'Thiếu header X-User-Id');
+    }
+    // Chỉ xem được kỹ năng của chính mình — giống ProfileVisibilityService:
+    // hồ sơ không công khai trả 404 cho người khác (và cho id không tồn tại).
+    const requester = users.find(u => u.id === requesterId);
+    const cand = requester ? candidates.find(c => c.email === requester.email) : null;
+    if (targetId !== 'me' || !cand) {
+      return sendError(res, 404, 'Không tìm thấy hồ sơ ứng viên');
     }
     const formattedSkills = (cand.skills || []).map((s, idx) => ({
       skillId: String(idx + 1),
