@@ -80,13 +80,40 @@ class SchemaMigrationTest {
         List<Map<String, Object>> candidateProfilesColumns = jdbcTemplate.queryForList(
             "SELECT column_name, column_default FROM information_schema.columns WHERE table_name = 'candidate_profiles'");
         assertThat(candidateProfilesColumns).extracting(m -> m.get("column_name"))
-            .containsExactlyInAnyOrder("user_id", "full_name", "dob", "gender", "phone", "email", "address", "avatar_url", "headline", "summary", "program", "class_code", "course_name", "visibility", "updated_at");
+            .containsExactlyInAnyOrder("user_id", "full_name", "dob", "gender", "phone", "email", "address", "avatar_url", "headline", "summary", "program", "class_code", "course_name", "visibility", "consent_at", "consent_withdrawn_at", "updated_at");
 
         // Check visibility default value
         List<Map<String, Object>> visibilityDefault = jdbcTemplate.queryForList(
             "SELECT column_default FROM information_schema.columns WHERE table_name = 'candidate_profiles' AND column_name = 'visibility'");
         assertThat(visibilityDefault).isNotEmpty();
         assertThat(visibilityDefault.get(0).get("column_default")).isEqualTo("'PRIVATE'::character varying");
+
+        // Check candidate_profiles has consent timestamps
+        List<Map<String, Object>> consentColumns = jdbcTemplate.queryForList(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = 'candidate_profiles' AND column_name IN ('consent_at', 'consent_withdrawn_at')");
+        assertThat(consentColumns).extracting(m -> m.get("column_name"))
+            .containsExactlyInAnyOrder("consent_at", "consent_withdrawn_at");
+
+        // Check profile_reviews table exists with correct columns
+        List<Map<String, Object>> reviewColumns = jdbcTemplate.queryForList(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = 'profile_reviews'");
+        assertThat(reviewColumns).extracting(m -> m.get("column_name"))
+            .containsExactlyInAnyOrder("id", "user_id", "action", "reason", "actor_id", "created_at");
+
+        // Check profile_reviews action constraint
+        List<Map<String, Object>> reviewConstraints = jdbcTemplate.queryForList(
+            "SELECT cc.check_clause FROM information_schema.check_constraints cc " +
+            "JOIN information_schema.constraint_column_usage ccu ON cc.constraint_name = ccu.constraint_name " +
+            "WHERE ccu.table_name = 'profile_reviews' AND ccu.column_name = 'action'");
+        assertThat(reviewConstraints).isNotEmpty();
+        String actionCheck = (String) reviewConstraints.get(0).get("check_clause");
+        assertThat(actionCheck).contains("SUBMIT").contains("APPROVE").contains("REJECT").contains("WITHDRAW");
+
+        // Check index on profile_reviews.user_id
+        List<Map<String, Object>> reviewIndexes = jdbcTemplate.queryForList(
+            "SELECT indexname FROM pg_indexes WHERE tablename = 'profile_reviews'");
+        assertThat(reviewIndexes).extracting(m -> m.get("indexname"))
+            .contains("idx_profile_reviews_user_id");
 
         // Check educations table
         List<Map<String, Object>> educationsColumns = jdbcTemplate.queryForList(

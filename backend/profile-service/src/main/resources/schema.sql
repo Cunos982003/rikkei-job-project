@@ -75,6 +75,8 @@ CREATE TABLE IF NOT EXISTS candidate_profiles (
     class_code VARCHAR(50),
     course_name VARCHAR(200),
     visibility VARCHAR(20) NOT NULL DEFAULT 'PRIVATE' CHECK (visibility IN ('PRIVATE', 'PUBLIC', 'RECRUITER')),
+    consent_at TIMESTAMPTZ,
+    consent_withdrawn_at TIMESTAMPTZ,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -102,3 +104,15 @@ CREATE TABLE IF NOT EXISTS certificates (
 
 CREATE INDEX IF NOT EXISTS idx_educations_user_id ON educations(user_id);
 CREATE INDEX IF NOT EXISTS idx_certificates_user_id ON certificates(user_id);
+
+-- Profile Visibility Workflow Tables
+CREATE TABLE IF NOT EXISTS profile_reviews (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    action VARCHAR(20) NOT NULL CHECK (action IN ('SUBMIT','APPROVE','REJECT','WITHDRAW')),
+    reason TEXT,
+    actor_id UUID NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_profile_reviews_user_id ON profile_reviews(user_id);
