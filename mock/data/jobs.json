@@ -9,6 +9,38 @@
     "salaryMax": 18000000,
     "jobType": "FULL_TIME",
     "requiredSkills": ["Java", "Spring Boot", "SQL", "Git", "REST API"],
+    "jobSkills": [
+      {
+        "skillId": "JAVA_CORE",
+        "skillName": "Java Core",
+        "minScore": 75,
+        "isMandatory": true
+      },
+      {
+        "skillId": "SPRING_BOOT",
+        "skillName": "Spring Boot",
+        "minScore": 70,
+        "isMandatory": true
+      },
+      {
+        "skillId": "SQL",
+        "skillName": "SQL",
+        "minScore": 70,
+        "isMandatory": true
+      },
+      {
+        "skillId": "REST_API",
+        "skillName": "REST API",
+        "minScore": 70,
+        "isMandatory": true
+      },
+      {
+        "skillId": "GIT",
+        "skillName": "Git",
+        "minScore": 60,
+        "isMandatory": false
+      }
+    ],
     "description": "Tham gia phát triển các dự án tài chính, ngân hàng và thương mại điện tử quy mô lớn. Làm việc với Spring Boot, PostgreSQL, Kafka.",
     "status": "PUBLISHED",
     "createdAt": "2026-10-15T08:00:00Z"
@@ -23,6 +55,38 @@
     "salaryMax": 16000000,
     "jobType": "FULL_TIME",
     "requiredSkills": ["ReactJS", "TypeScript", "HTML/CSS", "JavaScript", "Tailwind CSS"],
+    "jobSkills": [
+      {
+        "skillId": "REACT",
+        "skillName": "ReactJS",
+        "minScore": 70,
+        "isMandatory": true
+      },
+      {
+        "skillId": "JAVASCRIPT",
+        "skillName": "JavaScript",
+        "minScore": 75,
+        "isMandatory": true
+      },
+      {
+        "skillId": "HTML_CSS",
+        "skillName": "HTML/CSS",
+        "minScore": 75,
+        "isMandatory": true
+      },
+      {
+        "skillId": "TYPESCRIPT",
+        "skillName": "TypeScript",
+        "minScore": 65,
+        "isMandatory": false
+      },
+      {
+        "skillId": "TAILWIND_CSS",
+        "skillName": "Tailwind CSS",
+        "minScore": 60,
+        "isMandatory": false
+      }
+    ],
     "description": "Phát triển giao diện ứng dụng web responsive, tích hợp REST API, tối ưu hiệu năng trang web cho thị trường Nhật Bản và Việt Nam.",
     "status": "PUBLISHED",
     "createdAt": "2026-10-20T08:00:00Z"
@@ -37,9 +101,40 @@
     "salaryMax": 8000000,
     "jobType": "INTERNSHIP",
     "requiredSkills": ["Java", "Spring Boot", "ReactJS", "SQL", "Làm việc nhóm"],
+    "jobSkills": [
+      {
+        "skillId": "JAVA_CORE",
+        "skillName": "Java Core",
+        "minScore": 70,
+        "isMandatory": true
+      },
+      {
+        "skillId": "SPRING_BOOT",
+        "skillName": "Spring Boot",
+        "minScore": 65,
+        "isMandatory": true
+      },
+      {
+        "skillId": "REACT",
+        "skillName": "ReactJS",
+        "minScore": 65,
+        "isMandatory": true
+      },
+      {
+        "skillId": "SQL",
+        "skillName": "SQL",
+        "minScore": 65,
+        "isMandatory": true
+      },
+      {
+        "skillId": "GIT",
+        "skillName": "Git",
+        "minScore": 60,
+        "isMandatory": false
+      }
+    ],
     "description": "Tham gia đợt thực tập dự án thực chiến IOC, được Mentor hướng dẫn 1-1, cơ hội trở thành nhân viên chính thức sau khi tốt nghiệp.",
     "status": "PUBLISHED",
     "createdAt": "2026-10-25T08:00:00Z"
   }
 ]
-

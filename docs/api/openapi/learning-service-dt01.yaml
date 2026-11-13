@@ -1,0 +1,407 @@
+openapi: 3.0.3
+info:
+  title: Rikkei Jobs - Learning Service & Skill Gap Analysis API (DT-01)
+  description: >
+    API phân tích khoảng thiếu hụt năng lực theo JD và vị trí mục tiêu (Task DT-01).
+    Bao gồm các endpoint quản lý mục tiêu nghề nghiệp và tính toán tỷ lệ sẵn sàng (Readiness Score) cho Học viên / Ứng viên (CANDIDATE).
+  version: 1.0.0
+  contact:
+    name: Rikkei Jobs Team - Learning Module
+    email: dev@rikkei.vn
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: API Gateway (Cổng chính thức)
+  - url: http://localhost:8089/api/v1
+    description: Local Learning Service (Nội bộ)
+
+paths:
+  /learning/target-positions:
+    get:
+      tags:
+        - Target Positions
+      summary: Lấy danh sách 4 vị trí mục tiêu chuẩn hóa
+      description: Trả về danh sách 4 lộ trình đào tạo chuẩn (Java Backend, Frontend React, Tester, Fullstack) kèm bộ kỹ năng và điểm sàn yêu cầu. Endpoint công khai.
+      responses:
+        '200':
+          description: Lấy danh sách vị trí mục tiêu thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TargetPositionListApiResponse'
+
+  /learning/target-positions/{id}:
+    get:
+      tags:
+        - Target Positions
+      summary: Lấy chi tiết một vị trí mục tiêu theo ID
+      description: Trả về thông tin chi tiết và bộ kỹ năng sàn của vị trí mục tiêu theo UUID. Endpoint công khai.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID của vị trí mục tiêu (ví dụ 11111111-1111-1111-1111-111111111101)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Lấy chi tiết vị trí mục tiêu thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TargetPositionApiResponse'
+        '404':
+          description: Không tìm thấy vị trí mục tiêu với ID tương ứng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+
+  /learning/me/target:
+    get:
+      tags:
+        - Candidate Target
+      summary: Lấy mục tiêu nghề nghiệp hiện tại của ứng viên
+      description: Trả về vị trí mục tiêu hoặc tin tuyển dụng (JD) mà ứng viên đang đăng nhập đã thiết lập trước đó. Yêu cầu quyền CANDIDATE.
+      security:
+        - bearerAuth: []
+        - userIdHeader: []
+      responses:
+        '200':
+          description: Lấy mục tiêu hiện tại thành công (data có thể null nếu chưa chọn)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateTargetApiResponse'
+        '401':
+          description: Chưa đăng nhập hoặc token không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '403':
+          description: Không có quyền truy cập (chỉ dành cho vai trò CANDIDATE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+
+    put:
+      tags:
+        - Candidate Target
+      summary: Thiết lập hoặc đổi mục tiêu nghề nghiệp của học viên
+      description: Cho phép ứng viên chọn vị trí mục tiêu chuẩn hóa (truyền positionId) HOẶC chọn một tin tuyển dụng JD cụ thể (truyền jobId). Bắt buộc chọn đúng 1 trong 2.
+      security:
+        - bearerAuth: []
+        - userIdHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TargetSelectionRequest'
+      responses:
+        '200':
+          description: Thiết lập mục tiêu nghề nghiệp thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateTargetApiResponse'
+        '400':
+          description: Dữ liệu không hợp lệ (truyền cả 2 hoặc để trống cả 2)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '401':
+          description: Chưa xác thực danh tính
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '403':
+          description: Không có quyền thực hiện
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+
+  /learning/me/gap-analysis:
+    get:
+      tags:
+        - Skill Gap Analysis
+      summary: Phân tích khoảng thiếu hụt năng lực (Gap Analysis Engine)
+      description: >
+        So sánh điểm số thực tế đã kiểm chứng (verified_score) của ứng viên với bộ kỹ năng yêu cầu của Vị trí mục tiêu đã lưu,
+        hoặc phân tích tức thời dựa trên JD khi truyền tham số jobId. Tự động tính toán điểm sẵn sàng (readiness %),
+        mức độ ưu tiên (HIGH, MEDIUM, LOW), loại bỏ kỹ năng đã đạt và sắp xếp gap giảm dần.
+      security:
+        - bearerAuth: []
+        - userIdHeader: []
+      parameters:
+        - name: jobId
+          in: query
+          required: false
+          description: Mã tin tuyển dụng (ví dụ job-001) để phân tích tức thời, ghi đè mục tiêu đã lưu
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Phân tích khoảng thiếu hụt năng lực thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GapAnalysisApiResponse'
+        '400':
+          description: Ứng viên chưa thiết lập mục tiêu nghề nghiệp
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '401':
+          description: Chưa đăng nhập hoặc token hết hạn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '404':
+          description: Không tìm thấy tin tuyển dụng hoặc vị trí mục tiêu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT của người dùng do auth-service cấp
+    userIdHeader:
+      type: apiKey
+      in: header
+      name: X-User-Id
+      description: Định danh người dùng do API Gateway truyền xuống
+
+  schemas:
+    ApiResponseHeader:
+      type: object
+      required:
+        - success
+        - statusCode
+        - message
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          example: true
+        statusCode:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Thao tác thành công
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-11-13T14:30:00.123456Z"
+
+    ErrorApiResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseHeader'
+        - type: object
+          properties:
+            data:
+              nullable: true
+              example: null
+
+    PositionSkillResponse:
+      type: object
+      properties:
+        skillId:
+          type: string
+          example: JAVA_CORE
+        skillName:
+          type: string
+          example: Java Core
+        minScore:
+          type: integer
+          example: 75
+        isMandatory:
+          type: boolean
+          example: true
+
+    TargetPositionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 11111111-1111-1111-1111-111111111101
+        code:
+          type: string
+          example: JAVA_BACKEND_FRESHER
+        name:
+          type: string
+          example: Java Backend Fresher
+        description:
+          type: string
+          example: Lộ trình đào tạo lập trình viên Java Backend Fresher chuyên sâu.
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/PositionSkillResponse'
+
+    TargetPositionListApiResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseHeader'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/TargetPositionResponse'
+
+    TargetPositionApiResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseHeader'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/TargetPositionResponse'
+
+    TargetSelectionRequest:
+      type: object
+      description: Chọn đúng 1 trong 2 trường positionId hoặc jobId
+      properties:
+        positionId:
+          type: string
+          format: uuid
+          nullable: true
+          example: 11111111-1111-1111-1111-111111111101
+        jobId:
+          type: string
+          nullable: true
+          example: job-001
+
+    CandidateTargetResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: d1a102d0-ba8f-4095-92a7-a167e65af46f
+        targetType:
+          type: string
+          enum: [POSITION, JOB]
+          example: POSITION
+        positionId:
+          type: string
+          format: uuid
+          nullable: true
+          example: 11111111-1111-1111-1111-111111111101
+        jobId:
+          type: string
+          nullable: true
+          example: null
+        targetName:
+          type: string
+          example: Java Backend Fresher
+        chosenAt:
+          type: string
+          format: date-time
+          example: "2026-11-13T14:35:00.000Z"
+
+    CandidateTargetApiResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseHeader'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/CandidateTargetResponse'
+
+    TargetInfoResponse:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [POSITION, JOB]
+          example: POSITION
+        id:
+          type: string
+          example: 11111111-1111-1111-1111-111111111101
+        code:
+          type: string
+          example: JAVA_BACKEND_FRESHER
+        name:
+          type: string
+          example: Java Backend Fresher
+        description:
+          type: string
+          example: Lộ trình đào tạo lập trình viên Java Backend Fresher chuyên sâu.
+
+    GapItemResponse:
+      type: object
+      properties:
+        skillId:
+          type: string
+          example: REST_API
+        skill:
+          type: string
+          example: REST API
+        skillName:
+          type: string
+          example: REST API
+        required:
+          type: integer
+          example: 70
+        current:
+          type: integer
+          example: 0
+        gap:
+          type: integer
+          example: 70
+        priority:
+          type: string
+          enum: [HIGH, MEDIUM, LOW]
+          example: HIGH
+        isMandatory:
+          type: boolean
+          example: true
+
+    GapAnalysisResponse:
+      type: object
+      properties:
+        target:
+          $ref: '#/components/schemas/TargetInfoResponse'
+        readiness:
+          type: number
+          format: double
+          example: 60.0
+        totalRequiredSkills:
+          type: integer
+          example: 5
+        passedSkillsCount:
+          type: integer
+          example: 3
+        missingSkillsCount:
+          type: integer
+          example: 2
+        computedAt:
+          type: string
+          format: date-time
+          example: "2026-11-13T14:40:00.000Z"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GapItemResponse'
+
+    GapAnalysisApiResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseHeader'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/GapAnalysisResponse'

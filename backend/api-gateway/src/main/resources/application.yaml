@@ -1,3 +1,28 @@
+server:
+  port: ${PORT:8080}
+
 spring:
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
   application:
     name: api-gateway
+
+  cloud:
+    gateway:
+      server:
+        webmvc:
+          routes:
+            - id: auth-service
+              uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/v1/auth/**
+            - id: learning-service
+              uri: ${LEARNING_SERVICE_URL:http://localhost:8089}
+              predicates:
+                - Path=/api/v1/learning/**
+            - id: learning-service-me
+              uri: ${LEARNING_SERVICE_URL:http://localhost:8089}
+              predicates:
+                - Path=/api/v1/me/**
