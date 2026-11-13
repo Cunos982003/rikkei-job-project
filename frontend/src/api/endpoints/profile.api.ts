@@ -50,7 +50,20 @@ export interface CertificateItem {
   fileType?: string;
 }
 
-export type Visibility = "PRIVATE" | "PUBLIC" | "RECRUITER";
+export type Visibility = "PRIVATE" | "PENDING" | "PUBLIC" | "REJECTED" | "RECRUITER";
+
+export type ReviewAction = "SUBMIT" | "APPROVE" | "REJECT" | "WITHDRAW";
+
+/**
+ * Khớp ReviewHistoryItemDto của profile-service (HS-05).
+ */
+export interface ReviewHistoryItem {
+  id: string;
+  action: ReviewAction;
+  reason?: string | null;
+  actorId: string;
+  createdAt: string;
+}
 
 /**
  * Khớp CandidateProfile entity của profile-service.
@@ -124,6 +137,31 @@ export const profileApi = {
    */
   updateMyProfile(data: Partial<CandidateProfile>): Promise<ApiResponse<CandidateProfile>> {
     return api.put<CandidateProfile>("/profiles/me", data);
+  },
+
+  // ===== Công khai hồ sơ (HS-05) =====
+
+  /**
+   * Gửi hồ sơ cho cán bộ duyệt. Bắt buộc tick đồng ý điều khoản, nếu thiếu backend trả 400.
+   * Chỉ gọi được khi hồ sơ đang PRIVATE hoặc REJECTED.
+   */
+  publishProfile(consent: boolean): Promise<ApiResponse<CandidateProfile>> {
+    return api.post<CandidateProfile>("/profiles/me/publish", { consent });
+  },
+
+  /**
+   * Rút hồ sơ khỏi trạng thái công khai. Có hiệu lực ngay.
+   * Chỉ gọi được khi hồ sơ đang PENDING hoặc PUBLIC.
+   */
+  withdrawProfile(): Promise<ApiResponse<CandidateProfile>> {
+    return api.post<CandidateProfile>("/profiles/me/withdraw");
+  },
+
+  /**
+   * Lịch sử duyệt hồ sơ của chính mình, mới nhất trước.
+   */
+  getReviewHistory(): Promise<ApiResponse<ReviewHistoryItem[]>> {
+    return api.get<ReviewHistoryItem[]>("/profiles/me/review-history");
   },
 
   // ===== Kỹ năng tự đánh giá (HS-01 skill_evidences, source=SELF) =====
