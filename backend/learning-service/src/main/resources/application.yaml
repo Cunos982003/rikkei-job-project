@@ -1,3 +1,68 @@
+server:
+  port: ${SERVER_PORT:8089}
+
 spring:
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
   application:
     name: learning-service
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:learning_db}}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:Manhcuong281207@}
+    driver-class-name: ${DB_DRIVER:org.postgresql.Driver}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+  integrations:
+    profile-service-url: ${PROFILE_SERVICE_URL:http://localhost:8082}
+    job-service-url: ${JOB_SERVICE_URL:http://localhost:9000}
+    mock-server-url: ${MOCK_SERVER_URL:http://localhost:9000}
+
+logging:
+  level:
+    root: INFO
+    com.example.learningservice: DEBUG
+
+---
+# Cấu hình môi trường Test chạy H2 In-Memory (không yêu cầu PostgreSQL thật)
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: jdbc:h2:mem:learning_test_db;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false

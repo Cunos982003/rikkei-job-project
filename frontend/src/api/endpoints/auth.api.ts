@@ -35,6 +35,14 @@ export interface DemoAccount {
   label: string;
 }
 
+export const DEMO_ACCOUNTS: DemoAccount[] = [
+  { role: "CANDIDATE", email: "candidate1@rikkeijobs.test", label: "Ứng viên (Nguyễn Văn An)" },
+  { role: "HR", email: "hr1@rikkeijobs.test", label: "Doanh nghiệp HR (Rikkeisoft)" },
+  { role: "MENTOR", email: "mentor1@rikkeijobs.test", label: "Mentor (Phạm Minh Đức)" },
+  { role: "STAFF", email: "staff1@rikkeijobs.test", label: "Cán bộ tuyển dụng" },
+  { role: "ADMIN", email: "admin1@rikkeijobs.test", label: "Quản trị hệ thống" },
+];
+
 /**
  * Endpoints xác thực người dùng (auth-service)
  */
@@ -43,7 +51,7 @@ export const authApi = {
    * Lấy danh sách tài khoản demo phục vụ kiểm thử nhanh
    */
   getDemoAccounts(): Promise<ApiResponse<DemoAccount[]>> {
-    return api.get<DemoAccount[]>("/auth/demo-accounts");
+    return api.get<DemoAccount[]>("/auth/demo-accounts", { silentError: true });
   },
 
   /**
