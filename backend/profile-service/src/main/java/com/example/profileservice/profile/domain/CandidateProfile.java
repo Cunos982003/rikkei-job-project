@@ -79,6 +79,11 @@ public class CandidateProfile {
         }
     }
 
+    @PreUpdate
+    void onUpdate() {
+        updatedAt = OffsetDateTime.now();
+    }
+
     public enum Visibility {
         PRIVATE, PENDING, PUBLIC, REJECTED, RECRUITER
     }
