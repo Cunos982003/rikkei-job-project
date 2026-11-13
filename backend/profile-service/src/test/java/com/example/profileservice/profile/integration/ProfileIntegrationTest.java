@@ -1,9 +1,15 @@
 package com.example.profileservice.profile.integration;
 
+import com.example.profileservice.common.LevelConstants;
+import com.example.profileservice.common.LevelConstants;
 import com.example.profileservice.profile.api.dto.LmsStudentDto;
 import com.example.profileservice.profile.infrastructure.LmsClient;
+import com.example.profileservice.profile.service.ProfileService;
 import com.example.profileservice.skill.domain.Skill;
+import com.example.profileservice.skill.domain.SkillScore;
 import com.example.profileservice.skill.infrastructure.SkillRepository;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +19,8 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,9 +30,16 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import reactor.core.publisher.Mono;
 
+import java.lang.reflect.Method;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.util.Date;
+import java.util.HexFormat;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -63,6 +78,7 @@ class ProfileIntegrationTest {
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("app.upload.dir", UPLOAD_DIR::toString);
+        registry.add("app.jwt.secret", () -> TEST_JWT_SECRET);
     }
 
     @MockitoBean
@@ -74,17 +90,77 @@ class ProfileIntegrationTest {
     @Autowired
     SkillRepository skillRepo;
 
+    @Autowired
+    ProfileService profileService;
+
+    @Autowired
+    JdbcTemplate jdbcTemplate;
+
+    private static final String TEST_JWT_SECRET = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
+
     MockMvc mvc;
+
+    private String generateJwt(UUID userId) {
+        return Jwts.builder()
+                .subject(userId.toString())
+                .claim("userId", userId.toString())
+                .claim("role", "CANDIDATE")
+                .issuedAt(Date.from(Instant.now()))
+                .expiration(Date.from(Instant.now().plusSeconds(3600)))
+                .signWith(Keys.hmacShaKeyFor(TEST_JWT_SECRET.getBytes(StandardCharsets.UTF_8)))
+                .compact();
+    }
 
     @BeforeEach
     void setup() {
-        mvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
+        mvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .apply(SecurityMockMvcConfigurers.springSecurity())
+                .build();
     }
 
     private static byte[] pdfBytes() {
         byte[] content = new byte[256];
         System.arraycopy(new byte[]{0x25, 0x50, 0x44, 0x46}, 0, content, 0, 4);
         return content;
+    }
+
+    private static String describeString(String value) {
+        if (value == null) {
+            return "null";
+        }
+        String codePoints = value.codePoints()
+                .mapToObj(cp -> String.format("U+%04X", cp))
+                .collect(Collectors.joining(" "));
+        String utf8Hex = HexFormat.of().formatHex(value.getBytes(StandardCharsets.UTF_8));
+        return "value='" + value + "' codePoints=[" + codePoints + "] utf8Hex=" + utf8Hex + " literalRef='Nâng cao' literalHex=" + HexFormat.of().formatHex("Nâng cao".getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static void logEncodingSnapshot(String label, String value) {
+        System.out.println("ENCODING_CHECK " + label + " " + describeString(value));
+    }
+
+    private void dumpLevelBeforePersist(UUID userId, UUID skillId) throws Exception {
+        String constant = LevelConstants.LEVEL_NANG_CAO;
+        Method compute = ProfileService.class.getDeclaredMethod("computeLevel", Short.class);
+        compute.setAccessible(true);
+        String computed = (String) compute.invoke(profileService, (short) 88);
+        SkillScore score = SkillScore.builder()
+                .userId(userId)
+                .skillId(skillId)
+                .level(LevelConstants.LEVEL_CO_BAN)
+                .build();
+        score.setLevel(computed);
+
+        logEncodingSnapshot("LEVEL_CONSTANT", constant);
+        logEncodingSnapshot("COMPUTE_LEVEL_88", computed);
+        logEncodingSnapshot("SCORE_GET_LEVEL", score.getLevel());
+        logEncodingSnapshot("LITERAL_REF", "Nâng cao");
+        System.out.println("ENCODING_CHECK MATCH_CONST=" + constant.equals("Nâng cao"));
+        System.out.println("ENCODING_CHECK MATCH_COMPUTED=" + computed.equals("Nâng cao"));
+        System.out.println("ENCODING_CHECK MATCH_SCORE=" + score.getLevel().equals("Nâng cao"));
+        System.out.println("JDBC_ENCODE_CHECK serverEncoding=" + jdbcTemplate.queryForObject("SHOW server_encoding", String.class));
+        System.out.println("JDBC_ENCODE_CHECK clientEncoding=" + jdbcTemplate.queryForObject("SHOW client_encoding", String.class));
+        System.out.println("JDBC_ENCODE_CHECK constraint=" + jdbcTemplate.queryForObject("SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname = 'skill_scores_level_check'", String.class));
     }
 
     @Test
@@ -94,7 +170,8 @@ class ProfileIntegrationTest {
                 "Nguyễn Văn An", "an@rikkeijobs.test",
                 "Java Fullstack", "RA-JAVA-2026", "Lập trình Java Fullstack")));
 
-        mvc.perform(get("/api/v1/profiles/me").header("X-User-Id", userId.toString()))
+        mvc.perform(get("/api/v1/profiles/me")
+                        .header("Authorization", "Bearer " + generateJwt(userId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.fullName").value("Nguyễn Văn An"))
                 .andExpect(jsonPath("$.email").value("an@rikkeijobs.test"))
@@ -105,10 +182,74 @@ class ProfileIntegrationTest {
     }
 
     @Test
-    void profile_endpoints_require_identity_header() throws Exception {
+    void profile_endpoints_require_valid_jwt() throws Exception {
         mvc.perform(get("/api/v1/profiles/me")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/v1/profiles/me/educations")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/v1/profiles/me/certificates")).andExpect(status().isUnauthorized());
+
+        mvc.perform(get("/api/v1/profiles/me").header("Authorization", "Bearer invalid-token"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void candidate_cannot_access_other_candidate_profile_by_userId() throws Exception {
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        when(lmsClient.getStudent(any())).thenReturn(Mono.just(new LmsStudentDto(
+                "Candidate A", "a@rikkeijobs.test", "Java", "A-1", "Course A")));
+
+        mvc.perform(get("/api/v1/profiles/me").header("Authorization", "Bearer " + generateJwt(a)))
+                .andExpect(status().isOk());
+
+        when(lmsClient.getStudent(any())).thenReturn(Mono.just(new LmsStudentDto(
+                "Candidate B", "b@rikkeijobs.test", "Java", "B-1", "Course B")));
+
+        mvc.perform(get("/api/v1/profiles/" + b)
+                        .header("Authorization", "Bearer " + generateJwt(a)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void candidate_cannot_spoof_userId_in_request() throws Exception {
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        when(lmsClient.getStudent(any())).thenReturn(Mono.just(new LmsStudentDto(
+                "Candidate A", "a@rikkeijobs.test", "Java", "A-1", "Course A")));
+
+        mvc.perform(get("/api/v1/profiles/me")
+                        .header("Authorization", "Bearer " + generateJwt(a)))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/v1/profiles/" + b)
+                        .header("Authorization", "Bearer " + generateJwt(a)))
+                .andExpect(status().isNotFound());
+
+        mvc.perform(put("/api/v1/profiles/me")
+                        .header("Authorization", "Bearer " + generateJwt(a))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"phone\":\"0999999999\",\"userId\":\"" + b + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.phone").value("0999999999"))
+                .andExpect(jsonPath("$.userId").value(a.toString()));
+    }
+
+    @Test
+    void candidate_self_skills_are_restricted_to_candidate_role() throws Exception {
+        UUID userId = UUID.randomUUID();
+        String candidateOnlyToken = "Bearer " + Jwts.builder()
+                .subject(userId.toString())
+                .claim("userId", userId.toString())
+                .claim("role", "HR")
+                .issuedAt(Date.from(Instant.now()))
+                .expiration(Date.from(Instant.now().plusSeconds(3600)))
+                .signWith(Keys.hmacShaKeyFor(TEST_JWT_SECRET.getBytes(StandardCharsets.UTF_8)))
+                .compact();
+
+        mvc.perform(put("/api/v1/profiles/me/self-skills")
+                        .header("Authorization", candidateOnlyToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("[]"))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -116,7 +257,7 @@ class ProfileIntegrationTest {
         UUID userId = UUID.randomUUID();
         when(lmsClient.getStudent(any())).thenReturn(Mono.just(new LmsStudentDto(
                 "Nguyễn Văn An", "an@rikkeijobs.test", "Java Fullstack", "RA-JAVA-2026", "Java Course")));
-        mvc.perform(get("/api/v1/profiles/me").header("X-User-Id", userId.toString()))
+        mvc.perform(get("/api/v1/profiles/me").header("Authorization", "Bearer " + generateJwt(userId)))
                 .andExpect(status().isOk());
 
         // Client tries to overwrite LMS-owned identity fields
@@ -135,7 +276,7 @@ class ProfileIntegrationTest {
                 """;
 
         mvc.perform(put("/api/v1/profiles/me")
-                        .header("X-User-Id", userId.toString())
+                        .header("Authorization", "Bearer " + generateJwt(userId))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -156,17 +297,17 @@ class ProfileIntegrationTest {
         UUID userId = UUID.randomUUID();
         when(lmsClient.getStudent(any())).thenReturn(Mono.just(new LmsStudentDto(
                 "An", "an@rikkeijobs.test", "Java", "RA-1", "Java Course")));
-        mvc.perform(get("/api/v1/profiles/me").header("X-User-Id", userId.toString()));
+        mvc.perform(get("/api/v1/profiles/me").header("Authorization", "Bearer " + generateJwt(userId)));
 
         mvc.perform(put("/api/v1/profiles/me")
-                        .header("X-User-Id", userId.toString())
+                        .header("Authorization", "Bearer " + generateJwt(userId))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"phone\":\"0900000000\",\"headline\":\"Dev\"}"))
                 .andExpect(status().isOk());
 
         // A visibility-only update must leave phone and headline alone
         mvc.perform(put("/api/v1/profiles/me")
-                        .header("X-User-Id", userId.toString())
+                        .header("Authorization", "Bearer " + generateJwt(userId))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"visibility\":\"PUBLIC\"}"))
                 .andExpect(status().isOk())
@@ -180,10 +321,10 @@ class ProfileIntegrationTest {
         UUID userId = UUID.randomUUID();
         when(lmsClient.getStudent(any())).thenReturn(Mono.just(new LmsStudentDto(
                 "An", "an@rikkeijobs.test", "Java", "RA-1", "Java Course")));
-        mvc.perform(get("/api/v1/profiles/me").header("X-User-Id", userId.toString()));
+        mvc.perform(get("/api/v1/profiles/me").header("Authorization", "Bearer " + generateJwt(userId)));
 
         String created = mvc.perform(post("/api/v1/profiles/me/educations")
-                        .header("X-User-Id", userId.toString())
+                        .header("Authorization", "Bearer " + generateJwt(userId))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"school":"Đại học Bách Khoa Hà Nội","major":"Kỹ thuật phần mềm",
@@ -197,12 +338,13 @@ class ProfileIntegrationTest {
 
         String id = created.replaceAll(".*\"id\"\\s*:\\s*\"([^\"]+)\".*", "$1");
 
-        mvc.perform(get("/api/v1/profiles/me/educations").header("X-User-Id", userId.toString()))
+        mvc.perform(get("/api/v1/profiles/me/educations")
+                        .header("Authorization", "Bearer " + generateJwt(userId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));
 
         mvc.perform(put("/api/v1/profiles/me/educations/" + id)
-                        .header("X-User-Id", userId.toString())
+                        .header("Authorization", "Bearer " + generateJwt(userId))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"school":"Đại học Quốc gia","major":"CNTT",
@@ -212,10 +354,12 @@ class ProfileIntegrationTest {
                 .andExpect(jsonPath("$.school").value("Đại học Quốc gia"))
                 .andExpect(jsonPath("$.gpa").value(3.9));
 
-        mvc.perform(delete("/api/v1/profiles/me/educations/" + id).header("X-User-Id", userId.toString()))
+        mvc.perform(delete("/api/v1/profiles/me/educations/" + id)
+                        .header("Authorization", "Bearer " + generateJwt(userId)))
                 .andExpect(status().isNoContent());
 
-        mvc.perform(get("/api/v1/profiles/me/educations").header("X-User-Id", userId.toString()))
+        mvc.perform(get("/api/v1/profiles/me/educations")
+                        .header("Authorization", "Bearer " + generateJwt(userId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
     }
@@ -225,10 +369,10 @@ class ProfileIntegrationTest {
         UUID userId = UUID.randomUUID();
         when(lmsClient.getStudent(any())).thenReturn(Mono.just(new LmsStudentDto(
                 "An", "an@rikkeijobs.test", "Java", "RA-1", "Java Course")));
-        mvc.perform(get("/api/v1/profiles/me").header("X-User-Id", userId.toString()));
+        mvc.perform(get("/api/v1/profiles/me").header("Authorization", "Bearer " + generateJwt(userId)));
 
         String created = mvc.perform(post("/api/v1/profiles/me/certificates")
-                        .header("X-User-Id", userId.toString())
+                        .header("Authorization", "Bearer " + generateJwt(userId))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"name":"OCP Java SE 11","issuer":"Oracle","issuedAt":"2026-05-20",
@@ -242,7 +386,7 @@ class ProfileIntegrationTest {
         String id = created.replaceAll(".*\"id\"\\s*:\\s*\"([^\"]+)\".*", "$1");
 
         mvc.perform(put("/api/v1/profiles/me/certificates/" + id)
-                        .header("X-User-Id", userId.toString())
+                        .header("Authorization", "Bearer " + generateJwt(userId))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"name":"OCP Java SE 17","issuer":"Oracle","issuedAt":"2026-05-20"}
@@ -250,27 +394,33 @@ class ProfileIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("OCP Java SE 17"));
 
-        mvc.perform(delete("/api/v1/profiles/me/certificates/" + id).header("X-User-Id", userId.toString()))
+        mvc.perform(delete("/api/v1/profiles/me/certificates/" + id)
+                        .header("Authorization", "Bearer " + generateJwt(userId)))
                 .andExpect(status().isNoContent());
 
-        mvc.perform(get("/api/v1/profiles/me/certificates").header("X-User-Id", userId.toString()))
+        mvc.perform(get("/api/v1/profiles/me/certificates")
+                        .header("Authorization", "Bearer " + generateJwt(userId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
     }
 
     @Test
     void uploaded_file_can_be_downloaded_back_unchanged() throws Exception {
+        UUID userId = UUID.randomUUID();
         MockMultipartFile file = new MockMultipartFile(
                 "file", "certificate.pdf", "application/pdf", pdfBytes());
 
-        String body = mvc.perform(multipart("/api/v1/files").file(file))
+        String body = mvc.perform(multipart("/api/v1/files")
+                        .header("Authorization", "Bearer " + generateJwt(userId))
+                        .file(file))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.url", startsWith("/files/")))
                 .andReturn().getResponse().getContentAsString();
 
         String storedName = body.replaceAll(".*\"/files/([^\"]+)\".*", "$1");
 
-        mvc.perform(get("/api/v1/files/" + storedName))
+        mvc.perform(get("/api/v1/files/" + storedName)
+                        .header("Authorization", "Bearer " + generateJwt(userId)))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF))
                 .andExpect(content().bytes(pdfBytes()));
@@ -281,13 +431,17 @@ class ProfileIntegrationTest {
         UUID userId = UUID.randomUUID();
         Skill javaCore = skillRepo.findByCode("JAVA_CORE").orElseThrow();
 
+        System.out.println("JVM_ENCODING file.encoding=" + System.getProperty("file.encoding") + " defaultCharset=" + Charset.defaultCharset());
+        dumpLevelBeforePersist(userId, javaCore.getId());
+
         mvc.perform(put("/api/v1/profiles/me/self-skills")
-                        .header("X-User-Id", userId.toString())
+                        .header("Authorization", "Bearer " + generateJwt(userId))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("[{\"skillId\":\"" + javaCore.getId() + "\",\"selfScore\":88}]"))
                 .andExpect(status().isOk());
 
-        mvc.perform(get("/api/v1/profiles/me/skills").header("X-User-Id", userId.toString()))
+        mvc.perform(get("/api/v1/profiles/me/skills")
+                        .header("Authorization", "Bearer " + generateJwt(userId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.skillCode=='JAVA_CORE')].selfScore", hasItem(88)))
                 // self-declared only — never a verified score

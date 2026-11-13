@@ -14,7 +14,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/staff/companies")
+@RequestMapping({"/api/v1/staff/companies", "/staff/companies"})
 @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
 @Tag(name = "Staff Companies", description = "API quan ly doanh nghiep va cap tai khoan HR danh cho can bo")
 public class StaffCompanyController {

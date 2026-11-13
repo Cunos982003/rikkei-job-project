@@ -2,9 +2,11 @@ package com.example.profileservice.profile.api;
 
 import com.example.profileservice.profile.api.dto.CertificateDto;
 import com.example.profileservice.profile.service.CertificateService;
+import com.example.profileservice.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,55 +21,45 @@ public class CertificateController {
 
     @PostMapping
     public ResponseEntity<CertificateDto> createCertificate(
-            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody CertificateDto dto) {
-        if (userId == null) {
-            return ResponseEntity.status(401).build();
-        }
+        UUID userId = principal.getUserId();
         CertificateDto created = certificateService.createCertificate(userId, dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @GetMapping
     public ResponseEntity<List<CertificateDto>> getCertificates(
-            @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
-        if (userId == null) {
-            return ResponseEntity.status(401).build();
-        }
+            @AuthenticationPrincipal UserPrincipal principal) {
+        UUID userId = principal.getUserId();
         List<CertificateDto> certificates = certificateService.getCertificates(userId);
         return ResponseEntity.ok(certificates);
     }
 
     @GetMapping("/{certificateId}")
     public ResponseEntity<CertificateDto> getCertificate(
-            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable UUID certificateId) {
-        if (userId == null) {
-            return ResponseEntity.status(401).build();
-        }
+        UUID userId = principal.getUserId();
         CertificateDto certificate = certificateService.getCertificate(userId, certificateId);
         return ResponseEntity.ok(certificate);
     }
 
     @PutMapping("/{certificateId}")
     public ResponseEntity<CertificateDto> updateCertificate(
-            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable UUID certificateId,
             @RequestBody CertificateDto dto) {
-        if (userId == null) {
-            return ResponseEntity.status(401).build();
-        }
+        UUID userId = principal.getUserId();
         CertificateDto updated = certificateService.updateCertificate(userId, certificateId, dto);
         return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{certificateId}")
     public ResponseEntity<Void> deleteCertificate(
-            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable UUID certificateId) {
-        if (userId == null) {
-            return ResponseEntity.status(401).build();
-        }
+        UUID userId = principal.getUserId();
         certificateService.deleteCertificate(userId, certificateId);
         return ResponseEntity.noContent().build();
     }

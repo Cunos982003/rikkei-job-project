@@ -10,7 +10,23 @@ export function UnauthorizedPage() {
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
+    navigate("/login", { replace: true });
+  };
+
+  const handleHome = () => {
+    if (!user) {
+      navigate("/login", { replace: true });
+      return;
+    }
+    const homePathByRole = {
+      CANDIDATE: "/candidate/profile",
+      HR: "/hr/company",
+      MENTOR: "/mentor/students",
+      STAFF: "/staff/jobs",
+      ADMIN: "/admin/skills",
+    } as const;
+
+    navigate(homePathByRole[user.role] ?? "/login", { replace: true });
   };
 
   return (
@@ -43,7 +59,7 @@ export function UnauthorizedPage() {
         <Button
           variant="outline"
           leftIcon={<ArrowLeft className="h-4 w-4" />}
-          onClick={() => navigate("/")}
+          onClick={handleHome}
         >
           Về trang chủ
         </Button>

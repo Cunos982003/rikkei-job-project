@@ -66,7 +66,10 @@ public class JwtTokenProvider {
                 ? UUID.fromString(companyIdClaim)
                 : null;
 
-        String email = claims.getSubject();
+        String email = claims.get("email", String.class);
+        if (email == null) {
+            email = claims.getSubject();
+        }
         String fullName = claims.get("fullName", String.class);
         String role = claims.get("role", String.class);
         Boolean mustChangePassword = claims.get("mustChangePassword", Boolean.class);

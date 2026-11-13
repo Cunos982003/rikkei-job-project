@@ -59,6 +59,7 @@ public class CompanyService {
     private final PasswordEncoder passwordEncoder;
     private final ApplicationEventPublisher eventPublisher;
     private final String uploadDir;
+    private com.example.jobservice.client.AuthServiceClient authServiceClient;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -74,6 +75,11 @@ public class CompanyService {
         this.passwordEncoder = passwordEncoder;
         this.eventPublisher = eventPublisher;
         this.uploadDir = uploadDir;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setAuthServiceClient(com.example.jobservice.client.AuthServiceClient authServiceClient) {
+        this.authServiceClient = authServiceClient;
     }
 
     @Transactional
@@ -127,24 +133,38 @@ public class CompanyService {
                 .trim()
                 .toLowerCase(Locale.ROOT);
 
-        if (userRepository.existsByEmail(email)) {
+        if (authServiceClient != null && authServiceClient.existsByEmail(email)) {
+            throw new ConflictException(
+                    "Email " + email + " đã tồn tại trên hệ thống");
+        }
+
+        if (userRepository != null && userRepository.existsByEmail(email)) {
             throw new ConflictException(
                     "Email " + email + " đã tồn tại trên hệ thống");
         }
 
         String temporaryPassword = generateTemporaryPassword();
 
-        User user = new User();
+        User savedUser = null;
+        if (authServiceClient != null) {
+            savedUser = authServiceClient.createHrAccount(email, request.fullName().trim(), companyId, temporaryPassword);
+        }
 
-        user.setEmail(email);
-        user.setFullName(request.fullName().trim());
-        user.setPasswordHash(
-                passwordEncoder.encode(temporaryPassword));
-        user.setRole("ROLE_HR");
-        user.setCompanyId(companyId);
-        user.setMustChangePassword(true);
+        if (savedUser == null && userRepository != null) {
+            User user = new User();
+            user.setEmail(email);
+            user.setFullName(request.fullName().trim());
+            user.setPasswordHash(
+                    passwordEncoder.encode(temporaryPassword));
+            user.setRole("ROLE_HR");
+            user.setCompanyId(companyId);
+            user.setMustChangePassword(true);
+            savedUser = userRepository.save(user);
+        }
 
-        User savedUser = userRepository.save(user);
+        if (savedUser == null) {
+            throw new BadRequestException("Không thể tạo tài khoản HR trên hệ thống");
+        }
 
         HrAccountResponse response = new HrAccountResponse(
                 savedUser.getId(),

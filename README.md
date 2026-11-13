@@ -416,14 +416,22 @@ cấu hình chạy đúng cổng trước khi có thể nhận request.
 | Unit test AI | pytest | Test masking bằng bộ dữ liệu PII giả |
 
 ```bash
-# Backend
-cd backend && mvn verify
+# 1. Kiểm thử phân quyền & kiểm tra quyền sở hữu NT-02 (Role Matrix & Ownership Check)
+cd backend/auth-service && ./gradlew test --tests "*SecurityIntegrationTest*"
+cd backend/job-service && ./gradlew test --tests "*CompanyControllerIntegrationTest*"
 
-# Frontend
+# 2. Chạy toàn bộ kiểm thử backend theo service
+cd backend/auth-service && ./gradlew test
+cd backend/job-service && ./gradlew test
+
+# 3. Kiểm thử tự động Mock Server hệ thống ngoài (11 endpoints + 4 công cụ kiểm thử /mock/*)
+node mock/test.js
+
+# 4. Frontend
 cd frontend && npm test
 cd frontend && npx playwright test
 
-# AI service
+# 5. AI service
 cd ai-career-service && uv run pytest
 ```
 

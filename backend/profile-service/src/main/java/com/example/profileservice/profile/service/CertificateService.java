@@ -4,8 +4,10 @@ import com.example.profileservice.profile.api.dto.CertificateDto;
 import com.example.profileservice.profile.domain.Certificate;
 import com.example.profileservice.profile.infrastructure.CertificateRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
@@ -45,7 +47,7 @@ public class CertificateService {
         Certificate certificate = certificateRepo.findById(certificateId)
                 .orElseThrow(() -> new IllegalArgumentException("Certificate not found"));
         if (!certificate.getUserId().equals(userId)) {
-            throw new SecurityException("Access denied");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Certificate not found");
         }
         return toDto(certificate);
     }
@@ -55,7 +57,7 @@ public class CertificateService {
         Certificate certificate = certificateRepo.findById(certificateId)
                 .orElseThrow(() -> new IllegalArgumentException("Certificate not found"));
         if (!certificate.getUserId().equals(userId)) {
-            throw new SecurityException("Access denied");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Certificate not found");
         }
 
         certificate.setName(dto.getName());
@@ -74,7 +76,7 @@ public class CertificateService {
         Certificate certificate = certificateRepo.findById(certificateId)
                 .orElseThrow(() -> new IllegalArgumentException("Certificate not found"));
         if (!certificate.getUserId().equals(userId)) {
-            throw new SecurityException("Access denied");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Certificate not found");
         }
         certificateRepo.delete(certificate);
     }

@@ -43,22 +43,76 @@ INSERT INTO skill_mappings (source, source_code, skill_id, weight) VALUES
 ('PM', 'JAVA', (SELECT id FROM skills WHERE code='SQL'), 0.25)
 ON CONFLICT (source, source_code, skill_id) DO NOTHING;
 
--- Seed skill evidences for demo user (550e8400-e29b-41d4-a716-446655440000)
+-- Seed candidate profiles for demo candidate accounts
+INSERT INTO candidate_profiles (
+    user_id, full_name, dob, gender, phone, email, address, avatar_url,
+    headline, summary, program, class_code, course_name, visibility, updated_at
+) VALUES
+('550e8400-e29b-41d4-a716-446655440000', 'Nguyễn Văn An', '2002-05-15', 'Nam', '0987654321', 'candidate1@rikkeijobs.test', 'Hà Nội, Việt Nam', 'https://api.dicebear.com/7.x/avataaars/svg?seed=candidate1', 'Java Backend Developer', 'Học viên xuất sắc khóa Java Fullstack Rikkei Academy, có kinh nghiệm thực tập IOC tại Rikkeisoft', 'Lập trình Java Fullstack Chuyên sâu', 'RA-JAVA-2026', 'Khóa đào tạo Kỹ sư Phần mềm Java', 'PUBLIC', now()),
+('00000000-0000-0000-0000-000000000001', 'Nguyễn Văn An', '2002-05-15', 'Nam', '0987654321', 'candidate1@rikkeijobs.test', 'Hà Nội, Việt Nam', 'https://api.dicebear.com/7.x/avataaars/svg?seed=candidate1', 'Java Backend Developer', 'Học viên xuất sắc khóa Java Fullstack Rikkei Academy, có kinh nghiệm thực tập IOC tại Rikkeisoft', 'Lập trình Java Fullstack Chuyên sâu', 'RA-JAVA-2026', 'Khóa đào tạo Kỹ sư Phần mềm Java', 'PUBLIC', now()),
+('ed854c07-f3eb-48f1-a186-4e7135f54645', 'Nguyễn Văn An', '2002-05-15', 'Nam', '0987654321', 'candidate1@rikkeijobs.test', 'Hà Nội, Việt Nam', 'https://api.dicebear.com/7.x/avataaars/svg?seed=candidate1', 'Java Backend Developer', 'Học viên xuất sắc khóa Java Fullstack Rikkei Academy, có kinh nghiệm thực tập IOC tại Rikkeisoft', 'Lập trình Java Fullstack Chuyên sâu', 'RA-JAVA-2026', 'Khóa đào tạo Kỹ sư Phần mềm Java', 'PUBLIC', now())
+ON CONFLICT (user_id) DO NOTHING;
+
+-- Seed educations
+INSERT INTO educations (id, user_id, school, major, from_date, to_date, gpa, note) VALUES
+(gen_random_uuid(), '550e8400-e29b-41d4-a716-446655440000', 'Đại học Bách Khoa Hà Nội', 'Công nghệ thông tin', '2020-09-01', '2024-06-30', 3.45, 'Tốt nghiệp loại Giỏi'),
+(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Đại học Bách Khoa Hà Nội', 'Công nghệ thông tin', '2020-09-01', '2024-06-30', 3.45, 'Tốt nghiệp loại Giỏi'),
+(gen_random_uuid(), 'ed854c07-f3eb-48f1-a186-4e7135f54645', 'Đại học Bách Khoa Hà Nội', 'Công nghệ thông tin', '2020-09-01', '2024-06-30', 3.45, 'Tốt nghiệp loại Giỏi')
+ON CONFLICT (id) DO NOTHING;
+
+-- Seed certificates
+INSERT INTO certificates (id, user_id, name, issuer, issued_at, expires_at) VALUES
+(gen_random_uuid(), '550e8400-e29b-41d4-a716-446655440000', 'Oracle Certified Associate, Java SE 8 Programmer', 'Oracle', '2023-11-15', NULL),
+(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'Oracle Certified Associate, Java SE 8 Programmer', 'Oracle', '2023-11-15', NULL),
+(gen_random_uuid(), 'ed854c07-f3eb-48f1-a186-4e7135f54645', 'Oracle Certified Associate, Java SE 8 Programmer', 'Oracle', '2023-11-15', NULL)
+ON CONFLICT (id) DO NOTHING;
+
+-- Seed skill evidences for demo users
 INSERT INTO skill_evidences (user_id, skill_id, source, source_ref, title, score, recorded_at, verified) VALUES
+-- User 550e8400-e29b-41d4-a716-446655440000
 ('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='JAVA_CORE'), 'LMS', 'JAVA01', 'Java Core Course', 85, now() - interval '30 days', true),
 ('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='JAVA_CORE'), 'EXAM', 'JAVA_MID', 'Java Midterm Exam', 90, now() - interval '50 days', true),
 ('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='SPRING_BOOT'), 'LMS', 'SPRING01', 'Spring Boot Course', 80, now() - interval '20 days', true),
 ('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='SQL'), 'EXAM', 'SQL_FINAL', 'SQL Final Exam', 75, now() - interval '45 days', true),
 ('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='REACT'), 'SELF', 'SELF_REACT', 'Self-reported React', 88, now() - interval '10 days', false),
 ('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='JAVASCRIPT'), 'LMS', 'WEB01', 'JavaScript Basics', 65, now() - interval '60 days', true),
-('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='JAVASCRIPT'), 'SELF', 'SELF_JS', 'Self-reported JavaScript', 70, now() - interval '10 days', false)
+('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='JAVASCRIPT'), 'SELF', 'SELF_JS', 'Self-reported JavaScript', 70, now() - interval '10 days', false),
+-- User 00000000-0000-0000-0000-000000000001
+('00000000-0000-0000-0000-000000000001', (SELECT id FROM skills WHERE code='JAVA_CORE'), 'LMS', 'JAVA01', 'Java Core Course', 85, now() - interval '30 days', true),
+('00000000-0000-0000-0000-000000000001', (SELECT id FROM skills WHERE code='JAVA_CORE'), 'EXAM', 'JAVA_MID', 'Java Midterm Exam', 90, now() - interval '50 days', true),
+('00000000-0000-0000-0000-000000000001', (SELECT id FROM skills WHERE code='SPRING_BOOT'), 'LMS', 'SPRING01', 'Spring Boot Course', 80, now() - interval '20 days', true),
+('00000000-0000-0000-0000-000000000001', (SELECT id FROM skills WHERE code='SQL'), 'EXAM', 'SQL_FINAL', 'SQL Final Exam', 75, now() - interval '45 days', true),
+('00000000-0000-0000-0000-000000000001', (SELECT id FROM skills WHERE code='REACT'), 'SELF', 'SELF_REACT', 'Self-reported React', 88, now() - interval '10 days', false),
+('00000000-0000-0000-0000-000000000001', (SELECT id FROM skills WHERE code='JAVASCRIPT'), 'LMS', 'WEB01', 'JavaScript Basics', 65, now() - interval '60 days', true),
+('00000000-0000-0000-0000-000000000001', (SELECT id FROM skills WHERE code='JAVASCRIPT'), 'SELF', 'SELF_JS', 'Self-reported JavaScript', 70, now() - interval '10 days', false),
+-- User ed854c07-f3eb-48f1-a186-4e7135f54645
+('ed854c07-f3eb-48f1-a186-4e7135f54645', (SELECT id FROM skills WHERE code='JAVA_CORE'), 'LMS', 'JAVA01', 'Java Core Course', 85, now() - interval '30 days', true),
+('ed854c07-f3eb-48f1-a186-4e7135f54645', (SELECT id FROM skills WHERE code='JAVA_CORE'), 'EXAM', 'JAVA_MID', 'Java Midterm Exam', 90, now() - interval '50 days', true),
+('ed854c07-f3eb-48f1-a186-4e7135f54645', (SELECT id FROM skills WHERE code='SPRING_BOOT'), 'LMS', 'SPRING01', 'Spring Boot Course', 80, now() - interval '20 days', true),
+('ed854c07-f3eb-48f1-a186-4e7135f54645', (SELECT id FROM skills WHERE code='SQL'), 'EXAM', 'SQL_FINAL', 'SQL Final Exam', 75, now() - interval '45 days', true),
+('ed854c07-f3eb-48f1-a186-4e7135f54645', (SELECT id FROM skills WHERE code='REACT'), 'SELF', 'SELF_REACT', 'Self-reported React', 88, now() - interval '10 days', false),
+('ed854c07-f3eb-48f1-a186-4e7135f54645', (SELECT id FROM skills WHERE code='JAVASCRIPT'), 'LMS', 'WEB01', 'JavaScript Basics', 65, now() - interval '60 days', true),
+('ed854c07-f3eb-48f1-a186-4e7135f54645', (SELECT id FROM skills WHERE code='JAVASCRIPT'), 'SELF', 'SELF_JS', 'Self-reported JavaScript', 70, now() - interval '10 days', false)
 ON CONFLICT (user_id, skill_id, source, source_ref) DO NOTHING;
 
--- Seed skill scores for demo user
+-- Seed skill scores for demo users
 INSERT INTO skill_scores (user_id, skill_id, verified_score, self_score, level, updated_at) VALUES
+-- User 550e8400-e29b-41d4-a716-446655440000
 ('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='JAVA_CORE'), 85, NULL, 'Nâng cao', now()),
 ('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='SPRING_BOOT'), 78, NULL, 'Vững', now()),
 ('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='SQL'), 72, NULL, 'Vững', now()),
 ('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='REACT'), NULL, 88, 'Nâng cao', now()),
-('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='JAVASCRIPT'), 65, 70, 'Khá', now())
+('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='JAVASCRIPT'), 65, 70, 'Khá', now()),
+-- User 00000000-0000-0000-0000-000000000001
+('00000000-0000-0000-0000-000000000001', (SELECT id FROM skills WHERE code='JAVA_CORE'), 85, NULL, 'Nâng cao', now()),
+('00000000-0000-0000-0000-000000000001', (SELECT id FROM skills WHERE code='SPRING_BOOT'), 78, NULL, 'Vững', now()),
+('00000000-0000-0000-0000-000000000001', (SELECT id FROM skills WHERE code='SQL'), 72, NULL, 'Vững', now()),
+('00000000-0000-0000-0000-000000000001', (SELECT id FROM skills WHERE code='REACT'), NULL, 88, 'Nâng cao', now()),
+('00000000-0000-0000-0000-000000000001', (SELECT id FROM skills WHERE code='JAVASCRIPT'), 65, 70, 'Khá', now()),
+-- User ed854c07-f3eb-48f1-a186-4e7135f54645
+('ed854c07-f3eb-48f1-a186-4e7135f54645', (SELECT id FROM skills WHERE code='JAVA_CORE'), 85, NULL, 'Nâng cao', now()),
+('ed854c07-f3eb-48f1-a186-4e7135f54645', (SELECT id FROM skills WHERE code='SPRING_BOOT'), 78, NULL, 'Vững', now()),
+('ed854c07-f3eb-48f1-a186-4e7135f54645', (SELECT id FROM skills WHERE code='SQL'), 72, NULL, 'Vững', now()),
+('ed854c07-f3eb-48f1-a186-4e7135f54645', (SELECT id FROM skills WHERE code='REACT'), NULL, 88, 'Nâng cao', now()),
+('ed854c07-f3eb-48f1-a186-4e7135f54645', (SELECT id FROM skills WHERE code='JAVASCRIPT'), 65, 70, 'Khá', now())
 ON CONFLICT (user_id, skill_id) DO NOTHING;

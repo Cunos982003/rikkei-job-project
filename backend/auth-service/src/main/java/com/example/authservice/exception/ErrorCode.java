@@ -16,6 +16,7 @@ public enum ErrorCode {
     EXTERNAL_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "EXTERNAL_UNAVAILABLE", "Mock LMS service is unavailable or timed out"),
     LMS_ERROR(HttpStatus.BAD_GATEWAY, "LMS_ERROR", "Mock LMS returned an error during verification"),
     LMS_UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "LMS_UNAUTHORIZED", "Mock LMS rejected the request with HTTP 401"),
+    CONFLICT(HttpStatus.CONFLICT, "CONFLICT", "Resource already exists"),
     DATABASE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "DATABASE_ERROR", "A database error occurred"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "An internal server error occurred");
 

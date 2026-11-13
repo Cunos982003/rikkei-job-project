@@ -1,3 +1,4 @@
+
 server:
   port: 8082
 
@@ -7,7 +8,7 @@ spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/profile_db}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:123}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -19,3 +20,9 @@ spring:
   sql:
     init:
       mode: always
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+  upload:
+    dir: ${UPLOAD_DIR:uploads}

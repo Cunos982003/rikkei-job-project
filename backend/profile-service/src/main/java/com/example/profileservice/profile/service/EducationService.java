@@ -4,8 +4,10 @@ import com.example.profileservice.profile.api.dto.EducationDto;
 import com.example.profileservice.profile.domain.Education;
 import com.example.profileservice.profile.infrastructure.EducationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
@@ -45,7 +47,7 @@ public class EducationService {
         Education education = educationRepo.findById(educationId)
                 .orElseThrow(() -> new IllegalArgumentException("Education not found"));
         if (!education.getUserId().equals(userId)) {
-            throw new SecurityException("Access denied");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Education not found");
         }
         return toDto(education);
     }
@@ -55,7 +57,7 @@ public class EducationService {
         Education education = educationRepo.findById(educationId)
                 .orElseThrow(() -> new IllegalArgumentException("Education not found"));
         if (!education.getUserId().equals(userId)) {
-            throw new SecurityException("Access denied");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Education not found");
         }
 
         education.setSchool(dto.getSchool());
@@ -74,7 +76,7 @@ public class EducationService {
         Education education = educationRepo.findById(educationId)
                 .orElseThrow(() -> new IllegalArgumentException("Education not found"));
         if (!education.getUserId().equals(userId)) {
-            throw new SecurityException("Access denied");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Education not found");
         }
         educationRepo.delete(education);
     }

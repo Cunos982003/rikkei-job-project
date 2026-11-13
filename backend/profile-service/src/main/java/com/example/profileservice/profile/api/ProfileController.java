@@ -4,8 +4,10 @@ import com.example.profileservice.profile.api.dto.SelfSkillDto;
 import com.example.profileservice.profile.api.dto.UpdateProfileRequest;
 import com.example.profileservice.profile.domain.CandidateProfile;
 import com.example.profileservice.profile.service.ProfileService;
+import com.example.profileservice.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,32 +22,26 @@ public class ProfileController {
 
     @GetMapping("/me")
     public ResponseEntity<CandidateProfile> getMyProfile(
-            @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
-        if (userId == null) {
-            return ResponseEntity.status(401).build();
-        }
+            @AuthenticationPrincipal UserPrincipal principal) {
+        UUID userId = principal.getUserId();
         CandidateProfile profile = profileService.getOrCreateProfile(userId);
         return ResponseEntity.ok(profile);
     }
 
     @PutMapping("/me")
     public ResponseEntity<CandidateProfile> updateMyProfile(
-            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody UpdateProfileRequest update) {
-        if (userId == null) {
-            return ResponseEntity.status(401).build();
-        }
+        UUID userId = principal.getUserId();
         CandidateProfile updated = profileService.updateProfile(userId, update);
         return ResponseEntity.ok(updated);
     }
 
     @PutMapping("/me/self-skills")
     public ResponseEntity<Void> upsertSelfSkills(
-            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody List<SelfSkillDto> skills) {
-        if (userId == null) {
-            return ResponseEntity.status(401).build();
-        }
+        UUID userId = principal.getUserId();
         profileService.upsertSelfSkills(userId, skills);
         return ResponseEntity.ok().build();
     }

@@ -61,6 +61,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/change-password")
                         .authenticated()
                         .requestMatchers(
+                                "/api/docs",
+                                "/api/docs/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
@@ -69,13 +71,13 @@ public class SecurityConfig {
                                 "/error")
                         .permitAll()
 
-                        .requestMatchers("/staff/**")
+                        .requestMatchers("/staff/**", "/api/v1/staff/**")
                         .hasAnyRole("STAFF", "ADMIN")
 
-                        .requestMatchers("/companies/me", "/companies/me/**")
+                        .requestMatchers("/companies/me", "/companies/me/**", "/api/v1/companies/me", "/api/v1/companies/me/**")
                         .hasRole("HR")
 
-                        .requestMatchers("/companies/**")
+                        .requestMatchers("/companies/**", "/api/v1/companies/**")
                         .authenticated()
 
                         .anyRequest().authenticated())

@@ -56,6 +56,8 @@ class CompanyControllerIntegrationTest {
 
         private String staffToken;
         private String hr1Token;
+        private String candidateToken;
+        private String mentorToken;
 
         private UUID companyAId;
         private UUID companyBId;
@@ -101,6 +103,22 @@ class CompanyControllerIntegrationTest {
                                                 hr1.getFullName(),
                                                 hr1.getRole(),
                                                 hr1.getCompanyId()));
+
+                candidateToken = "Bearer " + tokenProvider.generateToken(
+                                UserPrincipal.of(
+                                                UUID.randomUUID(),
+                                                "candidate@rikkei.vn",
+                                                "Candidate One",
+                                                "ROLE_CANDIDATE",
+                                                null));
+
+                mentorToken = "Bearer " + tokenProvider.generateToken(
+                                UserPrincipal.of(
+                                                UUID.randomUUID(),
+                                                "mentor@rikkei.vn",
+                                                "Mentor One",
+                                                "ROLE_MENTOR",
+                                                null));
         }
 
         @Test
@@ -233,6 +251,36 @@ class CompanyControllerIntegrationTest {
         }
 
         @Test
+        @DisplayName("HR A gửi companyId của B khi cập nhật công ty → 404")
+        void hrSpoofingCompanyId_isRejectedWith404() throws Exception {
+                String spoofedBody = """
+                                {
+                                  "name": "Cố tình sửa công ty B",
+                                  "industry": "Fintech",
+                                  "size": "51-200",
+                                  "address": "Quận 1",
+                                  "city": "TP. HCM",
+                                  "website": null,
+                                  "description": null
+                                }
+                                """;
+
+                mockMvc.perform(put("/companies/" + companyBId)
+                                .header("Authorization", hr1Token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(spoofedBody))
+                                .andExpect(status().isNotFound())
+                                .andExpect(jsonPath("$.detail", containsString("Không tìm thấy doanh nghiệp")));
+
+                mockMvc.perform(put("/companies/" + companyBId)
+                                .header("Authorization", hr1Token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(spoofedBody))
+                                .andExpect(status().isNotFound())
+                                .andExpect(jsonPath("$.detail", containsString("Không tìm thấy doanh nghiệp")));
+        }
+
+        @Test
         @DisplayName("HR không được sửa công ty khác → 404")
         void hr1UpdateCompanyB_returns404() throws Exception {
                 UpdateCompanyRequest request = new UpdateCompanyRequest(
@@ -251,6 +299,26 @@ class CompanyControllerIntegrationTest {
                                 .andExpect(status().isNotFound())
                                 .andExpect(jsonPath("$.detail",
                                                 containsString("Không tìm thấy doanh nghiệp")));
+        }
+
+        @Test
+        @DisplayName("Anonymous gọi HR company API → 401")
+        void anonymousCompanyApi_returns401() throws Exception {
+                mockMvc.perform(get("/companies/me"))
+                                .andExpect(status().isUnauthorized());
+                mockMvc.perform(put("/companies/me")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{}"))
+                                .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("Candidate/Mentor sai vai trò truy cập HR company API → 403")
+        void wrongRoleAccessToHrCompanyApi_returns403() throws Exception {
+                mockMvc.perform(get("/companies/me").header("Authorization", candidateToken))
+                                .andExpect(status().isForbidden());
+                mockMvc.perform(get("/companies/me").header("Authorization", mentorToken))
+                                .andExpect(status().isForbidden());
         }
 
         @Test

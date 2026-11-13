@@ -163,7 +163,7 @@ class SsoAuthenticationIntegrationTest {
                               "lmsUserId": "lms-hr-8001",
                               "email": "hr8001@rikkei.edu.vn",
                               "fullName": "HR User",
-                              "role": "HR",
+                              "role": "ROOT_ADMIN",
                               "issuedAt": "%s"
                             }
                             """.formatted(Instant.now().toString()));

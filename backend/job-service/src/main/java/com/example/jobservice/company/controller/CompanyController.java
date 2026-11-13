@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping("/companies")
+@RequestMapping({"/api/v1/companies", "/companies"})
 @Tag(name = "Companies", description = "API quan ly ho so doanh nghiep danh cho HR")
 public class CompanyController {
 

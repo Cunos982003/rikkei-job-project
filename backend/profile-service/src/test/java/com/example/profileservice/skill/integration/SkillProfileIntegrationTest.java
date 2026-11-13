@@ -7,10 +7,13 @@ import com.example.profileservice.skill.domain.SkillEvidence;
 import com.example.profileservice.skill.infrastructure.SkillEvidenceRepository;
 import com.example.profileservice.skill.infrastructure.SkillRepository;
 import com.example.profileservice.skill.infrastructure.SkillScoreRepository;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -21,7 +24,10 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -63,11 +69,26 @@ class SkillProfileIntegrationTest {
     @Autowired
     SkillScoreRepository scoreRepo;
 
+    private static final String TEST_JWT_SECRET = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
+
     MockMvc mvc;
+
+    private String generateJwt(UUID userId) {
+        return Jwts.builder()
+                .subject(userId.toString())
+                .claim("userId", userId.toString())
+                .claim("role", "CANDIDATE")
+                .issuedAt(Date.from(Instant.now()))
+                .expiration(Date.from(Instant.now().plusSeconds(3600)))
+                .signWith(Keys.hmacShaKeyFor(TEST_JWT_SECRET.getBytes(StandardCharsets.UTF_8)))
+                .compact();
+    }
 
     @org.junit.jupiter.api.BeforeEach
     void setup() {
-        mvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
+        mvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .apply(SecurityMockMvcConfigurers.springSecurity())
+                .build();
     }
 
     @Test
@@ -87,7 +108,7 @@ class SkillProfileIntegrationTest {
 
         // When: GET /api/v1/profiles/me/skills with valid header
         mvc.perform(get("/api/v1/profiles/me/skills")
-                        .header("X-User-Id", userId.toString())
+                        .header("Authorization", "Bearer " + generateJwt(userId))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(4))))
@@ -132,7 +153,7 @@ class SkillProfileIntegrationTest {
 
         // Verify via API
         mvc.perform(get("/api/v1/profiles/me/skills")
-                        .header("X-User-Id", userId.toString())
+                        .header("Authorization", "Bearer " + generateJwt(userId))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.skillCode=='JAVA_CORE')].verifiedScore", hasItem(90)));
@@ -161,7 +182,7 @@ class SkillProfileIntegrationTest {
 
         // When: GET /api/v1/profiles/me/skills
         mvc.perform(get("/api/v1/profiles/me/skills")
-                        .header("X-User-Id", userId.toString())
+                        .header("Authorization", "Bearer " + generateJwt(userId))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.skillCode=='JAVA_CORE')].selfScore", hasItem(90)))
@@ -181,7 +202,7 @@ class SkillProfileIntegrationTest {
 
         // Should create evidence for JAVA_CORE based on database mapping
         mvc.perform(get("/api/v1/profiles/me/skills")
-                        .header("X-User-Id", userId.toString())
+                        .header("Authorization", "Bearer " + generateJwt(userId))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.skillCode=='JAVA_CORE')].verifiedScore", hasItem(80)));
@@ -200,7 +221,7 @@ class SkillProfileIntegrationTest {
 
         // When: other user tries to access userId's profile
         mvc.perform(get("/api/v1/profiles/{userId}/skills", userId)
-                        .header("X-User-Id", otherUserId.toString())
+                        .header("Authorization", "Bearer " + generateJwt(otherUserId))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
     }

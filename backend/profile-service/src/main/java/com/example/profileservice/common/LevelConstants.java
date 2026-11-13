@@ -2,7 +2,6 @@ package com.example.profileservice.common;
 
 /**
  * Shared level constants to ensure consistency between services and tests.
- * Uses NFC normalization for Vietnamese strings.
  */
 public final class LevelConstants {
 

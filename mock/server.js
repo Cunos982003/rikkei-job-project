@@ -10,8 +10,8 @@ const url = require('url');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 9001;
-const SERVICE_KEY = 'dev-key';
+const PORT = process.env.PORT || 9000;
+const SERVICE_KEY = process.env.SERVICE_KEY || 'dev-key';
 
 // Đọc dữ liệu mẫu từ mock/data/
 function loadData(fileName) {
@@ -24,6 +24,27 @@ function loadData(fileName) {
   }
 }
 
+// Đọc dữ liệu từ mock/data.json
+function loadMockDataJson() {
+  try {
+    const filePath = path.join(__dirname, 'data.json');
+    if (fs.existsSync(filePath)) {
+      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    }
+  } catch (error) {
+    console.error('[Error] Không thể đọc file data.json:', error.message);
+  }
+  return {
+    users: [],
+    lmsResults: {},
+    examResults: {},
+    internships: {},
+    batches: [],
+    courses: []
+  };
+}
+
+let mockData = loadMockDataJson();
 const users = loadData('users.json') || [];
 const candidates = loadData('candidates.json') || [];
 const lmsData = loadData('lms.json') || { students: {}, courses: [], enrollments: [] };
@@ -33,7 +54,13 @@ const skillsData = loadData('skills.json') || [];
 const jobsData = loadData('jobs.json') || [];
 const evaluationsData = loadData('evaluations.json') || [];
 
-// Helper helper gửi response JSON
+// In-memory test state
+let tickets = {};
+let enrollments = [];
+let batchMembers = {};
+let requestLog = [];
+
+// Helper gửi response JSON
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -45,15 +72,18 @@ function sendJson(res, statusCode, data) {
 }
 
 // Helper gửi lỗi chuẩn { code, message }
-function sendError(res, code, message) {
-  sendJson(res, code, {
-    code: code,
+function sendError(res, code, message, errorCode) {
+  sendJson(res, typeof code === 'number' ? code : 400, {
+    code: errorCode || code,
     message: message
   });
 }
 
-// Helper parse body cho request POST/PUT/PATCH
+// Helper parse body cho request POST/PUT/PATCH (có cache)
 function parseBody(req) {
+  if (req._parsedBody !== undefined) {
+    return Promise.resolve(req._parsedBody);
+  }
   return new Promise((resolve) => {
     let body = '';
     req.on('data', chunk => {
@@ -61,12 +91,15 @@ function parseBody(req) {
     });
     req.on('end', () => {
       if (!body) {
+        req._parsedBody = {};
         resolve({});
         return;
       }
       try {
-        resolve(JSON.parse(body));
+        req._parsedBody = JSON.parse(body);
+        resolve(req._parsedBody);
       } catch (err) {
+        req._parsedBody = {};
         resolve({});
       }
     });
@@ -75,7 +108,7 @@ function parseBody(req) {
 
 // Handler xử lý toàn bộ request
 async function requestHandler(req, res) {
-  const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost:9001'}`);
+  const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost:9000'}`);
   const pathname = parsedUrl.pathname;
   const method = req.method.toUpperCase();
   const query = Object.fromEntries(parsedUrl.searchParams.entries());
@@ -91,7 +124,62 @@ async function requestHandler(req, res) {
     return;
   }
 
+  // Parse body một lần duy nhất
+  const body = (method === 'POST' || method === 'PUT' || method === 'PATCH') ? await parseBody(req) : {};
+
+  // Ghi nhật ký request (bỏ qua /mock/*)
+  const isMockToolRoute = pathname.startsWith('/mock');
+  if (!isMockToolRoute) {
+    requestLog.push({
+      at: new Date().toISOString(),
+      method: method,
+      path: pathname,
+      hasKey: Boolean(req.headers['x-service-key']),
+      body: (method === 'POST' || method === 'PUT' || method === 'PATCH') ? body : null
+    });
+    if (requestLog.length > 100) {
+      requestLog.shift();
+    }
+  }
+
   console.log(`[${new Date().toISOString()}] ${method} ${pathname}`);
+
+  // -------------------------------------------------------------
+  // 0. CÔNG CỤ KIỂM THỬ (/mock/*) - Không yêu cầu X-Service-Key
+  // -------------------------------------------------------------
+
+  // 0.1 POST /mock/reload: Nạp lại file data.json
+  if (method === 'POST' && pathname === '/mock/reload') {
+    mockData = loadMockDataJson();
+    return sendJson(res, 200, { ok: true, message: 'Nạp lại mock data.json thành công' });
+  }
+
+  // 0.2 GET /mock/requests: Trả về 100 request gần nhất
+  if (method === 'GET' && pathname === '/mock/requests') {
+    return sendJson(res, 200, requestLog);
+  }
+
+  // 0.3 PATCH /mock/enrollments: Cập nhật progress, score, status của lượt ghi danh
+  if (method === 'PATCH' && pathname === '/mock/enrollments') {
+    const { lmsUserId, courseId, progress, score, status } = body;
+    const enr = enrollments.find(e => (e.lmsUserId === lmsUserId || e.studentId === lmsUserId) && e.courseId === courseId);
+    if (!enr) {
+      return sendError(res, 404, 'Không tìm thấy thông tin ghi danh', 'ENROLLMENT_NOT_FOUND');
+    }
+    if (progress !== undefined) enr.progress = progress;
+    if (score !== undefined) enr.score = score;
+    if (status !== undefined) enr.status = status;
+    return sendJson(res, 200, enr);
+  }
+
+  // 0.4 POST /mock/reset: Xóa vé tạm, ghi danh, thành viên đợt và nhật ký request
+  if (method === 'POST' && pathname === '/mock/reset') {
+    tickets = {};
+    enrollments = [];
+    batchMembers = {};
+    requestLog = [];
+    return sendJson(res, 200, { ok: true, message: 'Đã reset bộ nhớ mock server' });
+  }
 
   // -------------------------------------------------------------
   // KIỂM TRA BẢO MẬT: X-Service-Key: dev-key cho các hệ thống ngoài
@@ -105,7 +193,7 @@ async function requestHandler(req, res) {
   if (isExternalSystemRoute) {
     const serviceKey = req.headers['x-service-key'];
     if (!serviceKey || serviceKey !== SERVICE_KEY) {
-      return sendError(res, 401, 'Khóa dịch vụ không hợp lệ hoặc bị thiếu (yêu cầu header X-Service-Key: dev-key)');
+      return sendError(res, 401, 'Thiếu hoặc sai X-Service-Key', 'INVALID_SERVICE_KEY');
     }
   }
 
@@ -115,86 +203,191 @@ async function requestHandler(req, res) {
 
   // 1. POST /lms/sso/tickets (Giả lập bấm nút từ LMS tạo ticket)
   if (method === 'POST' && pathname === '/lms/sso/tickets') {
-    const body = await parseBody(req);
-    const lmsUserId = body.lmsUserId || 'std-001';
-    const ticket = `TICKET-${lmsUserId.toUpperCase()}-${Date.now()}`;
-    return sendJson(res, 200, { ticket });
+    const lmsUserId = body.lmsUserId || 'lms-sv-001';
+    let matchedUser = (mockData.users || []).find(u => u.lmsUserId === lmsUserId || u.email === lmsUserId);
+    if (!matchedUser) {
+      if (lmsUserId === 'std-001') matchedUser = { lmsUserId: 'std-001', email: 'candidate1@rikkeijobs.test', fullName: 'Nguyễn Văn An', role: 'CANDIDATE' };
+      else if (lmsUserId === 'std-002') matchedUser = { lmsUserId: 'std-002', email: 'candidate2@rikkeijobs.test', fullName: 'Trần Thị Bình', role: 'CANDIDATE' };
+      else if (lmsUserId === 'std-003') matchedUser = { lmsUserId: 'std-003', email: 'candidate3@rikkeijobs.test', fullName: 'Lê Minh Châu', role: 'CANDIDATE' };
+      else if (lmsData.students && lmsData.students[lmsUserId]) {
+        const s = lmsData.students[lmsUserId];
+        matchedUser = { lmsUserId: s.lmsUserId || lmsUserId, email: s.email, fullName: s.fullName, role: s.role || 'CANDIDATE' };
+      }
+    }
+    if (!matchedUser) {
+      return sendError(res, 404, 'Người dùng không tồn tại', 'USER_NOT_FOUND');
+    }
+    const ticket = `TICKET-${(matchedUser.lmsUserId || lmsUserId).toUpperCase()}-${Date.now()}`;
+    tickets[ticket] = matchedUser;
+    return sendJson(res, 201, {
+      ticket: ticket,
+      issuedAt: new Date().toISOString()
+    });
   }
 
   // 2. POST /lms/sso/verify (Backend xác thực ticket với LMS)
   if (method === 'POST' && pathname === '/lms/sso/verify') {
-    const body = await parseBody(req);
     const ticket = body.ticket || '';
-    
-    // Tìm sinh viên theo ticket
-    let matchedStudent = lmsData.students['std-001'];
-    if (ticket.includes('STD-002')) matchedStudent = lmsData.students['std-002'];
-    if (ticket.includes('STD-003')) matchedStudent = lmsData.students['std-003'];
+    if (tickets[ticket]) {
+      const u = tickets[ticket];
+      return sendJson(res, 200, {
+        lmsUserId: u.lmsUserId,
+        email: u.email,
+        fullName: u.fullName,
+        role: u.role,
+        issuedAt: new Date().toISOString()
+      });
+    }
+
+    // Pattern matching fallback
+    let matched = null;
+    const upper = ticket.toUpperCase();
+    if (upper.includes('STD-001') || upper.includes('LMS-SV-001')) {
+      matched = (mockData.users || []).find(u => u.lmsUserId === 'lms-sv-001') || lmsData.students['std-001'];
+    } else if (upper.includes('STD-002') || upper.includes('LMS-SV-002')) {
+      matched = (mockData.users || []).find(u => u.lmsUserId === 'lms-sv-002') || lmsData.students['std-002'];
+    } else if (upper.includes('STD-003') || upper.includes('LMS-SV-003')) {
+      matched = (mockData.users || []).find(u => u.lmsUserId === 'lms-sv-003') || lmsData.students['std-003'];
+    } else if (upper.includes('LMS-MT-001') || upper.includes('MENTOR')) {
+      matched = (mockData.users || []).find(u => u.lmsUserId === 'lms-mt-001');
+    } else if (upper.includes('LMS-ST-001') || upper.includes('STAFF')) {
+      matched = (mockData.users || []).find(u => u.lmsUserId === 'lms-st-001');
+    } else if (upper.includes('LMS-AD-001') || upper.includes('ADMIN')) {
+      matched = (mockData.users || []).find(u => u.lmsUserId === 'lms-ad-001');
+    }
+
+    if (!matched) {
+      return sendError(res, 404, 'Vé không tồn tại hoặc đã hết hạn', 'TICKET_NOT_FOUND');
+    }
 
     return sendJson(res, 200, {
-      lmsUserId: matchedStudent.lmsUserId,
-      email: matchedStudent.email,
-      fullName: matchedStudent.fullName,
-      role: matchedStudent.role,
+      lmsUserId: matched.lmsUserId,
+      email: matched.email,
+      fullName: matched.fullName,
+      role: matched.role || 'CANDIDATE',
       issuedAt: new Date().toISOString()
     });
+  }
+
+  // Helper phân giải studentId (hỗ trợ UUID, lmsUserId, std-xxx, email)
+  function resolveStudentId(id) {
+    if (!id) return 'std-001';
+    if (id.startsWith('std-')) return id;
+    const uuidMap = {
+      '00000000-0000-0000-0000-000000000001': 'std-001',
+      '00000000-0000-0000-0000-000000000002': 'std-002',
+      '00000000-0000-0000-0000-000000000003': 'std-003',
+      'ed854c07-f3eb-48f1-a186-4e7135f54645': 'std-001',
+      '550e8400-e29b-41d4-a716-446655440000': 'std-001',
+      'lms-sv-001': 'std-001',
+      'lms-sv-002': 'std-002',
+      'lms-sv-003': 'std-003',
+      'candidate1@rikkeijobs.test': 'std-001',
+      'candidate2@rikkeijobs.test': 'std-002',
+      'candidate3@rikkeijobs.test': 'std-003'
+    };
+    return uuidMap[id] || 'std-001';
   }
 
   // 3. GET /lms/students/:id
   const lmsStudentMatch = pathname.match(/^\/lms\/students\/([^\/]+)$/);
   if (method === 'GET' && lmsStudentMatch) {
-    const studentId = lmsStudentMatch[1];
-    const student = lmsData.students[studentId];
-    if (!student) {
-      return sendError(res, 404, `Không tìm thấy thông tin sinh viên ${studentId} trên LMS`);
-    }
+    const rawId = lmsStudentMatch[1];
+    const stdId = resolveStudentId(rawId);
+    const student = (lmsData.students && lmsData.students[stdId]) || {
+      lmsUserId: stdId,
+      fullName: 'Nguyễn Văn An',
+      email: 'candidate1@rikkeijobs.test',
+      program: 'Lập trình Java Fullstack Chuyên sâu',
+      classCode: 'RA-JAVA-2026',
+      courseName: 'Khóa đào tạo Kỹ sư Phần mềm Java'
+    };
+
     return sendJson(res, 200, {
-      program: student.program,
-      classCode: student.classCode,
-      courseName: student.courseName
+      lmsUserId: student.lmsUserId || stdId,
+      fullName: student.fullName || 'Nguyễn Văn An',
+      email: student.email || 'candidate1@rikkeijobs.test',
+      program: student.program || 'Lập trình Java Fullstack Chuyên sâu',
+      classCode: student.classCode || 'RA-JAVA-2026',
+      courseName: student.courseName || 'Khóa đào tạo Kỹ sư Phần mềm Java'
     });
   }
 
   // 4. GET /lms/students/:id/results
   const lmsResultsMatch = pathname.match(/^\/lms\/students\/([^\/]+)\/results$/);
   if (method === 'GET' && lmsResultsMatch) {
-    const studentId = lmsResultsMatch[1];
-    const student = lmsData.students[studentId];
-    if (!student) {
-      return sendError(res, 404, `Không tìm thấy kết quả học tập của sinh viên ${studentId} trên LMS`);
+    const rawId = lmsResultsMatch[1];
+    const stdId = resolveStudentId(rawId);
+    let results = (lmsData.students && lmsData.students[stdId]) ? lmsData.students[stdId].results : null;
+    if (!results) {
+      results = (mockData.lmsResults || {})[rawId] || (mockData.lmsResults || {})[stdId];
     }
-    return sendJson(res, 200, student.results);
+    return sendJson(res, 200, results || []);
   }
 
   // 5. GET /lms/courses
   if (method === 'GET' && pathname === '/lms/courses') {
-    return sendJson(res, 200, lmsData.courses);
+    let list = (mockData.courses && mockData.courses.length > 0) ? mockData.courses : (lmsData.courses || []);
+    if (query.skill) {
+      const s = query.skill.toLowerCase();
+      list = list.filter(c => Array.isArray(c.skills) && c.skills.some(sk => sk.toLowerCase() === s));
+    }
+    return sendJson(res, 200, list);
   }
 
   // 6. POST /lms/enrollments
   if (method === 'POST' && pathname === '/lms/enrollments') {
-    const body = await parseBody(req);
+    const lmsUserId = body.lmsUserId || body.studentId;
+    const courseId = body.courseId;
+    if (!lmsUserId || !courseId) {
+      return sendError(res, 400, 'Thiếu lmsUserId hoặc courseId', 'BAD_REQUEST');
+    }
+    // Check user exists
+    const userExists = (mockData.users || []).some(u => u.lmsUserId === lmsUserId) ||
+                       ['std-001', 'std-002', 'std-003'].includes(lmsUserId) ||
+                       (lmsData.students && lmsData.students[lmsUserId]);
+    if (!userExists) {
+      return sendError(res, 404, `Không tìm thấy người dùng ${lmsUserId}`, 'USER_NOT_FOUND');
+    }
+    // Check course exists
+    const allCourses = (mockData.courses && mockData.courses.length > 0) ? mockData.courses : (lmsData.courses || []);
+    const courseExists = allCourses.some(c => c.courseId === courseId);
+    if (!courseExists) {
+      return sendError(res, 404, `Không tìm thấy khóa học ${courseId}`, 'COURSE_NOT_FOUND');
+    }
+    // Check already enrolled
+    const already = enrollments.some(e => (e.lmsUserId === lmsUserId || e.studentId === lmsUserId) && e.courseId === courseId);
+    if (already) {
+      return sendError(res, 409, 'Đã ghi danh khóa học này', 'ALREADY_ENROLLED');
+    }
+
     const newEnrollment = {
       id: `enr-${Date.now()}`,
-      studentId: body.studentId || 'std-001',
-      courseId: body.courseId || 'CRS-01',
-      status: 'IN_PROGRESS',
-      progress: 0.0,
+      lmsUserId: lmsUserId,
+      studentId: lmsUserId,
+      courseId: courseId,
+      progress: 0,
+      score: null,
+      status: 'ENROLLED',
       enrolledAt: new Date().toISOString()
     };
-    lmsData.enrollments.push(newEnrollment);
+    enrollments.push(newEnrollment);
     return sendJson(res, 201, newEnrollment);
   }
 
-  // 7. GET /lms/enrollments/:id
+  // 7. GET /lms/enrollments/:target (hỗ trợ cả enr-xxx và lmsUserId)
   const enrollmentMatch = pathname.match(/^\/lms\/enrollments\/([^\/]+)$/);
   if (method === 'GET' && enrollmentMatch) {
-    const enrId = enrollmentMatch[1];
-    const enrollment = lmsData.enrollments.find(e => e.id === enrId);
-    if (!enrollment) {
-      return sendError(res, 404, `Không tìm thấy thông tin đăng ký môn học ${enrId}`);
+    const target = enrollmentMatch[1];
+    if (target.startsWith('enr-')) {
+      const single = enrollments.find(e => e.id === target) || (lmsData.enrollments && lmsData.enrollments.find(e => e.id === target));
+      if (!single) {
+        return sendError(res, 404, `Không tìm thấy thông tin đăng ký môn học ${target}`, 'ENROLLMENT_NOT_FOUND');
+      }
+      return sendJson(res, 200, single);
     }
-    return sendJson(res, 200, enrollment);
+    const userEnrollments = enrollments.filter(e => e.lmsUserId === target || e.studentId === target);
+    return sendJson(res, 200, userEnrollments);
   }
 
   // -------------------------------------------------------------
@@ -204,12 +397,10 @@ async function requestHandler(req, res) {
   // GET /exam/students/:id/results
   const examMatch = pathname.match(/^\/exam\/students\/([^\/]+)\/results$/);
   if (method === 'GET' && examMatch) {
-    const studentId = examMatch[1];
-    const results = examData[studentId];
-    if (!results) {
-      return sendError(res, 404, `Không tìm thấy kết quả thi của thí sinh ${studentId}`);
-    }
-    return sendJson(res, 200, results);
+    const rawId = examMatch[1];
+    const stdId = resolveStudentId(rawId);
+    let results = examData[stdId] || (mockData.examResults || {})[rawId] || (mockData.examResults || {})[stdId];
+    return sendJson(res, 200, results || []);
   }
 
   // -------------------------------------------------------------
@@ -219,28 +410,46 @@ async function requestHandler(req, res) {
   // 1. GET /pm/students/:id/internships
   const pmInternMatch = pathname.match(/^\/pm\/students\/([^\/]+)\/internships$/);
   if (method === 'GET' && pmInternMatch) {
-    const studentId = pmInternMatch[1];
-    const internships = pmData.internships[studentId];
-    if (!internships) {
-      return sendError(res, 404, `Không tìm thấy lịch sử thực tập IOC của ứng viên ${studentId}`);
-    }
-    return sendJson(res, 200, internships);
+    const rawId = pmInternMatch[1];
+    const stdId = resolveStudentId(rawId);
+    let list = (pmData.internships && pmData.internships[stdId]) || (mockData.internships || {})[rawId] || (mockData.internships || {})[stdId];
+    return sendJson(res, 200, list || []);
   }
 
   // 2. POST /pm/batches/:id/members
   const pmBatchMatch = pathname.match(/^\/pm\/batches\/([^\/]+)\/members$/);
   if (method === 'POST' && pmBatchMatch) {
     const batchId = pmBatchMatch[1];
-    const body = await parseBody(req);
     const lmsUserId = body.lmsUserId;
     if (!lmsUserId) {
-      return sendError(res, 400, 'Thiếu thông tin lmsUserId trong body');
+      return sendError(res, 400, 'Thiếu thông tin lmsUserId trong body', 'BAD_REQUEST');
     }
-    return sendJson(res, 200, {
-      message: 'Ghép học viên vào đợt thực tập IOC thành công',
+    // Check batch exists
+    const allBatches = (mockData.batches && mockData.batches.length > 0) ? mockData.batches : (pmData.batches || []);
+    const batchExists = allBatches.some(b => b.batchId === batchId);
+    if (!batchExists) {
+      return sendError(res, 404, `Đợt thực tập ${batchId} không tồn tại`, 'BATCH_NOT_FOUND');
+    }
+    // Check user exists
+    const userExists = (mockData.users || []).some(u => u.lmsUserId === lmsUserId) ||
+                       ['std-001', 'std-002', 'std-003'].includes(lmsUserId) ||
+                       (lmsData.students && lmsData.students[lmsUserId]);
+    if (!userExists) {
+      return sendError(res, 404, `Học viên ${lmsUserId} không tồn tại`, 'USER_NOT_FOUND');
+    }
+    if (!batchMembers[batchId]) {
+      batchMembers[batchId] = new Set();
+    }
+    if (batchMembers[batchId].has(lmsUserId)) {
+      return sendError(res, 409, 'Học viên đã thuộc đợt thực tập này', 'ALREADY_MEMBER');
+    }
+    batchMembers[batchId].add(lmsUserId);
+
+    return sendJson(res, 201, {
       batchId: batchId,
       lmsUserId: lmsUserId,
-      assignedAt: new Date().toISOString()
+      addedAt: new Date().toISOString(),
+      message: 'Ghép học viên vào đợt thực tập IOC thành công'
     });
   }
 
@@ -250,11 +459,13 @@ async function requestHandler(req, res) {
 
   // POST /meet/rooms
   if (method === 'POST' && pathname === '/meet/rooms') {
-    const body = await parseBody(req);
-    const roomTitle = body.title || 'Phỏng vấn tuyển dụng Rikkei Jobs';
+    if (!body.title) {
+      return sendError(res, 400, 'Thiếu thông tin tiêu đề phòng họp (title)', 'BAD_REQUEST');
+    }
     const roomId = 'room-' + Math.random().toString(36).substring(2, 9);
-    return sendJson(res, 200, {
-      title: roomTitle,
+    return sendJson(res, 201, {
+      roomId: roomId,
+      title: body.title,
       roomUrl: `https://meet.rikkei.edu.vn/${roomId}`,
       startAt: body.startAt || new Date().toISOString(),
       endAt: body.endAt || new Date(Date.now() + 3600000).toISOString()

@@ -100,5 +100,14 @@ CREATE TABLE IF NOT EXISTS certificates (
     file_type VARCHAR(50)
 );
 
+CREATE TABLE IF NOT EXISTS uploaded_files (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    stored_name VARCHAR(255) NOT NULL UNIQUE,
+    original_name VARCHAR(255),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE INDEX IF NOT EXISTS idx_educations_user_id ON educations(user_id);
 CREATE INDEX IF NOT EXISTS idx_certificates_user_id ON certificates(user_id);
+CREATE INDEX IF NOT EXISTS idx_uploaded_files_user_id ON uploaded_files(user_id);

@@ -21,6 +21,7 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -43,12 +44,11 @@ public class HrAuthService {
     private final EmailService emailService;
 
     public HrAuthService(
-        UserRepository userRepository,
-        PasswordResetTokenRepository passwordResetTokenRepository,
-        PasswordEncoder passwordEncoder,
-        JwtTokenProvider jwtTokenProvider,
-        EmailService emailService
-    ) {
+            UserRepository userRepository,
+            PasswordResetTokenRepository passwordResetTokenRepository,
+            PasswordEncoder passwordEncoder,
+            JwtTokenProvider jwtTokenProvider,
+            EmailService emailService) {
         this.userRepository = userRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.passwordEncoder = passwordEncoder;
@@ -62,12 +62,14 @@ public class HrAuthService {
         User user = userRepository.findByEmailForUpdate(email)
             .orElseThrow(() -> new SsoException(ErrorCode.INVALID_CREDENTIALS, "Invalid email or password"));
 
+        // If user has no password configured (e.g. SSO only), reject
         if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
             throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Invalid email or password");
         }
 
         Instant now = Instant.now();
 
+        // 1. Check if account is currently locked
         if (user.getStatus() == UserStatus.LOCKED || (user.getLockedUntil() != null && user.getLockedUntil().isAfter(now))) {
             if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(now)) {
                 long remainingMinutes = Math.max(1, Duration.between(now, user.getLockedUntil()).toMinutes() + 1);
@@ -76,12 +78,19 @@ public class HrAuthService {
                     ErrorCode.ACCOUNT_LOCKED,
                     "Account is locked due to 5 consecutive failed login attempts. Please try again in " + remainingMinutes + " minute(s)."
                 );
+            } else if (user.getLockedUntil() != null && !user.getLockedUntil().isAfter(now)) {
+                // Lockout period has elapsed: auto-unlock and reset counters
+                user.setStatus(UserStatus.ACTIVE);
+                user.setFailedLoginCount(0);
+                user.setLockedUntil(null);
+            } else {
+                // Permanently/administratively locked without expiration
+                log.warn("Login attempt for locked account without expiration: {}", email);
+                throw new SsoException(ErrorCode.ACCOUNT_LOCKED, "Account is locked. Please contact administrator.");
             }
-            user.setStatus(UserStatus.ACTIVE);
-            user.setFailedLoginCount(0);
-            user.setLockedUntil(null);
         }
 
+        // 2. Validate password
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             int failedAttempts = user.getFailedLoginCount() + 1;
             user.setFailedLoginCount(failedAttempts);
@@ -102,12 +111,14 @@ public class HrAuthService {
             throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Invalid email or password");
         }
 
+        // 3. Successful login: reset failed counters and unlock
         user.setStatus(UserStatus.ACTIVE);
         user.setFailedLoginCount(0);
         user.setLockedUntil(null);
         user.setUpdatedAt(now);
         userRepository.saveAndFlush(user);
 
+        // 4. Issue JWT
         String accessToken = jwtTokenProvider.generateToken(user);
         return new AuthResponse(
             accessToken,
@@ -119,22 +130,26 @@ public class HrAuthService {
 
     @Transactional
     public MessageResponse changePassword(String email, String currentPassword, String newPassword) {
-        if (newPassword == null || newPassword.length() < 8 || !newPassword.matches(".*[A-Za-z].*") || !newPassword.matches(".*[0-9].*")) {
-            throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Password must be at least 8 characters long and contain both letters and numbers");
+        String cleanEmail = email != null ? email.trim().toLowerCase(Locale.ROOT) : "";
+        User user = userRepository.findByEmailForUpdate(cleanEmail)
+            .orElseThrow(() -> new SsoException(ErrorCode.INVALID_CREDENTIALS, "User not found"));
+
+        if (user.getPasswordHash() != null && !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Mật khẩu hiện tại không chính xác");
         }
 
-        User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new SsoException(ErrorCode.INVALID_CREDENTIALS, "Invalid email or password"));
-
-        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
-            throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Current password is incorrect");
+        if (user.getPasswordHash() != null && passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+            throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Mật khẩu mới không được trùng với mật khẩu hiện tại");
         }
 
+        Instant now = Instant.now();
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setMustChangePassword(false);
-        user.setUpdatedAt(Instant.now());
+        user.setUpdatedAt(now);
         userRepository.save(user);
-        return new MessageResponse("Password changed successfully.");
+
+        log.info("Password successfully changed for user {}", cleanEmail);
+        return new MessageResponse("Đổi mật khẩu thành công");
     }
 
     @Transactional
@@ -155,34 +170,31 @@ public class HrAuthService {
             }
         });
 
+        // Always return generic message to avoid leaking whether email exists
         return new MessageResponse("If the email is registered, password reset instructions have been sent.");
     }
 
     @Transactional
     public MessageResponse resetPassword(ResetPasswordRequest request) {
         String rawToken = request.token() != null ? request.token().trim() : "";
-        if (rawToken.isBlank()) {
-            throw new SsoException(ErrorCode.RESET_TOKEN_INVALID, "Token is required");
-        }
-
         String tokenHash = hashToken(rawToken);
+
         PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenHashForUpdate(tokenHash)
-            .orElseThrow(() -> new SsoException(ErrorCode.RESET_TOKEN_INVALID, "Invalid or unrecognized password reset token"));
+                .orElseThrow(() -> new SsoException(ErrorCode.RESET_TOKEN_INVALID,
+                        "Invalid or unrecognized password reset token"));
 
         if (resetToken.isUsed()) {
             throw new SsoException(ErrorCode.RESET_TOKEN_ALREADY_USED, "Password reset token has already been used");
         }
 
         if (resetToken.isExpired()) {
-            throw new SsoException(ErrorCode.RESET_TOKEN_EXPIRED, "Password reset token has expired (valid for 30 minutes)");
-        }
-
-        if (request.newPassword() == null || request.newPassword().length() < 8 || !request.newPassword().matches(".*[A-Za-z].*") || !request.newPassword().matches(".*[0-9].*")) {
-            throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Password must be at least 8 characters long and contain both letters and numbers");
+            throw new SsoException(ErrorCode.RESET_TOKEN_EXPIRED,
+                    "Password reset token has expired (valid for 30 minutes)");
         }
 
         User user = userRepository.findById(resetToken.getUserId())
-            .orElseThrow(() -> new SsoException(ErrorCode.RESET_TOKEN_INVALID, "User associated with reset token was not found"));
+                .orElseThrow(() -> new SsoException(ErrorCode.RESET_TOKEN_INVALID,
+                        "User associated with reset token was not found"));
 
         Instant now = Instant.now();
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
@@ -193,11 +205,38 @@ public class HrAuthService {
         user.setUpdatedAt(now);
         userRepository.save(user);
 
+        // Mark this token as used
         resetToken.setUsedAt(now);
         passwordResetTokenRepository.save(resetToken);
+
+        // Invalidate all other pending reset tokens for this user
         passwordResetTokenRepository.invalidateAllUnusedTokensForUser(user.getId(), now);
 
         return new MessageResponse("Password has been successfully reset. You can now log in with your new password.");
+    }
+
+    @Transactional
+    public UserDto createHrUser(String email, String fullName, UUID companyId, String rawPassword) {
+        String cleanEmail = email != null ? email.trim().toLowerCase(Locale.ROOT) : "";
+        if (userRepository.existsByEmail(cleanEmail)) {
+            throw new SsoException(ErrorCode.CONFLICT, "Email " + cleanEmail + " already exists in auth-service");
+        }
+        Instant now = Instant.now();
+        User user = new User();
+        user.setEmail(cleanEmail);
+        user.setFullName(fullName != null ? fullName.trim() : "");
+        user.setPasswordHash(passwordEncoder.encode(rawPassword));
+        user.setRole("ROLE_HR");
+        user.setCompanyId(companyId);
+        user.setMustChangePassword(true);
+        user.setStatus(UserStatus.ACTIVE);
+        user.setFailedLoginCount(0);
+        user.setLockedUntil(null);
+        user.setCreatedAt(now);
+        user.setUpdatedAt(now);
+        User saved = userRepository.save(user);
+        log.info("Created HR account in auth-service for email={}, companyId={}", cleanEmail, companyId);
+        return UserDto.from(saved);
     }
 
     private String generateSecureToken() {

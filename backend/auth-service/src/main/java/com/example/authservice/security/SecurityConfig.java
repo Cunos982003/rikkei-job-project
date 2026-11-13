@@ -52,15 +52,18 @@ public class SecurityConfig {
     @Bean
     public UserDetailsService userDetailsService() {
         return email -> userRepository.findByEmail(email)
-            .map(user -> org.springframework.security.core.userdetails.User.builder()
-                .username(user.getEmail())
-                .password(user.getPasswordHash())
-                .authorities(user.getRole() == null ? "ROLE_CANDIDATE" : user.getRole())
-                .accountExpired(false)
-                .accountLocked(user.getStatus() == UserStatus.LOCKED || (user.getLockedUntil() != null && user.getLockedUntil().isAfter(java.time.Instant.now())))
-                .credentialsExpired(false)
-                .disabled(user.getStatus() == UserStatus.LOCKED)
-                .build())
+            .map(user -> {
+                String authority = RoleMapper.normalizeToSecurityRole(user.getRole() == null ? "CANDIDATE" : user.getRole());
+                return org.springframework.security.core.userdetails.User.builder()
+                    .username(user.getEmail())
+                    .password(user.getPasswordHash())
+                    .authorities(authority)
+                    .accountExpired(false)
+                    .accountLocked(user.getStatus() == UserStatus.LOCKED || (user.getLockedUntil() != null && user.getLockedUntil().isAfter(java.time.Instant.now())))
+                    .credentialsExpired(false)
+                    .disabled(user.getStatus() == UserStatus.LOCKED)
+                    .build();
+            })
             .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
     }
 
@@ -115,19 +118,20 @@ public class SecurityConfig {
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                     ErrorResponse error = new ErrorResponse(
                         HttpServletResponse.SC_FORBIDDEN,
-                        "MUST_CHANGE_PASSWORD",
-                        "Access denied: You must change your password before continuing"
+                        "FORBIDDEN",
+                        "Access denied: You do not have permission to access this resource"
                     );
                     objectMapper.writeValue(response.getOutputStream(), error);
                 })
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/docs", "/api/docs/**", "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**", "/api/v1/auth/demo-accounts", "/auth/demo-accounts", "/api/v1/auth/users/**", "/auth/users/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/sso", "/auth/sso").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/auth/login", "/api/v1/auth/hr/login", "/auth/hr/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/forgot-password", "/auth/forgot-password").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/reset-password", "/auth/reset-password").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/users/hr", "/auth/users/hr").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/change-password", "/auth/change-password").authenticated()
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated()

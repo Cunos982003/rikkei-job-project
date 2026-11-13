@@ -1,11 +1,13 @@
 package com.example.profileservice.internship;
 
 
+import com.example.profileservice.security.UserPrincipal;
 import com.example.profileservice.skill.application.SkillRecomputeService;
 import com.example.profileservice.skill.application.dto.ExternalRecordDto;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
@@ -36,9 +38,10 @@ public class InternshipController {
     }
 
     @GetMapping("/me/internships")
-    public List<Map<String, Object>> syncAndGet(@RequestHeader(value = "X-User-Id", required = false) UUID userId,
+    public List<Map<String, Object>> syncAndGet(@AuthenticationPrincipal UserPrincipal principal,
                                                  @RequestHeader(value = "X-PM-Student-Id", required = false) String pmStudentId) {
-        if (userId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        if (principal == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        UUID userId = principal.getUserId();
         String externalId = pmStudentId == null || pmStudentId.isBlank() ? studentId : pmStudentId;
         JsonNode records;
         try {
@@ -72,8 +75,9 @@ public class InternshipController {
 
     @GetMapping("/{userId}/internships")
     public List<Map<String, Object>> getUserInternships(@PathVariable UUID userId,
-            @RequestHeader(value = "X-User-Id", required = false) UUID requesterId) {
-        if (requesterId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+            @AuthenticationPrincipal UserPrincipal principal) {
+        if (principal == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        UUID requesterId = principal.getUserId();
         if (!visibility.canViewProfile(requesterId, userId)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         return jdbc.queryForList("SELECT i.*, COALESCE((SELECT json_agg(t ORDER BY t.accepted_at) FROM internship_tasks t WHERE t.internship_id=i.id), '[]'::json) AS tasks " +
                 "FROM internships i WHERE i.user_id=? ORDER BY i.start_date DESC NULLS LAST, i.batch_id", userId);

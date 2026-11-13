@@ -18,6 +18,14 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+const DEFAULT_DEMO_ACCOUNTS: DemoAccount[] = [
+  { role: "CANDIDATE", email: "candidate1@rikkeijobs.test", label: "Ứng viên (Nguyễn Văn An)" },
+  { role: "HR", email: "hr1@rikkeijobs.test", label: "Doanh nghiệp HR (Rikkeisoft)" },
+  { role: "MENTOR", email: "mentor1@rikkeijobs.test", label: "Mentor (Phạm Minh Đức)" },
+  { role: "STAFF", email: "staff1@rikkeijobs.test", label: "Cán bộ tuyển dụng" },
+  { role: "ADMIN", email: "admin1@rikkeijobs.test", label: "Quản trị hệ thống" },
+];
+
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,9 +36,14 @@ export function LoginPage() {
   const { data: demoAccounts } = useQuery<DemoAccount[]>({
     queryKey: ["demo-accounts"],
     queryFn: async () => {
-      const res = await authApi.getDemoAccounts();
-      return res.data;
+      try {
+        const res = await authApi.getDemoAccounts();
+        return res.data && res.data.length > 0 ? res.data : DEFAULT_DEMO_ACCOUNTS;
+      } catch {
+        return DEFAULT_DEMO_ACCOUNTS;
+      }
     },
+    initialData: DEFAULT_DEMO_ACCOUNTS,
     staleTime: Infinity,
   });
 
@@ -54,29 +67,36 @@ export function LoginPage() {
       toast.success(`Đăng nhập thành công! Chào mừng ${data.user.fullName}`);
 
       // Điều hướng về trang trước đó hoặc trang chủ của vai trò
+      const homePathByRole = {
+        HR: "/hr/company",
+        MENTOR: "/mentor/students",
+        STAFF: "/staff/jobs",
+        ADMIN: "/admin/skills",
+        CANDIDATE: "/candidate/profile",
+      } as const;
+
+      const rolePrefixByRole: Record<string, string> = {
+        HR: "/hr",
+        MENTOR: "/mentor",
+        STAFF: "/staff",
+        ADMIN: "/admin",
+        CANDIDATE: "/candidate",
+      };
+
+      const userRole = data.user.role;
+      const expectedPrefix = rolePrefixByRole[userRole];
+      const fallbackHome = homePathByRole[userRole] ?? "/candidate/profile";
+
       const fromPath = (location.state as { from?: { pathname: string } })?.from?.pathname;
-      if (fromPath && fromPath !== "/login") {
+      if (
+        fromPath &&
+        fromPath !== "/login" &&
+        fromPath !== "/unauthorized" &&
+        (!expectedPrefix || fromPath.startsWith(expectedPrefix))
+      ) {
         navigate(fromPath, { replace: true });
       } else {
-        // Điều hướng theo vai trò
-        switch (data.user.role) {
-          case "HR":
-            navigate("/hr/company", { replace: true });
-            break;
-          case "MENTOR":
-            navigate("/mentor/students", { replace: true });
-            break;
-          case "STAFF":
-            navigate("/staff/jobs", { replace: true });
-            break;
-          case "ADMIN":
-            navigate("/admin/skills", { replace: true });
-            break;
-          case "CANDIDATE":
-          default:
-            navigate("/candidate/profile", { replace: true });
-            break;
-        }
+        navigate(fallbackHome, { replace: true });
       }
     } catch {
       // Lỗi đã được Axios response interceptor hiển thị qua toast

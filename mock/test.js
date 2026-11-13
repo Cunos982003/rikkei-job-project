@@ -74,7 +74,7 @@ async function runTests() {
 
   // TEST 2: Gọi LMS không có header X-Service-Key (Phải trả về 401)
   const res2 = await simulateRequest({ method: 'GET', url: '/lms/students/std-001/results' });
-  assert(res2.statusCode === 401 && res2.body.code === 401, '2. Gọi API LMS không có X-Service-Key trả về HTTP 401');
+  assert(res2.statusCode === 401 && (res2.body.code === 401 || res2.body.code === 'INVALID_SERVICE_KEY'), '2. Gọi API LMS không có X-Service-Key trả về HTTP 401');
 
   // TEST 3: Gọi LMS với header X-Service-Key sai (Phải trả về 401)
   const res3 = await simulateRequest({
@@ -117,7 +117,7 @@ async function runTests() {
     url: '/meet/rooms',
     headers: { 'x-service-key': 'dev-key' }
   }, { title: 'Phỏng vấn ứng viên Nguyễn Văn An' });
-  assert(res7.statusCode === 200 && res7.body.roomUrl.includes('meet.rikkei.edu.vn'),
+  assert((res7.statusCode === 200 || res7.statusCode === 201) && res7.body.roomUrl && res7.body.roomUrl.includes('meet.rikkei.edu.vn'),
     '7. Gọi API Rikkei Meet sinh URL phòng họp giả lập thành công');
 
   // TEST 8: Phân trang ứng viên ?page=1&size=20
@@ -162,6 +162,98 @@ async function runTests() {
   const res14 = await simulateRequest({ method: 'GET', url: '/api/v1/auth/demo-accounts' });
   assert(res14.statusCode === 200 && Array.isArray(res14.body) && res14.body.length === 5 && res14.body[0].role === 'CANDIDATE', 
     '14. Endpoint /api/v1/auth/demo-accounts trả về 5 tài khoản mẫu cho 5 vai trò');
+
+  // TEST 15: Mock tool POST /mock/reload
+  const res15 = await simulateRequest({ method: 'POST', url: '/mock/reload' });
+  assert(res15.statusCode === 200 && res15.body.ok === true,
+    '15. Endpoint /mock/reload nạp lại data.json thành công');
+
+  // TEST 16: Mock tool GET /mock/requests
+  const res16 = await simulateRequest({ method: 'GET', url: '/mock/requests' });
+  assert(res16.statusCode === 200 && Array.isArray(res16.body) && res16.body.length > 0 && res16.body[0].method,
+    '16. Endpoint /mock/requests ghi nhận lịch sử các request đã gọi');
+
+  // TEST 17: Ghi danh khóa học POST /lms/enrollments và PATCH /mock/enrollments
+  const res17a = await simulateRequest({
+    method: 'POST',
+    url: '/lms/enrollments',
+    headers: { 'x-service-key': 'dev-key' }
+  }, { lmsUserId: 'lms-sv-001', courseId: 'LMS-C-JAVA-02' });
+  assert(res17a.statusCode === 201 && res17a.body.status === 'ENROLLED' && res17a.body.courseId === 'LMS-C-JAVA-02',
+    '17a. Ghi danh khóa học POST /lms/enrollments thành công (HTTP 201)');
+
+  const res17b = await simulateRequest({
+    method: 'PATCH',
+    url: '/mock/enrollments'
+  }, { lmsUserId: 'lms-sv-001', courseId: 'LMS-C-JAVA-02', progress: 100, score: 9.5, status: 'COMPLETED' });
+  assert(res17b.statusCode === 200 && res17b.body.status === 'COMPLETED' && res17b.body.progress === 100,
+    '17b. Cập nhật tiến độ học tập PATCH /mock/enrollments thành công');
+
+  // TEST 18: Ghi danh trùng lặp trả về 409 ALREADY_ENROLLED
+  const res18 = await simulateRequest({
+    method: 'POST',
+    url: '/lms/enrollments',
+    headers: { 'x-service-key': 'dev-key' }
+  }, { lmsUserId: 'lms-sv-001', courseId: 'LMS-C-JAVA-02' });
+  assert(res18.statusCode === 409 && (res18.body.code === 409 || res18.body.code === 'ALREADY_ENROLLED'),
+    '18. Ghi danh trùng lặp trả về HTTP 409 ALREADY_ENROLLED');
+
+  // TEST 19: Ghép học viên vào đợt thực tập POST /pm/batches/:id/members và duplicate 409
+  const res19a = await simulateRequest({
+    method: 'POST',
+    url: '/pm/batches/IOC-JB-2026-09/members',
+    headers: { 'x-service-key': 'dev-key' }
+  }, { lmsUserId: 'lms-sv-001' });
+  assert(res19a.statusCode === 201 && res19a.body.batchId === 'IOC-JB-2026-09',
+    '19a. Ghép học viên vào đợt thực tập POST /pm/batches/:id/members thành công');
+
+  const res19b = await simulateRequest({
+    method: 'POST',
+    url: '/pm/batches/IOC-JB-2026-09/members',
+    headers: { 'x-service-key': 'dev-key' }
+  }, { lmsUserId: 'lms-sv-001' });
+  assert(res19b.statusCode === 409 && (res19b.body.code === 409 || res19b.body.code === 'ALREADY_MEMBER'),
+    '19b. Ghép học viên trùng lặp vào đợt thực tập trả về HTTP 409 ALREADY_MEMBER');
+
+  // TEST 20: Luồng SSO ticket theo contract
+  const res20a = await simulateRequest({
+    method: 'POST',
+    url: '/lms/sso/tickets',
+    headers: { 'x-service-key': 'dev-key' }
+  }, { lmsUserId: 'lms-sv-002' });
+  assert(res20a.statusCode === 201 && res20a.body.ticket && res20a.body.ticket.includes('LMS-SV-002'),
+    '20a. Tạo SSO ticket POST /lms/sso/tickets trả về HTTP 201 và ticket');
+
+  const res20b = await simulateRequest({
+    method: 'POST',
+    url: '/lms/sso/verify',
+    headers: { 'x-service-key': 'dev-key' }
+  }, { ticket: res20a.body.ticket });
+  assert(res20b.statusCode === 200 && res20b.body.email === 'candidate2@rikkeijobs.test' && res20b.body.role === 'CANDIDATE',
+    '20b. Xác thực SSO ticket POST /lms/sso/verify trả về thông tin đúng người dùng');
+
+  // TEST 21: Lấy thông tin sinh viên GET /lms/students/:id theo data.json
+  const res21 = await simulateRequest({
+    method: 'GET',
+    url: '/lms/students/lms-sv-001',
+    headers: { 'x-service-key': 'dev-key' }
+  });
+  assert(res21.statusCode === 200 && res21.body.lmsUserId === 'lms-sv-001' && res21.body.classCode === 'KS25-CNTT1',
+    '21. Lấy thông tin sinh viên GET /lms/students/lms-sv-001 chính xác');
+
+  // TEST 22: Lọc khóa học theo kỹ năng GET /lms/courses?skill=JAVA
+  const res22 = await simulateRequest({
+    method: 'GET',
+    url: '/lms/courses?skill=JAVA',
+    headers: { 'x-service-key': 'dev-key' }
+  });
+  assert(res22.statusCode === 200 && Array.isArray(res22.body) && res22.body.length > 0 && res22.body.every(c => c.skills.includes('JAVA')),
+    '22. Lọc danh sách khóa học theo kỹ năng JAVA chính xác');
+
+  // TEST 23: Mock tool POST /mock/reset
+  const res23 = await simulateRequest({ method: 'POST', url: '/mock/reset' });
+  assert(res23.statusCode === 200 && res23.body.ok === true,
+    '23. Endpoint /mock/reset làm sạch toàn bộ trạng thái tạm thời');
 
   console.log('\n====================================================');
   console.log(`📊 KẾT QUẢ KIỂM THỬ: ${passed} PASS, ${failed} FAIL`);

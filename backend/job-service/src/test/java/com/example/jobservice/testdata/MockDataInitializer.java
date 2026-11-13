@@ -40,7 +40,14 @@ public class MockDataInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) throws IOException {
-        Path dataDirectory = Path.of(System.getProperty("mock.data.dir"));
+        if (companyRepository.count() > 0) {
+            return;
+        }
+        String mockDir = System.getProperty("mock.data.dir");
+        if (mockDir == null) {
+            return;
+        }
+        Path dataDirectory = Path.of(mockDir);
         Map<String, UUID> companyIds = loadCompanies(dataDirectory.resolve("companies.json"));
         loadUsers(dataDirectory.resolve("users.json"), companyIds);
     }

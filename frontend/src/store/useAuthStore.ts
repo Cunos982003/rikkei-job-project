@@ -2,6 +2,18 @@ import { create } from "zustand";
 import { setAccessToken, setCurrentUserId, registerUnauthorizedHandler } from "../api/client";
 import { authApi, type Role, type UserProfile, type AuthResponseData } from "../api/endpoints/auth.api";
 
+function normalizeRole(role?: string): Role {
+  if (!role) return "CANDIDATE";
+  return role.replace(/^ROLE_/, "").toUpperCase() as Role;
+}
+
+function normalizeUser(user: UserProfile): UserProfile {
+  return {
+    ...user,
+    role: normalizeRole(user.role),
+  };
+}
+
 interface AuthState {
   user: UserProfile | null;
   accessToken: string | null;
@@ -36,7 +48,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const res = await authApi.login({ email, password });
       const data = res.data;
       const token = data.accessToken;
-      const user = data.user;
+      const user = normalizeUser(data.user);
 
       setAccessToken(token);
       setCurrentUserId(user.id);
@@ -47,7 +59,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
       });
 
-      return data;
+      return { ...data, user };
     } catch (error) {
       set({ isLoading: false });
       throw error;
@@ -60,7 +72,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const res = await authApi.ssoLogin({ ticket });
       const data = res.data;
       const token = data.accessToken;
-      const user = data.user;
+      const user = normalizeUser(data.user);
 
       setAccessToken(token);
       setCurrentUserId(user.id);
@@ -71,7 +83,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
       });
 
-      return data;
+      return { ...data, user };
     } catch (error) {
       set({ isLoading: false });
       throw error;
@@ -81,8 +93,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   fetchMe: async () => {
     try {
       const res = await authApi.getMe();
-      setCurrentUserId(res.data.id);
-      set({ user: res.data, isAuthenticated: true });
+      const user = normalizeUser(res.data);
+      setCurrentUserId(user.id);
+      set({ user, isAuthenticated: true });
     } catch {
       // Lỗi 401 được interceptor xử lý tự động
     }
@@ -108,20 +121,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   hasRole: (role) => {
     const currentUser = get().user;
     if (!currentUser) return false;
+    const current = normalizeRole(currentUser.role);
     if (Array.isArray(role)) {
-      return role.includes(currentUser.role);
+      return role.some((r) => normalizeRole(r) === current);
     }
-    return currentUser.role === role;
+    return normalizeRole(role) === current;
   },
 
-  isCandidate: () => get().user?.role === "CANDIDATE",
-  isHr: () => get().user?.role === "HR",
-  isMentor: () => get().user?.role === "MENTOR",
-  isStaff: () => get().user?.role === "STAFF",
-  isAdmin: () => get().user?.role === "ADMIN",
+  isCandidate: () => normalizeRole(get().user?.role) === "CANDIDATE",
+  isHr: () => normalizeRole(get().user?.role) === "HR",
+  isMentor: () => normalizeRole(get().user?.role) === "MENTOR",
+  isStaff: () => normalizeRole(get().user?.role) === "STAFF",
+  isAdmin: () => normalizeRole(get().user?.role) === "ADMIN",
 }));
 
-// Đăng ký tự động logout khi nhận mã HTTP 401 từ backend/gateway
+// Đăng ký tự động logout và chuyển hướng về /login khi nhận mã HTTP 401 từ backend/gateway
 registerUnauthorizedHandler(() => {
   useAuthStore.getState().logout();
+  if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+    window.location.href = "/login";
+  }
 });

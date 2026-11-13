@@ -14,8 +14,9 @@ import {
   Sliders,
   AlertOctagon,
   ShieldCheck,
-  Sparkles,
   X,
+  BookOpen,
+  Sparkles,
 } from "lucide-react";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useUiStore } from "../../store/useUiStore";
@@ -32,42 +33,46 @@ const ROLE_NAV_ITEMS: Record<Role, { groupTitle: string; items: NavItem[] }> = {
   CANDIDATE: {
     groupTitle: "Ứng Viên & Học Viên",
     items: [
-      { title: "Hồ sơ kỹ năng", path: "/candidate/profile", icon: Award },
-      { title: "Cơ hội việc làm", path: "/candidate/jobs", icon: Briefcase },
-      { title: "AI Career", path: "/candidate/career", icon: Sparkles },
-      { title: "Đơn đã ứng tuyển", path: "/candidate/applications", icon: FileText },
-      { title: "Học bổ sung LMS", path: "/candidate/learning", icon: GraduationCap },
+      { title: "Hồ sơ", path: "/candidate/profile", icon: Award },
+      { title: "Việc làm", path: "/candidate/jobs", icon: Briefcase },
+      { title: "Ứng tuyển", path: "/candidate/applications", icon: FileText },
+      { title: "Lộ trình", path: "/candidate/roadmap", icon: GraduationCap },
+      { title: "Học bổ sung LMS", path: "/candidate/learning", icon: BookOpen },
+      { title: "Trợ lý AI", path: "/candidate/ai-assistant", icon: Sparkles },
     ],
   },
   HR: {
     groupTitle: "Nhà Tuyển Dụng",
     items: [
-      { title: "Hồ sơ công ty", path: "/hr/company", icon: Building2 },
-      { title: "Tin tuyển dụng", path: "/hr/jobs", icon: Briefcase },
-      { title: "Tìm kiếm ứng viên", path: "/hr/candidates", icon: Users },
+      { title: "Công ty", path: "/hr/company", icon: Building2 },
+      { title: "JD", path: "/hr/jobs", icon: Briefcase },
+      { title: "Tuyển dụng", path: "/hr/candidates", icon: Users },
       { title: "Phỏng vấn & Offer", path: "/hr/interviews", icon: CalendarCheck },
-      { title: "Thực tập IOC", path: "/hr/ioc", icon: Layers },
+      { title: "Thực tập sinh", path: "/hr/ioc", icon: Layers },
     ],
   },
   MENTOR: {
     groupTitle: "Giảng Viên / Mentor",
     items: [
+      { title: "Cần đánh giá", path: "/mentor/evaluations", icon: ClipboardCheck },
       { title: "Thực tập sinh IOC", path: "/mentor/students", icon: Users },
-      { title: "Phiếu đánh giá", path: "/mentor/evaluations", icon: ClipboardCheck },
     ],
   },
   STAFF: {
     groupTitle: "Cán Bộ Vận Hành",
     items: [
-      { title: "Duyệt tin tuyển dụng", path: "/staff/jobs", icon: CheckSquare },
-      { title: "Doanh nghiệp & HR", path: "/staff/companies", icon: Building2 },
-      { title: "Ghép đợt IOC", path: "/staff/ioc", icon: Layers },
+      { title: "Duyệt hồ sơ", path: "/staff/profiles", icon: CheckSquare },
+      { title: "Duyệt JD", path: "/staff/jobs", icon: FileText },
+      { title: "Doanh nghiệp", path: "/staff/companies", icon: Building2 },
+      { title: "Ghép thực tập", path: "/staff/ioc", icon: Layers },
+      { title: "Báo cáo", path: "/staff/reports", icon: ClipboardCheck },
       { title: "Mở khóa liên hệ PII", path: "/staff/unlock-contacts", icon: KeyRound },
     ],
   },
   ADMIN: {
     groupTitle: "Quản Trị Hệ Thống",
     items: [
+      { title: "Quản trị", path: "/admin/skills", icon: ShieldCheck },
       { title: "Danh mục & Trọng số", path: "/admin/skills", icon: Sliders },
       { title: "Quản lý Huy hiệu", path: "/admin/badges", icon: Award },
       { title: "Báo sai bằng chứng", path: "/admin/overrides", icon: AlertOctagon },
