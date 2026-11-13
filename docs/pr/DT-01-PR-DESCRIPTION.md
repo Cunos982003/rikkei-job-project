@@ -107,3 +107,4 @@ cd frontend && npm run dev
 3. Trang tự động chuyển vào `/candidate/learning`.
 4. Quan sát tỷ lệ sẵn sàng, bảng kỹ năng thiếu hụt và đổi thử giữa các vị trí mục tiêu.
 5. Chuyển sang `/candidate/jobs`, chọn một tin tuyển dụng và bấm **"Phân tích so với JD này"**.
+

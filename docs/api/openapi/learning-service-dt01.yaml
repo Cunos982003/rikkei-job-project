@@ -405,3 +405,4 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/GapAnalysisResponse'
+
