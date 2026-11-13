@@ -17,7 +17,7 @@ class ApiGatewayApplicationTests {
     void contextLoadsAndRoutesAreConfigured() {
         assertNotNull(gatewayMvcProperties.getRoutes());
         assertFalse(gatewayMvcProperties.getRoutes().isEmpty(), "Routes must not be empty");
-        assertTrue(gatewayMvcProperties.getRoutes().stream().anyMatch(r -> "learning-service".equals(r.getId())));
-        assertTrue(gatewayMvcProperties.getRoutes().stream().anyMatch(r -> "learning-service-me".equals(r.getId())));
+        assertTrue(gatewayMvcProperties.getRoutes().stream().anyMatch(r -> "learning".equals(r.getId())));
+        assertTrue(gatewayMvcProperties.getRoutes().stream().anyMatch(r -> "learning-scoped".equals(r.getId())));
     }
 }
