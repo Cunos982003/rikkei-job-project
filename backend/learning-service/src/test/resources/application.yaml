@@ -24,3 +24,4 @@ app:
     profile-service-url: http://localhost:8082
     job-service-url: http://localhost:9000
     mock-server-url: http://localhost:9000
+
