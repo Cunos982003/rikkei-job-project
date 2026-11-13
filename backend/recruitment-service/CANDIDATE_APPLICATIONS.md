@@ -7,7 +7,7 @@ Dịch vụ cung cấp các API ứng tuyển sau:
 - `GET /me/recruitments/{id}` (bao gồm lịch sử trạng thái)
 - `POST /me/recruitments/{id}/withdraw` với dữ liệu `{ "reason": "..." }`
 
-Các API dành cho ứng viên yêu cầu bearer JWT có claim `userId` (UUID hoặc `subject` là UUID) và `role`. HR muốn xem CV cũng cần claim `companyId`. Cấu hình `JWT_SECRET` trùng với khóa ký mà auth service sử dụng; giá trị mặc định chỉ dành cho môi trường phát triển cục bộ.
+Các API dành cho ứng viên yêu cầu bearer JWT có claim `userId` (UUID hoặc `subject` là UUID) và `role`. HR muốn xem CV cũng cần claim `companyId`. Cấu hình `JWT_SECRET` trong `.env` tại thư mục gốc trùng với khóa ký mà auth service sử dụng.
 
 ## Hợp đồng tích hợp với các dịch vụ khác
 
@@ -20,6 +20,7 @@ Dịch vụ ứng tuyển sao chép PDF vào `CV_SNAPSHOT_DIRECTORY` và lưu UR
 
 ## Vận hành và các giới hạn
 
+- Dịch vụ dùng PostgreSQL với các biến `RECRUITMENT_DATABASE_URL`, `RECRUITMENT_DATABASE_USERNAME`, `RECRUITMENT_DATABASE_PASSWORD` trong `.env` tại thư mục gốc. Xem README gốc để tạo database; H2 chỉ dùng cho kiểm thử.
 - Dịch vụ gửi email thông báo cho HR sau khi giao dịch tạo đơn ứng tuyển được commit. Cấu hình `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_AUTH` và `SMTP_STARTTLS`. Nếu chưa cấu hình SMTP, không có địa chỉ HR hoặc gửi email thất bại, đơn ứng tuyển vẫn được lưu và lỗi được ghi log. Nếu cần bảo đảm gửi email, hãy bổ sung giám sát/cơ chế thử lại hoặc transactional outbox.
 - CV phải là PDF và không vượt quá `CV_MAX_PDF_BYTES` (mặc định 10 MiB).
 - Ứng viên chỉ được có một đơn chưa rút cho mỗi công việc. Nộp trùng khi đơn trước vẫn đang hoạt động trả về `409 Conflict`. Sau khi rút đơn, ứng viên có thể nộp lại; lần nộp lại tạo một đơn mới và giữ nguyên đơn cùng lịch sử cũ.

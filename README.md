@@ -251,6 +251,33 @@ npm run dev
 ```
 
 #### 3. Khởi động Backend (Spring Boot Microservices)
+
+##### PostgreSQL cho AI Career và Recruitment
+
+Tạo `.env` ở thư mục gốc từ `.env.example`, sau đó điền mật khẩu PostgreSQL,
+`JWT_SECRET` (trùng với auth-service) và các API key hoặc thông tin SMTP cần
+dùng. Không commit `.env`; giá trị mẫu cần được thay trước khi chạy.
+Hai service đọc `.env` khi chạy từ thư mục gốc hoặc thư mục service; cũng có
+thể cung cấp các biến này qua môi trường chạy. Tạo hai database `ai_db` và
+`recruitment_db` trên PostgreSQL trước khi khởi động, ví dụ với Docker Compose:
+
+```bash
+docker compose -f infra/docker-compose.yml up -d postgres
+docker compose -f infra/docker-compose.yml exec postgres createdb -U postgres ai_db
+docker compose -f infra/docker-compose.yml exec postgres createdb -U postgres recruitment_db
+```
+
+Mặc định Compose dùng người dùng và mật khẩu PostgreSQL `postgres`; cấu hình
+thông tin kết nối tương ứng trong `.env`. Nếu thay đổi cấu hình Compose, dùng
+người dùng và mật khẩu tương ứng. Hai lệnh `createdb` chỉ chạy một lần cho
+mỗi database. Hibernate tạo/cập nhật schema khi service khởi động; thao tác này
+không di chuyển dữ liệu H2 hoặc dữ liệu PostgreSQL cũ. Hãy sao lưu và thực
+hiện migration riêng nếu cần giữ dữ liệu hiện có.
+
+Chạy từ các thư mục `ai_career_service` và `backend/recruitment-service` bằng
+`./gradlew bootRun` (Windows: `gradlew.bat bootRun`). Các kiểm thử tự động dùng
+H2 riêng, không dùng database PostgreSQL thật.
+
 ```bash
 # Tùy chọn A: Khởi động hạ tầng bổ trợ bằng Docker (PostgreSQL, Redis, Kafka, MinIO, Mailpit)
 docker compose -f infra/docker-compose.yml up -d
