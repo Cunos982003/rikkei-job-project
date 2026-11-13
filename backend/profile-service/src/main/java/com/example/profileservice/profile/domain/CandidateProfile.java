@@ -63,6 +63,12 @@ public class CandidateProfile {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
+    @Column(name = "consent_at")
+    private OffsetDateTime consentAt;
+
+    @Column(name = "consent_withdrawn_at")
+    private OffsetDateTime consentWithdrawnAt;
+
     @PrePersist
     void onPersist() {
         if (visibility == null) {
