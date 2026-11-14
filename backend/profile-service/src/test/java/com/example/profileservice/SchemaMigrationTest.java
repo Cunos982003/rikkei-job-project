@@ -80,7 +80,7 @@ class SchemaMigrationTest {
         List<Map<String, Object>> candidateProfilesColumns = jdbcTemplate.queryForList(
             "SELECT column_name, column_default FROM information_schema.columns WHERE table_name = 'candidate_profiles'");
         assertThat(candidateProfilesColumns).extracting(m -> m.get("column_name"))
-            .containsExactlyInAnyOrder("user_id", "full_name", "dob", "gender", "phone", "email", "address", "avatar_url", "headline", "summary", "program", "class_code", "course_name", "visibility", "consent_at", "consent_withdrawn_at", "updated_at");
+            .containsExactlyInAnyOrder("user_id", "full_name", "dob", "gender", "phone", "email", "address", "avatar_url", "headline", "summary", "program", "class_code", "course_name", "visibility", "consent_at", "consent_withdrawn_at", "created_at", "updated_at");
 
         // Check visibility default value
         List<Map<String, Object>> visibilityDefault = jdbcTemplate.queryForList(

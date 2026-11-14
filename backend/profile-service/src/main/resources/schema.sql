@@ -77,8 +77,19 @@ CREATE TABLE IF NOT EXISTS candidate_profiles (
     visibility VARCHAR(20) NOT NULL DEFAULT 'PRIVATE' CHECK (visibility IN ('PRIVATE', 'PENDING', 'PUBLIC', 'REJECTED', 'RECRUITER')),
     consent_at TIMESTAMPTZ,
     consent_withdrawn_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Nâng cấp database đã tồn tại từ HS-02: CREATE TABLE IF NOT EXISTS ở trên là no-op
+-- với bảng đã có, nên cột và ràng buộc mới phải thêm bằng ALTER TABLE.
+ALTER TABLE candidate_profiles ADD COLUMN IF NOT EXISTS consent_at TIMESTAMPTZ;
+ALTER TABLE candidate_profiles ADD COLUMN IF NOT EXISTS consent_withdrawn_at TIMESTAMPTZ;
+ALTER TABLE candidate_profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
+ALTER TABLE candidate_profiles DROP CONSTRAINT IF EXISTS candidate_profiles_visibility_check;
+ALTER TABLE candidate_profiles ADD CONSTRAINT candidate_profiles_visibility_check
+    CHECK (visibility IN ('PRIVATE', 'PENDING', 'PUBLIC', 'REJECTED', 'RECRUITER'));
 
 CREATE TABLE IF NOT EXISTS educations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

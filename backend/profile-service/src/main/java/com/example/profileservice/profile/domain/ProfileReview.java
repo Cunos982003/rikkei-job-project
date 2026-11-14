@@ -1,5 +1,6 @@
 package com.example.profileservice.profile.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.OffsetDateTime;
@@ -17,6 +18,11 @@ public class ProfileReview {
     @Id
     @Column(name = "id", nullable = false, columnDefinition = "uuid")
     private UUID id;
+
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false, insertable = false, updatable = false)
+    private CandidateProfile profile;
 
     @Column(name = "user_id", nullable = false, columnDefinition = "uuid")
     private UUID userId;
