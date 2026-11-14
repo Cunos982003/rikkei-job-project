@@ -80,7 +80,7 @@ class SchemaMigrationTest {
         List<Map<String, Object>> candidateProfilesColumns = jdbcTemplate.queryForList(
             "SELECT column_name, column_default FROM information_schema.columns WHERE table_name = 'candidate_profiles'");
         assertThat(candidateProfilesColumns).extracting(m -> m.get("column_name"))
-            .containsExactlyInAnyOrder("user_id", "full_name", "dob", "gender", "phone", "email", "address", "avatar_url", "headline", "summary", "program", "class_code", "course_name", "visibility", "consent_at", "consent_withdrawn_at", "created_at", "updated_at");
+            .containsExactlyInAnyOrder("user_id", "full_name", "dob", "gender", "phone", "email", "address", "avatar_url", "headline", "summary", "program", "class_code", "course_name", "visibility", "consent_at", "consent_withdrawn_at", "created_at", "updated_at", "version");
 
         // Check visibility default value
         List<Map<String, Object>> visibilityDefault = jdbcTemplate.queryForList(
@@ -109,11 +109,11 @@ class SchemaMigrationTest {
         String actionCheck = (String) reviewConstraints.get(0).get("check_clause");
         assertThat(actionCheck).contains("SUBMIT").contains("APPROVE").contains("REJECT").contains("WITHDRAW");
 
-        // Check index on profile_reviews.user_id
+        // Check indexes on profile_reviews
         List<Map<String, Object>> reviewIndexes = jdbcTemplate.queryForList(
             "SELECT indexname FROM pg_indexes WHERE tablename = 'profile_reviews'");
         assertThat(reviewIndexes).extracting(m -> m.get("indexname"))
-            .contains("idx_profile_reviews_user_id");
+            .contains("idx_profile_reviews_user_id", "idx_profile_reviews_user_action_created");
 
         // Check educations table
         List<Map<String, Object>> educationsColumns = jdbcTemplate.queryForList(

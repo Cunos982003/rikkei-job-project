@@ -49,7 +49,7 @@ function sendJson(res, statusCode, data) {
     'Content-Type': 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Service-Key'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Service-Key, X-User-Id, X-User-Role'
   });
   res.end(JSON.stringify(data, null, 2));
 }
@@ -95,7 +95,7 @@ async function requestHandler(req, res) {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Service-Key'
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Service-Key, X-User-Id, X-User-Role'
     });
     res.end();
     return;
@@ -286,6 +286,39 @@ async function requestHandler(req, res) {
     if (!user) {
       return sendError(res, 404, 'Không tìm thấy tài khoản với email này');
     }
+    // Chỉ cho phép HR, MENTOR, STAFF, ADMIN đăng nhập mật khẩu
+    const allowedPasswordRoles = ['HR', 'MENTOR', 'STAFF', 'ADMIN'];
+    if (!allowedPasswordRoles.includes(user.role)) {
+      return sendError(res, 403, 'Học viên chỉ được đăng nhập qua vé SSO (tab Học viên)');
+    }
+    return sendJson(res, 200, {
+      accessToken: `mock-jwt-token-for-${user.role.toLowerCase()}-${Date.now()}`,
+      tokenType: 'Bearer',
+      expiresIn: 3600,
+      user: publicUser(user)
+    });
+  }
+
+  // 1.02 POST /api/v1/auth/sso (Đăng nhập SSO bằng vé từ LMS)
+  if (method === 'POST' && (pathname === '/api/v1/auth/sso' || pathname === '/auth/sso')) {
+    const body = await parseBody(req);
+    const ticket = body.ticket || '';
+
+    // Map ticket to student (giả lập LMS verify)
+    let matchedStudent = lmsData.students['std-001'];
+    if (ticket.includes('STD-002')) matchedStudent = lmsData.students['std-002'];
+    if (ticket.includes('STD-003')) matchedStudent = lmsData.students['std-003'];
+
+    if (!matchedStudent) {
+      return sendError(res, 404, 'Vé SSO không hợp lệ hoặc đã hết hạn');
+    }
+
+    // Tìm user trong hệ thống bằng email
+    const user = users.find(u => u.email === matchedStudent.email);
+    if (!user) {
+      return sendError(res, 404, 'Không tìm thấy tài khoản ứng viên');
+    }
+
     return sendJson(res, 200, {
       accessToken: `mock-jwt-token-for-${user.role.toLowerCase()}-${Date.now()}`,
       tokenType: 'Bearer',

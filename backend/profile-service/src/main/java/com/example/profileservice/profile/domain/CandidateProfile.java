@@ -1,5 +1,6 @@
 package com.example.profileservice.profile.domain;
 
+import com.example.profileservice.profile.domain.visibility.StateTransition;
 import com.example.profileservice.profile.domain.visibility.VisibilityState;
 import com.example.profileservice.profile.domain.visibility.VisibilityStateFactory;
 import jakarta.persistence.*;
@@ -10,6 +11,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Entity
@@ -76,6 +78,10 @@ public class CandidateProfile {
     @UpdateTimestamp
     private OffsetDateTime updatedAt;
 
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
@@ -84,27 +90,16 @@ public class CandidateProfile {
     @Builder.Default
     private List<ProfileReview> reviews = new ArrayList<>();
 
-    @Transient
-    private VisibilityState currentState;
-
     public enum Visibility {
         PRIVATE, PENDING, PUBLIC, REJECTED, RECRUITER
     }
 
-    @PostLoad
-    @PostPersist
-    private void initializeState() {
-        this.currentState = VisibilityStateFactory.getState(this.visibility);
-    }
-
     /**
-     * Ensure the current state is initialized.
-     * This is needed for unit tests where JPA callbacks don't fire.
+     * Get the current state object for the profile's visibility.
+     * Computed on-demand to avoid JPA callback reliance and transient field issues.
      */
-    private void ensureStateInitialized() {
-        if (this.currentState == null) {
-            this.currentState = VisibilityStateFactory.getState(this.visibility);
-        }
+    private VisibilityState getCurrentState() {
+        return VisibilityStateFactory.getState(this.visibility);
     }
 
     // ==================== State Machine Methods ====================
@@ -114,9 +109,7 @@ public class CandidateProfile {
      * Candidate must provide consent.
      */
     public void submitForReview(boolean consent, UUID actorId) {
-        ensureStateInitialized();
-        currentState.submitForReview(this, consent, actorId);
-        this.currentState = VisibilityStateFactory.getState(this.visibility);
+        applyTransition(getCurrentState().submitForReview(this, consent, actorId));
     }
 
     /**
@@ -124,9 +117,7 @@ public class CandidateProfile {
      * Staff only.
      */
     public void approve(UUID actorId) {
-        ensureStateInitialized();
-        currentState.approve(this, actorId);
-        this.currentState = VisibilityStateFactory.getState(this.visibility);
+        applyTransition(getCurrentState().approve(this, actorId));
     }
 
     /**
@@ -134,9 +125,7 @@ public class CandidateProfile {
      * Staff only. Requires reason.
      */
     public void reject(UUID actorId, String reason) {
-        ensureStateInitialized();
-        currentState.reject(this, actorId, reason);
-        this.currentState = VisibilityStateFactory.getState(this.visibility);
+        applyTransition(getCurrentState().reject(this, actorId, reason));
     }
 
     /**
@@ -144,9 +133,24 @@ public class CandidateProfile {
      * Candidate only.
      */
     public void withdraw(UUID actorId) {
-        ensureStateInitialized();
-        currentState.withdraw(this, actorId);
-        this.currentState = VisibilityStateFactory.getState(this.visibility);
+        applyTransition(getCurrentState().withdraw(this, actorId));
+    }
+
+    /**
+     * Apply a state transition to this aggregate.
+     * Encapsulates all state mutations within the Aggregate Root.
+     */
+    private void applyTransition(StateTransition transition) {
+        transition.newVisibility().ifPresent(v -> this.visibility = v);
+        transition.consentAt().ifPresent(this::setConsentAt);
+        transition.consentWithdrawnAt().ifPresent(this::setConsentWithdrawnAt);
+        if (transition.shouldClearConsentAt()) {
+            this.consentAt = null;
+        }
+        if (transition.shouldClearConsentWithdrawnAt()) {
+            this.consentWithdrawnAt = null;
+        }
+        transition.reviewToAdd().ifPresent(this::addReview);
     }
 
     // ==================== Internal Methods for State Classes ====================

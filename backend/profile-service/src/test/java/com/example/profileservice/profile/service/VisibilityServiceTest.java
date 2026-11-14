@@ -186,7 +186,7 @@ class VisibilityServiceTest {
 
         assertThatThrownBy(() -> service.approve(USER_ID, STAFF_ID))
                 .isInstanceOf(InvalidTransitionException.class)
-                .hasMessageContaining("PENDING");
+                .hasMessageContaining("Chờ duyệt");
 
         assertThat(profile.getVisibility()).isEqualTo(Visibility.PRIVATE);
         verify(profileRepo, never()).save(any());
@@ -221,22 +221,24 @@ class VisibilityServiceTest {
 
     @Test
     void review_history_is_returned_newest_first() {
+        // Use fixed timestamps to avoid flakiness
+        OffsetDateTime olderTime = OffsetDateTime.parse("2026-01-15T10:00:00Z");
+        OffsetDateTime newerTime = OffsetDateTime.parse("2026-01-15T12:00:00Z");
+
         ProfileReview older = ProfileReview.builder()
                 .userId(USER_ID).action(ProfileReview.Action.SUBMIT)
-                .actorId(USER_ID).createdAt(OffsetDateTime.now().minusHours(2)).build();
+                .actorId(USER_ID).createdAt(olderTime).build();
         ProfileReview newer = ProfileReview.builder()
                 .userId(USER_ID).action(ProfileReview.Action.APPROVE)
-                .actorId(STAFF_ID).createdAt(OffsetDateTime.now()).build();
+                .actorId(STAFF_ID).createdAt(newerTime).build();
 
         CandidateProfile profile = CandidateProfile.builder()
                 .userId(USER_ID)
                 .visibility(Visibility.PUBLIC)
                 .build();
-        // Manually add reviews to the profile for testing
-        profile.addReview(older);
-        profile.addReview(newer);
 
         when(profileRepo.findByUserId(USER_ID)).thenReturn(Optional.of(profile));
+        when(reviewRepo.findByUserIdOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of(newer, older));
 
         List<ProfileReview> history = service.getReviewHistory(USER_ID);
 

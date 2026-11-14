@@ -55,8 +55,8 @@ public class VisibilityService {
 
     @Transactional(readOnly = true)
     public List<ProfileReview> getReviewHistory(UUID userId) {
-        CandidateProfile profile = requireProfile(userId);
-        return profile.getReviewHistory();
+        requireProfile(userId); // verify profile exists
+        return reviewRepo.findByUserIdOrderByCreatedAtDesc(userId);
     }
 
     /**

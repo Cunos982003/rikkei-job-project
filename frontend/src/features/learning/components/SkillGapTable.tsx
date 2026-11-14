@@ -176,7 +176,8 @@ export const SkillGapTable: React.FC<SkillGapTableProps> = ({ items }) => {
                       className="text-xs text-primary hover:text-primary-hover hover:bg-primary-light"
                       rightIcon={<ArrowUpRight className="h-3.5 w-3.5" />}
                       onClick={() => {
-                        window.open("http://localhost:9000", "_blank");
+                        const lmsUrl = import.meta.env.VITE_LMS_BASE_URL || 'http://localhost:9000';
+                        window.open(lmsUrl, "_blank");
                       }}
                     >
                       Học trên LMS

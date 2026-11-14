@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS skill_scores (
     verified_score SMALLINT,
     self_score SMALLINT,
     level VARCHAR(20) NOT NULL CHECK (level IN ('Cơ bản','Khá','Vững','Nâng cao')),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT transaction_timestamp(),
     PRIMARY KEY (user_id, skill_id)
 );
 
@@ -45,7 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_skill_mappings_source_code ON skill_mappings(sour
 CREATE TABLE IF NOT EXISTS internships (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL, batch_id VARCHAR(100) NOT NULL,
     batch_name VARCHAR(200), group_name VARCHAR(200), topic_name VARCHAR(300), mentor_email VARCHAR(200),
-    start_date DATE, end_date DATE, final_score NUMERIC(5,2), synced_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    start_date DATE, end_date DATE, final_score NUMERIC(5,2), synced_at TIMESTAMPTZ NOT NULL DEFAULT transaction_timestamp(),
     UNIQUE(user_id, batch_id)
 );
 CREATE TABLE IF NOT EXISTS internship_tasks (
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS internship_tasks (
 );
 CREATE TABLE IF NOT EXISTS portfolio_projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL, source VARCHAR(20) NOT NULL,
-    source_ref VARCHAR(100) NOT NULL, name VARCHAR(300) NOT NULL, role VARCHAR(300), created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    source_ref VARCHAR(100) NOT NULL, name VARCHAR(300) NOT NULL, role VARCHAR(300), created_at TIMESTAMPTZ NOT NULL DEFAULT transaction_timestamp(),
     UNIQUE(user_id, source, source_ref)
 );
 
@@ -77,15 +77,17 @@ CREATE TABLE IF NOT EXISTS candidate_profiles (
     visibility VARCHAR(20) NOT NULL DEFAULT 'PRIVATE' CHECK (visibility IN ('PRIVATE', 'PENDING', 'PUBLIC', 'REJECTED', 'RECRUITER')),
     consent_at TIMESTAMPTZ,
     consent_withdrawn_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT transaction_timestamp(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT transaction_timestamp(),
+    version BIGINT NOT NULL DEFAULT 0
 );
 
 -- Nâng cấp database đã tồn tại từ HS-02: CREATE TABLE IF NOT EXISTS ở trên là no-op
 -- với bảng đã có, nên cột và ràng buộc mới phải thêm bằng ALTER TABLE.
 ALTER TABLE candidate_profiles ADD COLUMN IF NOT EXISTS consent_at TIMESTAMPTZ;
 ALTER TABLE candidate_profiles ADD COLUMN IF NOT EXISTS consent_withdrawn_at TIMESTAMPTZ;
-ALTER TABLE candidate_profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE candidate_profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT transaction_timestamp();
+ALTER TABLE candidate_profiles ADD COLUMN IF NOT EXISTS version BIGINT NOT NULL DEFAULT 0;
 
 ALTER TABLE candidate_profiles DROP CONSTRAINT IF EXISTS candidate_profiles_visibility_check;
 ALTER TABLE candidate_profiles ADD CONSTRAINT candidate_profiles_visibility_check
@@ -123,10 +125,21 @@ CREATE TABLE IF NOT EXISTS profile_reviews (
     action VARCHAR(20) NOT NULL CHECK (action IN ('SUBMIT','APPROVE','REJECT','WITHDRAW')),
     reason TEXT,
     actor_id UUID NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT transaction_timestamp()
 );
 
 CREATE INDEX IF NOT EXISTS idx_profile_reviews_user_id ON profile_reviews(user_id);
+
+-- Composite index for efficient review history queries (user_id + action + created_at DESC)
+CREATE INDEX IF NOT EXISTS idx_profile_reviews_user_action_created
+    ON profile_reviews(user_id, action, created_at DESC);
+
+-- Partial unique index: prevent duplicate APPROVE/REJECT per user
+-- Only one APPROVE and one REJECT allowed per profile (prevents race condition)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_profile_reviews_user_approve
+    ON profile_reviews(user_id) WHERE action = 'APPROVE';
+CREATE UNIQUE INDEX IF NOT EXISTS uq_profile_reviews_user_reject
+    ON profile_reviews(user_id) WHERE action = 'REJECT';
 
 -- File metadata (chứng chỉ, ảnh minh chứng, ảnh đại diện)
 CREATE TABLE IF NOT EXISTS files (
@@ -137,7 +150,7 @@ CREATE TABLE IF NOT EXISTS files (
     size_bytes BIGINT NOT NULL CHECK (size_bytes > 0),
     storage_path VARCHAR(500) NOT NULL,
     purpose VARCHAR(30) NOT NULL CHECK (purpose IN ('CERTIFICATE', 'EVIDENCE', 'AVATAR')),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT transaction_timestamp()
 );
 
 CREATE INDEX IF NOT EXISTS idx_files_user_id ON files(user_id);
@@ -163,7 +176,7 @@ CREATE TABLE IF NOT EXISTS profile_badges (
     user_id UUID NOT NULL,
     badge_rule_id UUID NOT NULL REFERENCES badge_rules(id),
     granted_type VARCHAR(10) NOT NULL CHECK (granted_type IN ('AUTO', 'MANUAL')),
-    granted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    granted_at TIMESTAMPTZ NOT NULL DEFAULT transaction_timestamp(),
     revoked_at TIMESTAMPTZ,
     UNIQUE (user_id, badge_rule_id)
 );
@@ -173,7 +186,7 @@ CREATE INDEX IF NOT EXISTS idx_profile_badges_user_id ON profile_badges(user_id)
 -- Nhật ký đồng bộ định kỳ từ các hệ thống nguồn
 CREATE TABLE IF NOT EXISTS sync_runs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    started_at TIMESTAMPTZ NOT NULL DEFAULT transaction_timestamp(),
     completed_at TIMESTAMPTZ,
     status VARCHAR(20) NOT NULL CHECK (status IN ('RUNNING', 'SUCCESS', 'PARTIAL', 'FAILED')),
     error TEXT
@@ -185,7 +198,7 @@ CREATE TABLE IF NOT EXISTS sync_run_sources (
     run_id UUID NOT NULL REFERENCES sync_runs(id) ON DELETE CASCADE,
     source VARCHAR(20) NOT NULL CHECK (source IN ('LMS', 'EXAM', 'PM')),
     status VARCHAR(20) NOT NULL CHECK (status IN ('RUNNING', 'SUCCESS', 'FAILED')),
-    started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    started_at TIMESTAMPTZ NOT NULL DEFAULT transaction_timestamp(),
     completed_at TIMESTAMPTZ,
     records_processed INT NOT NULL DEFAULT 0,
     error TEXT,
