@@ -3,6 +3,8 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { setAccessToken, setCurrentUserId, registerUnauthorizedHandler } from "../api/client";
 import { authApi, type Role, type UserProfile, type AuthResponseData } from "../api/endpoints/auth.api";
 
+const AUTH_STORAGE_KEY = "rikkei_auth_storage";
+
 export const normalizeRole = (role?: string): Role => {
   if (!role) return "CANDIDATE";
   const clean = role.replace(/^ROLE_/, "").toUpperCase();
@@ -111,6 +113,10 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         setAccessToken(null);
         setCurrentUserId(null);
+        // Xóa luôn persisted storage để tránh rehydrate state cũ khi reload
+        if (typeof window !== "undefined") {
+          try { localStorage.removeItem(AUTH_STORAGE_KEY); } catch {}
+        }
         set({
           user: null,
           accessToken: null,

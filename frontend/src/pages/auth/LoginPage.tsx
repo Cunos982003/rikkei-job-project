@@ -40,29 +40,32 @@ export function LoginPage() {
   });
 
   const handleRedirectAfterLogin = (role: string) => {
-    const fromPath = (location.state as { from?: { pathname: string } })?.from?.pathname;
-    if (fromPath && fromPath !== "/login") {
-      navigate(fromPath, { replace: true });
-    } else {
-      switch (role) {
-        case "HR":
-          navigate("/hr/company", { replace: true });
-          break;
-        case "MENTOR":
-          navigate("/mentor/students", { replace: true });
-          break;
-        case "STAFF":
-          navigate("/staff/jobs", { replace: true });
-          break;
-        case "ADMIN":
-          navigate("/admin/skills", { replace: true });
-          break;
-        case "CANDIDATE":
-        default:
-          navigate("/candidate/learning", { replace: true });
-          break;
+    // Đợi microtask để auth store cập nhật xong (token, userId, user role)
+    setTimeout(() => {
+      const fromPath = (location.state as { from?: { pathname: string } })?.from?.pathname;
+      if (fromPath && fromPath !== "/login") {
+        navigate(fromPath, { replace: true });
+      } else {
+        switch (role) {
+          case "HR":
+            navigate("/hr/company", { replace: true });
+            break;
+          case "MENTOR":
+            navigate("/mentor/students", { replace: true });
+            break;
+          case "STAFF":
+            navigate("/staff/jobs", { replace: true });
+            break;
+          case "ADMIN":
+            navigate("/admin/skills", { replace: true });
+            break;
+          case "CANDIDATE":
+          default:
+            navigate("/candidate/learning", { replace: true });
+            break;
+        }
       }
-    }
+    }, 0);
   };
 
   const onSubmit = async (values: LoginFormValues) => {
@@ -99,7 +102,8 @@ export function LoginPage() {
   const handleGetMockTicket = async () => {
     setIsFetchingMockTicket(true);
     try {
-      const res = await fetch("http://localhost:9000/lms/sso/tickets", {
+      const mockBaseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:9001';
+      const res = await fetch(`${mockBaseUrl}/lms/sso/tickets`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -10,7 +10,7 @@ const url = require('url');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = process.env.PORT || 9000;
+const PORT = 9001;
 const SERVICE_KEY = 'dev-key';
 
 // Đọc dữ liệu mẫu từ mock/data/
@@ -33,13 +33,23 @@ const skillsData = loadData('skills.json') || [];
 const jobsData = loadData('jobs.json') || [];
 const evaluationsData = loadData('evaluations.json') || [];
 
+// Lịch sử duyệt hồ sơ (HS-05), chỉ tồn tại trong bộ nhớ của tiến trình mock
+const profileReviews = [];
+
+// Bỏ trường password trước khi trả user ra ngoài (đăng nhập, /auth/me).
+function publicUser(user) {
+  if (!user) return user;
+  const { password, ...safe } = user;
+  return safe;
+}
+
 // Helper helper gửi response JSON
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Service-Key'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Service-Key, X-User-Id, X-User-Role'
   });
   res.end(JSON.stringify(data, null, 2));
 }
@@ -85,7 +95,7 @@ async function requestHandler(req, res) {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Service-Key'
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Service-Key, X-User-Id, X-User-Role'
     });
     res.end();
     return;
@@ -276,11 +286,44 @@ async function requestHandler(req, res) {
     if (!user) {
       return sendError(res, 404, 'Không tìm thấy tài khoản với email này');
     }
+    // Chỉ cho phép HR, MENTOR, STAFF, ADMIN đăng nhập mật khẩu
+    const allowedPasswordRoles = ['HR', 'MENTOR', 'STAFF', 'ADMIN'];
+    if (!allowedPasswordRoles.includes(user.role)) {
+      return sendError(res, 403, 'Học viên chỉ được đăng nhập qua vé SSO (tab Học viên)');
+    }
     return sendJson(res, 200, {
       accessToken: `mock-jwt-token-for-${user.role.toLowerCase()}-${Date.now()}`,
       tokenType: 'Bearer',
       expiresIn: 3600,
-      user: user
+      user: publicUser(user)
+    });
+  }
+
+  // 1.02 POST /api/v1/auth/sso (Đăng nhập SSO bằng vé từ LMS)
+  if (method === 'POST' && (pathname === '/api/v1/auth/sso' || pathname === '/auth/sso')) {
+    const body = await parseBody(req);
+    const ticket = body.ticket || '';
+
+    // Map ticket to student (giả lập LMS verify)
+    let matchedStudent = lmsData.students['std-001'];
+    if (ticket.includes('STD-002')) matchedStudent = lmsData.students['std-002'];
+    if (ticket.includes('STD-003')) matchedStudent = lmsData.students['std-003'];
+
+    if (!matchedStudent) {
+      return sendError(res, 404, 'Vé SSO không hợp lệ hoặc đã hết hạn');
+    }
+
+    // Tìm user trong hệ thống bằng email
+    const user = users.find(u => u.email === matchedStudent.email);
+    if (!user) {
+      return sendError(res, 404, 'Không tìm thấy tài khoản ứng viên');
+    }
+
+    return sendJson(res, 200, {
+      accessToken: `mock-jwt-token-for-${user.role.toLowerCase()}-${Date.now()}`,
+      tokenType: 'Bearer',
+      expiresIn: 3600,
+      user: publicUser(user)
     });
   }
 
@@ -304,19 +347,24 @@ async function requestHandler(req, res) {
     else if (authHeader.includes('mentor')) matchedUser = users[5]; // mentor1
     else if (authHeader.includes('staff')) matchedUser = users[6]; // staff1
     else if (authHeader.includes('admin')) matchedUser = users[7]; // admin1
-    return sendJson(res, 200, matchedUser);
+    return sendJson(res, 200, publicUser(matchedUser));
   }
 
   // 1.2 GET /api/v1/profiles/:userId/skills & /profiles/me/skills (Hồ sơ kỹ năng cho Frontend)
   const profileSkillsMatch = pathname.match(/^\/(?:api\/v1\/)?profiles\/(me|[^\/]+)\/skills$/);
   if (method === 'GET' && profileSkillsMatch) {
     const targetId = profileSkillsMatch[1];
-    let cand = candidates[0];
-    const xUserId = req.headers['x-user-id'];
-    if (targetId === 'me' && xUserId) {
-      cand = candidates.find(c => c.id === xUserId || c.userId === xUserId || c.lmsUserId === xUserId || c.email === xUserId) || candidates[0];
-    } else if (targetId !== 'me') {
-      cand = candidates.find(c => c.id === targetId || c.userId === targetId || c.lmsUserId === targetId || c.email === targetId) || candidates[0];
+    // Backend thật xác định danh tính qua X-User-Id; thiếu header trả 401.
+    const requesterId = req.headers['x-user-id'];
+    if (!requesterId) {
+      return sendError(res, 401, 'Thiếu header X-User-Id');
+    }
+    // Chỉ xem được kỹ năng của chính mình — giống ProfileVisibilityService:
+    // hồ sơ không công khai trả 404 cho người khác (và cho id không tồn tại).
+    const requester = users.find(u => u.id === requesterId);
+    const cand = requester ? candidates.find(c => c.email === requester.email) : null;
+    if (targetId !== 'me' || !cand) {
+      return sendError(res, 404, 'Không tìm thấy hồ sơ ứng viên');
     }
     const formattedSkills = (cand.skills || []).map((s, idx) => ({
       skillId: String(idx + 1),
@@ -413,28 +461,6 @@ async function requestHandler(req, res) {
     });
   }
 
-  // 5.1 GET /api/v1/jobs/:id (Chi tiết JD kèm yêu cầu kỹ năng jobSkills)
-  const jobDetailMatch = pathname.match(/^\/api\/v1\/jobs\/([^\/]+)$/);
-  if (method === 'GET' && jobDetailMatch) {
-    const jobId = jobDetailMatch[1];
-    const job = jobsData.find(j => j.id === jobId);
-    if (!job) {
-      return sendError(res, 404, `Không tìm thấy tin tuyển dụng với mã ${jobId}`);
-    }
-    return sendJson(res, 200, job);
-  }
-
-  // 5.2 GET /api/v1/jobs/:id/skills (Lấy riêng danh sách kỹ năng của JD)
-  const jobSkillsMatch = pathname.match(/^\/api\/v1\/jobs\/([^\/]+)\/skills$/);
-  if (method === 'GET' && jobSkillsMatch) {
-    const jobId = jobSkillsMatch[1];
-    const job = jobsData.find(j => j.id === jobId);
-    if (!job) {
-      return sendError(res, 404, `Không tìm thấy tin tuyển dụng với mã ${jobId}`);
-    }
-    return sendJson(res, 200, job.jobSkills || []);
-  }
-
   // 6. Test Error Endpoints (Phục vụ Frontend kiểm thử xử lý lỗi)
   if (pathname === '/api/v1/mock/error-400') {
     return sendError(res, 400, 'Dữ liệu gửi lên không đúng định dạng');
@@ -486,6 +512,12 @@ async function requestHandler(req, res) {
     return sendError(res, 404, 'Không tìm thấy hồ sơ ứng viên');
   }
 
+  // Gắn định danh người gọi và trạng thái mặc định để FE và luồng HS-05 dùng chung một id
+  if (currentCandidate) {
+    currentCandidate.userId = currentUserId;
+    if (!currentCandidate.visibility) currentCandidate.visibility = 'PRIVATE';
+  }
+
   // 1. GET /profiles/me
   if (method === 'GET' && profilePath === '/profiles/me') {
     return sendJson(res, 200, currentCandidate);
@@ -494,7 +526,8 @@ async function requestHandler(req, res) {
   // 2. PUT /profiles/me — bỏ qua các trường đồng bộ từ LMS
   if (method === 'PUT' && profilePath === '/profiles/me') {
     const body = await parseBody(req);
-    const editable = ['phone', 'dob', 'gender', 'address', 'avatarUrl', 'headline', 'summary', 'visibility'];
+    // visibility không nằm trong danh sách: trạng thái công khai chỉ đổi qua luồng duyệt
+    const editable = ['phone', 'dob', 'gender', 'address', 'avatarUrl', 'headline', 'summary'];
     editable.forEach(field => {
       if (body[field] !== undefined) currentCandidate[field] = body[field];
     });
@@ -637,6 +670,131 @@ async function requestHandler(req, res) {
     currentCandidate.certificates.splice(index, 1);
     res.writeHead(204, { 'Access-Control-Allow-Origin': '*' });
     return res.end();
+  }
+
+  // =============================================================
+  // G. LUỒNG CÔNG KHAI HỒ SƠ (HS-05)
+  // Trạng thái: PRIVATE → PENDING → PUBLIC | REJECTED; rút về PRIVATE.
+  // Chuyển trạng thái sai luật trả 409, thiếu consent/lý do trả 400.
+  // =============================================================
+
+  function recordReview(userId, action, actorId, reason) {
+    profileReviews.unshift({
+      id: 'rev-' + Date.now() + '-' + profileReviews.length,
+      userId: userId,
+      action: action,
+      reason: reason || null,
+      actorId: actorId,
+      createdAt: new Date().toISOString()
+    });
+  }
+
+  function visibilityOf(userId) {
+    const cand = candidates.find(c => c.userId === userId || c.id === userId);
+    return cand ? (cand.visibility || 'PRIVATE') : null;
+  }
+
+  function setVisibility(userId, visibility) {
+    const cand = candidates.find(c => c.userId === userId || c.id === userId);
+    if (cand) cand.visibility = visibility;
+  }
+
+  // 13. POST /profiles/me/publish {consent}
+  if (method === 'POST' && profilePath === '/profiles/me/publish') {
+    const body = await parseBody(req);
+    if (body.consent !== true) {
+      return sendError(res, 400, 'Cần đồng ý điều khoản công khai trước khi gửi duyệt');
+    }
+    const current = currentCandidate.visibility || 'PRIVATE';
+    if (current !== 'PRIVATE' && current !== 'REJECTED') {
+      return sendError(res, 409, `Chỉ gửi duyệt được hồ sơ PRIVATE hoặc REJECTED. Hiện tại: ${current}`);
+    }
+    currentCandidate.visibility = 'PENDING';
+    currentCandidate.consentAt = new Date().toISOString();
+    currentCandidate.consentWithdrawnAt = null;
+    currentCandidate.updatedAt = new Date().toISOString();
+    recordReview(currentUserId, 'SUBMIT', currentUserId);
+    return sendJson(res, 200, currentCandidate);
+  }
+
+  // 14. POST /profiles/me/withdraw
+  if (method === 'POST' && profilePath === '/profiles/me/withdraw') {
+    const current = currentCandidate.visibility || 'PRIVATE';
+    if (current !== 'PENDING' && current !== 'PUBLIC') {
+      return sendError(res, 409, `Chỉ rút được hồ sơ PENDING hoặc PUBLIC. Hiện tại: ${current}`);
+    }
+    currentCandidate.visibility = 'PRIVATE';
+    currentCandidate.consentWithdrawnAt = new Date().toISOString();
+    currentCandidate.updatedAt = new Date().toISOString();
+    recordReview(currentUserId, 'WITHDRAW', currentUserId);
+    return sendJson(res, 200, currentCandidate);
+  }
+
+  // 15. GET /profiles/me/review-history
+  if (method === 'GET' && profilePath === '/profiles/me/review-history') {
+    return sendJson(res, 200, profileReviews.filter(r => r.userId === currentUserId));
+  }
+
+  // 16. GET /staff/profile-reviews?status=PENDING — chỉ STAFF/ADMIN
+  if (method === 'GET' && profilePath === '/staff/profile-reviews') {
+    const role = (req.headers['x-user-role'] || '').toUpperCase().replace('ROLE_', '');
+    if (!currentUserId) {
+      return sendError(res, 401, 'Thiếu header X-User-Id');
+    }
+    if (role !== 'STAFF' && role !== 'ADMIN') {
+      return sendError(res, 403, 'Chức năng chỉ dành cho Cán bộ tuyển dụng (STAFF)');
+    }
+    const status = (query.status || 'PENDING').toUpperCase();
+    const matched = candidates.filter(c => (c.visibility || 'PRIVATE') === status);
+    const page = parseInt(query.page) || 0;
+    const size = parseInt(query.size) || 20;
+    return sendJson(res, 200, {
+      content: matched.slice(page * size, page * size + size).map(c => ({
+        userId: c.userId || c.id,
+        fullName: c.fullName,
+        email: c.email,
+        headline: c.headline || null,
+        avatarUrl: c.avatarUrl || null,
+        submittedAt: (profileReviews.find(r => r.userId === (c.userId || c.id) && r.action === 'SUBMIT') || {}).createdAt || null
+      })),
+      totalElements: matched.length,
+      totalPages: Math.ceil(matched.length / size) || 0,
+      number: page,
+      size: size
+    });
+  }
+
+  // 17. POST /staff/profiles/:userId/approve | /reject
+  const staffActionMatch = profilePath.match(/^\/staff\/profiles\/([^\/]+)\/(approve|reject)$/);
+  if (method === 'POST' && staffActionMatch) {
+    const role = (req.headers['x-user-role'] || '').toUpperCase().replace('ROLE_', '');
+    if (!currentUserId) {
+      return sendError(res, 401, 'Thiếu header X-User-Id');
+    }
+    if (role !== 'STAFF' && role !== 'ADMIN') {
+      return sendError(res, 403, 'Chức năng chỉ dành cho Cán bộ tuyển dụng (STAFF)');
+    }
+    const targetId = staffActionMatch[1];
+    const action = staffActionMatch[2];
+    const current = visibilityOf(targetId);
+    if (current === null) {
+      return sendError(res, 404, `Không tìm thấy hồ sơ ứng viên ${targetId}`);
+    }
+    if (current !== 'PENDING') {
+      return sendError(res, 409, `Chỉ duyệt/trả lại được hồ sơ PENDING. Hiện tại: ${current}`);
+    }
+    if (action === 'approve') {
+      setVisibility(targetId, 'PUBLIC');
+      recordReview(targetId, 'APPROVE', currentUserId);
+      return sendJson(res, 200, { userId: targetId, visibility: 'PUBLIC' });
+    }
+    const body = await parseBody(req);
+    if (!body.reason || !body.reason.trim()) {
+      return sendError(res, 400, 'Cần nhập lý do trả lại hồ sơ');
+    }
+    setVisibility(targetId, 'REJECTED');
+    recordReview(targetId, 'REJECT', currentUserId, body.reason);
+    return sendJson(res, 200, { userId: targetId, visibility: 'REJECTED' });
   }
 
   // 12. POST /files — mock upload, trả URL tương đối như backend

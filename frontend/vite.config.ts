@@ -3,8 +3,9 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 
-const proxyTarget = process.env.VITE_BACKEND_URL || 'http://localhost:8080';
-const careerProxyTarget = process.env.VITE_AI_CAREER_URL || 'http://localhost:8090';
+// Hardcode proxy targets để tránh phụ thuộc .env load
+const proxyTarget = 'http://localhost:9001';
+const careerProxyTarget = 'http://localhost:8090';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -18,6 +19,14 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
+        target: proxyTarget,
+        changeOrigin: true
+      },
+      '/lms': {
+        target: proxyTarget,
+        changeOrigin: true
+      },
+      '/staff': {
         target: proxyTarget,
         changeOrigin: true
       },

@@ -15,6 +15,19 @@ declare module "axios" {
 
 const TOKEN_STORAGE_KEY = "rikkei_access_token";
 const USER_ID_STORAGE_KEY = "rikkei_user_id";
+const AUTH_STORAGE_KEY = "rikkei_auth_storage";
+
+export const getCurrentUserRole = (): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    return parsed.state?.user?.role || null;
+  } catch {
+    return null;
+  }
+};
 
 let inMemoryAccessToken: string | null =
   typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : null;
@@ -86,7 +99,7 @@ export const registerUnauthorizedHandler = (handler: () => void) => {
  * Khởi tạo Axios Instance chính
  */
 export const axiosInstance: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "/api/v1",
+  baseURL: "/api/v1",
   timeout: 15000,
   headers: {
     "Content-Type": "application/json",
@@ -106,6 +119,11 @@ axiosInstance.interceptors.request.use(
     const userId = getCurrentUserId();
     if (userId && !config.headers["X-User-Id"]) {
       config.headers["X-User-Id"] = userId;
+    }
+
+    const userRole = getCurrentUserRole();
+    if (userRole && !config.headers["X-User-Role"]) {
+      config.headers["X-User-Role"] = userRole;
     }
 
     // Để trình duyệt tự sinh boundary cho multipart/form-data

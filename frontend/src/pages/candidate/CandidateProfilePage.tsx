@@ -11,7 +11,6 @@ import {
   BookOpen,
   Briefcase,
   Sparkles,
-  CheckCircle2,
   User,
   Mail,
   Phone,
@@ -35,6 +34,7 @@ import {
   type CertificateItem,
 } from "../../api/endpoints/profile.api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { VisibilitySection } from "../../features/profile/components/VisibilitySection";
 
 const VN_PHONE_REGEX = /^(03|05|07|08|09)[0-9]{8}$/;
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -132,14 +132,6 @@ export function CandidateProfilePage() {
 
   const updateProfileMutation = useMutation({
     mutationFn: (data: Partial<CandidateProfile>) => profileApi.updateMyProfile(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["myProfile"] });
-    },
-  });
-
-  const setVisibilityMutation = useMutation({
-    mutationFn: (visibility: CandidateProfile["visibility"]) =>
-      profileApi.updateMyProfile({ visibility }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["myProfile"] });
     },
@@ -405,7 +397,6 @@ export function CandidateProfilePage() {
   const educations = educationsData?.data ?? [];
   const certificates = certificatesData?.data ?? [];
   const skills = skillsData?.data ?? [];
-  const isPublic = profile?.visibility === "PUBLIC";
 
   const tabs = [
     { id: "info", label: "Thông tin", icon: User },
@@ -571,33 +562,7 @@ export function CandidateProfilePage() {
               </CardFooter>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-success" />
-                  <span>Trạng thái công khai</span>
-                </CardTitle>
-                <CardDescription>Kiểm soát quyền hiển thị hồ sơ với doanh nghiệp</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="p-3 bg-slate-50 rounded-lg border border-border-subtle text-xs text-muted leading-relaxed">
-                  Hồ sơ đang ở trạng thái{" "}
-                  <strong className="text-foreground">{isPublic ? "Công khai" : "Riêng tư"}</strong>.{" "}
-                  {isPublic
-                    ? "Doanh nghiệp có thể tìm thấy hồ sơ của bạn nhưng email và số điện thoại luôn được che giấu an toàn."
-                    : "Doanh nghiệp không thể tìm thấy hồ sơ của bạn trong tìm kiếm."}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={`w-full ${isPublic ? "text-danger border-rose-200 hover:bg-rose-50" : "text-primary border-primary/20 hover:bg-primary/5"}`}
-                  isLoading={setVisibilityMutation.isPending}
-                  onClick={() => setVisibilityMutation.mutate(isPublic ? "PRIVATE" : "PUBLIC")}
-                >
-                  {isPublic ? "Rút công khai hồ sơ" : "Công khai hồ sơ"}
-                </Button>
-              </CardContent>
-            </Card>
+            <VisibilitySection visibility={profile?.visibility} userId={profile?.userId} />
           </form>
         )}
 

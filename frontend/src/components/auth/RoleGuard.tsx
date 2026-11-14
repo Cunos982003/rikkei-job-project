@@ -8,12 +8,17 @@ interface RoleGuardProps {
 }
 
 export function RoleGuard({ allowedRoles, children }: RoleGuardProps) {
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
 
-  const userRole = normalizeRole(user?.role);
+  // Nếu chưa xác thực hoặc chưa có user, đợi (ProtectedRoute nên bắt case này trước)
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  const userRole = normalizeRole(user.role);
   const normalizedAllowedRoles = allowedRoles.map((r) => normalizeRole(r));
 
-  if (!user || !normalizedAllowedRoles.includes(userRole)) {
+  if (!normalizedAllowedRoles.includes(userRole)) {
     return <Navigate to="/unauthorized" replace />;
   }
 

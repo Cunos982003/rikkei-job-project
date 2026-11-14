@@ -1,0 +1,445 @@
+openapi: 3.0.3
+info:
+  title: Rikkei Jobs - Profile Service Visibility Workflow API (HS-05)
+  description: >
+    Luồng công khai hồ sơ ứng viên (Task HS-05).
+
+    Doanh nghiệp chỉ thấy hồ sơ khi ứng viên đồng ý công khai và cán bộ tuyển dụng đã duyệt.
+
+    Trạng thái: `PRIVATE` → (ứng viên gửi duyệt) → `PENDING` → (cán bộ) `PUBLIC` hoặc `REJECTED`.
+    `REJECTED` → (ứng viên sửa rồi gửi lại) → `PENDING`.
+    `PENDING` / `PUBLIC` → (ứng viên rút) → `PRIVATE`, có hiệu lực ngay.
+
+    Chuyển trạng thái sai luật trả `409`; thiếu đồng ý hoặc thiếu lý do trả `400`.
+  version: 1.0.0
+  contact:
+    name: Rikkei Jobs Team - Profile Module
+    email: dev@rikkei.vn
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: API Gateway (Cổng chính thức)
+  - url: http://localhost:8082/api/v1
+    description: Local Profile Service (Nội bộ)
+
+tags:
+  - name: Profile Visibility
+    description: Ứng viên gửi duyệt / rút công khai hồ sơ và xem lịch sử duyệt
+  - name: Staff Profile Review
+    description: Cán bộ tuyển dụng xem danh sách chờ duyệt, duyệt hoặc trả lại hồ sơ
+
+paths:
+  /profiles/me/publish:
+    post:
+      tags:
+        - Profile Visibility
+      summary: Gửi hồ sơ cho cán bộ duyệt
+      description: >
+        Chuyển hồ sơ từ `PRIVATE` hoặc `REJECTED` sang `PENDING`. Bắt buộc `consent = true`;
+        thiếu đồng ý trả `400`. Hồ sơ đang `PENDING` hoặc `PUBLIC` trả `409`.
+        Thời điểm đồng ý được ghi vào `consent_at`.
+      security:
+        - bearerAuth: []
+        - userIdHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishRequest'
+      responses:
+        '200':
+          description: Đã gửi duyệt, hồ sơ chuyển sang PENDING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateProfile'
+        '400':
+          description: Thiếu đồng ý điều khoản công khai
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '401':
+          description: Thiếu header X-User-Id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '409':
+          description: Trạng thái hiện tại không cho phép gửi duyệt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+
+  /profiles/me/withdraw:
+    post:
+      tags:
+        - Profile Visibility
+      summary: Rút hồ sơ khỏi trạng thái công khai
+      description: >
+        Chuyển hồ sơ từ `PENDING` hoặc `PUBLIC` về `PRIVATE`, có hiệu lực ngay —
+        doanh nghiệp không còn tìm thấy hồ sơ. Thời điểm rút được ghi vào `consent_withdrawn_at`.
+        Hồ sơ đang `PRIVATE` hoặc `REJECTED` trả `409`.
+      security:
+        - bearerAuth: []
+        - userIdHeader: []
+      responses:
+        '200':
+          description: Đã rút công khai, hồ sơ chuyển về PRIVATE
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateProfile'
+        '401':
+          description: Thiếu header X-User-Id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '409':
+          description: Trạng thái hiện tại không cho phép rút
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+
+  /profiles/me/review-history:
+    get:
+      tags:
+        - Profile Visibility
+      summary: Lịch sử duyệt hồ sơ của chính mình
+      description: Trả về toàn bộ lần chuyển trạng thái của hồ sơ, mới nhất trước.
+      security:
+        - bearerAuth: []
+        - userIdHeader: []
+      responses:
+        '200':
+          description: Lịch sử duyệt hồ sơ
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReviewHistoryItem'
+        '401':
+          description: Thiếu header X-User-Id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+
+  /staff/profile-reviews:
+    get:
+      tags:
+        - Staff Profile Review
+      summary: Danh sách hồ sơ theo trạng thái (màn cán bộ)
+      description: >
+        Trả về danh sách hồ sơ theo trạng thái, kèm thời điểm gửi duyệt gần nhất.
+        Yêu cầu vai trò STAFF hoặc ADMIN qua header `X-User-Role`.
+      security:
+        - bearerAuth: []
+        - userIdHeader: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Trạng thái cần lọc
+          schema:
+            type: string
+            enum: [PRIVATE, PENDING, PUBLIC, REJECTED]
+            default: PENDING
+        - name: page
+          in: query
+          required: false
+          description: Số trang, bắt đầu từ 0
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          description: Số bản ghi mỗi trang
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Danh sách hồ sơ theo trạng thái
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedPendingReview'
+        '400':
+          description: Trạng thái lọc không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '401':
+          description: Thiếu header X-User-Id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '403':
+          description: Không phải cán bộ tuyển dụng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+
+  /staff/profiles/{userId}/approve:
+    post:
+      tags:
+        - Staff Profile Review
+      summary: Duyệt hồ sơ đang chờ
+      description: Chuyển hồ sơ từ `PENDING` sang `PUBLIC`. Hồ sơ không ở `PENDING` trả `409`.
+      security:
+        - bearerAuth: []
+        - userIdHeader: []
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '200':
+          description: Đã duyệt, hồ sơ chuyển sang PUBLIC
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffActionResult'
+        '401':
+          description: Thiếu header X-User-Id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '403':
+          description: Không phải cán bộ tuyển dụng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '409':
+          description: Hồ sơ không ở trạng thái PENDING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+
+  /staff/profiles/{userId}/reject:
+    post:
+      tags:
+        - Staff Profile Review
+      summary: Trả lại hồ sơ đang chờ kèm lý do
+      description: >
+        Chuyển hồ sơ từ `PENDING` sang `REJECTED`. Bắt buộc có `reason`; thiếu lý do trả `400`.
+        Lý do được lưu vào lịch sử và ứng viên đọc được ở `/profiles/me/review-history`.
+      security:
+        - bearerAuth: []
+        - userIdHeader: []
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffRejectRequest'
+      responses:
+        '200':
+          description: Đã trả lại, hồ sơ chuyển sang REJECTED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffActionResult'
+        '400':
+          description: Thiếu lý do trả lại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '401':
+          description: Thiếu header X-User-Id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '403':
+          description: Không phải cán bộ tuyển dụng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '409':
+          description: Hồ sơ không ở trạng thái PENDING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT của người dùng do auth-service cấp
+    userIdHeader:
+      type: apiKey
+      in: header
+      name: X-User-Id
+      description: Định danh người dùng do API Gateway truyền xuống
+
+  parameters:
+    UserIdPath:
+      name: userId
+      in: path
+      required: true
+      description: UUID của ứng viên cần duyệt hoặc trả lại
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    PublishRequest:
+      type: object
+      required:
+        - consent
+      properties:
+        consent:
+          type: boolean
+          description: Ứng viên đã tích đồng ý điều khoản công khai hồ sơ
+          example: true
+
+    StaffRejectRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          description: Lý do trả lại, ứng viên sẽ đọc được
+          example: Thiếu minh chứng kỹ năng
+
+    CandidateProfile:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        email:
+          type: string
+        headline:
+          type: string
+        summary:
+          type: string
+        program:
+          type: string
+        classCode:
+          type: string
+        courseName:
+          type: string
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+        consentAt:
+          type: string
+          format: date-time
+          nullable: true
+        consentWithdrawnAt:
+          type: string
+          format: date-time
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+
+    Visibility:
+      type: string
+      description: >
+        Trạng thái công khai của hồ sơ. Chỉ đổi được qua luồng duyệt, không ghi trực tiếp
+        bằng `PUT /profiles/me`.
+      enum: [PRIVATE, PENDING, PUBLIC, REJECTED, RECRUITER]
+
+    ReviewAction:
+      type: string
+      enum: [SUBMIT, APPROVE, REJECT, WITHDRAW]
+
+    ReviewHistoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        action:
+          $ref: '#/components/schemas/ReviewAction'
+        reason:
+          type: string
+          nullable: true
+          description: Chỉ có giá trị với hành động REJECT
+        actorId:
+          type: string
+          format: uuid
+          description: UUID người thực hiện — chính ứng viên hoặc cán bộ
+        createdAt:
+          type: string
+          format: date-time
+
+    PendingReviewItem:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        email:
+          type: string
+        headline:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Thời điểm gửi duyệt gần nhất
+
+    PagedPendingReview:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingReviewItem'
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        number:
+          type: integer
+        size:
+          type: integer
+
+    StaffActionResult:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+
+    ErrorApiResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          example: 409
+        message:
+          type: string
+          example: "Can only approve PENDING profile. Current: PRIVATE"
