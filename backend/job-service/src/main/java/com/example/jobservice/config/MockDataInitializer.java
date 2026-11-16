@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Component
-@Profile({"local", "test"})
+@Profile({ "local", "test" })
 public class MockDataInitializer implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(MockDataInitializer.class);
@@ -89,11 +89,8 @@ public class MockDataInitializer implements ApplicationRunner {
     private void initStubAccountsIfAvailable() {
         AuthClient authClient = authClientProvider.getIfAvailable();
         if (authClient instanceof StubAuthClient stub && stub.getAllAccounts().isEmpty()) {
-            companyRepository.findByTaxCode("0101234567").ifPresent(c1 ->
-                companyRepository.findByTaxCode("0107654321").ifPresent(c2 ->
-                    stub.initDefaultAccounts(c1.getId(), c2.getId())
-                )
-            );
+            companyRepository.findByTaxCode("0101234567").ifPresent(c1 -> companyRepository.findByTaxCode("0107654321")
+                    .ifPresent(c2 -> stub.initDefaultAccounts(c1.getId(), c2.getId())));
         }
     }
 
@@ -117,17 +114,11 @@ public class MockDataInitializer implements ApplicationRunner {
         if (Files.isDirectory(path)) {
             return path;
         }
+        // Mặc định ../mock/data tính từ backend/job-service sẽ ra ../../mock/data (gốc
+        // repo)
         Path altPath = Path.of("..", dirPath);
         if (Files.isDirectory(altPath)) {
             return altPath;
-        }
-        Path projectRootMock = Path.of("../..", "mock", "data");
-        if (Files.isDirectory(projectRootMock)) {
-            return projectRootMock;
-        }
-        Path currentMock = Path.of("mock", "data");
-        if (Files.isDirectory(currentMock)) {
-            return currentMock;
         }
         return path;
     }
