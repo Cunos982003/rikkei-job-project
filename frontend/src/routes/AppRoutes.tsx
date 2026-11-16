@@ -28,6 +28,8 @@ import { CandidateProfilePage } from "../pages/candidate/CandidateProfilePage";
 import { HrCompanyPage } from "../pages/hr/HrCompanyPage";
 import { MentorStudentsPage } from "../pages/mentor/MentorStudentsPage";
 import { StaffJobsPage } from "../pages/staff/StaffJobsPage";
+import { StaffCompaniesPage } from "../pages/staff/StaffCompaniesPage";
+import { StaffCompanyDetailPage } from "../pages/staff/StaffCompanyDetailPage";
 import { AdminSkillsPage } from "../pages/admin/AdminSkillsPage";
 
 /**
@@ -111,7 +113,8 @@ export function AppRoutes() {
                     {/* Phân hệ STAFF (Cán bộ tuyển dụng & Quản trị) */}
                     <Route element={<RoleGuard allowedRoles={["STAFF", "ADMIN"]} />}>
                         <Route path="/staff/jobs" element={<StaffJobsPage />} />
-                        <Route path="/staff/companies" element={<StaffJobsPage />} />
+                        <Route path="/staff/companies" element={<StaffCompaniesPage />} />
+                        <Route path="/staff/companies/:id" element={<StaffCompanyDetailPage />} />
                         <Route path="/staff/ioc" element={<StaffJobsPage />} />
                         <Route path="/staff/unlock-contacts" element={<StaffJobsPage />} />
                     </Route>

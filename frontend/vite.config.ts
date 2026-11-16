@@ -19,10 +19,23 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       proxy: {
-        '/api': {
-          target: env.VITE_BACKEND_URL || 'http://localhost:9001',
+        // 1. Phân luồng đăng nhập & xác thực -> auth-service (:8081) hoặc Gateway
+        '/api/v1/auth': {
+          target: env.VITE_AUTH_SERVICE_URL || env.VITE_BACKEND_URL || 'http://localhost:8081',
           changeOrigin: true
         },
+        // 2. Phân luồng quản lý công ty, tin tuyển dụng -> job-service (:8085) hoặc Gateway
+        '/api/v1': {
+          target: env.VITE_JOB_SERVICE_URL || env.VITE_BACKEND_URL || 'http://localhost:8085',
+          changeOrigin: true,
+          rewrite: (path) => env.VITE_BACKEND_URL ? path : path.replace(/^\/api\/v1/, '')
+        },
+        // 3. Phân luồng xem ảnh logo tải lên -> job-service (:8085)
+        '/uploads': {
+          target: env.VITE_JOB_SERVICE_URL || 'http://localhost:8085',
+          changeOrigin: true
+        },
+        // 4. Mock LMS / WireMock
         '/lms': {
           target: env.VITE_MOCK_API_URL || 'http://localhost:9000',
           changeOrigin: true,
@@ -34,10 +47,7 @@ export default defineConfig(({ mode }) => {
             })
           }
         },
-        '/staff': {
-          target: env.VITE_BACKEND_URL || 'http://localhost:9001',
-          changeOrigin: true
-        },
+        // 5. AI Career
         '/ai-career': {
           target: env.VITE_AI_CAREER_URL || 'http://localhost:8090',
           changeOrigin: true,

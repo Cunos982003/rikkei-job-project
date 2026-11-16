@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building2, Camera, CheckCircle2, ImagePlus, RefreshCw, Save } from "lucide-react";
+import { Building2, Camera, CheckCircle2, Eye, FileText, Globe, ImagePlus, MapPin, RefreshCw, Save, Users } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import { Badge } from "../../components/common/Badge";
 import { Button } from "../../components/common/Button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/common/Card";
 import { Input } from "../../components/common/Input";
@@ -362,6 +363,86 @@ export function HrCompanyPage() {
               </div>
             </div>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Eye className="h-5 w-5 text-primary" />
+                Xem trước hồ sơ ứng viên nhìn thấy
+              </CardTitle>
+              <CardDescription>
+                Giao diện thực tế hiển thị cho ứng viên khi tìm hiểu về doanh nghiệp của bạn.
+              </CardDescription>
+            </div>
+            <Badge variant="primary" size="sm">Giao diện ứng viên</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex flex-col gap-5 rounded-xl border border-border bg-slate-50/50 p-6 sm:flex-row sm:items-center">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface shadow-xs">
+              {currentLogoUrl ? (
+                <img
+                  src={currentLogoUrl}
+                  alt={`Logo ${company.name}`}
+                  className="h-full w-full object-contain p-1"
+                />
+              ) : (
+                <Building2 className="h-8 w-8 text-slate-300" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1 space-y-1">
+              <h3 className="text-xl font-bold text-foreground">{company.name}</h3>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+                {company.industry && (
+                  <span className="flex items-center gap-1">
+                    <Building2 className="h-3.5 w-3.5" />
+                    {company.industry}
+                  </span>
+                )}
+                {company.size && (
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5" />
+                    {company.size} nhân viên
+                  </span>
+                )}
+                {(company.city || company.address) && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {[company.address, company.city].filter(Boolean).join(", ")}
+                  </span>
+                )}
+                {company.website && (
+                  <a
+                    href={company.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-primary hover:underline"
+                  >
+                    <Globe className="h-3.5 w-3.5" />
+                    {company.website}
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <h4 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              <FileText className="h-4 w-4 text-muted" />
+              Giới thiệu công ty
+            </h4>
+            <div className="rounded-lg border border-border bg-surface p-4 text-sm text-foreground leading-relaxed whitespace-pre-line">
+              {company.description ? (
+                company.description
+              ) : (
+                <span className="italic text-muted">Chưa có mô tả giới thiệu doanh nghiệp.</span>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
 

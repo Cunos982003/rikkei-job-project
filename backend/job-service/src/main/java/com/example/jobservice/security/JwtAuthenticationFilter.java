@@ -4,7 +4,6 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -14,11 +13,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-/**
- * Chỉ xác thực bằng JWT trong header "Authorization: Bearer <token>".
- * Token thiếu, sai hoặc hết hạn thì request đi tiếp dưới dạng chưa đăng nhập,
- * và SecurityConfig sẽ trả 401/403 cho các endpoint cần xác thực.
- */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -42,8 +36,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 UserPrincipal principal = tokenProvider.parseToken(token);
 
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(principal,
-                        null, principal.getAuthorities());
+                String requestUri = request.getRequestURI();
+                if (principal.isMustChangePassword() && (requestUri == null || !requestUri.startsWith("/api/v1/auth/"))) {
+                    SecurityContextHolder.clearContext();
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/problem+json");
+                    response.setCharacterEncoding("UTF-8");
+                    response.getWriter().write(
+                            "{\"title\":\"Forbidden\",\"status\":403,\"detail\":\"Bạn phải đổi mật khẩu trước khi sử dụng API này\"}");
+                    return;
+                }
+
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        principal,
+                        token,
+                        principal.getAuthorities());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (RuntimeException ex) {
@@ -52,29 +59,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
-        if (requiresPasswordChange(request)
-                && SecurityContextHolder.getContext().getAuthentication() != null
-                && SecurityContextHolder.getContext().getAuthentication().getPrincipal() instanceof UserPrincipal principal
-                && principal.isMustChangePassword()) {
-            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            response.setContentType("application/problem+json");
-            response.setCharacterEncoding("UTF-8");
-            response.getWriter().write(
-                    "{\"title\":\"Forbidden\",\"status\":403,\"detail\":\"Bạn phải đổi mật khẩu trước khi sử dụng API này\"}");
-            return;
-        }
-
         filterChain.doFilter(request, response);
-    }
-
-    private boolean requiresPasswordChange(HttpServletRequest request) {
-        if (!HttpMethod.POST.matches(request.getMethod())) {
-            return true;
-        }
-
-        String path = request.getRequestURI().substring(request.getContextPath().length());
-        return !"/api/v1/auth/login".equals(path)
-                && !"/api/v1/auth/change-password".equals(path);
     }
 
     private String resolveToken(HttpServletRequest request) {

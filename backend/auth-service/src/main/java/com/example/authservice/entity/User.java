@@ -55,6 +55,12 @@ public class User {
     @Column(name = "locked_until")
     private Instant lockedUntil;
 
+    @Column(name = "locked_reason", length = 500)
+    private String lockedReason;
+
+    @Column(name = "locked_at")
+    private Instant lockedAt;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private UserStatus status = UserStatus.ACTIVE;
@@ -78,8 +84,7 @@ public class User {
             String fullName,
             String role,
             Instant createdAt,
-            Instant updatedAt
-    ) {
+            Instant updatedAt) {
         this(lmsUserId, email, fullName, role, null, createdAt, updatedAt);
     }
 
@@ -90,8 +95,7 @@ public class User {
             String role,
             String passwordHash,
             Instant createdAt,
-            Instant updatedAt
-    ) {
+            Instant updatedAt) {
         this.lmsUserId = lmsUserId;
         this.email = email;
         this.fullName = fullName;
@@ -200,6 +204,22 @@ public class User {
 
     public void setLockedUntil(Instant lockedUntil) {
         this.lockedUntil = lockedUntil;
+    }
+
+    public String getLockedReason() {
+        return lockedReason;
+    }
+
+    public void setLockedReason(String lockedReason) {
+        this.lockedReason = lockedReason;
+    }
+
+    public Instant getLockedAt() {
+        return lockedAt;
+    }
+
+    public void setLockedAt(Instant lockedAt) {
+        this.lockedAt = lockedAt;
     }
 
     public UserStatus getStatus() {

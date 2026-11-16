@@ -19,12 +19,12 @@ export interface CompanyProfile {
 
 export interface UpdateCompanyProfileRequest {
   name: string;
-  industry: string;
-  size: string | null;
-  address: string;
-  city: string;
-  website: string;
-  description: string;
+  industry?: string;
+  size?: string | null;
+  address?: string;
+  city?: string;
+  website?: string;
+  description?: string;
 }
 
 export interface CompanyLogoResponse {
@@ -47,3 +47,4 @@ export const companiesApi = {
     return api.post<CompanyLogoResponse>("/companies/me/logo", formData);
   },
 };
+

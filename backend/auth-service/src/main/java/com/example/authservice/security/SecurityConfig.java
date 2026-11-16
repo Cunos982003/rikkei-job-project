@@ -98,6 +98,7 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(exceptions -> exceptions
                 .authenticationEntryPoint((request, response, authException) -> {
@@ -124,11 +125,13 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
+                .requestMatchers("/h2-console/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/sso", "/auth/sso").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/auth/login", "/api/v1/auth/hr/login", "/auth/hr/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/forgot-password", "/auth/forgot-password").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/reset-password", "/auth/reset-password").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/change-password", "/auth/change-password").authenticated()
+                .requestMatchers("/api/v1/auth/internal/hr-accounts/**").hasAnyRole("STAFF", "ADMIN")
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated()
             )

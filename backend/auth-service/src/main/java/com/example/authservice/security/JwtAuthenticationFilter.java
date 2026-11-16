@@ -1,12 +1,14 @@
 package com.example.authservice.security;
 
 import com.example.authservice.entity.User;
+import com.example.authservice.entity.UserStatus;
 import com.example.authservice.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.time.Instant;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -42,15 +44,39 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             var principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
             if (principal instanceof String userId && !userId.isBlank()) {
                 request.setAttribute("currentUser", userId);
-                userRepository.findById(java.util.UUID.fromString(userId)).ifPresent(user -> {
+                var userOpt = userRepository.findById(java.util.UUID.fromString(userId));
+                if (userOpt.isPresent()) {
+                    User user = userOpt.get();
+                    if (!isPublicAuthPath(request.getRequestURI())) {
+                        Instant now = Instant.now();
+                        if (user.getStatus() == UserStatus.LOCKED
+                                && (user.getLockedUntil() == null || user.getLockedUntil().isAfter(now))) {
+                            SecurityContextHolder.clearContext();
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType("application/json");
+                            response.setCharacterEncoding("UTF-8");
+                            response.getWriter().write("{\"success\":false,\"statusCode\":403,\"message\":\"Tài khoản đã bị khoá\"}");
+                            return;
+                        }
+                    }
                     if (user.isMustChangePassword()) {
                         request.setAttribute("mustChangePassword", true);
                     }
-                });
+                }
             }
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isPublicAuthPath(String uri) {
+        if (uri == null) {
+            return false;
+        }
+        return uri.contains("/login")
+            || uri.contains("/sso")
+            || uri.contains("/forgot-password")
+            || uri.contains("/reset-password");
     }
 
     private String resolveToken(HttpServletRequest request) {
@@ -61,4 +87,3 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return null;
     }
 }
-

@@ -18,16 +18,22 @@ spring:
   flyway:
     enabled: ${SPRING_FLYWAY_ENABLED:true}
   mail:
-    host: ${SPRING_MAIL_HOST:localhost}
-    port: ${SPRING_MAIL_PORT:1025}
-    username: ${SPRING_MAIL_USERNAME:}
-    password: ${SPRING_MAIL_PASSWORD:}
+    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:haikhac23122004@gmail.com}
+    password: ${SPRING_MAIL_PASSWORD:ipqlsxoxdwismvdq}
     properties:
       mail:
         smtp:
-          auth: false
+          auth: true
           starttls:
-            enable: false
+            enable: true
+            required: true
+          ssl:
+            trust: "*"
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
 
 app:
   jwt:
@@ -40,5 +46,38 @@ app:
     timeout-seconds: ${LMS_TIMEOUT_SECONDS:5}
     max-retries: ${LMS_MAX_RETRIES:2}
   mail:
-    from: ${MAIL_FROM:no-reply@rikkei-jobs.vn}
+    from: ${MAIL_FROM:haikhac23122004@gmail.com}
     reset-url: ${RESET_PASSWORD_URL:http://localhost:5173/reset-password}
+
+---
+# =============================================================
+# Local development profile (H2 in-memory, không cần PostgreSQL)
+# =============================================================
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  datasource:
+    url: jdbc:h2:mem:auth_db;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+  flyway:
+    enabled: false
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
