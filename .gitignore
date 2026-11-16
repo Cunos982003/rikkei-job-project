@@ -4,7 +4,8 @@
 
 # Local environment files
 .env.*
-!.env.example
+.env.example
+.env.prod.example
 
 # Dependencies
 node_modules/
@@ -30,3 +31,5 @@ pnpm-debug.log*
 # Operating system files
 .DS_Store
 Thumbs.db
+
+docs/superpowers
