@@ -13,18 +13,83 @@ declare module "axios" {
   export interface InternalAxiosRequestConfig extends CustomRequestConfig {}
 }
 
-/**
- * Token lưu trong bộ nhớ (In-memory) theo chuẩn bảo mật D11,
- * giảm thiểu rủi ro XSS so với localStorage / sessionStorage.
- */
-let inMemoryAccessToken: string | null = null;
+const TOKEN_STORAGE_KEY = "rikkei_access_token";
+const USER_ID_STORAGE_KEY = "rikkei_user_id";
+const AUTH_STORAGE_KEY = "rikkei_auth_storage";
+
+export const getCurrentUserRole = (): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    return parsed.state?.user?.role || null;
+  } catch {
+    return null;
+  }
+};
+
+let inMemoryAccessToken: string | null =
+  typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : null;
+let inMemoryUserId: string | null =
+  typeof window !== "undefined" ? localStorage.getItem(USER_ID_STORAGE_KEY) : null;
 let onUnauthorizedCallback: (() => void) | null = null;
 
 export const setAccessToken = (token: string | null) => {
   inMemoryAccessToken = token;
+  if (typeof window !== "undefined") {
+    if (token) {
+      try {
+        localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      } catch {}
+    } else {
+      try {
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+      } catch {}
+    }
+  }
 };
 
-export const getAccessToken = (): string | null => inMemoryAccessToken;
+export const getAccessToken = (): string | null => {
+  if (inMemoryAccessToken) return inMemoryAccessToken;
+  if (typeof window !== "undefined") {
+    try {
+      inMemoryAccessToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+      return inMemoryAccessToken;
+    } catch {}
+  }
+  return null;
+};
+
+/**
+ * Các service nội bộ (profile-service, evidence-service...) xác định danh tính
+ * qua header X-User-Id do gateway truyền xuống, không đọc JWT.
+ */
+export const setCurrentUserId = (userId: string | null) => {
+  inMemoryUserId = userId;
+  if (typeof window !== "undefined") {
+    if (userId) {
+      try {
+        localStorage.setItem(USER_ID_STORAGE_KEY, userId);
+      } catch {}
+    } else {
+      try {
+        localStorage.removeItem(USER_ID_STORAGE_KEY);
+      } catch {}
+    }
+  }
+};
+
+export const getCurrentUserId = (): string | null => {
+  if (inMemoryUserId) return inMemoryUserId;
+  if (typeof window !== "undefined") {
+    try {
+      inMemoryUserId = localStorage.getItem(USER_ID_STORAGE_KEY);
+      return inMemoryUserId;
+    } catch {}
+  }
+  return null;
+};
 
 export const registerUnauthorizedHandler = (handler: () => void) => {
   onUnauthorizedCallback = handler;
@@ -34,7 +99,7 @@ export const registerUnauthorizedHandler = (handler: () => void) => {
  * Helper chuẩn hóa URL tài nguyên tĩnh (logo công ty, file upload).
  * - Nếu là URL tuyệt đối (http://, https://, blob:, data:) thì giữ nguyên.
  * - Nếu là đường dẫn tương đối:
- *   + Nếu VITE_API_BASE_URL là URL tuyệt đối: ghép với origin của VITE_API_BASE_URL (bỏ phần path như /api/v1 nếu có).
+ *   + Nếu VITE_API_BASE_URL là URL tuyệt đối: ghép với origin của VITE_API_BASE_URL.
  *   + Nếu VITE_API_BASE_URL là đường dẫn tương đối (qua proxy/gateway): dùng chính nó.
  *   + Nếu VITE_API_BASE_URL không được cấu hình: mặc định ghép với origin window.location.origin.
  */
@@ -67,7 +132,7 @@ export function resolveAssetUrl(path: string | null | undefined): string {
  * Khởi tạo Axios Instance chính
  */
 export const axiosInstance: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "/api/v1",
+  baseURL: "/api/v1",
   timeout: 15000,
   headers: {
     "Content-Type": "application/json",
@@ -83,10 +148,22 @@ axiosInstance.interceptors.request.use(
     if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    // Nếu gửi FormData (upload file/ảnh), xóa Content-Type mặc định để Axios và trình duyệt tự gán multipart/form-data kèm boundary
-    if (config.data instanceof FormData) {
+
+    const userId = getCurrentUserId();
+    if (userId && !config.headers["X-User-Id"]) {
+      config.headers["X-User-Id"] = userId;
+    }
+
+    const userRole = getCurrentUserRole();
+    if (userRole && !config.headers["X-User-Role"]) {
+      config.headers["X-User-Role"] = userRole;
+    }
+
+    // Để trình duyệt tự sinh boundary cho multipart/form-data
+    if (typeof FormData !== "undefined" && config.data instanceof FormData) {
       delete config.headers["Content-Type"];
     }
+
     return config;
   },
   (error: AxiosError) => {

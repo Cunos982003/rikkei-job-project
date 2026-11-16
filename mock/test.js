@@ -4,6 +4,10 @@
  */
 
 const { EventEmitter } = require('events');
+
+const TEST_SERVICE_KEY = 'test-only-service-key';
+process.env.LMS_SERVICE_KEY = TEST_SERVICE_KEY;
+
 const { requestHandler } = require('./server');
 
 // Tạo mock request và response để kiểm thử handler
@@ -84,40 +88,40 @@ async function runTests() {
   });
   assert(res3.statusCode === 401, '3. Gọi API LMS với X-Service-Key sai trả về HTTP 401');
 
-  // TEST 4: Gọi LMS với header đúng X-Service-Key: dev-key (Phải trả về 200 và kết quả học tập)
+  // TEST 4: Gọi LMS với header X-Service-Key hợp lệ
   const res4 = await simulateRequest({
     method: 'GET',
     url: '/lms/students/std-001/results',
-    headers: { 'x-service-key': 'dev-key' }
+    headers: { 'x-service-key': TEST_SERVICE_KEY }
   });
-  assert(res4.statusCode === 200 && Array.isArray(res4.body) && res4.body.length > 0, 
-    '4. Gọi API LMS với X-Service-Key: dev-key trả về 200 và bảng điểm của std-001');
+  assert(res4.statusCode === 200 && Array.isArray(res4.body) && res4.body.length > 0,
+    '4. Gọi API LMS với X-Service-Key hợp lệ trả về bảng điểm của std-001');
 
-  // TEST 5: Gọi Khảo thí với X-Service-Key: dev-key
+  // TEST 5: Gọi Khảo thí với X-Service-Key hợp lệ
   const res5 = await simulateRequest({
     method: 'GET',
     url: '/exam/students/std-001/results',
-    headers: { 'x-service-key': 'dev-key' }
+    headers: { 'x-service-key': TEST_SERVICE_KEY }
   });
-  assert(res5.statusCode === 200 && res5.body[0].examCode === 'EXAM-JV-2026', 
+  assert(res5.statusCode === 200 && res5.body[0].examCode === 'EXAM-JV-2026',
     '5. Gọi API Khảo thí trả về kết quả thi chính thức');
 
-  // TEST 6: Gọi LMS-PM với X-Service-Key: dev-key
+  // TEST 6: Gọi LMS-PM với X-Service-Key hợp lệ
   const res6 = await simulateRequest({
     method: 'GET',
     url: '/pm/students/std-003/internships',
-    headers: { 'x-service-key': 'dev-key' }
+    headers: { 'x-service-key': TEST_SERVICE_KEY }
   });
-  assert(res6.statusCode === 200 && res6.body[0].topicName.includes('Rikkei Jobs'), 
+  assert(res6.statusCode === 200 && res6.body[0].topicName.includes('Rikkei Jobs'),
     '6. Gọi API LMS-PM trả về kết quả thực tập dự án IOC của std-003');
 
   // TEST 7: Gọi Rikkei Meet sinh phòng họp
   const res7 = await simulateRequest({
     method: 'POST',
     url: '/meet/rooms',
-    headers: { 'x-service-key': 'dev-key' }
+    headers: { 'x-service-key': TEST_SERVICE_KEY }
   }, { title: 'Phỏng vấn ứng viên Nguyễn Văn An' });
-  assert(res7.statusCode === 200 && res7.body.roomUrl.includes('meet.rikkei.edu.vn'), 
+  assert(res7.statusCode === 200 && res7.body.roomUrl.includes('meet.rikkei.edu.vn'),
     '7. Gọi API Rikkei Meet sinh URL phòng họp giả lập thành công');
 
   // TEST 8: Phân trang ứng viên ?page=1&size=20
@@ -125,12 +129,12 @@ async function runTests() {
     method: 'GET',
     url: '/api/v1/candidates?page=1&size=20'
   });
-  assert(res8.statusCode === 200 && res8.body.page === 1 && res8.body.total === 3 && res8.body.items.length === 3, 
+  assert(res8.statusCode === 200 && res8.body.page === 1 && res8.body.total === 3 && res8.body.items.length === 3,
     '8. Danh sách ứng viên trả về chuẩn phân trang { items, total: 3, page: 1, size: 20 }');
 
   // TEST 9: Danh mục 20 kỹ năng mẫu
   const res9 = await simulateRequest({ method: 'GET', url: '/api/v1/skills' });
-  assert(res9.statusCode === 200 && res9.body.length === 20, 
+  assert(res9.statusCode === 200 && res9.body.length === 20,
     '9. Endpoint /api/v1/skills trả về đầy đủ 20 kỹ năng mẫu');
 
   // TEST 10: Đăng nhập với tài khoản mẫu và mật khẩu Test@123
@@ -138,7 +142,7 @@ async function runTests() {
     method: 'POST',
     url: '/api/v1/auth/login'
   }, { email: 'candidate1@rikkeijobs.test', password: 'Test@123' });
-  assert(res10.statusCode === 200 && res10.body.accessToken && res10.body.user.role === 'CANDIDATE', 
+  assert(res10.statusCode === 200 && res10.body.accessToken && res10.body.user.role === 'CANDIDATE',
     '10. Đăng nhập thành công với tài khoản mẫu candidate1@rikkeijobs.test');
 
   // TEST 11: Đăng nhập mật khẩu sai
@@ -147,6 +151,30 @@ async function runTests() {
     url: '/api/v1/auth/login'
   }, { email: 'candidate1@rikkeijobs.test', password: 'SaiMatKhau' });
   assert(res11.statusCode === 401, '11. Đăng nhập mật khẩu sai trả về HTTP 401');
+
+  // TEST 12: Hồ sơ kỹ năng cá nhân cho Frontend
+  const res12 = await simulateRequest({ method: 'GET', url: '/api/v1/profiles/me/skills' });
+  assert(res12.statusCode === 200 && Array.isArray(res12.body) && res12.body.length >= 8 && res12.body[0].evidences,
+    '12. Endpoint /api/v1/profiles/me/skills trả về danh sách kỹ năng chuẩn format với evidences');
+
+  // TEST 13: Danh sách đánh giá Mentor từ evaluations.json
+  const res13 = await simulateRequest({ method: 'GET', url: '/api/v1/profiles/me/evaluations' });
+  assert(res13.statusCode === 200 && Array.isArray(res13.body) && res13.body.length >= 2 && res13.body[0].scores,
+    '13. Endpoint /api/v1/profiles/me/evaluations trả về phiếu đánh giá mentor từ mock/data/evaluations.json');
+
+  // TEST 14: Danh sách tài khoản demo phục vụ đăng nhập nhanh
+  const res14 = await simulateRequest({ method: 'GET', url: '/api/v1/auth/demo-accounts' });
+  assert(res14.statusCode === 200 && Array.isArray(res14.body) && res14.body.length === 5 && res14.body[0].role === 'CANDIDATE', 
+    '14. Endpoint /api/v1/auth/demo-accounts trả về 5 tài khoản mẫu cho 5 vai trò');
+
+  // TEST 15: Đổi mật khẩu qua Mock Server
+  const res15 = await simulateRequest({
+    method: 'POST',
+    url: '/api/v1/auth/change-password',
+    headers: { authorization: 'Bearer mock-jwt-token-for-hr' }
+  }, { currentPassword: 'Test@123', newPassword: 'NewPassword123' });
+  assert(res15.statusCode === 200 && res15.body.message === 'Đổi mật khẩu thành công.',
+    '15. Endpoint /api/v1/auth/change-password đổi mật khẩu thành công');
 
   console.log('\n====================================================');
   console.log(`📊 KẾT QUẢ KIỂM THỬ: ${passed} PASS, ${failed} FAIL`);

@@ -33,9 +33,26 @@ Dịch vụ quản lý thông tin doanh nghiệp (Company) và tích hợp tài 
 ## Chạy ứng dụng
 
 ```powershell
-# Chạy với profile local (sử dụng H2 in-memory và StubAuthClient)
+# Chạy với profile local (sử dụng H2 in-memory và kết nối auth-service)
 ./gradlew bootRun --args="--spring.profiles.active=local"
 ```
+
+Swagger UI: http://localhost:8085/swagger-ui.html  
+OpenAPI JSON: http://localhost:8085/v3/api-docs
+
+## Hồ sơ công ty cho FE
+
+- HR có thể sửa `name`, `industry`, `size`, `address`, `city`, `website`, `description` và tải logo lên; `taxCode` và `status` chỉ hiển thị, không cho sửa.
+- `size` chọn một trong `1-50`, `51-200`, `201-1000`, `1000+`.
+- Logo chỉ nhận JPG/PNG, tối đa 2 MB; FE nên kiểm tra và báo lỗi ngay khi chọn tệp.
+- `logoUrl` là đường dẫn tương đối (ví dụ `/uploads/logos/company-...png`); FE ghép với base URL của API.
+- Khi đăng nhập có `mustChangePassword=true`, FE bắt buộc mở màn đổi mật khẩu và chỉ dùng token mới trả về sau khi đổi mật khẩu thành công.
+
+## API theo DN-01 & DN-05
+
+- STAFF/ADMIN: `POST /staff/companies`, `GET /staff/companies`, `GET /staff/companies/{id}`, `POST /staff/companies/{id}/hr-accounts`, `POST /staff/companies/{id}/hr-accounts/{userId}/lock`, `POST /staff/companies/{id}/hr-accounts/{userId}/unlock`.
+- HR: `GET /companies/me`, `PUT /companies/me`, `POST /companies/me/logo`.
+- `PUT /companies/{id}` được giữ: STAFF/ADMIN cập nhật theo ID; HR chỉ cập nhật công ty của mình, công ty khác trả 404.
 
 ## Chạy kiểm thử
 

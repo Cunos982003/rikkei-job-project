@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.ai_career_service.dto.JobRecommendationResponse;
 import com.example.ai_career_service.service.CareerService;
@@ -18,6 +20,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,6 +36,24 @@ class AICareerControllerTests {
 
     @InjectMocks
     private AICareerController controller;
+
+    @Test
+    void bindsExplicitAndDefaultLimitsWithoutParameterNameMetadata() throws Exception {
+        RequestParam requestParam = AICareerController.class
+                .getMethod("getRecommendations", Principal.class, int.class)
+                .getParameters()[1].getAnnotation(RequestParam.class);
+        assertThat(requestParam.name()).isEqualTo("limit");
+
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        Principal principal = USER_ID::toString;
+        mockMvc.perform(get("/me/job-recommendations").principal(principal).param("limit", "5"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/me/job-recommendations").principal(principal))
+                .andExpect(status().isOk());
+
+        verify(careerService).getRecommendations(USER_ID, 5);
+        verify(careerService).getRecommendations(USER_ID, 10);
+    }
 
     @Test
     void delegatesRecommendationsForAuthenticatedCandidate() {

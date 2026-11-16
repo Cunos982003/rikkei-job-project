@@ -1,5 +1,6 @@
 package com.example.profileservice.skill.application;
 
+import com.example.profileservice.common.LevelConstants;
 import com.example.profileservice.skill.application.dto.ExternalRecordDto;
 import com.example.profileservice.skill.domain.Skill;
 import com.example.profileservice.skill.domain.SkillEvidence;
@@ -135,16 +136,16 @@ public class SkillRecomputeService {
 
     private String calculateLevel(Short score) {
         if (score == null) {
-            return "Cơ bản";
+            return LevelConstants.LEVEL_CO_BAN;
         }
         if (score >= 85) {
-            return "Nâng cao";
+            return LevelConstants.LEVEL_NANG_CAO;
         } else if (score >= 70) {
-            return "Vững";
+            return LevelConstants.LEVEL_VUNG;
         } else if (score >= 50) {
-            return "Khá";
+            return LevelConstants.LEVEL_KHA;
         } else {
-            return "Cơ bản";
+            return LevelConstants.LEVEL_CO_BAN;
         }
     }
 }

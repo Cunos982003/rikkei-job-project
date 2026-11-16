@@ -5,9 +5,9 @@ spring:
   application:
     name: job-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/job_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -22,7 +22,7 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
-    locations: classpath:db/migration,classpath:db/dev
+    locations: classpath:db/migration
   servlet:
     multipart:
       max-file-size: 2MB
@@ -79,4 +79,3 @@ auth:
 app:
   jwt:
     secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
-

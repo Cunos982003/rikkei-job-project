@@ -27,7 +27,7 @@ public class AICareerController {
     @GetMapping
     public List<JobRecommendationResponse> getRecommendations(
             Principal principal,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(50) int limit) {
+            @RequestParam(name = "limit", defaultValue = "10") @Min(1) @Max(50) int limit) {
         if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated candidate is required");
         }

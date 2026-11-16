@@ -14,6 +14,7 @@ import {
   Sliders,
   AlertOctagon,
   ShieldCheck,
+  Sparkles,
   X,
 } from "lucide-react";
 import { useAuthStore } from "../../store/useAuthStore";
@@ -33,6 +34,7 @@ const ROLE_NAV_ITEMS: Record<Role, { groupTitle: string; items: NavItem[] }> = {
     items: [
       { title: "Hồ sơ kỹ năng", path: "/candidate/profile", icon: Award },
       { title: "Cơ hội việc làm", path: "/candidate/jobs", icon: Briefcase },
+      { title: "AI Career", path: "/candidate/career", icon: Sparkles },
       { title: "Đơn đã ứng tuyển", path: "/candidate/applications", icon: FileText },
       { title: "Học bổ sung LMS", path: "/candidate/learning", icon: GraduationCap },
     ],

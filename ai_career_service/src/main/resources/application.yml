@@ -1,15 +1,17 @@
 spring:
   config:
-    import: optional:file:../.env[.properties]
+    import: optional:file:../.env[.properties],optional:file:.env[.properties]
   application:
     name: ai_career_service
   datasource:
-    url: ${DATABASE_URL:jdbc:h2:mem:ai_career_service;DB_CLOSE_DELAY=-1}
-    username: ${DATABASE_USERNAME:sa}
-    password: ${DATABASE_PASSWORD:}
+    url: ${AI_DATABASE_URL}
+    username: ${AI_DATABASE_USERNAME}
+    password: ${AI_DATABASE_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: update
+  profiles:
+    active: dev
 
 app:
   ai:
