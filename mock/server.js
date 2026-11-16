@@ -24,6 +24,16 @@ function loadData(fileName) {
   }
 }
 
+// Ghi dữ liệu mẫu vào mock/data/
+function saveData(fileName, data) {
+  try {
+    const filePath = path.join(__dirname, 'data', fileName);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+  } catch (error) {
+    console.error(`[Error] Không thể ghi file data/${fileName}:`, error.message);
+  }
+}
+
 const users = loadData('users.json') || [];
 const candidates = loadData('candidates.json') || [];
 const lmsData = loadData('lms.json') || { students: {}, courses: [], enrollments: [] };
@@ -279,12 +289,13 @@ async function requestHandler(req, res) {
   if (method === 'POST' && pathname === '/api/v1/auth/login') {
     const body = await parseBody(req);
     const { email, password } = body;
-    if (password !== 'Test@123') {
-      return sendError(res, 401, 'Mật khẩu không chính xác (mật khẩu chuẩn: Test@123)');
-    }
     const user = users.find(u => u.email === email);
     if (!user) {
       return sendError(res, 404, 'Không tìm thấy tài khoản với email này');
+    }
+    const expectedPassword = user.password || 'Test@123';
+    if (password !== expectedPassword) {
+      return sendError(res, 401, 'Mật khẩu không chính xác');
     }
     // Chỉ cho phép HR, MENTOR, STAFF, ADMIN đăng nhập mật khẩu
     const allowedPasswordRoles = ['HR', 'MENTOR', 'STAFF', 'ADMIN'];
@@ -348,6 +359,38 @@ async function requestHandler(req, res) {
     else if (authHeader.includes('staff')) matchedUser = users[6]; // staff1
     else if (authHeader.includes('admin')) matchedUser = users[7]; // admin1
     return sendJson(res, 200, publicUser(matchedUser));
+  }
+
+  // 1.15 POST /api/v1/auth/change-password & /auth/change-password (Đổi mật khẩu)
+  if (method === 'POST' && (pathname === '/api/v1/auth/change-password' || pathname === '/auth/change-password')) {
+    const authHeader = req.headers['authorization'] || '';
+    if (!authHeader.startsWith('Bearer ')) {
+      return sendError(res, 401, 'Yêu cầu đăng nhập để đổi mật khẩu');
+    }
+    const body = await parseBody(req);
+    const { currentPassword, newPassword } = body;
+    if (!currentPassword || !newPassword) {
+      return sendError(res, 400, 'Vui lòng cung cấp mật khẩu hiện tại và mật khẩu mới');
+    }
+    if (newPassword.length < 8 || !/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+      return sendError(res, 400, 'Mật khẩu mới phải dài ít nhất 8 ký tự và bao gồm cả chữ và số');
+    }
+    const roleHeader = (req.headers['x-user-role'] || '').toUpperCase();
+    const userIdHeader = req.headers['x-user-id'] || '';
+
+    let matchedUser = users.find(u => u.id === userIdHeader) || users[0];
+    if (roleHeader === 'HR' || authHeader.includes('hr')) matchedUser = users[3];
+    else if (roleHeader === 'MENTOR' || authHeader.includes('mentor')) matchedUser = users[5];
+    else if (roleHeader === 'STAFF' || authHeader.includes('staff')) matchedUser = users[6];
+    else if (roleHeader === 'ADMIN' || authHeader.includes('admin')) matchedUser = users[7];
+
+    if (matchedUser.password && currentPassword !== matchedUser.password && currentPassword !== 'Test@123') {
+      return sendError(res, 401, 'Mật khẩu hiện tại không chính xác');
+    }
+    matchedUser.password = newPassword;
+    matchedUser.mustChangePassword = false;
+    saveData('users.json', users);
+    return sendJson(res, 200, { message: 'Đổi mật khẩu thành công.' });
   }
 
   // 1.2 GET /api/v1/profiles/:userId/skills & /profiles/me/skills (Hồ sơ kỹ năng cho Frontend)
