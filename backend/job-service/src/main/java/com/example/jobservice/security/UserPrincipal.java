@@ -1,4 +1,3 @@
-
 package com.example.jobservice.security;
 
 import org.springframework.security.core.GrantedAuthority;
@@ -16,6 +15,7 @@ public class UserPrincipal implements UserDetails {
     private final String fullName;
     private final String role;
     private final UUID companyId;
+    private final boolean mustChangePassword;
     private final String password;
 
     public UserPrincipal(
@@ -24,12 +24,14 @@ public class UserPrincipal implements UserDetails {
             String fullName,
             String role,
             UUID companyId,
+            boolean mustChangePassword,
             String password) {
         this.id = id;
         this.email = email;
         this.fullName = fullName;
         this.role = role;
         this.companyId = companyId;
+        this.mustChangePassword = mustChangePassword;
         this.password = password;
     }
 
@@ -40,7 +42,18 @@ public class UserPrincipal implements UserDetails {
             String role,
             UUID companyId) {
         return new UserPrincipal(
-                id, email, fullName, role, companyId, "");
+                id, email, fullName, role, companyId, false, "");
+    }
+
+    public static UserPrincipal of(
+            UUID id,
+            String email,
+            String fullName,
+            String role,
+            UUID companyId,
+            boolean mustChangePassword) {
+        return new UserPrincipal(
+                id, email, fullName, role, companyId, mustChangePassword, "");
     }
 
     public UUID getId() {
@@ -61,6 +74,10 @@ public class UserPrincipal implements UserDetails {
 
     public UUID getCompanyId() {
         return companyId;
+    }
+
+    public boolean isMustChangePassword() {
+        return mustChangePassword;
     }
 
     @Override

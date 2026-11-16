@@ -1,9 +1,17 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../components/common/Card";
 import { Badge } from "../../components/common/Badge";
 import { Button } from "../../components/common/Button";
 import { CheckSquare, Check, X, Building2, KeyRound } from "lucide-react";
+import { CreateCompanyModal } from "../../components/staff/CreateCompanyModal";
+import { CreateHrModal } from "../../components/staff/CreateHrModal";
 
 export function StaffJobsPage() {
+  const navigate = useNavigate();
+  const [isCreateCompanyOpen, setIsCreateCompanyOpen] = useState(false);
+  const [isCreateHrOpen, setIsCreateHrOpen] = useState(false);
+
   return (
     <div className="space-y-6">
       <div className="pb-4 border-b border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -15,14 +23,37 @@ export function StaffJobsPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" leftIcon={<Building2 className="h-4 w-4" />}>
+          <Button
+            variant="outline"
+            size="sm"
+            leftIcon={<Building2 className="h-4 w-4" />}
+            onClick={() => setIsCreateCompanyOpen(true)}
+          >
             Tạo doanh nghiệp mới
           </Button>
-          <Button variant="outline" size="sm" leftIcon={<KeyRound className="h-4 w-4" />}>
+          <Button
+            variant="outline"
+            size="sm"
+            leftIcon={<KeyRound className="h-4 w-4" />}
+            onClick={() => setIsCreateHrOpen(true)}
+          >
             Cấp tài khoản HR
           </Button>
         </div>
       </div>
+
+      <CreateCompanyModal
+        isOpen={isCreateCompanyOpen}
+        onClose={() => setIsCreateCompanyOpen(false)}
+        onSuccess={(created) => {
+          if (created?.id) navigate(`/staff/companies/${created.id}`);
+        }}
+      />
+
+      <CreateHrModal
+        isOpen={isCreateHrOpen}
+        onClose={() => setIsCreateHrOpen(false)}
+      />
 
       <div className="space-y-4">
         <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
@@ -59,4 +90,3 @@ export function StaffJobsPage() {
     </div>
   );
 }
-

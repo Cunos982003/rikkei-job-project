@@ -1,6 +1,5 @@
 
 -- DỮ LIỆU MẪU CHỈ DÙNG CHO DEV/TEST.
--- Mật khẩu của mọi tài khoản: Password@123
 
 INSERT INTO companies (
     id, name, tax_code, industry, size, address,
@@ -38,44 +37,3 @@ VALUES (
     'staff1@rikkei.vn'
 );
 
-INSERT INTO users (
-    id, email, full_name, password_hash,
-    role, company_id, must_change_password
-)
-VALUES (
-    '33333333-3333-4333-8333-333333333333',
-    'staff1@rikkei.vn',
-    'Cán bộ Tuyển dụng 1',
-    '$2a$10$T8h7mV7wtIQKg4xMvIHrHevXZoMab1Wi51surgFBcHvt/1ZWth9kS',
-    'ROLE_STAFF',
-    NULL,
-    FALSE
-);
-
-INSERT INTO users (
-    id, email, full_name, password_hash,
-    role, company_id, must_change_password
-)
-VALUES (
-    '44444444-4444-4444-8444-444444444444',
-    'hr1@rikkei.vn',
-    'HR Rikkei Công ty A',
-    '$2a$10$T8h7mV7wtIQKg4xMvIHrHevXZoMab1Wi51surgFBcHvt/1ZWth9kS',
-    'ROLE_HR',
-    '11111111-1111-4111-8111-111111111111',
-    FALSE
-);
-
-INSERT INTO users (
-    id, email, full_name, password_hash,
-    role, company_id, must_change_password
-)
-VALUES (
-    '55555555-5555-4555-8555-555555555555',
-    'hr2@rikkei.vn',
-    'HR Doanh nghiệp B',
-    '$2a$10$T8h7mV7wtIQKg4xMvIHrHevXZoMab1Wi51surgFBcHvt/1ZWth9kS',
-    'ROLE_HR',
-    '22222222-2222-4222-8222-222222222222',
-    FALSE
-);

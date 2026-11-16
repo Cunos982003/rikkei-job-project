@@ -13,11 +13,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-/**
- * Chỉ xác thực bằng JWT trong header "Authorization: Bearer <token>".
- * Token thiếu, sai hoặc hết hạn thì request đi tiếp dưới dạng chưa đăng nhập,
- * và SecurityConfig sẽ trả 401/403 cho các endpoint cần xác thực.
- */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -41,8 +36,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 UserPrincipal principal = tokenProvider.parseToken(token);
 
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(principal,
-                        null, principal.getAuthorities());
+                String requestUri = request.getRequestURI();
+                if (principal.isMustChangePassword() && (requestUri == null || !requestUri.startsWith("/api/v1/auth/"))) {
+                    SecurityContextHolder.clearContext();
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/problem+json");
+                    response.setCharacterEncoding("UTF-8");
+                    response.getWriter().write(
+                            "{\"title\":\"Forbidden\",\"status\":403,\"detail\":\"Bạn phải đổi mật khẩu trước khi sử dụng API này\"}");
+                    return;
+                }
+
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        principal,
+                        token,
+                        principal.getAuthorities());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (RuntimeException ex) {

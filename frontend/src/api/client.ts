@@ -31,6 +31,39 @@ export const registerUnauthorizedHandler = (handler: () => void) => {
 };
 
 /**
+ * Helper chuẩn hóa URL tài nguyên tĩnh (logo công ty, file upload).
+ * - Nếu là URL tuyệt đối (http://, https://, blob:, data:) thì giữ nguyên.
+ * - Nếu là đường dẫn tương đối:
+ *   + Nếu VITE_API_BASE_URL là URL tuyệt đối: ghép với origin của VITE_API_BASE_URL (bỏ phần path như /api/v1 nếu có).
+ *   + Nếu VITE_API_BASE_URL là đường dẫn tương đối (qua proxy/gateway): dùng chính nó.
+ *   + Nếu VITE_API_BASE_URL không được cấu hình: mặc định ghép với origin window.location.origin.
+ */
+export function resolveAssetUrl(path: string | null | undefined): string {
+  if (!path) return "";
+  if (/^https?:\/\//i.test(path) || path.startsWith("data:") || path.startsWith("blob:")) {
+    return path;
+  }
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const rawBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
+  if (rawBaseUrl) {
+    if (/^https?:\/\//i.test(rawBaseUrl)) {
+      try {
+        const parsed = new URL(rawBaseUrl);
+        return `${parsed.origin}${normalizedPath}`;
+      } catch {
+        // Fallback below
+      }
+    } else {
+      return normalizedPath;
+    }
+  }
+
+  const defaultOrigin = typeof window !== "undefined" ? window.location.origin : "";
+  return `${defaultOrigin}${normalizedPath}`;
+}
+
+/**
  * Khởi tạo Axios Instance chính
  */
 export const axiosInstance: AxiosInstance = axios.create({
@@ -49,6 +82,10 @@ axiosInstance.interceptors.request.use(
     const token = getAccessToken();
     if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    // Nếu gửi FormData (upload file/ảnh), xóa Content-Type mặc định để Axios và trình duyệt tự gán multipart/form-data kèm boundary
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
     }
     return config;
   },

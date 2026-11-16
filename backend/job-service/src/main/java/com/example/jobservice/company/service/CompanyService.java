@@ -1,6 +1,7 @@
-
 package com.example.jobservice.company.service;
 
+import com.example.jobservice.auth.client.AuthClient;
+import com.example.jobservice.auth.client.AuthHrAccount;
 import com.example.jobservice.common.exception.BadRequestException;
 import com.example.jobservice.common.exception.ConflictException;
 import com.example.jobservice.common.exception.ResourceNotFoundException;
@@ -8,13 +9,16 @@ import com.example.jobservice.company.domain.Company;
 import com.example.jobservice.company.domain.CompanyRepository;
 import com.example.jobservice.company.domain.CompanyStatus;
 import com.example.jobservice.company.dto.*;
-import com.example.jobservice.email.EmailService;
 import com.example.jobservice.security.UserPrincipal;
-import com.example.jobservice.user.domain.User;
-import com.example.jobservice.user.domain.UserRepository;
-
+import jakarta.persistence.criteria.Predicate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,20 +27,22 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.SecureRandom;
-import java.util.List;
-import java.util.Locale;
-import java.util.UUID;
+import java.util.*;
 import java.util.regex.Pattern;
 
 @Service
 public class CompanyService {
 
+    private static final Logger log = LoggerFactory.getLogger(CompanyService.class);
+
     private static final Pattern TAX_CODE_PATTERN = Pattern.compile("^(\\d{10}|\\d{13})$");
 
-    private static final List<String> ALLOWED_IMAGE_TYPES = List.of("image/jpeg", "image/png", "image/jpg");
-
     private static final long MAX_LOGO_SIZE = 2 * 1024 * 1024;
+
+    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
+            "image/png",
+            "image/jpeg",
+            "image/jpg");
 
     private static final byte[] PNG_SIGNATURE = {
             (byte) 0x89, 0x50, 0x4E, 0x47,
@@ -50,24 +56,16 @@ public class CompanyService {
     private static final String INVALID_IMAGE_MESSAGE = "Chỉ chấp nhận ảnh định dạng JPG hoặc PNG";
 
     private final CompanyRepository companyRepository;
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService;
+    private final AuthClient authClient;
     private final String uploadDir;
-
-    private final SecureRandom secureRandom = new SecureRandom();
 
     public CompanyService(
             CompanyRepository companyRepository,
-            UserRepository userRepository,
-            PasswordEncoder passwordEncoder,
-            EmailService emailService,
+            AuthClient authClient,
             @Value("${app.upload.dir:uploads/logos}") String uploadDir) {
 
         this.companyRepository = companyRepository;
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.emailService = emailService;
+        this.authClient = authClient;
         this.uploadDir = uploadDir;
     }
 
@@ -109,7 +107,6 @@ public class CompanyService {
         return CompanyResponse.fromEntity(saved);
     }
 
-    @Transactional
     public HrAccountResponse createHrAccount(
             UUID companyId,
             CreateHrAccountRequest request) {
@@ -118,44 +115,29 @@ public class CompanyService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Không tìm thấy doanh nghiệp có id: " + companyId));
 
-        String email = request.email()
-                .trim()
-                .toLowerCase(Locale.ROOT);
+        String email = request.email() != null
+                ? request.email().trim().toLowerCase(Locale.ROOT)
+                : "";
+        String fullName = request.fullName() != null
+                ? request.fullName().trim()
+                : "";
 
-        if (userRepository.existsByEmail(email)) {
-            throw new ConflictException(
-                    "Email " + email + " đã tồn tại trên hệ thống");
-        }
+        AuthHrAccount authAccount = authClient.createHrAccount(email, fullName, companyId);
 
-        String temporaryPassword = generateTemporaryPassword();
-
-        User user = new User();
-
-        user.setEmail(email);
-        user.setFullName(request.fullName().trim());
-        user.setPasswordHash(
-                passwordEncoder.encode(temporaryPassword));
-        user.setRole("ROLE_HR");
-        user.setCompanyId(companyId);
-        user.setMustChangePassword(true);
-
-        User savedUser = userRepository.save(user);
-
-        emailService.sendHrAccountCredentials(
-                savedUser.getEmail(),
-                savedUser.getFullName(),
-                company.getName(),
-                temporaryPassword);
+        String message = authAccount.emailSent()
+                ? "Tạo tài khoản HR thành công. Thông tin đăng nhập đã được gửi tới email " + authAccount.email()
+                : "Đã tạo tài khoản nhưng gửi email thất bại, hãy gửi mật khẩu tạm thủ công";
 
         return new HrAccountResponse(
-                savedUser.getId(),
-                savedUser.getEmail(),
-                savedUser.getFullName(),
-                savedUser.getRole(),
-                savedUser.getCompanyId(),
-                savedUser.isMustChangePassword(),
-                "Tạo tài khoản HR thành công. Thông tin đăng nhập đã được gửi tới email "
-                        + email);
+                authAccount.id(),
+                authAccount.email(),
+                authAccount.fullName(),
+                "ROLE_HR",
+                authAccount.companyId(),
+                authAccount.mustChangePassword(),
+                authAccount.temporaryPassword(),
+                authAccount.emailSent(),
+                message);
     }
 
     @Transactional(readOnly = true)
@@ -175,6 +157,111 @@ public class CompanyService {
                         "Không tìm thấy doanh nghiệp có id: " + companyId));
 
         return CompanyResponse.fromEntity(company);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<CompanyListItemResponse> getStaffCompanies(
+            String q,
+            String statusStr,
+            int page,
+            int size) {
+
+        int validPage = Math.max(page, 0);
+        int validSize = size > 0 ? Math.min(size, 100) : 10;
+        Pageable pageable = PageRequest.of(validPage, validSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        CompanyStatus filterStatus = null;
+        if (statusStr != null && !statusStr.trim().isEmpty()) {
+            try {
+                filterStatus = CompanyStatus.valueOf(statusStr.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException("Trạng thái không hợp lệ: " + statusStr);
+            }
+        }
+
+        final CompanyStatus finalFilterStatus = filterStatus;
+        Specification<Company> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (q != null && !q.trim().isEmpty()) {
+                String pattern = "%" + q.trim().toLowerCase(Locale.ROOT) + "%";
+                Predicate nameLike = cb.like(cb.lower(root.get("name")), pattern);
+                Predicate taxLike = cb.like(root.get("taxCode"), pattern);
+                predicates.add(cb.or(nameLike, taxLike));
+            }
+
+            if (finalFilterStatus != null) {
+                predicates.add(cb.equal(root.get("status"), finalFilterStatus));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Company> companyPage = companyRepository.findAll(spec, pageable);
+        List<UUID> companyIds = companyPage.getContent().stream().map(Company::getId).toList();
+
+        Map<UUID, Long> hrCounts = new HashMap<>();
+        if (!companyIds.isEmpty()) {
+            try {
+                hrCounts = authClient.countHrAccounts(companyIds);
+            } catch (Exception e) {
+                log.warn("Failed to get HR counts from auth service: {}", e.getMessage());
+            }
+        }
+
+        Map<UUID, Long> finalHrCounts = hrCounts != null ? hrCounts : Map.of();
+        List<CompanyListItemResponse> items = companyPage.getContent().stream()
+                .map(comp -> CompanyListItemResponse.fromEntity(
+                        comp,
+                        finalHrCounts.getOrDefault(comp.getId(), 0L),
+                        0L))
+                .toList();
+
+        PaginationMeta meta = new PaginationMeta(
+                companyPage.getNumber(),
+                companyPage.getSize(),
+                companyPage.getTotalElements(),
+                companyPage.getTotalPages(),
+                companyPage.isFirst(),
+                companyPage.isLast(),
+                companyPage.hasNext(),
+                companyPage.hasPrevious());
+
+        return new PageResponse<>(
+                items,
+                meta,
+                companyPage.getTotalElements(),
+                companyPage.getTotalPages(),
+                companyPage.getNumber(),
+                companyPage.getSize());
+    }
+
+    @Transactional(readOnly = true)
+    public StaffCompanyDetailResponse getStaffCompanyDetail(UUID companyId) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy doanh nghiệp có id: " + companyId));
+
+        List<AuthHrAccount> hrUsers = authClient.listHrAccounts(companyId);
+        List<StaffHrAccountResponse> hrAccounts = hrUsers.stream()
+                .map(StaffHrAccountResponse::fromAuthHrAccount)
+                .toList();
+
+        return StaffCompanyDetailResponse.fromEntity(company, hrAccounts);
+    }
+
+    public StaffHrAccountResponse lockHrAccount(UUID hrId, String reason) {
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new BadRequestException("Lý do khóa tài khoản không được để trống");
+        }
+
+        AuthHrAccount account = authClient.lockHrAccount(hrId, reason.trim());
+        return StaffHrAccountResponse.fromAuthHrAccount(account);
+    }
+
+    public StaffHrAccountResponse unlockHrAccount(UUID hrId) {
+        AuthHrAccount account = authClient.unlockHrAccount(hrId);
+        return StaffHrAccountResponse.fromAuthHrAccount(account);
     }
 
     @Transactional
@@ -199,18 +286,20 @@ public class CompanyService {
 
         if ("ROLE_HR".equals(principal.getRole())
                 || "HR".equals(principal.getRole())) {
+            UUID hrCompanyId = principal.getCompanyId();
 
-            if (principal.getCompanyId() == null
-                    || !principal.getCompanyId().equals(targetCompanyId)) {
-
+            if (hrCompanyId == null
+                    || !hrCompanyId.equals(targetCompanyId)) {
                 throw new ResourceNotFoundException(
-                        "Không tìm thấy doanh nghiệp có id: " + targetCompanyId);
+                        "Không tìm thấy doanh nghiệp có id: "
+                                + targetCompanyId);
             }
         }
 
         Company company = companyRepository.findById(targetCompanyId)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Không tìm thấy doanh nghiệp có id: " + targetCompanyId));
+                        "Không tìm thấy doanh nghiệp có id: "
+                                + targetCompanyId));
 
         applyCompanyUpdates(company, request);
 
@@ -225,6 +314,24 @@ public class CompanyService {
             MultipartFile file) {
 
         Company company = findCompanyOfHr(principal);
+        return uploadLogoForCompany(company, file);
+    }
+
+    @Transactional
+    public LogoUploadResponse uploadCompanyLogoById(
+            UUID companyId,
+            MultipartFile file) {
+
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy doanh nghiệp có id: " + companyId));
+
+        return uploadLogoForCompany(company, file);
+    }
+
+    private LogoUploadResponse uploadLogoForCompany(
+            Company company,
+            MultipartFile file) {
 
         if (file == null || file.isEmpty()) {
             throw new BadRequestException(
@@ -239,9 +346,7 @@ public class CompanyService {
         String contentType = file.getContentType();
 
         if (contentType == null
-                || !ALLOWED_IMAGE_TYPES.contains(
-                        contentType.toLowerCase(Locale.ROOT))) {
-
+                || !ALLOWED_IMAGE_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
             throw new BadRequestException(INVALID_IMAGE_MESSAGE);
         }
 
@@ -363,19 +468,5 @@ public class CompanyService {
         }
 
         return true;
-    }
-
-    private String generateTemporaryPassword() {
-
-        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
-
-        StringBuilder sb = new StringBuilder();
-
-        for (int i = 0; i < 12; i++) {
-            sb.append(chars.charAt(
-                    secureRandom.nextInt(chars.length())));
-        }
-
-        return sb.toString();
     }
 }

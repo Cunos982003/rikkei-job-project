@@ -24,6 +24,12 @@ interface AuthState {
   isAdmin: () => boolean;
 }
 
+function normalizeUser(user: UserProfile | null | undefined): UserProfile | null {
+  if (!user) return null;
+  const role = user.role ? (user.role.replace(/^ROLE_/, "") as Role) : user.role;
+  return { ...user, role };
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   accessToken: null,
@@ -36,7 +42,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const res = await authApi.login({ email, password });
       const data = res.data;
       const token = data.accessToken;
-      const user = data.user;
+      const user = normalizeUser(data.user);
 
       setAccessToken(token);
       set({
@@ -59,7 +65,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const res = await authApi.ssoLogin({ ticket });
       const data = res.data;
       const token = data.accessToken;
-      const user = data.user;
+      const user = normalizeUser(data.user);
 
       setAccessToken(token);
       set({
@@ -79,7 +85,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   fetchMe: async () => {
     try {
       const res = await authApi.getMe();
-      set({ user: res.data, isAuthenticated: true });
+      set({ user: normalizeUser(res.data), isAuthenticated: true });
     } catch {
       // Lỗi 401 được interceptor xử lý tự động
     }

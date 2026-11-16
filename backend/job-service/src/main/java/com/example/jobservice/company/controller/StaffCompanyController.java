@@ -8,10 +8,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/staff/companies")
@@ -44,10 +46,30 @@ public class StaffCompanyController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @PostMapping(value = "/{id}/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Tải lên logo doanh nghiệp", description = "Cán bộ tải lên logo cho doanh nghiệp.")
+    public ResponseEntity<LogoUploadResponse> uploadLogo(
+            @PathVariable("id") UUID id,
+            @RequestParam("file") MultipartFile file) {
+        LogoUploadResponse response = companyService.uploadCompanyLogoById(id, file);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping
+    @Operation(summary = "Danh sách doanh nghiệp", description = "Tìm kiếm theo tên/MST, lọc theo trạng thái, hỗ trợ phân trang.")
+    public ResponseEntity<PageResponse<CompanyListItemResponse>> getCompanies(
+            @RequestParam(name = "q", required = false) String q,
+            @RequestParam(name = "status", required = false) String status,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size) {
+        PageResponse<CompanyListItemResponse> response = companyService.getStaffCompanies(q, status, page, size);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/{id}")
-    @Operation(summary = "Xem chi tiet doanh nghiep theo ID", description = "Can bo xem thong tin chi tiet mot doanh nghiep.")
-    public ResponseEntity<CompanyResponse> getCompanyById(@PathVariable("id") UUID id) {
-        CompanyResponse response = companyService.getCompanyById(id);
+    @Operation(summary = "Xem chi tiết doanh nghiệp theo ID", description = "Endpoint trả về chi tiết doanh nghiệp và danh sách HR trực thuộc.")
+    public ResponseEntity<StaffCompanyDetailResponse> getCompanyById(@PathVariable("id") UUID id) {
+        StaffCompanyDetailResponse response = companyService.getStaffCompanyDetail(id);
         return ResponseEntity.ok(response);
     }
 }

@@ -1,4 +1,3 @@
-
 package com.example.jobservice.security;
 
 import io.jsonwebtoken.Claims;
@@ -33,7 +32,7 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(principal.getEmail())
-                .claim("userId", principal.getId().toString())
+                .claim("userId", principal.getId() != null ? principal.getId().toString() : null)
                 .claim("fullName", principal.getFullName())
                 .claim("role", principal.getRole())
                 .claim(
@@ -41,6 +40,7 @@ public class JwtTokenProvider {
                         principal.getCompanyId() != null
                                 ? principal.getCompanyId().toString()
                                 : null)
+                .claim("mustChangePassword", principal.isMustChangePassword())
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(key)
@@ -68,25 +68,14 @@ public class JwtTokenProvider {
         String email = claims.getSubject();
         String fullName = claims.get("fullName", String.class);
         String role = claims.get("role", String.class);
+        Boolean mustChangePassword = claims.get("mustChangePassword", Boolean.class);
 
         return UserPrincipal.of(
                 userId,
                 email,
                 fullName,
                 role,
-                companyId);
-    }
-
-    public boolean validateToken(String token) {
-        try {
-            Jwts.parser()
-                    .verifyWith(key)
-                    .build()
-                    .parseSignedClaims(token);
-
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
+                companyId,
+                Boolean.TRUE.equals(mustChangePassword));
     }
 }
