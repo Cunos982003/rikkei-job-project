@@ -46,43 +46,62 @@ const CAMPUSES = [
 
 export function Footer() {
   return (
-      <footer className="w-full bg-[#f8f9fa] bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] py-12 border-t border-gray-200 mt-auto">
-        <div className="container mx-auto px-4 max-w-6xl">
+      // 1. Thêm padding (py-8 px-4) cho thẻ footer ngoài cùng (nền trắng) để tạo lề
+      <footer className="w-full bg-white py-8 px-4 sm:px-6 lg:px-8 mt-auto">
 
-          {/* Tiêu đề chính */}
-          <div className="mb-10">
-            <h2 className="text-2xl font-bold text-gray-900">Liên hệ</h2>
-            <div className="w-full h-px bg-gray-300 mt-3"></div>
+        {/* 2. ĐÂY LÀ KHUNG ĐỎ (Đã được thu nhỏ và bo góc) */}
+        <div className="relative mx-auto max-w-5xl bg-gradient-to-r from-red-700 via-red-600 to-red-700 rounded-2xl shadow-xl overflow-hidden group">
+
+          {/* Họa tiết động bên trong khung đỏ */}
+          <div className="absolute inset-0 pointer-events-none opacity-20">
+            <div className="absolute w-48 h-48 bg-white rounded-full blur-3xl -top-10 -left-10 animate-pulse duration-[5000ms]"></div>
+            <div className="absolute w-56 h-56 bg-yellow-300 rounded-full blur-3xl -bottom-20 -right-10 animate-pulse duration-[7000ms]"></div>
           </div>
 
-          {/* Lưới 8 cơ sở (4 cột x 2 hàng) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12">
-            {CAMPUSES.map((campus, index) => (
-                <div key={index} className="flex flex-col">
-                  {/* Tên cơ sở */}
-                  <h3 className="text-lg font-bold text-[#c92127] mb-3">
-                    {campus.name}
-                  </h3>
+          <div className="relative z-10 p-6 sm:p-8 lg:p-10">
 
-                  {/* Đường gạch ngang nhỏ dưới tên */}
-                  <div className="w-full h-px bg-gray-300 mb-4"></div>
+            {/* Tiêu đề chính */}
+            <div className="mb-8 text-center">
+              <h2 className="text-xl font-bold text-white tracking-widest uppercase mb-2 drop-shadow-md">
+                Liên hệ
+              </h2>
+              <div className="w-16 h-0.5 bg-white mx-auto rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)]"></div>
+            </div>
 
-                  {/* Địa chỉ */}
-                  <div className="flex items-start gap-2 mb-3 text-gray-700">
-                    <MapPin className="w-5 h-5 shrink-0 mt-0.5 text-gray-500" />
-                    <p className="text-sm leading-relaxed">{campus.address}</p>
+            {/* Lưới cơ sở */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-8">
+              {CAMPUSES.map((campus, index) => (
+                  <div
+                      key={index}
+                      className="flex flex-col group/item p-3 rounded-lg transition-all duration-300 hover:bg-white/10 hover:-translate-y-1 hover:shadow-xl border border-transparent hover:border-white/20"
+                  >
+                    {/* Tên cơ sở */}
+                    <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 group-hover/item:animate-ping"></span>
+                      {campus.name}
+                    </h3>
+
+                    {/* Đường gạch ngang */}
+                    <div className="w-1/3 h-[1.5px] bg-red-300 mb-3 transition-all duration-500 group-hover/item:w-full group-hover/item:bg-white"></div>
+
+                    {/* Địa chỉ */}
+                    <div className="flex items-start gap-2 mb-2 text-red-50 transition-colors duration-300 group-hover/item:text-white">
+                      <MapPin className="w-4 h-4 shrink-0 mt-0.5 text-red-300 transition-transform duration-300 group-hover/item:scale-110 group-hover/item:text-yellow-400" />
+                      <p className="text-xs leading-snug font-light">{campus.address}</p>
+                    </div>
+
+                    {/* Số điện thoại */}
+                    <div className="flex items-center gap-2 text-red-50 mt-auto transition-colors duration-300 group-hover/item:text-white">
+                      <Phone className="w-4 h-4 shrink-0 text-red-300 transition-transform duration-300 group-hover/item:rotate-12 group-hover/item:text-yellow-400" />
+                      <p className="text-xs font-medium tracking-wide">{campus.phone}</p>
+                    </div>
                   </div>
+              ))}
+            </div>
 
-                  {/* Số điện thoại */}
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <Phone className="w-5 h-5 shrink-0 text-gray-500" />
-                    <p className="text-sm font-medium">{campus.phone}</p>
-                  </div>
-                </div>
-            ))}
           </div>
-
         </div>
+
       </footer>
   );
 }
