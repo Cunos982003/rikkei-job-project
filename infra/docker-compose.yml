@@ -1,7 +1,7 @@
 services:
   # WireMock dùng cổng host 9001; Mock API dùng cổng 9000.
   wiremock:
-    image: wiremock/wiremock:3.5.4
+    image: wiremock/wiremock:3.13.2-3
     container_name: rikkei_mock_server
     ports:
       - "9001:8080"
