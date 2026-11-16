@@ -2,6 +2,8 @@ server:
   port: 8085
 
 spring:
+  config:
+    import: optional:file:../../.env[.properties],optional:file:../.env[.properties],optional:file:.env[.properties]
   application:
     name: job-service
   datasource:
@@ -91,4 +93,4 @@ spring:
 
 app:
   jwt:
-    secret: ${APP_JWT_SECRET:local-only-not-for-production-secret}
+    secret: ${APP_JWT_SECRET}

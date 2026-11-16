@@ -257,8 +257,9 @@ npm run dev
 Tạo `.env` ở thư mục gốc từ `.env.example`, sau đó điền mật khẩu PostgreSQL,
 `JWT_SECRET` (trùng với auth-service) và các API key hoặc thông tin SMTP cần
 dùng. Không commit `.env`; giá trị mẫu cần được thay trước khi chạy.
-Hai service đọc `.env` khi chạy từ thư mục gốc hoặc thư mục service; cũng có
-thể cung cấp các biến này qua môi trường chạy. Tạo hai database `ai_db` và
+API Gateway, Auth, Job, Learning, Profile, AI Career và Recruitment đọc `.env`
+ở thư mục gốc khi chạy từ thư mục service; cũng có thể cung cấp biến qua môi
+trường chạy. Tạo các database `ai_db` và
 `recruitment_db` trên PostgreSQL trước khi khởi động, ví dụ với Docker Compose:
 
 ```bash
