@@ -6,7 +6,8 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
-@Table(name = "skill_mappings", uniqueConstraints = @UniqueConstraint(columnNames = {"source", "source_code", "skill_id"}))
+@Table(name = "skill_mappings", uniqueConstraints = @UniqueConstraint(columnNames = { "source", "source_code",
+        "skill_id" }))
 @Getter
 @Setter
 @NoArgsConstructor
