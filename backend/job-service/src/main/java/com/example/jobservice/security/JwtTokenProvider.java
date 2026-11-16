@@ -56,19 +56,34 @@ public class JwtTokenProvider {
                 .getPayload();
 
         String userIdClaim = claims.get("userId", String.class);
+        UUID userId = null;
+        if (userIdClaim != null && !userIdClaim.isBlank()) {
+            userId = UUID.fromString(userIdClaim);
+        } else {
+            try {
+                userId = UUID.fromString(claims.getSubject());
+            } catch (Exception ignored) {
+            }
+        }
+
         String companyIdClaim = claims.get("companyId", String.class);
-
-        UUID userId = userIdClaim != null
-                ? UUID.fromString(userIdClaim)
-                : null;
-
-        UUID companyId = companyIdClaim != null
+        UUID companyId = (companyIdClaim != null && !companyIdClaim.isBlank())
                 ? UUID.fromString(companyIdClaim)
                 : null;
 
-        String email = claims.getSubject();
+        String email = claims.get("email", String.class);
+        if (email == null || email.isBlank()) {
+            email = claims.getSubject();
+        }
+
         String fullName = claims.get("fullName", String.class);
         String role = claims.get("role", String.class);
+        if (role == null) {
+            Object rolesObj = claims.get("roles");
+            if (rolesObj instanceof java.util.List<?> rolesList && !rolesList.isEmpty()) {
+                role = String.valueOf(rolesList.get(0));
+            }
+        }
         Boolean mustChangePassword = claims.get("mustChangePassword", Boolean.class);
 
         return UserPrincipal.of(
