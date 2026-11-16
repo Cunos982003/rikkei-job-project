@@ -301,6 +301,30 @@ khi khởi chạy. Bốn service `assessment`, `audit`, `evidence`, `notificatio
 hiện chưa có web starter; `backend/ai-service` cũng chưa có mã ứng dụng/build
 file nên chưa được đưa vào stack chạy.
 
+##### Triển khai VPS (production)
+
+Stack production chạy frontend, gateway, các service hiện có, PostgreSQL và
+Redis trên cùng VPS. LMS và SMTP phải trỏ tới các hệ thống thật có thể truy cập
+từ VPS; cấu hình auth/profile kết nối LMS từ backend. Chọn `AI_PROVIDER` thật
+và điền API key tương ứng vào `AI_PROVIDER_API_KEY`. Production chặn route
+`/lms/` dùng để tạo vé SSO mock; luồng SSO thật phải bắt đầu từ LMS. Thay mọi
+giá trị mẫu trong `.env.prod` trước khi chạy; file này đã được gitignore và
+không được commit.
+
+```bash
+cp .env.prod.example .env.prod
+# Chỉnh .env.prod: mật khẩu mạnh, JWT_SECRET, domain, LMS/PM, SMTP và AI key.
+docker compose --env-file .env.prod -f docker-compose.prod.yml config -q
+docker compose --env-file .env.prod -f docker-compose.prod.yml up --build -d
+docker compose --env-file .env.prod -f docker-compose.prod.yml ps
+docker compose --env-file .env.prod -f docker-compose.prod.yml down
+```
+
+Frontend chỉ bind vào `127.0.0.1:8080` mặc định; cấu hình reverse proxy trên
+cùng VPS chuyển tiếp tới địa chỉ này và kết thúc HTTPS. Đổi cổng bằng
+`FRONTEND_PORT`. Lệnh `down` giữ lại dữ liệu PostgreSQL và tệp tải lên trong
+named volumes; cần có kế hoạch backup riêng cho VPS.
+
 ##### Auth service và Mock LMS
 ```bash
 # Mock LMS đọc LMS_SERVICE_KEY từ .env gốc
