@@ -97,7 +97,7 @@ export interface SelfSkillItem {
 }
 
 /**
- * Endpoints hồ sơ năng lực ứng viên (profile-service :8082 hoặc Mock :9001)
+ * Endpoints hồ sơ năng lực ứng viên (profile-service :8082 hoặc Mock :9000)
  */
 export const profileApi = {
   /**

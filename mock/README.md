@@ -6,15 +6,15 @@ Mock API Server giả lập các hệ thống bên thứ ba và cung cấp dữ 
 
 ## 1. Khởi Chạy Nhanh
 
-Server được viết bằng Node.js thuần (Zero-dependency), không cần cài thêm gói ngoài, khởi chạy tức thì:
+Server được viết bằng Node.js thuần (Zero-dependency). Tạo `.env` từ
+`.env.example` ở thư mục gốc và đặt `LMS_SERVICE_KEY`; lệnh `npm start` sẽ đọc
+biến đó và chạy server tại `http://localhost:9000`:
 
 ```bash
 cd mock
 npm start
 # Hoặc chạy trực tiếp: node server.js
 ```
-
-Server sẽ lắng nghe tại: **`http://localhost:9000`**
 
 Các integration test của `backend/job-service` dùng trực tiếp `mock/data/users.json`
 và `mock/data/companies.json`; `companyId` trong user mock phải khớp với `id`
@@ -26,14 +26,14 @@ của công ty mock.
 
 Mọi endpoint giả lập hệ thống ngoài (`/lms/*`, `/exam/*`, `/pm/*`, `/meet/*`) **bắt buộc** phải truyền header:
 ```http
-X-Service-Key: dev-key
+X-Service-Key: <LMS_SERVICE_KEY trong .env gốc>
 ```
 
 - **Nếu thiếu hoặc sai header**: Server trả về `HTTP 401 Unauthorized`:
   ```json
   {
     "code": 401,
-    "message": "Khóa dịch vụ không hợp lệ hoặc bị thiếu (yêu cầu header X-Service-Key: dev-key)"
+    "message": "Khóa dịch vụ không hợp lệ hoặc bị thiếu (yêu cầu header X-Service-Key)"
   }
   ```
 - **Nếu có header hợp lệ**: Server trả về `HTTP 200 OK` cùng dữ liệu chuẩn.
@@ -51,12 +51,12 @@ curl -i http://localhost:9000/lms/students/std-001/results
 
 #### B. Gọi khi CÓ KHÓA HỢP LỆ (Kỳ vọng: HTTP 200):
 ```bash
-curl -i -H "X-Service-Key: dev-key" http://localhost:9000/lms/students/std-001/results
+curl -i -H "X-Service-Key: <LMS_SERVICE_KEY>" http://localhost:9000/lms/students/std-001/results
 ```
 
 ---
 
-### 3.2. Danh sách các API hệ thống ngoài (Yêu cầu `X-Service-Key: dev-key`)
+### 3.2. Danh sách các API hệ thống ngoài (Yêu cầu `LMS_SERVICE_KEY` trong header `X-Service-Key`)
 
 | Hệ thống | Method | Endpoint | Mô tả |
 |---|---|---|---|

@@ -4,6 +4,6 @@ COPY mock/package.json mock/package-lock.json ./
 RUN npm ci --omit=dev
 COPY mock/ ./
 ENV NODE_ENV=production
-EXPOSE 9001
+EXPOSE 9000
 USER node
-CMD ["npm", "start"]
+CMD ["node", "server.js"]

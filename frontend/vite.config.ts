@@ -24,8 +24,15 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true
         },
         '/lms': {
-          target: env.VITE_BACKEND_URL || 'http://localhost:9001',
-          changeOrigin: true
+          target: env.VITE_MOCK_API_URL || 'http://localhost:9000',
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq) => {
+              if (env.LMS_SERVICE_KEY) {
+                proxyReq.setHeader('X-Service-Key', env.LMS_SERVICE_KEY)
+              }
+            })
+          }
         },
         '/staff': {
           target: env.VITE_BACKEND_URL || 'http://localhost:9001',

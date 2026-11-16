@@ -102,12 +102,10 @@ export function LoginPage() {
   const handleGetMockTicket = async () => {
     setIsFetchingMockTicket(true);
     try {
-      const mockBaseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:9001';
-      const res = await fetch(`${mockBaseUrl}/lms/sso/tickets`, {
+      const res = await fetch('/lms/sso/tickets', {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Service-Key": "dev-key",
         },
         body: JSON.stringify({ lmsUserId: "std-001" }),
       });

@@ -9,7 +9,7 @@
 Không cần cơ sở dữ liệu — mock server phản chiếu đúng hợp đồng API backend.
 
 ```bash
-# Terminal 1 — Mock server (cổng 9001)
+# Terminal 1 — Mock server (cổng 9000)
 cd mock
 node server.js
 
@@ -54,7 +54,7 @@ npm run build           # tsc -b && vite build
 
 ## 4. Dữ liệu mẫu
 
-### 4.1 Mock Server (cổng 9001)
+### 4.1 Mock Server (cổng 9000)
 
 | Tài khoản | Email | Mật khẩu | `X-User-Id` |
 |---|---|---|---|

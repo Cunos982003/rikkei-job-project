@@ -12,7 +12,7 @@ RUN set -eux; \
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 RUN groupadd --system app && useradd --system --gid app --create-home app \
-    && mkdir -p /app/uploads/logos /app/uploads/recruitments \
+    && mkdir -p /app/uploads \
     && chown -R app:app /app
 COPY --from=build --chown=app:app /workspace/app.jar ./app.jar
 USER app
