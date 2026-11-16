@@ -50,7 +50,7 @@ jobs:
                 --tag "${image}:${{ github.sha }}" \
                 --tag "${image}:latest" \
                 --file "${dir}Dockerfile" \
-                "$dir"
+                .
             else
               echo "No Dockerfile for $service, skipping..."
             fi
@@ -72,6 +72,13 @@ jobs:
         run: |
           if [ -f frontend/Dockerfile ]; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; echo "No frontend Dockerfile, skipping."; fi
 
+      - name: Compute image name
+        if: steps.check.outputs.exists == 'true'
+        id: image
+        run: |
+          repo="$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
+          echo "name=${REGISTRY}/${repo}-frontend" >> "$GITHUB_OUTPUT"
+
       - name: Set up Docker Buildx
         if: steps.check.outputs.exists == 'true'
         uses: docker/setup-buildx-action@v3
@@ -88,8 +95,8 @@ jobs:
         if: steps.check.outputs.exists == 'true'
         uses: docker/build-push-action@v6
         with:
-          context: frontend
+          context: .
           file: frontend/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}-frontend:${{ github.sha }}
+            ${{ steps.image.outputs.name }}:${{ github.sha }}
