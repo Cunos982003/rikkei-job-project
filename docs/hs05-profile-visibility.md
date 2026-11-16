@@ -36,7 +36,7 @@ Chuyển sai luật → **409**. Thiếu `consent` hoặc thiếu `reason` → *
 Không cần cơ sở dữ liệu — mock server phản chiếu đúng hợp đồng API backend, gồm cả luồng HS-05.
 
 ```bash
-# Terminal 1 — Mock server (cổng 9001)
+# Terminal 1 — Mock server (cổng 9000)
 cd mock
 node server.js
 
@@ -90,7 +90,7 @@ npm run lint
 
 ## 5. Dữ liệu mẫu
 
-### 5.1 Mock Server (cổng 9001)
+### 5.1 Mock Server (cổng 9000)
 
 | Tài khoản | Email | Mật khẩu | `X-User-Id` | `X-User-Role` | Trạng thái hồ sơ ban đầu |
 |---|---|---|---|---|---|

@@ -1,10 +1,10 @@
 services:
-  # Mock Server (WireMock) chạy trên cổng 9000 theo chuẩn dự án
+  # WireMock dùng cổng host 9001; Mock API dùng cổng 9000.
   wiremock:
     image: wiremock/wiremock:3.5.4
     container_name: rikkei_mock_server
     ports:
-      - "9000:8080"
+      - "9001:8080"
     volumes:
       - ./wiremock/mappings:/home/wiremock/mappings
       - ./wiremock/__files:/home/wiremock/__files
@@ -17,8 +17,8 @@ services:
     image: postgres:17-alpine
     container_name: rikkei_postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in root .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
       POSTGRES_DB: ${POSTGRES_DB:-rikkei_jobs}
     ports:
       - "5432:5432"
@@ -57,7 +57,7 @@ services:
       - ../.env
     profiles: ["app"]
     ports:
-      - "9001:9001"
+      - "9000:9000"
     restart: unless-stopped
 
   api-gateway:
@@ -70,6 +70,7 @@ services:
     environment:
       PORT: 8080
       REDIS_HOST: redis
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in root .env}
       GATEWAY_AUTH_URL: http://auth-service:8081
       GATEWAY_PROFILE_URL: http://profile-service:8082
       GATEWAY_JOB_URL: http://job-service:8085
@@ -92,9 +93,11 @@ services:
     environment:
       SERVER_PORT: 8081
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auth_db
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      LMS_BASE_URL: http://mock-api:9001
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in root .env}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in root .env}
+      LMS_SERVICE_KEY: ${LMS_SERVICE_KEY:?Set LMS_SERVICE_KEY in root .env}
+      LMS_BASE_URL: http://mock-api:9000
       SPRING_MAIL_HOST: mailpit
       SPRING_MAIL_PORT: 1025
     depends_on:
@@ -117,11 +120,17 @@ services:
     profiles: ["app"]
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/profile_db
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in root .env}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
+      LMS_BASE_URL: http://mock-api:9000
+      INTEGRATIONS_PM_BASE_URL: http://mock-api:9000
     depends_on:
       postgres:
         condition: service_healthy
+      mock-api:
+        condition: service_started
+    volumes:
+      - profile-uploads:/app/uploads
     ports:
       - "8082:8082"
     restart: unless-stopped
@@ -135,8 +144,9 @@ services:
     profiles: ["app"]
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/job_db
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in root .env}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
+      APP_JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in root .env}
       MAIL_HOST: mailpit
     depends_on:
       postgres:
@@ -159,8 +169,9 @@ services:
     environment:
       SERVER_PORT: 8086
       RECRUITMENT_DATABASE_URL: jdbc:postgresql://postgres:5432/recruitment_db
-      RECRUITMENT_DATABASE_USERNAME: ${POSTGRES_USER:-postgres}
-      RECRUITMENT_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      RECRUITMENT_DATABASE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in root .env}
+      RECRUITMENT_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in root .env}
       JOB_SERVICE_URL: http://job-service:8085
       PROFILE_SERVICE_URL: http://profile-service:8082
       SMTP_HOST: mailpit
@@ -190,11 +201,12 @@ services:
     environment:
       SERVER_PORT: 8089
       LEARNING_DATABASE_URL: jdbc:postgresql://postgres:5432/learning_db
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in root .env}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in root .env}
       PROFILE_SERVICE_URL: http://profile-service:8082
       JOB_SERVICE_URL: http://job-service:8085
-      MOCK_SERVER_URL: http://mock-api:9001
+      MOCK_SERVER_URL: http://mock-api:9000
     depends_on:
       postgres:
         condition: service_healthy
@@ -217,8 +229,8 @@ services:
     profiles: ["app"]
     environment:
       AI_DATABASE_URL: jdbc:postgresql://postgres:5432/ai_db
-      AI_DATABASE_USERNAME: ${POSTGRES_USER:-postgres}
-      AI_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      AI_DATABASE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in root .env}
+      AI_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
     depends_on:
       postgres:
         condition: service_healthy
@@ -231,8 +243,12 @@ services:
       context: ..
       dockerfile: frontend/Dockerfile
     profiles: ["app"]
+    environment:
+      LMS_SERVICE_KEY: ${LMS_SERVICE_KEY:?Set LMS_SERVICE_KEY in root .env}
+      NGINX_ENVSUBST_FILTER: LMS_SERVICE_KEY
     depends_on:
       - api-gateway
+      - mock-api
     ports:
       - "5173:8080"
     restart: unless-stopped
@@ -255,6 +271,7 @@ services:
 
 volumes:
   pgdata:
+  profile-uploads:
   job-uploads:
   recruitment-uploads:
   # miniodata:

@@ -177,9 +177,9 @@ Chỉ số kỹ năng được tính theo thang điểm từ **0 đến 100**, p
 - **Yêu cầu bảo mật dịch vụ nội bộ**:
   - Mọi request gửi tới các endpoint của hệ thống ngoài (LMS, Khảo thí, LMS-PM, Rikkei Meet) **bắt buộc phải có header**:
     ```http
-    X-Service-Key: dev-key
+    X-Service-Key: <LMS_SERVICE_KEY from the root .env>
     ```
-  - Nếu thiếu header hoặc giá trị khác `dev-key`, Mock Server lập tức trả về:
+  - Nếu thiếu header hoặc giá trị khác `LMS_SERVICE_KEY`, Mock Server lập tức trả về:
     - **HTTP Status**: `401 Unauthorized`
     - **Nội dung JSON**:
       ```json
@@ -188,7 +188,7 @@ Chỉ số kỹ năng được tính theo thang điểm từ **0 đến 100**, p
         "message": "Khóa dịch vụ không hợp lệ hoặc bị thiếu"
       }
       ```
-  - Nếu có khóa `dev-key` hợp lệ, server trả về dữ liệu mẫu cố định cho 3 ứng viên.
+  - Nếu có khóa hợp lệ, server trả về dữ liệu mẫu cố định cho 3 ứng viên.
 
 ### 6.2. Danh sách các API hệ thống ngoài được giả lập
 

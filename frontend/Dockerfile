@@ -10,6 +10,6 @@ ENV VITE_AI_CAREER_BASE_URL=${VITE_AI_CAREER_BASE_URL}
 RUN npm run build
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine
-COPY infra/docker/frontend.conf /etc/nginx/conf.d/default.conf
+COPY infra/docker/frontend.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /src/dist /usr/share/nginx/html
 EXPOSE 8080

@@ -1,7 +1,7 @@
 /**
  * Rikkei Jobs Mock Server
- * Cổng: 9001
- * Yêu cầu: Xác thực header X-Service-Key: dev-key cho các endpoint hệ thống ngoài (LMS, Khảo thí, PM, Meet)
+ * Cổng: 9000
+ * Các endpoint hệ thống ngoài (LMS, Khảo thí, PM, Meet) yêu cầu X-Service-Key.
  * Hỗ trợ: CORS, JSON parsing, phân trang (?page=1&size=20), mã lỗi HTTP chuẩn (400, 401, 403, 404, 409, 429, 500)
  */
 
@@ -10,8 +10,12 @@ const url = require('url');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 9001;
-const SERVICE_KEY = process.env.LMS_SERVICE_KEY || 'dev-key';
+const PORT = Number(process.env.PORT || 9000);
+const SERVICE_KEY = process.env.LMS_SERVICE_KEY;
+
+if (!SERVICE_KEY) {
+  throw new Error('LMS_SERVICE_KEY environment variable is required');
+}
 
 // Đọc dữ liệu mẫu từ mock/data/
 function loadData(fileName) {
@@ -95,7 +99,7 @@ function parseBody(req) {
 
 // Handler xử lý toàn bộ request
 async function requestHandler(req, res) {
-  const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost:9001'}`);
+  const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost:' + PORT}`);
   const pathname = parsedUrl.pathname;
   const method = req.method.toUpperCase();
   const query = Object.fromEntries(parsedUrl.searchParams.entries());
@@ -114,7 +118,7 @@ async function requestHandler(req, res) {
   console.log(`[${new Date().toISOString()}] ${method} ${pathname}`);
 
   // -------------------------------------------------------------
-  // KIỂM TRA BẢO MẬT: X-Service-Key: dev-key cho các hệ thống ngoài
+  // Require the configured service key for external-system routes.
   // -------------------------------------------------------------
   const isExternalSystemRoute = 
     pathname.startsWith('/lms') || 
@@ -125,7 +129,7 @@ async function requestHandler(req, res) {
   if (isExternalSystemRoute) {
     const serviceKey = req.headers['x-service-key'];
     if (!serviceKey || serviceKey !== SERVICE_KEY) {
-      return sendError(res, 401, 'Khóa dịch vụ không hợp lệ hoặc bị thiếu (yêu cầu header X-Service-Key: dev-key)');
+      return sendError(res, 401, 'Khóa dịch vụ không hợp lệ hoặc bị thiếu (yêu cầu header X-Service-Key)');
     }
   }
 
@@ -865,7 +869,7 @@ if (require.main === module) {
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`=======================================================`);
     console.log(`🚀 Rikkei Jobs Mock Server đang chạy tại http://localhost:${PORT}`);
-    console.log(`🔐 Yêu cầu Header cho hệ thống ngoài: X-Service-Key: ${SERVICE_KEY}`);
+    console.log('🔐 Các API hệ thống ngoài yêu cầu header X-Service-Key');
     console.log(`📚 Hệ thống hỗ trợ: LMS, Khảo thí, LMS-PM, Rikkei Meet, Auth & Candidate APIs`);
     console.log(`=======================================================`);
   });

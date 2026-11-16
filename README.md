@@ -237,9 +237,10 @@ Dự án gồm 3 thành phần chính có thể khởi chạy độc lập:
 
 #### 1. Khởi động Mock Server hệ thống ngoài (LMS, Khảo thí, PM, Meet - Cổng 9000)
 ```bash
+# Tạo và cấu hình LMS_SERVICE_KEY trong .env gốc trước.
 cd mock
 npm start
-# Server lắng nghe tại http://localhost:9000 (Yêu cầu header X-Service-Key: dev-key)
+# Server lắng nghe tại http://localhost:9000
 ```
 
 #### 2. Khởi động Frontend (React 19 - Cổng 5173)
@@ -263,14 +264,14 @@ trường chạy. Tạo các database `ai_db` và
 `recruitment_db` trên PostgreSQL trước khi khởi động, ví dụ với Docker Compose:
 
 ```bash
-docker compose -f infra/docker-compose.yml up -d postgres
-docker compose -f infra/docker-compose.yml exec postgres createdb -U postgres ai_db
-docker compose -f infra/docker-compose.yml exec postgres createdb -U postgres recruitment_db
+docker compose --env-file .env -f infra/docker-compose.yml up -d postgres
+docker compose --env-file .env -f infra/docker-compose.yml exec postgres sh -c 'createdb -U "$POSTGRES_USER" ai_db'
+docker compose --env-file .env -f infra/docker-compose.yml exec postgres sh -c 'createdb -U "$POSTGRES_USER" recruitment_db'
 ```
 
-Mặc định Compose dùng người dùng và mật khẩu PostgreSQL `postgres`; cấu hình
-thông tin kết nối tương ứng trong `.env`. Nếu thay đổi cấu hình Compose, dùng
-người dùng và mật khẩu tương ứng. Hai lệnh `createdb` chỉ chạy một lần cho
+Compose lấy thông tin PostgreSQL từ `.env` gốc; lệnh cần có `--env-file .env`.
+Nếu thay đổi cấu hình Compose, dùng người dùng và mật khẩu tương ứng. Hai lệnh
+`createdb` chỉ chạy một lần cho
 mỗi database. Hibernate tạo/cập nhật schema khi service khởi động; thao tác này
 không di chuyển dữ liệu H2 hoặc dữ liệu PostgreSQL cũ. Hãy sao lưu và thực
 hiện migration riêng nếu cần giữ dữ liệu hiện có.
@@ -281,7 +282,7 @@ H2 riêng, không dùng database PostgreSQL thật.
 
 ```bash
 # Tùy chọn A: Khởi động hạ tầng bổ trợ bằng Docker (PostgreSQL, Redis, Kafka, MinIO, Mailpit)
-docker compose -f infra/docker-compose.yml up -d
+docker compose --env-file .env -f infra/docker-compose.yml up -d
 
 # Tùy chọn B: Chạy service cụ thể bằng Gradle (ví dụ auth-service)
 cd backend/auth-service
@@ -291,7 +292,7 @@ cd backend/auth-service
 Để build và chạy các ứng dụng có thể triển khai cùng frontend:
 
 ```bash
-docker compose -f infra/docker-compose.yml --profile app up --build -d
+docker compose --env-file .env -f infra/docker-compose.yml --profile app up --build -d
 ```
 
 Frontend chạy tại `http://localhost:5173`; gateway tại `http://localhost:8080`.
@@ -302,13 +303,13 @@ file nên chưa được đưa vào stack chạy.
 
 ##### Auth service và Mock LMS
 ```bash
-# Mock LMS bắt buộc header X-Service-Key: dev-key
+# Mock LMS đọc LMS_SERVICE_KEY từ .env gốc
 cd mock
 npm start
 
 # Auth service mặc định kết nối PostgreSQL auth_db và mock LMS trên http://localhost:9000
 cd ../backend/auth-service
-LMS_BASE_URL=http://localhost:9000 LMS_SERVICE_KEY=dev-key ./gradlew bootRun
+./gradlew bootRun
 # OpenAPI UI: http://localhost:8081/swagger-ui/index.html
 ```
 
@@ -381,7 +382,8 @@ cấu hình chạy đúng cổng trước khi có thể nhận request.
 | MinIO (API / Console) | 9002 / 9001 |
 | ClamAV | 3310 |
 | Mailpit (SMTP / Web) | 1025 / 8025 |
-| WireMock (Mock API) | 9000 |
+| Mock API | 9000 |
+| WireMock | 9001 |
 
 ## 8. Quy ước phát triển
 
@@ -399,7 +401,7 @@ cấu hình chạy đúng cổng trước khi có thể nhận request.
 | Nhánh Git | `main` (production), `develop` (tích hợp), nhánh tính năng `feature/<mã>-<tên>` (vd: `feature/NT-01-login`) |
 | Pull Request | **Mọi PR đều trỏ vào `develop`**, tiêu đề bắt đầu bằng mã task: `[<mã-task>] ...` (vd: `[NT-01] Xây dựng đăng nhập`) |
 | Commit | [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:` |
-| Mock hệ thống ngoài | Chạy tại `mock/`, cổng `9000`, bắt buộc header `X-Service-Key: dev-key` (sai/thiếu -> 401) |
+| Mock hệ thống ngoài | Chạy tại `mock/`, cổng host `9000`, bắt buộc header `X-Service-Key` với giá trị `LMS_SERVICE_KEY` từ `.env` (sai/thiếu -> 401) |
 | Thang bậc kỹ năng | ~20 kỹ năng mẫu; 0–39 Cơ bản, 40–69 Khá, 70–84 Tốt, 85–100 Xuất sắc |
 
 ### Quy ước frontend

@@ -4,6 +4,10 @@
  */
 
 const { EventEmitter } = require('events');
+
+const TEST_SERVICE_KEY = 'test-only-service-key';
+process.env.LMS_SERVICE_KEY = TEST_SERVICE_KEY;
+
 const { requestHandler } = require('./server');
 
 // Tạo mock request và response để kiểm thử handler
@@ -84,29 +88,29 @@ async function runTests() {
   });
   assert(res3.statusCode === 401, '3. Gọi API LMS với X-Service-Key sai trả về HTTP 401');
 
-  // TEST 4: Gọi LMS với header đúng X-Service-Key: dev-key (Phải trả về 200 và kết quả học tập)
+  // TEST 4: Gọi LMS với header X-Service-Key hợp lệ
   const res4 = await simulateRequest({
     method: 'GET',
     url: '/lms/students/std-001/results',
-    headers: { 'x-service-key': 'dev-key' }
+    headers: { 'x-service-key': TEST_SERVICE_KEY }
   });
   assert(res4.statusCode === 200 && Array.isArray(res4.body) && res4.body.length > 0,
-    '4. Gọi API LMS với X-Service-Key: dev-key trả về 200 và bảng điểm của std-001');
+    '4. Gọi API LMS với X-Service-Key hợp lệ trả về bảng điểm của std-001');
 
-  // TEST 5: Gọi Khảo thí với X-Service-Key: dev-key
+  // TEST 5: Gọi Khảo thí với X-Service-Key hợp lệ
   const res5 = await simulateRequest({
     method: 'GET',
     url: '/exam/students/std-001/results',
-    headers: { 'x-service-key': 'dev-key' }
+    headers: { 'x-service-key': TEST_SERVICE_KEY }
   });
   assert(res5.statusCode === 200 && res5.body[0].examCode === 'EXAM-JV-2026',
     '5. Gọi API Khảo thí trả về kết quả thi chính thức');
 
-  // TEST 6: Gọi LMS-PM với X-Service-Key: dev-key
+  // TEST 6: Gọi LMS-PM với X-Service-Key hợp lệ
   const res6 = await simulateRequest({
     method: 'GET',
     url: '/pm/students/std-003/internships',
-    headers: { 'x-service-key': 'dev-key' }
+    headers: { 'x-service-key': TEST_SERVICE_KEY }
   });
   assert(res6.statusCode === 200 && res6.body[0].topicName.includes('Rikkei Jobs'),
     '6. Gọi API LMS-PM trả về kết quả thực tập dự án IOC của std-003');
@@ -115,7 +119,7 @@ async function runTests() {
   const res7 = await simulateRequest({
     method: 'POST',
     url: '/meet/rooms',
-    headers: { 'x-service-key': 'dev-key' }
+    headers: { 'x-service-key': TEST_SERVICE_KEY }
   }, { title: 'Phỏng vấn ứng viên Nguyễn Văn An' });
   assert(res7.statusCode === 200 && res7.body.roomUrl.includes('meet.rikkei.edu.vn'),
     '7. Gọi API Rikkei Meet sinh URL phòng họp giả lập thành công');
