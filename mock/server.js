@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = 9001;
-const SERVICE_KEY = 'dev-key';
+const SERVICE_KEY = process.env.LMS_SERVICE_KEY || 'dev-key';
 
 // Đọc dữ liệu mẫu từ mock/data/
 function loadData(fileName) {

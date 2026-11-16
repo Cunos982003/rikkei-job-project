@@ -288,6 +288,18 @@ cd backend/auth-service
 ./gradlew bootRun
 ```
 
+Để build và chạy các ứng dụng có thể triển khai cùng frontend:
+
+```bash
+docker compose -f infra/docker-compose.yml --profile app up --build -d
+```
+
+Frontend chạy tại `http://localhost:5173`; gateway tại `http://localhost:8080`.
+Các giá trị `CHANGE_ME` trong `.env` phải được thay bằng cấu hình phù hợp trước
+khi khởi chạy. Bốn service `assessment`, `audit`, `evidence`, `notification`
+hiện chưa có web starter; `backend/ai-service` cũng chưa có mã ứng dụng/build
+file nên chưa được đưa vào stack chạy.
+
 ##### Auth service và Mock LMS
 ```bash
 # Mock LMS bắt buộc header X-Service-Key: dev-key

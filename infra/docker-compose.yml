@@ -25,6 +25,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER:-postgres}\" -d \"$${POSTGRES_DB:-rikkei_jobs}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     restart: unless-stopped
 
   # In-memory Caching & Session (Redis 7)
@@ -42,6 +47,194 @@ services:
     ports:
       - "1025:1025"
       - "8025:8025"
+    restart: unless-stopped
+
+  mock-api:
+    build:
+      context: ..
+      dockerfile: mock/Dockerfile
+    env_file:
+      - ../.env
+    profiles: ["app"]
+    ports:
+      - "9001:9001"
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: backend/api-gateway/Dockerfile
+    env_file:
+      - ../.env
+    profiles: ["app"]
+    environment:
+      PORT: 8080
+      REDIS_HOST: redis
+      GATEWAY_AUTH_URL: http://auth-service:8081
+      GATEWAY_PROFILE_URL: http://profile-service:8082
+      GATEWAY_JOB_URL: http://job-service:8085
+      GATEWAY_RECRUITMENT_URL: http://recruitment-service:8086
+      GATEWAY_LEARNING_URL: http://learning-service:8089
+      GATEWAY_AI_URL: http://ai-career-service:8090
+    depends_on:
+      - redis
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  auth-service:
+    build:
+      context: ..
+      dockerfile: backend/auth-service/Dockerfile
+    env_file:
+      - ../.env
+    profiles: ["app"]
+    environment:
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auth_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      LMS_BASE_URL: http://mock-api:9001
+      SPRING_MAIL_HOST: mailpit
+      SPRING_MAIL_PORT: 1025
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mock-api:
+        condition: service_started
+      mailpit:
+        condition: service_started
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  profile-service:
+    build:
+      context: ..
+      dockerfile: backend/profile-service/Dockerfile
+    env_file:
+      - ../.env
+    profiles: ["app"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/profile_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
+
+  job-service:
+    build:
+      context: ..
+      dockerfile: backend/job-service/Dockerfile
+    env_file:
+      - ../.env
+    profiles: ["app"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/job_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      MAIL_HOST: mailpit
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    volumes:
+      - job-uploads:/app/uploads/logos
+    ports:
+      - "8085:8085"
+    restart: unless-stopped
+
+  recruitment-service:
+    build:
+      context: ..
+      dockerfile: backend/recruitment-service/Dockerfile
+    env_file:
+      - ../.env
+    profiles: ["app"]
+    environment:
+      SERVER_PORT: 8086
+      RECRUITMENT_DATABASE_URL: jdbc:postgresql://postgres:5432/recruitment_db
+      RECRUITMENT_DATABASE_USERNAME: ${POSTGRES_USER:-postgres}
+      RECRUITMENT_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JOB_SERVICE_URL: http://job-service:8085
+      PROFILE_SERVICE_URL: http://profile-service:8082
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+    depends_on:
+      postgres:
+        condition: service_healthy
+      job-service:
+        condition: service_started
+      profile-service:
+        condition: service_started
+      mailpit:
+        condition: service_started
+    volumes:
+      - recruitment-uploads:/app/uploads/recruitments
+    ports:
+      - "8086:8086"
+    restart: unless-stopped
+
+  learning-service:
+    build:
+      context: ..
+      dockerfile: backend/learning-service/Dockerfile
+    env_file:
+      - ../.env
+    profiles: ["app"]
+    environment:
+      SERVER_PORT: 8089
+      LEARNING_DATABASE_URL: jdbc:postgresql://postgres:5432/learning_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PROFILE_SERVICE_URL: http://profile-service:8082
+      JOB_SERVICE_URL: http://job-service:8085
+      MOCK_SERVER_URL: http://mock-api:9001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      profile-service:
+        condition: service_started
+      job-service:
+        condition: service_started
+      mock-api:
+        condition: service_started
+    ports:
+      - "8089:8089"
+    restart: unless-stopped
+
+  ai-career-service:
+    build:
+      context: ..
+      dockerfile: ai_career_service/Dockerfile
+    env_file:
+      - ../.env
+    profiles: ["app"]
+    environment:
+      AI_DATABASE_URL: jdbc:postgresql://postgres:5432/ai_db
+      AI_DATABASE_USERNAME: ${POSTGRES_USER:-postgres}
+      AI_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8090:8090"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+    profiles: ["app"]
+    depends_on:
+      - api-gateway
+    ports:
+      - "5173:8080"
     restart: unless-stopped
 
   # Object Storage (MinIO: API 9002, Console 9001 - cổng 9002 để tránh trùng Mock 9000)
@@ -62,5 +255,7 @@ services:
 
 volumes:
   pgdata:
+  job-uploads:
+  recruitment-uploads:
   # miniodata:
 
