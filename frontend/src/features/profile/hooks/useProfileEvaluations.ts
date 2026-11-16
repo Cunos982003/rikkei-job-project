@@ -1,17 +1,20 @@
-import { useQuery } from "@tanstack/react-query";
-import { profileApi, type MentorEvaluation } from "@/api";
+import { useQuery } from '@tanstack/react-query';
+import type { MentorEvaluation } from '@/api/types/evaluation';
+import { MOCK_MENTOR_EVALUATIONS } from '../mocks/evaluationMock'; // Trỏ đúng đường dẫn tới file mock bên trên
 
-/**
- * Hook quản lý truy vấn danh sách phiếu đánh giá từ Mentor
- * @param userId ID của ứng viên (hoặc undefined nếu lấy đánh giá của chính mình)
- */
-export function useProfileEvaluations(userId?: string) {
-  return useQuery<MentorEvaluation[]>({
-    queryKey: ["profile-evaluations", userId ?? "me"],
-    queryFn: async () => {
-      const res = await profileApi.getEvaluations(userId);
-      return res.data;
+export function useProfileEvaluations(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['profile-evaluations', userId],
+    queryFn: async (): Promise<MentorEvaluation[]> => {
+      // Giả lập độ trễ mạng 500ms
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Trả về dữ liệu Mock
+      return MOCK_MENTOR_EVALUATIONS;
+
+      // KHI BE XONG:
+      // return client.get(`/api/v1/profiles/${userId}/evaluations`).then(res => res.data);
     },
+    enabled: !!userId,
   });
 }
-
