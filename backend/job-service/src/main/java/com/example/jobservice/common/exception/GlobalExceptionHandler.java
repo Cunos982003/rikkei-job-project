@@ -2,6 +2,7 @@ package com.example.jobservice.common.exception;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +30,16 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleBusinessException(BusinessException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(ex.getStatus(), ex.getMessage());
         problem.setTitle(ex.getStatus().getReasonPhrase());
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        log.warn("Database constraint violation", ex);
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "Dữ liệu đã tồn tại hoặc vi phạm ràng buộc trong hệ thống");
+        problem.setTitle("Conflict");
         problem.setProperty("timestamp", Instant.now());
         return problem;
     }
