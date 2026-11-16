@@ -1,5 +1,6 @@
 package com.example.authservice;
 
+import com.example.authservice.dto.ChangePasswordRequest;
 import com.example.authservice.dto.ForgotPasswordRequest;
 import com.example.authservice.dto.LoginRequest;
 import com.example.authservice.dto.ResetPasswordRequest;
@@ -9,6 +10,7 @@ import com.example.authservice.exception.ErrorCode;
 import com.example.authservice.exception.SsoException;
 import com.example.authservice.repository.PasswordResetTokenRepository;
 import com.example.authservice.repository.UserRepository;
+import com.example.authservice.security.JwtTokenProvider;
 import com.example.authservice.service.EmailService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
@@ -67,6 +69,9 @@ class HrAuthenticationIntegrationTest {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
 
     @MockitoBean
     private EmailService emailService;
@@ -572,6 +577,67 @@ class HrAuthenticationIntegrationTest {
         assertThat(loginResponse).doesNotContain("PrivatePassword123@");
         assertThat(loginResponse).doesNotContain("lockedUntil");
         assertThat(loginResponse).doesNotContain("failedLoginAttempts");
+    }
+
+    @Test
+    @DisplayName("16. HR đổi mật khẩu thành công - trả 200 OK và cập nhật mật khẩu mới")
+    void hrChangePasswordSuccess() throws Exception {
+        User hrUser = new User(
+                null,
+                "hr16@rikkei.vn",
+                "HR Change Pass Test",
+                "ROLE_HR",
+                passwordEncoder.encode("CurrentPassword123@"),
+                Instant.now(),
+                Instant.now());
+        hrUser.setMustChangePassword(true);
+        User savedUser = userRepository.save(hrUser);
+
+        String token = jwtTokenProvider.generateToken(savedUser);
+
+        mockMvc.perform(post("/api/v1/auth/change-password")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new ChangePasswordRequest("CurrentPassword123@", "NewPassword456@"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message", is("Password changed successfully.")));
+
+        User updatedUser = userRepository.findById(savedUser.getId()).orElseThrow();
+        assertThat(passwordEncoder.matches("NewPassword456@", updatedUser.getPasswordHash())).isTrue();
+        assertThat(updatedUser.isMustChangePassword()).isFalse();
+    }
+
+    @Test
+    @DisplayName("17. HR đổi mật khẩu sai mật khẩu hiện tại - trả 401 INVALID_CREDENTIALS")
+    void hrChangePasswordWrongCurrentPassword() throws Exception {
+        User hrUser = new User(
+                null,
+                "hr17@rikkei.vn",
+                "HR Wrong Pass Test",
+                "ROLE_HR",
+                passwordEncoder.encode("CurrentPassword123@"),
+                Instant.now(),
+                Instant.now());
+        User savedUser = userRepository.save(hrUser);
+
+        String token = jwtTokenProvider.generateToken(savedUser);
+
+        mockMvc.perform(post("/api/v1/auth/change-password")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new ChangePasswordRequest("WrongCurrentPass!", "NewPassword456@"))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code", is("INVALID_CREDENTIALS")));
+    }
+
+    @Test
+    @DisplayName("18. Đổi mật khẩu khi không có token xác thực - trả 401 UNAUTHORIZED")
+    void changePasswordWithoutAuthReturns401() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/change-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new ChangePasswordRequest("OldPass123@", "NewPassword456@"))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code", is("UNAUTHORIZED")));
     }
 
     private String sha256(String input) {

@@ -163,6 +163,15 @@ async function runTests() {
   assert(res14.statusCode === 200 && Array.isArray(res14.body) && res14.body.length === 5 && res14.body[0].role === 'CANDIDATE', 
     '14. Endpoint /api/v1/auth/demo-accounts trả về 5 tài khoản mẫu cho 5 vai trò');
 
+  // TEST 15: Đổi mật khẩu qua Mock Server
+  const res15 = await simulateRequest({
+    method: 'POST',
+    url: '/api/v1/auth/change-password',
+    headers: { authorization: 'Bearer mock-jwt-token-for-hr' }
+  }, { currentPassword: 'Test@123', newPassword: 'NewPassword123' });
+  assert(res15.statusCode === 200 && res15.body.message === 'Đổi mật khẩu thành công.',
+    '15. Endpoint /api/v1/auth/change-password đổi mật khẩu thành công');
+
   console.log('\n====================================================');
   console.log(`📊 KẾT QUẢ KIỂM THỬ: ${passed} PASS, ${failed} FAIL`);
   console.log('====================================================');
