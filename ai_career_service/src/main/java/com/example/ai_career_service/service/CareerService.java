@@ -19,7 +19,9 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -93,6 +95,16 @@ public class CareerService {
             results[item.index()] = toResponse(repository.save(recommendation), item.match());
         }
         return java.util.Arrays.asList(results);
+    }
+
+    public double getMatchScore(UUID userId, UUID jobId) {
+        RecommendationSnapshot snapshot = dataSource.loadSnapshot(userId);
+        RecommendationSnapshot.EligibleJob job = snapshot.eligibleJobs().stream()
+                .filter(eligibleJob -> eligibleJob.jobId().equals(jobId))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Eligible job not found for user"));
+        return JobMatchScorer.score(snapshot.verifiedSkills(), job.requirements()).score();
     }
 
     private record ScoredJob(RecommendationSnapshot.EligibleJob job, JobMatchScorer.MatchResult match) {

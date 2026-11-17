@@ -100,7 +100,7 @@ spring:
             - id: recruitment
               uri: ${GATEWAY_RECRUITMENT_URL:http://localhost:8086}
               predicates:
-                - Path=/api/v1/jobs/*/recruit,/api/v1/me/recruitments,/api/v1/me/recruitments/**,/api/v1/recruitments/**
+                - Path=/api/v1/jobs/*/recruit,/api/v1/me/recruitments,/api/v1/me/recruitments/**,/api/v1/recruitments/**,/api/v1/staff/recruitments/**
               filters: *cors-response-filters
             - id: recruitment-snapshot
               uri: ${GATEWAY_RECRUITMENT_URL:http://localhost:8086}

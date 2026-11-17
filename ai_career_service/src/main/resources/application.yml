@@ -30,3 +30,7 @@ app:
 
 server:
   port: 8090
+
+internal:
+  service:
+    token: ${INTERNAL_SERVICE_TOKEN:}
