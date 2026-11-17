@@ -23,9 +23,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import com.example.recruitment_service.dto.ApplyRequest;
 import com.example.recruitment_service.dto.CreateInterviewRoundRequest;
+import com.example.recruitment_service.dto.RecruitmentMatchScoreResponse;
 import com.example.recruitment_service.dto.TransitionRequest;
 import com.example.recruitment_service.dto.UpdateInterviewRoundRequest;
 import com.example.recruitment_service.entity.InterviewRound;
@@ -34,6 +38,7 @@ import com.example.recruitment_service.entity.RecruitmentStatusHistory;
 import com.example.recruitment_service.enums.InterviewRoundResult;
 import com.example.recruitment_service.enums.RecruitmentStatus;
 import com.example.recruitment_service.exception.ApiException;
+import com.example.recruitment_service.integration.AiCareerServiceClient;
 import com.example.recruitment_service.integration.CvServiceClient;
 import com.example.recruitment_service.integration.JobServiceClient;
 import com.example.recruitment_service.repository.InterviewRoundRepository;
@@ -63,6 +68,8 @@ class RecruitmentServiceTest {
     private RecruitmentTransitionPolicy transitionPolicy;
     @Mock
     private JobServiceClient jobServiceClient;
+    @Mock
+    private AiCareerServiceClient aiCareerServiceClient;
     @Mock
     private CvServiceClient cvServiceClient;
     @Mock
@@ -102,6 +109,25 @@ class RecruitmentServiceTest {
         verify(recruitmentRepository, times(2)).save(argThat(saved ->
                 CANDIDATE_EMAIL.equals(saved.getCandidate_email())));
         verify(eventPublisher).publishEvent(any(RecruitmentSubmittedEvent.class));
+    }
+
+    @Test
+    void recruitStoresCompanySnapshotFromJob() {
+        when(jobServiceClient.getJob(eq(JOB_ID), any())).thenReturn(jobDetails());
+        when(recruitmentRepository.existsActiveByJobAndUser(JOB_ID, USER_ID, RecruitmentStatus.WITHDRAWN))
+                .thenReturn(false);
+        when(recruitmentRepository.save(any(Recruitment.class))).thenAnswer(invocation -> {
+            Recruitment recruitment = invocation.getArgument(0);
+            recruitment.setId(RECRUITMENT_ID);
+            return recruitment;
+        });
+        when(cvServiceClient.downloadPdf(CV_ID, "Bearer token")).thenReturn(new byte[] {'%', 'P', 'D', 'F', '-'});
+        when(snapshotStorage.store(eq(RECRUITMENT_ID), any())).thenReturn("/snapshot");
+
+        recruitmentService.recruit(JOB_ID, request, candidate, "Bearer token");
+
+        verify(recruitmentRepository, times(2))
+                .save(argThat(saved -> COMPANY_ID.equals(saved.getCompany_id())));
     }
 
     @Test
@@ -367,6 +393,92 @@ class RecruitmentServiceTest {
         verify(recruitmentRepository, never()).save(any());
         verify(historyRepository, never()).save(any());
         verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void returnsRecruitmentOwnedDetailForOwningHr() {
+        Recruitment recruitment = recruitmentWithStatus(RecruitmentStatus.INTERVIEW);
+        recruitment.setCandidate_email(CANDIDATE_EMAIL);
+        recruitment.setCover_letter("A thoughtful cover letter");
+        recruitment.setCv_snapshot_url("/snapshots/" + RECRUITMENT_ID);
+        recruitment.setCompany_id(COMPANY_ID);
+        RecruitmentStatusHistory history = new RecruitmentStatusHistory();
+        history.setRecruitment_id(RECRUITMENT_ID);
+        history.setFrom_status(RecruitmentStatus.SCREENING);
+        history.setTo_status(RecruitmentStatus.INTERVIEW);
+        history.setActor_id(HR_ID);
+        history.setNote("Interview");
+        when(recruitmentRepository.findById(RECRUITMENT_ID)).thenReturn(java.util.Optional.of(recruitment));
+        when(jobServiceClient.getJob(JOB_ID, "Bearer token")).thenReturn(jobDetails());
+        when(aiCareerServiceClient.getMatchScore(USER_ID, JOB_ID))
+                .thenReturn(new RecruitmentMatchScoreResponse(USER_ID, JOB_ID, 87.5));
+        when(interviewRoundRepository.findByRecruitment_IdOrderByRoundNoAsc(RECRUITMENT_ID))
+                .thenReturn(List.of(round(recruitment, 1)));
+        when(historyRepository.findHistory(RECRUITMENT_ID)).thenReturn(List.of(history));
+
+        var result = recruitmentService.getReviewDetails(RECRUITMENT_ID, hr, "Bearer token");
+
+        assertEquals(USER_ID, result.candidateId());
+        assertEquals(CANDIDATE_EMAIL, result.candidateEmail());
+        assertEquals("A thoughtful cover letter", result.coverLetter());
+        assertEquals("/snapshots/" + RECRUITMENT_ID, result.cvSnapshotUrl());
+        assertEquals(87.5, result.score());
+        assertEquals(1, result.rounds().size());
+        assertEquals(1, result.history().size());
+        verify(jobServiceClient).getJob(JOB_ID, "Bearer token");
+        verify(aiCareerServiceClient).getMatchScore(USER_ID, JOB_ID);
+    }
+
+    @Test
+    void hidesRecruitmentFromOtherCompanyHr() {
+        Recruitment recruitment = recruitmentWithStatus(RecruitmentStatus.SUBMITTED);
+        when(recruitmentRepository.findById(RECRUITMENT_ID)).thenReturn(java.util.Optional.of(recruitment));
+        when(jobServiceClient.getJob(JOB_ID, "Bearer token")).thenReturn(jobDetails());
+        UserPrincipal otherHr = new UserPrincipal(HR_ID, "HR", UUID.randomUUID(), "other@example.test");
+
+        ApiException exception = assertThrows(
+                ApiException.class,
+                () -> recruitmentService.getReviewDetails(RECRUITMENT_ID, otherHr, "Bearer token"));
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
+        verify(aiCareerServiceClient, never()).getMatchScore(any(), any());
+        verify(historyRepository, never()).findHistory(any());
+    }
+
+    @Test
+    void filtersStaffRecruitmentsAndPaginates() {
+        Recruitment recruitment = recruitmentWithStatus(RecruitmentStatus.SCREENING);
+        recruitment.setCandidate_email(CANDIDATE_EMAIL);
+        PageRequest pageable = PageRequest.of(2, 20, Sort.by(Sort.Direction.DESC, "created_at"));
+        when(recruitmentRepository.findForStaff(COMPANY_ID, JOB_ID, RecruitmentStatus.SCREENING, pageable))
+                .thenReturn(new PageImpl<>(List.of(recruitment), pageable, 41));
+
+        var result = recruitmentService.listForStaff(
+                COMPANY_ID, JOB_ID, RecruitmentStatus.SCREENING, 2);
+
+        assertEquals(41, result.getTotalElements());
+        assertEquals(1, result.getContent().size());
+        assertEquals(USER_ID, result.getContent().get(0).candidateId());
+        verify(recruitmentRepository).findForStaff(COMPANY_ID, JOB_ID, RecruitmentStatus.SCREENING, pageable);
+    }
+
+    @Test
+    void returnsBadGatewayWhenAiUpstreamFails() {
+        Recruitment recruitment = recruitmentWithStatus(RecruitmentStatus.SUBMITTED);
+        recruitment.setCompany_id(COMPANY_ID);
+        when(recruitmentRepository.findById(RECRUITMENT_ID)).thenReturn(java.util.Optional.of(recruitment));
+        when(jobServiceClient.getJob(JOB_ID, "Bearer token")).thenReturn(jobDetails());
+        when(aiCareerServiceClient.getMatchScore(USER_ID, JOB_ID)).thenThrow(
+                new ApiException(HttpStatus.BAD_GATEWAY, "AI Career service is unavailable", "UPSTREAM_ERROR"));
+
+        ApiException exception = assertThrows(
+                ApiException.class,
+                () -> recruitmentService.getReviewDetails(RECRUITMENT_ID, hr, "Bearer token"));
+
+        assertEquals(HttpStatus.BAD_GATEWAY, exception.getStatus());
+        assertEquals("UPSTREAM_ERROR", exception.getCode());
+        verify(jobServiceClient).getJob(JOB_ID, "Bearer token");
+        verify(aiCareerServiceClient).getMatchScore(USER_ID, JOB_ID);
     }
 
     private JobServiceClient.JobDetails jobDetails() {

@@ -39,6 +39,9 @@ public class Recruitment {
     @Column(name = "job_id", nullable = false)
     private UUID job_id;
 
+    @Column(name = "company_id")
+    private UUID company_id;
+
     @Column(name = "user_id", nullable = false)
     private UUID user_id;
 

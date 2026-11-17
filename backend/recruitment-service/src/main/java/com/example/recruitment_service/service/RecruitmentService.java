@@ -5,12 +5,18 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.example.recruitment_service.dto.CreateInterviewRoundRequest;
+import com.example.recruitment_service.dto.InterviewRoundSummary;
+import com.example.recruitment_service.dto.RecruitmentReviewDetails;
+import com.example.recruitment_service.dto.RecruitmentStaffSummary;
 import com.example.recruitment_service.dto.RecruitmentDetails;
 import com.example.recruitment_service.dto.RecruitmentHistoryItem;
 import com.example.recruitment_service.dto.RecruitmentSummary;
@@ -23,6 +29,7 @@ import com.example.recruitment_service.entity.RecruitmentStatusHistory;
 import com.example.recruitment_service.enums.InterviewRoundResult;
 import com.example.recruitment_service.enums.RecruitmentStatus;
 import com.example.recruitment_service.exception.ApiException;
+import com.example.recruitment_service.integration.AiCareerServiceClient;
 import com.example.recruitment_service.integration.CvServiceClient;
 import com.example.recruitment_service.integration.JobServiceClient;
 import com.example.recruitment_service.repository.InterviewRoundRepository;
@@ -38,6 +45,7 @@ public class RecruitmentService {
     private final InterviewRoundRepository interviewRoundRepository;
     private final RecruitmentTransitionPolicy transitionPolicy;
     private final JobServiceClient jobServiceClient;
+    private final AiCareerServiceClient aiCareerServiceClient;
     private final CvServiceClient cvServiceClient;
     private final CvSnapshotStorage snapshotStorage;
     private final ApplicationEventPublisher eventPublisher;
@@ -48,6 +56,7 @@ public class RecruitmentService {
             InterviewRoundRepository interviewRoundRepository,
             RecruitmentTransitionPolicy transitionPolicy,
             JobServiceClient jobServiceClient,
+            AiCareerServiceClient aiCareerServiceClient,
             CvServiceClient cvServiceClient,
             CvSnapshotStorage snapshotStorage,
             ApplicationEventPublisher eventPublisher) {
@@ -56,6 +65,7 @@ public class RecruitmentService {
         this.interviewRoundRepository = interviewRoundRepository;
         this.transitionPolicy = transitionPolicy;
         this.jobServiceClient = jobServiceClient;
+        this.aiCareerServiceClient = aiCareerServiceClient;
         this.cvServiceClient = cvServiceClient;
         this.snapshotStorage = snapshotStorage;
         this.eventPublisher = eventPublisher;
@@ -85,6 +95,7 @@ public class RecruitmentService {
         byte[] pdf = cvServiceClient.downloadPdf(request.cvId(), authorization);
         Recruitment recruitment = new Recruitment();
         recruitment.setJob_id(jobId);
+        recruitment.setCompany_id(job.companyId());
         recruitment.setUser_id(candidate.id());
         recruitment.setCandidate_email(candidate.email());
         recruitment.setCv_id(request.cvId());
@@ -125,6 +136,56 @@ public class RecruitmentService {
         return new RecruitmentDetails(RecruitmentSummary.from(recruitment), history);
     }
 
+    @Transactional(readOnly = true)
+    public RecruitmentReviewDetails getReviewDetails(
+            UUID recruitmentId,
+            UserPrincipal actor,
+            String authorization) {
+        Recruitment recruitment = recruitmentRepository.findById(recruitmentId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Recruitment not found"));
+        if ("HR".equals(actor.role())) {
+            if (actor.companyId() == null) {
+                throw new ApiException(HttpStatus.FORBIDDEN, "Only the job's HR can view this recruitment");
+            }
+            var job = jobServiceClient.getJob(recruitment.getJob_id(), authorization);
+            if (!actor.companyId().equals(job.companyId())) {
+                throw new ApiException(HttpStatus.NOT_FOUND, "Recruitment not found");
+            }
+        } else if (!"STAFF".equals(actor.role())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Only HR or STAFF can view this recruitment");
+        }
+
+        var matchScore = aiCareerServiceClient.getMatchScore(recruitment.getUser_id(), recruitment.getJob_id());
+        List<InterviewRoundSummary> rounds = interviewRoundRepository
+                .findByRecruitment_IdOrderByRoundNoAsc(recruitmentId)
+                .stream().map(InterviewRoundSummary::from).toList();
+        List<RecruitmentHistoryItem> history = historyRepository.findHistory(recruitmentId)
+                .stream().map(RecruitmentHistoryItem::from).toList();
+        return new RecruitmentReviewDetails(
+                RecruitmentSummary.from(recruitment),
+                recruitment.getUser_id(),
+                recruitment.getCandidate_email(),
+                recruitment.getCover_letter(),
+                recruitment.getCv_snapshot_url(),
+                matchScore.score(),
+                rounds,
+                history);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<RecruitmentStaffSummary> listForStaff(
+            UUID companyId,
+            UUID jobId,
+            RecruitmentStatus status,
+            int page) {
+        if (page < 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Page must be zero or greater", "INVALID_PAGE");
+        }
+        PageRequest pageable = PageRequest.of(page, 20, Sort.by(Sort.Direction.DESC, "created_at"));
+        return recruitmentRepository.findForStaff(companyId, jobId, status, pageable)
+                .map(RecruitmentStaffSummary::from);
+    }
+
     @Transactional
     public RecruitmentSummary withdraw(
             UUID recruitmentId,
@@ -158,7 +219,10 @@ public class RecruitmentService {
         }
         RecruitmentStatus nextStatus = request.toStatus();
         if (!transitionPolicy.allows(recruitment.getStatus(), nextStatus)) {
-            throw new ApiException(HttpStatus.CONFLICT, "This recruitment status transition is not allowed");
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "This recruitment status transition is not allowed",
+                    "INVALID_TRANSITION");
         }
 
         RecruitmentStatus previousStatus = recruitment.getStatus();

@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -29,4 +31,19 @@ public interface RecruitmentRepository extends JpaRepository<Recruitment, UUID> 
             @Param("jobId") UUID jobId,
             @Param("userId") UUID userId,
             @Param("withdrawn") RecruitmentStatus withdrawn);
+
+    @Query(
+            value = "select r from Recruitment r "
+                    + "where (:companyId is null or r.company_id = :companyId) "
+                    + "and (:jobId is null or r.job_id = :jobId) "
+                    + "and (:status is null or r.status = :status)",
+            countQuery = "select count(r) from Recruitment r "
+                    + "where (:companyId is null or r.company_id = :companyId) "
+                    + "and (:jobId is null or r.job_id = :jobId) "
+                    + "and (:status is null or r.status = :status)")
+    Page<Recruitment> findForStaff(
+            @Param("companyId") UUID companyId,
+            @Param("jobId") UUID jobId,
+            @Param("status") RecruitmentStatus status,
+            Pageable pageable);
 }
