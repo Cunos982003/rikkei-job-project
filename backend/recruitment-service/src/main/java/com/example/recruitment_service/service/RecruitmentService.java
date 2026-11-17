@@ -8,17 +8,24 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import com.example.recruitment_service.dto.CreateInterviewRoundRequest;
 import com.example.recruitment_service.dto.RecruitmentDetails;
 import com.example.recruitment_service.dto.RecruitmentHistoryItem;
 import com.example.recruitment_service.dto.RecruitmentSummary;
 import com.example.recruitment_service.dto.ApplyRequest;
+import com.example.recruitment_service.dto.TransitionRequest;
+import com.example.recruitment_service.dto.UpdateInterviewRoundRequest;
+import com.example.recruitment_service.entity.InterviewRound;
 import com.example.recruitment_service.entity.Recruitment;
 import com.example.recruitment_service.entity.RecruitmentStatusHistory;
+import com.example.recruitment_service.enums.InterviewRoundResult;
 import com.example.recruitment_service.enums.RecruitmentStatus;
 import com.example.recruitment_service.exception.ApiException;
 import com.example.recruitment_service.integration.CvServiceClient;
 import com.example.recruitment_service.integration.JobServiceClient;
+import com.example.recruitment_service.repository.InterviewRoundRepository;
 import com.example.recruitment_service.repository.RecruitmentRepository;
 import com.example.recruitment_service.repository.RecruitmentStatusHistoryRepository;
 import com.example.recruitment_service.security.UserPrincipal;
@@ -28,6 +35,8 @@ import com.example.recruitment_service.storage.CvSnapshotStorage;
 public class RecruitmentService {
     private final RecruitmentRepository recruitmentRepository;
     private final RecruitmentStatusHistoryRepository historyRepository;
+    private final InterviewRoundRepository interviewRoundRepository;
+    private final RecruitmentTransitionPolicy transitionPolicy;
     private final JobServiceClient jobServiceClient;
     private final CvServiceClient cvServiceClient;
     private final CvSnapshotStorage snapshotStorage;
@@ -36,12 +45,16 @@ public class RecruitmentService {
     public RecruitmentService(
             RecruitmentRepository recruitmentRepository,
             RecruitmentStatusHistoryRepository historyRepository,
+            InterviewRoundRepository interviewRoundRepository,
+            RecruitmentTransitionPolicy transitionPolicy,
             JobServiceClient jobServiceClient,
             CvServiceClient cvServiceClient,
             CvSnapshotStorage snapshotStorage,
             ApplicationEventPublisher eventPublisher) {
         this.recruitmentRepository = recruitmentRepository;
         this.historyRepository = historyRepository;
+        this.interviewRoundRepository = interviewRoundRepository;
+        this.transitionPolicy = transitionPolicy;
         this.jobServiceClient = jobServiceClient;
         this.cvServiceClient = cvServiceClient;
         this.snapshotStorage = snapshotStorage;
@@ -54,6 +67,9 @@ public class RecruitmentService {
             ApplyRequest request,
             UserPrincipal candidate,
             String authorization) {
+        if (!StringUtils.hasText(candidate.email())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Candidate email is required");
+        }
         var job = jobServiceClient.getJob(jobId, authorization);
         if (!"APPROVED".equalsIgnoreCase(job.status())) {
             throw new ApiException(HttpStatus.CONFLICT, "The job must be approved before recruiting");
@@ -70,6 +86,7 @@ public class RecruitmentService {
         Recruitment recruitment = new Recruitment();
         recruitment.setJob_id(jobId);
         recruitment.setUser_id(candidate.id());
+        recruitment.setCandidate_email(candidate.email());
         recruitment.setCv_id(request.cvId());
         recruitment.setCover_letter(request.coverLetter());
         recruitment.setStatus(RecruitmentStatus.SUBMITTED);
@@ -126,6 +143,82 @@ public class RecruitmentService {
         return RecruitmentSummary.from(saved);
     }
 
+    @Transactional
+    public RecruitmentSummary transition(
+            UUID recruitmentId,
+            TransitionRequest request,
+            UserPrincipal actor,
+            String authorization) {
+        Recruitment recruitment = getHrOwnedRecruitment(recruitmentId, actor, authorization);
+        if (!StringUtils.hasText(recruitment.getCandidate_email())) {
+            throw new ApiException(HttpStatus.CONFLICT, "Candidate email must be backfilled before transitioning");
+        }
+        RecruitmentStatus nextStatus = request.toStatus();
+        if (!transitionPolicy.allows(recruitment.getStatus(), nextStatus)) {
+            throw new ApiException(HttpStatus.CONFLICT, "This recruitment status transition is not allowed");
+        }
+
+        RecruitmentStatus previousStatus = recruitment.getStatus();
+        recruitment.setStatus(nextStatus);
+        Recruitment saved = recruitmentRepository.save(recruitment);
+        String note = request.note() == null ? null : request.note().trim();
+        recordStatus(saved, actor.id(), previousStatus, note);
+        eventPublisher.publishEvent(new RecruitmentStatusChangedEvent(
+                saved.getId(), saved.getCandidate_email(), previousStatus, nextStatus));
+        return RecruitmentSummary.from(saved);
+    }
+
+    @Transactional
+    public InterviewRound createRound(
+            UUID recruitmentId,
+            CreateInterviewRoundRequest request,
+            UserPrincipal actor,
+            String authorization) {
+        Recruitment recruitment = getHrOwnedRecruitment(recruitmentId, actor, authorization);
+        requireInterviewStatus(recruitment);
+
+        List<InterviewRound> rounds = interviewRoundRepository.findByRecruitment_IdOrderByRoundNoAsc(recruitmentId);
+        int nextRoundNo = rounds.stream()
+                .map(InterviewRound::getRoundNo)
+                .filter(java.util.Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .max()
+                .orElse(0) + 1;
+        InterviewRound round = new InterviewRound();
+        round.setRecruitment(recruitment);
+        round.setRoundNo(nextRoundNo);
+        round.setScheduledAt(request.scheduledAt());
+        round.setResult(InterviewRoundResult.PENDING);
+        return interviewRoundRepository.save(round);
+    }
+
+    @Transactional
+    public InterviewRound updateRound(
+            UUID recruitmentId,
+            UUID roundId,
+            UpdateInterviewRoundRequest request,
+            UserPrincipal actor,
+            String authorization) {
+        Recruitment recruitment = getHrOwnedRecruitment(recruitmentId, actor, authorization);
+        requireInterviewStatus(recruitment);
+
+        if (request.result() == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Interview result is required");
+        }
+        Integer score = request.score();
+        if (score != null && (score < 0 || score > 100)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Interview score must be between 0 and 100");
+        }
+
+        InterviewRound round = interviewRoundRepository.findById(roundId)
+                .filter(existing -> existing.getRecruitment() != null
+                        && recruitmentId.equals(existing.getRecruitment().getId()))
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Interview round not found"));
+        round.setResult(request.result());
+        round.setScore(score);
+        return interviewRoundRepository.save(round);
+    }
+
     @Transactional(readOnly = true)
     public byte[] getCvSnapshot(
             UUID recruitmentId,
@@ -151,6 +244,28 @@ public class RecruitmentService {
     private Recruitment getOwnedRecruitment(UUID recruitmentId, UUID candidateId) {
         return recruitmentRepository.findForUserById(recruitmentId, candidateId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Recruitment not found"));
+    }
+
+    private Recruitment getHrOwnedRecruitment(
+            UUID recruitmentId,
+            UserPrincipal actor,
+            String authorization) {
+        Recruitment recruitment = recruitmentRepository.findById(recruitmentId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Recruitment not found"));
+        if (!"HR".equals(actor.role()) || actor.companyId() == null) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Only the job's HR can manage this recruitment");
+        }
+        var job = jobServiceClient.getJob(recruitment.getJob_id(), authorization);
+        if (!actor.companyId().equals(job.companyId())) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Recruitment not found");
+        }
+        return recruitment;
+    }
+
+    private void requireInterviewStatus(Recruitment recruitment) {
+        if (recruitment.getStatus() != RecruitmentStatus.INTERVIEW) {
+            throw new ApiException(HttpStatus.CONFLICT, "Interview rounds can only be changed during INTERVIEW");
+        }
     }
 
     private Recruitment transitionStatus(

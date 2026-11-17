@@ -64,4 +64,35 @@ public class RecruitmentEmailNotifier {
             log.error("Failed to notify HR for recruitment {}", event.recruitmentId(), exception);
         }
     }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void notifyCandidate(RecruitmentStatusChangedEvent event) {
+        if (!StringUtils.hasText(event.candidateEmail())) {
+            log.error("No candidate email is recorded for recruitment {}", event.recruitmentId());
+            return;
+        }
+        if (!StringUtils.hasText(smtpHost)) {
+            log.error("SMTP is not configured; cannot notify candidate for recruitment {}", event.recruitmentId());
+            return;
+        }
+
+        JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
+        if (mailSender == null) {
+            log.error("JavaMailSender is unavailable; cannot notify candidate for recruitment {}", event.recruitmentId());
+            return;
+        }
+        SimpleMailMessage message = new SimpleMailMessage();
+        if (StringUtils.hasText(senderAddress)) {
+            message.setFrom(senderAddress);
+        }
+        message.setTo(event.candidateEmail());
+        message.setSubject("Recruitment status updated");
+        message.setText("The status of your recruitment " + event.recruitmentId()
+                + " changed from " + event.fromStatus() + " to " + event.toStatus() + ".");
+        try {
+            mailSender.send(message);
+        } catch (MailException exception) {
+            log.error("Failed to notify candidate for recruitment {}", event.recruitmentId(), exception);
+        }
+    }
 }

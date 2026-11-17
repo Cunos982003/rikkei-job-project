@@ -51,6 +51,9 @@ public class Recruitment {
     @Column(name = "cover_letter")
     private String cover_letter;
 
+    @Column(name = "candidate_email")
+    private String candidate_email;
+
     @Column(name = "status", nullable = false)
     private RecruitmentStatus status;
 
