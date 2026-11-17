@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
-@RequestMapping("/internal/v1/recruitments")
+@RequestMapping("/api/v1/recruitments")
 public class RecruitmentMatchScoreController {
 
     private static final String INTERNAL_TOKEN_HEADER = "X-Internal-Service-Token";
