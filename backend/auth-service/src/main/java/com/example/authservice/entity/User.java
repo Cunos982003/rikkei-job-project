@@ -37,8 +37,9 @@ public class User {
     @Column(name = "full_name", nullable = false, length = 255)
     private String fullName;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 50)
-    private String role;
+    private UserRole role = UserRole.CANDIDATE;
 
     @Column(name = "lms_user_id", unique = true, length = 100)
     private String lmsUserId;
@@ -82,7 +83,7 @@ public class User {
             String lmsUserId,
             String email,
             String fullName,
-            String role,
+            UserRole role,
             Instant createdAt,
             Instant updatedAt) {
         this(lmsUserId, email, fullName, role, null, createdAt, updatedAt);
@@ -93,19 +94,40 @@ public class User {
             String email,
             String fullName,
             String role,
+            Instant createdAt,
+            Instant updatedAt) {
+        this(lmsUserId, email, fullName, UserRole.fromString(role), null, createdAt, updatedAt);
+    }
+
+    public User(
+            String lmsUserId,
+            String email,
+            String fullName,
+            UserRole role,
             String passwordHash,
             Instant createdAt,
             Instant updatedAt) {
         this.lmsUserId = lmsUserId;
         this.email = email;
         this.fullName = fullName;
-        this.role = role;
+        this.role = role != null ? role : UserRole.CANDIDATE;
         this.passwordHash = passwordHash;
         this.createdAt = createdAt != null ? createdAt : Instant.now();
         this.updatedAt = updatedAt != null ? updatedAt : this.createdAt;
         this.failedLoginCount = 0;
         this.mustChangePassword = false;
         this.status = UserStatus.ACTIVE;
+    }
+
+    public User(
+            String lmsUserId,
+            String email,
+            String fullName,
+            String role,
+            String passwordHash,
+            Instant createdAt,
+            Instant updatedAt) {
+        this(lmsUserId, email, fullName, UserRole.fromString(role), passwordHash, createdAt, updatedAt);
     }
 
     @PrePersist
@@ -158,12 +180,16 @@ public class User {
         this.fullName = fullName;
     }
 
-    public String getRole() {
+    public UserRole getRole() {
         return role;
     }
 
+    public void setRole(UserRole role) {
+        this.role = role != null ? role : UserRole.CANDIDATE;
+    }
+
     public void setRole(String role) {
-        this.role = role;
+        this.role = UserRole.fromString(role);
     }
 
     public String getLmsUserId() {

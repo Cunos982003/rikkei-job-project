@@ -1,6 +1,7 @@
 package com.example.authservice.config;
 
 import com.example.authservice.entity.User;
+import com.example.authservice.entity.UserRole;
 import com.example.authservice.entity.UserStatus;
 import com.example.authservice.repository.UserRepository;
 import org.springframework.boot.CommandLineRunner;
@@ -12,7 +13,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Component
-@Profile("local")
+@Profile("!prod")
 public class LocalDevDataSeeder implements CommandLineRunner {
 
     private final UserRepository userRepository;
@@ -32,12 +33,12 @@ public class LocalDevDataSeeder implements CommandLineRunner {
         String encodedPassword = passwordEncoder.encode("Test@123");
         Instant now = Instant.now();
 
-        // 1. Cán bộ tuyển dụng (STAFF)
+        // 1. Cán bộ tuyển sinh / quan hệ doanh nghiệp (STAFF)
         User staff = new User(
                 null,
                 "staff1@rikkeijobs.test",
                 "Hoàng Thu Hà",
-                "STAFF",
+                UserRole.STAFF,
                 encodedPassword,
                 now,
                 now);
@@ -48,33 +49,78 @@ public class LocalDevDataSeeder implements CommandLineRunner {
                 null,
                 "admin1@rikkeijobs.test",
                 "Quản trị viên Hệ thống",
-                "ADMIN",
+                UserRole.ADMIN,
                 encodedPassword,
                 now,
                 now);
         userRepository.save(admin);
 
-        // 3. Tài khoản HR (Gán sẵn công ty mẫu ở job-service)
-        User hr = new User(
+        // 3. Tài khoản HR 1 (Công ty Cổ phần Rikkeisoft)
+        User hr1 = new User(
                 null,
                 "hr1@rikkeijobs.test",
                 "HR Account One",
-                "HR",
+                UserRole.HR,
                 encodedPassword,
                 now,
                 now);
-        hr.setCompanyId(UUID.fromString("11111111-1111-4111-8111-111111111111"));
-        userRepository.save(hr);
+        hr1.setCompanyId(UUID.fromString("11111111-1111-4111-8111-111111111111"));
+        userRepository.save(hr1);
 
-        // 4. Tài khoản Ứng viên (CANDIDATE)
-        User candidate = new User(
+        // 4. Tài khoản HR 2 (Rikkei Digital Solutions)
+        User hr2 = new User(
+                null,
+                "hr2@rikkeijobs.test",
+                "HR Account Two",
+                UserRole.HR,
+                encodedPassword,
+                now,
+                now);
+        hr2.setCompanyId(UUID.fromString("22222222-2222-4222-8222-222222222222"));
+        userRepository.save(hr2);
+
+        // 5. Cố vấn học tập (MENTOR)
+        User mentor = new User(
+                null,
+                "mentor1@rikkeijobs.test",
+                "Phạm Minh Đức",
+                UserRole.MENTOR,
+                encodedPassword,
+                now,
+                now);
+        userRepository.save(mentor);
+
+        // 6. Tài khoản Ứng viên 1 (CANDIDATE)
+        User candidate1 = new User(
                 "std-001",
                 "candidate1@rikkeijobs.test",
                 "Nguyễn Văn An",
-                "CANDIDATE",
+                UserRole.CANDIDATE,
                 encodedPassword,
                 now,
                 now);
-        userRepository.save(candidate);
+        userRepository.save(candidate1);
+
+        // 7. Tài khoản Ứng viên 2 (CANDIDATE)
+        User candidate2 = new User(
+                "std-002",
+                "candidate2@rikkeijobs.test",
+                "Trần Thị Bình",
+                UserRole.CANDIDATE,
+                encodedPassword,
+                now,
+                now);
+        userRepository.save(candidate2);
+
+        // 8. Tài khoản Ứng viên 3 (CANDIDATE)
+        User candidate3 = new User(
+                "std-003",
+                "candidate3@rikkeijobs.test",
+                "Lê Hoàng Cường",
+                UserRole.CANDIDATE,
+                encodedPassword,
+                now,
+                now);
+        userRepository.save(candidate3);
     }
 }

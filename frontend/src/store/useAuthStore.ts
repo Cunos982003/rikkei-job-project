@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { setAccessToken, setCurrentUserId, registerUnauthorizedHandler } from "../api/client";
+import { setAccessToken, setCurrentUserId, clearAuthSession, registerUnauthorizedHandler } from "../api/client";
 import { authApi, type Role, type UserProfile, type AuthResponseData } from "../api/endpoints/auth.api";
 
 const AUTH_STORAGE_KEY = "rikkei_auth_storage";
@@ -54,6 +54,8 @@ export const useAuthStore = create<AuthState>()(
       login: async (email, password) => {
         set({ isLoading: true });
         try {
+          // Xóa sạch session và token cũ trước khi thiết lập session mới
+          clearAuthSession();
           const res = await authApi.login({ email, password });
           const data = res.data;
           const token = data.accessToken;
@@ -78,6 +80,8 @@ export const useAuthStore = create<AuthState>()(
       ssoLogin: async (ticket) => {
         set({ isLoading: true });
         try {
+          // Xóa sạch session và token cũ trước khi thiết lập session mới
+          clearAuthSession();
           const res = await authApi.ssoLogin({ ticket });
           const data = res.data;
           const token = data.accessToken;
@@ -111,12 +115,8 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        setAccessToken(null);
-        setCurrentUserId(null);
-        // Xóa luôn persisted storage để tránh rehydrate state cũ khi reload
-        if (typeof window !== "undefined") {
-          try { localStorage.removeItem(AUTH_STORAGE_KEY); } catch {}
-        }
+        // Xóa sạch toàn bộ token, session, user ID, cached headers
+        clearAuthSession();
         set({
           user: null,
           accessToken: null,
@@ -148,7 +148,7 @@ export const useAuthStore = create<AuthState>()(
       isAdmin: () => normalizeRole(get().user?.role) === "ADMIN",
     }),
     {
-      name: "rikkei_auth_storage",
+      name: AUTH_STORAGE_KEY,
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         user: state.user,

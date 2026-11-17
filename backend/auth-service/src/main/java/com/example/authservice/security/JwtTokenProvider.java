@@ -44,10 +44,7 @@ public class JwtTokenProvider {
         Instant now = Instant.now();
         Instant expiry = now.plusSeconds(expirationSeconds);
 
-        String role = user.getRole() == null ? "CANDIDATE" : user.getRole();
-        if (!role.startsWith("ROLE_")) {
-            role = "ROLE_" + role;
-        }
+        String role = user.getRole() == null ? "ROLE_CANDIDATE" : user.getRole().withPrefix();
         return Jwts.builder()
             .subject(user.getId().toString())
             .claim("userId", user.getId().toString())

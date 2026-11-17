@@ -9,10 +9,38 @@
       "classCode": "RA-JAVA-2026",
       "courseName": "Khóa đào tạo Kỹ sư Phần mềm Java",
       "results": [
-        { "subjectCode": "JV-01", "subjectName": "Java Core & OOP", "score": 8.8, "attendanceRate": 100.0, "homeworkRate": 96.0, "rpoint": 150 },
-        { "subjectCode": "DB-01", "subjectName": "Cơ sở dữ liệu SQL & PostgreSQL", "score": 8.2, "attendanceRate": 95.0, "homeworkRate": 90.0, "rpoint": 110 },
-        { "subjectCode": "SB-01", "subjectName": "Spring Boot RESTful Microservices", "score": 8.5, "attendanceRate": 98.0, "homeworkRate": 92.0, "rpoint": 130 },
-        { "subjectCode": "GIT-01", "subjectName": "Quản trị mã nguồn Git & GitHub", "score": 8.0, "attendanceRate": 100.0, "homeworkRate": 95.0, "rpoint": 90 }
+        {
+          "subjectCode": "JV-01",
+          "subjectName": "Java Core & OOP",
+          "score": 8.8,
+          "attendanceRate": 100,
+          "homeworkRate": 96,
+          "rpoint": 150
+        },
+        {
+          "subjectCode": "DB-01",
+          "subjectName": "Cơ sở dữ liệu SQL & PostgreSQL",
+          "score": 8.2,
+          "attendanceRate": 95,
+          "homeworkRate": 90,
+          "rpoint": 110
+        },
+        {
+          "subjectCode": "SB-01",
+          "subjectName": "Spring Boot RESTful Microservices",
+          "score": 8.5,
+          "attendanceRate": 98,
+          "homeworkRate": 92,
+          "rpoint": 130
+        },
+        {
+          "subjectCode": "GIT-01",
+          "subjectName": "Quản trị mã nguồn Git & GitHub",
+          "score": 8,
+          "attendanceRate": 100,
+          "homeworkRate": 95,
+          "rpoint": 90
+        }
       ]
     },
     "std-002": {
@@ -24,10 +52,38 @@
       "classCode": "RA-FE-2026",
       "courseName": "Khóa đào tạo Chuyên viên Frontend React",
       "results": [
-        { "subjectCode": "FE-01", "subjectName": "HTML5, CSS3 & Responsive Design", "score": 8.6, "attendanceRate": 96.0, "homeworkRate": 95.0, "rpoint": 125 },
-        { "subjectCode": "JS-01", "subjectName": "JavaScript ES6+ & Asynchronous Programming", "score": 8.0, "attendanceRate": 92.0, "homeworkRate": 88.0, "rpoint": 100 },
-        { "subjectCode": "RC-01", "subjectName": "React 19 & TypeScript", "score": 7.8, "attendanceRate": 95.0, "homeworkRate": 90.0, "rpoint": 115 },
-        { "subjectCode": "TW-01", "subjectName": "Tailwind CSS & UI Components", "score": 8.3, "attendanceRate": 100.0, "homeworkRate": 94.0, "rpoint": 105 }
+        {
+          "subjectCode": "FE-01",
+          "subjectName": "HTML5, CSS3 & Responsive Design",
+          "score": 8.6,
+          "attendanceRate": 96,
+          "homeworkRate": 95,
+          "rpoint": 125
+        },
+        {
+          "subjectCode": "JS-01",
+          "subjectName": "JavaScript ES6+ & Asynchronous Programming",
+          "score": 8,
+          "attendanceRate": 92,
+          "homeworkRate": 88,
+          "rpoint": 100
+        },
+        {
+          "subjectCode": "RC-01",
+          "subjectName": "React 19 & TypeScript",
+          "score": 7.8,
+          "attendanceRate": 95,
+          "homeworkRate": 90,
+          "rpoint": 115
+        },
+        {
+          "subjectCode": "TW-01",
+          "subjectName": "Tailwind CSS & UI Components",
+          "score": 8.3,
+          "attendanceRate": 100,
+          "homeworkRate": 94,
+          "rpoint": 105
+        }
       ]
     },
     "std-003": {
@@ -39,10 +95,1629 @@
       "classCode": "RA-FS-2026",
       "courseName": "Khóa đào tạo Kỹ sư Phần mềm Fullstack",
       "results": [
-        { "subjectCode": "JV-01", "subjectName": "Java Core & OOP", "score": 9.2, "attendanceRate": 100.0, "homeworkRate": 98.0, "rpoint": 180 },
-        { "subjectCode": "SB-01", "subjectName": "Spring Boot & Cloud Native", "score": 8.9, "attendanceRate": 98.0, "homeworkRate": 95.0, "rpoint": 160 },
-        { "subjectCode": "RC-01", "subjectName": "React 19 & State Management", "score": 8.5, "attendanceRate": 96.0, "homeworkRate": 92.0, "rpoint": 130 },
-        { "subjectCode": "DK-01", "subjectName": "Docker & Kafka Message Queue", "score": 8.7, "attendanceRate": 97.0, "homeworkRate": 94.0, "rpoint": 140 }
+        {
+          "subjectCode": "JV-01",
+          "subjectName": "Java Core & OOP",
+          "score": 9.2,
+          "attendanceRate": 100,
+          "homeworkRate": 98,
+          "rpoint": 180
+        },
+        {
+          "subjectCode": "SB-01",
+          "subjectName": "Spring Boot & Cloud Native",
+          "score": 8.9,
+          "attendanceRate": 98,
+          "homeworkRate": 95,
+          "rpoint": 160
+        },
+        {
+          "subjectCode": "RC-01",
+          "subjectName": "React 19 & State Management",
+          "score": 8.5,
+          "attendanceRate": 96,
+          "homeworkRate": 92,
+          "rpoint": 130
+        },
+        {
+          "subjectCode": "DK-01",
+          "subjectName": "Docker & Kafka Message Queue",
+          "score": 8.7,
+          "attendanceRate": 97,
+          "homeworkRate": 94,
+          "rpoint": 140
+        }
+      ]
+    },
+    "std-004": {
+      "lmsUserId": "std-004",
+      "email": "candidate4@rikkeijobs.test",
+      "fullName": "Phạm Thu Dung",
+      "role": "STUDENT",
+      "program": "Kỹ sư Dữ liệu & AI Khởi tạo",
+      "classCode": "RA-AI-2026",
+      "courseName": "Khóa đào tạo Kỹ sư Trí tuệ Nhân tạo & Data",
+      "results": [
+        {
+          "subjectCode": "PY-01",
+          "subjectName": "Python & Data Analysis Fundamentals",
+          "score": 9.8,
+          "attendanceRate": 94,
+          "homeworkRate": 96,
+          "rpoint": 167
+        },
+        {
+          "subjectCode": "ML-01",
+          "subjectName": "Machine Learning & Deep Learning",
+          "score": 9.2,
+          "attendanceRate": 97,
+          "homeworkRate": 85,
+          "rpoint": 138
+        },
+        {
+          "subjectCode": "AI-01",
+          "subjectName": "RAG & LLM Application Development",
+          "score": 9.8,
+          "attendanceRate": 100,
+          "homeworkRate": 90,
+          "rpoint": 147
+        },
+        {
+          "subjectCode": "ML-02",
+          "subjectName": "Data Pipeline & MLOps Architecture",
+          "score": 9.1,
+          "attendanceRate": 92,
+          "homeworkRate": 95,
+          "rpoint": 157
+        }
+      ]
+    },
+    "std-005": {
+      "lmsUserId": "std-005",
+      "email": "candidate5@rikkeijobs.test",
+      "fullName": "Vũ Đức Giang",
+      "role": "STUDENT",
+      "program": "Lập trình Di động Đa nền tảng",
+      "classCode": "RA-MOB-2026",
+      "courseName": "Khóa đào tạo Lập trình Di động Flutter & React Native",
+      "results": [
+        {
+          "subjectCode": "FL-01",
+          "subjectName": "Dart & Flutter Architecture",
+          "score": 8.3,
+          "attendanceRate": 99,
+          "homeworkRate": 89,
+          "rpoint": 125
+        },
+        {
+          "subjectCode": "RN-01",
+          "subjectName": "React Native & Expo Ecosystem",
+          "score": 9,
+          "attendanceRate": 91,
+          "homeworkRate": 94,
+          "rpoint": 155
+        },
+        {
+          "subjectCode": "MOB-01",
+          "subjectName": "Mobile UI/UX & State Management",
+          "score": 8.2,
+          "attendanceRate": 94,
+          "homeworkRate": 99,
+          "rpoint": 143
+        },
+        {
+          "subjectCode": "MOB-02",
+          "subjectName": "REST API & Offline SQLite Storage",
+          "score": 8.9,
+          "attendanceRate": 97,
+          "homeworkRate": 88,
+          "rpoint": 134
+        }
+      ]
+    },
+    "std-006": {
+      "lmsUserId": "std-006",
+      "email": "candidate6@rikkeijobs.test",
+      "fullName": "Đỗ Thị Hương",
+      "role": "STUDENT",
+      "program": "Kiểm thử Phần mềm & Tự động hóa QA/QC",
+      "classCode": "RA-QA-2026",
+      "courseName": "Khóa đào tạo Chuyên viên Kiểm thử Tự động",
+      "results": [
+        {
+          "subjectCode": "QA-01",
+          "subjectName": "Software Testing Fundamentals",
+          "score": 8.8,
+          "attendanceRate": 93,
+          "homeworkRate": 98,
+          "rpoint": 152
+        },
+        {
+          "subjectCode": "QA-02",
+          "subjectName": "Selenium & Playwright Automation",
+          "score": 9.5,
+          "attendanceRate": 96,
+          "homeworkRate": 87,
+          "rpoint": 143
+        },
+        {
+          "subjectCode": "QA-03",
+          "subjectName": "API Testing with Postman & RestAssured",
+          "score": 8.7,
+          "attendanceRate": 99,
+          "homeworkRate": 92,
+          "rpoint": 151
+        },
+        {
+          "subjectCode": "QA-04",
+          "subjectName": "Performance Testing with JMeter",
+          "score": 9.4,
+          "attendanceRate": 91,
+          "homeworkRate": 97,
+          "rpoint": 161
+        }
+      ]
+    },
+    "std-007": {
+      "lmsUserId": "std-007",
+      "email": "candidate7@rikkeijobs.test",
+      "fullName": "Hoàng Văn Hải",
+      "role": "STUDENT",
+      "program": "Kỹ sư Điện toán Đám mây & DevOps",
+      "classCode": "RA-CLOUD-2026",
+      "courseName": "Khóa đào tạo Kỹ sư DevOps & Cloud AWS",
+      "results": [
+        {
+          "subjectCode": "LX-01",
+          "subjectName": "Linux System Administration",
+          "score": 9.3,
+          "attendanceRate": 98,
+          "homeworkRate": 91,
+          "rpoint": 160
+        },
+        {
+          "subjectCode": "K8S-01",
+          "subjectName": "Docker & Kubernetes Orchestration",
+          "score": 9.8,
+          "attendanceRate": 90,
+          "homeworkRate": 96,
+          "rpoint": 167
+        },
+        {
+          "subjectCode": "AWS-01",
+          "subjectName": "AWS Cloud Infrastructure & Terraform",
+          "score": 9.2,
+          "attendanceRate": 93,
+          "homeworkRate": 85,
+          "rpoint": 138
+        },
+        {
+          "subjectCode": "CICD-01",
+          "subjectName": "CI/CD Pipeline with GitHub Actions",
+          "score": 9.8,
+          "attendanceRate": 96,
+          "homeworkRate": 90,
+          "rpoint": 147
+        }
+      ]
+    },
+    "std-008": {
+      "lmsUserId": "std-008",
+      "email": "candidate8@rikkeijobs.test",
+      "fullName": "Bùi Thị Khánh",
+      "role": "STUDENT",
+      "program": "Lập trình Golang & Microservices Hiệu năng cao",
+      "classCode": "RA-GO-2026",
+      "courseName": "Khóa đào tạo Golang Backend Developer",
+      "results": [
+        {
+          "subjectCode": "GO-01",
+          "subjectName": "Golang Core & Concurrency Patterns",
+          "score": 7.6,
+          "attendanceRate": 92,
+          "homeworkRate": 100,
+          "rpoint": 134
+        },
+        {
+          "subjectCode": "GO-02",
+          "subjectName": "Gin / Echo REST APIs & GORM",
+          "score": 8.3,
+          "attendanceRate": 95,
+          "homeworkRate": 89,
+          "rpoint": 125
+        },
+        {
+          "subjectCode": "DB-02",
+          "subjectName": "PostgreSQL & Redis Caching High Load",
+          "score": 7.5,
+          "attendanceRate": 98,
+          "homeworkRate": 94,
+          "rpoint": 133
+        },
+        {
+          "subjectCode": "GRPC-01",
+          "subjectName": "Microservices Architecture with gRPC",
+          "score": 8.2,
+          "attendanceRate": 90,
+          "homeworkRate": 99,
+          "rpoint": 143
+        }
+      ]
+    },
+    "std-009": {
+      "lmsUserId": "std-009",
+      "email": "candidate9@rikkeijobs.test",
+      "fullName": "Đặng Quốc Khánh",
+      "role": "STUDENT",
+      "program": "Lập trình Java Fullstack Chuyên sâu",
+      "classCode": "RA-JAVA-2026",
+      "courseName": "Khóa đào tạo Kỹ sư Phần mềm Java",
+      "results": [
+        {
+          "subjectCode": "JV-01",
+          "subjectName": "Java Core & OOP",
+          "score": 9.6,
+          "attendanceRate": 97,
+          "homeworkRate": 93,
+          "rpoint": 164
+        },
+        {
+          "subjectCode": "DB-01",
+          "subjectName": "Cơ sở dữ liệu SQL & PostgreSQL",
+          "score": 8.8,
+          "attendanceRate": 100,
+          "homeworkRate": 98,
+          "rpoint": 152
+        },
+        {
+          "subjectCode": "SB-01",
+          "subjectName": "Spring Boot RESTful Microservices",
+          "score": 9.5,
+          "attendanceRate": 92,
+          "homeworkRate": 87,
+          "rpoint": 143
+        },
+        {
+          "subjectCode": "GIT-01",
+          "subjectName": "Quản trị mã nguồn Git & Docker",
+          "score": 8.7,
+          "attendanceRate": 95,
+          "homeworkRate": 92,
+          "rpoint": 151
+        }
+      ]
+    },
+    "std-010": {
+      "lmsUserId": "std-010",
+      "email": "candidate10@rikkeijobs.test",
+      "fullName": "Ngô Mai Linh",
+      "role": "STUDENT",
+      "program": "Lập trình Web Frontend Chuyên nghiệp",
+      "classCode": "RA-FE-2026",
+      "courseName": "Khóa đào tạo Chuyên viên Frontend React",
+      "results": [
+        {
+          "subjectCode": "FE-01",
+          "subjectName": "HTML5, CSS3 & Responsive Design",
+          "score": 9.8,
+          "attendanceRate": 91,
+          "homeworkRate": 86,
+          "rpoint": 147
+        },
+        {
+          "subjectCode": "JS-01",
+          "subjectName": "JavaScript ES6+ & Asynchronous",
+          "score": 9.3,
+          "attendanceRate": 94,
+          "homeworkRate": 91,
+          "rpoint": 160
+        },
+        {
+          "subjectCode": "RC-01",
+          "subjectName": "React 19 & TypeScript",
+          "score": 9.8,
+          "attendanceRate": 97,
+          "homeworkRate": 96,
+          "rpoint": 167
+        },
+        {
+          "subjectCode": "TW-01",
+          "subjectName": "Tailwind CSS & UI Components",
+          "score": 9.2,
+          "attendanceRate": 100,
+          "homeworkRate": 85,
+          "rpoint": 138
+        }
+      ]
+    },
+    "std-011": {
+      "lmsUserId": "std-011",
+      "email": "candidate11@rikkeijobs.test",
+      "fullName": "Dương Văn Long",
+      "role": "STUDENT",
+      "program": "Đào tạo Kỹ sư Phần mềm Toàn diện",
+      "classCode": "RA-FS-2026",
+      "courseName": "Khóa đào tạo Kỹ sư Phần mềm Fullstack",
+      "results": [
+        {
+          "subjectCode": "JV-01",
+          "subjectName": "Java Core & OOP",
+          "score": 8.4,
+          "attendanceRate": 96,
+          "homeworkRate": 95,
+          "rpoint": 146
+        },
+        {
+          "subjectCode": "SB-01",
+          "subjectName": "Spring Boot & Cloud Native",
+          "score": 7.6,
+          "attendanceRate": 99,
+          "homeworkRate": 100,
+          "rpoint": 134
+        },
+        {
+          "subjectCode": "RC-01",
+          "subjectName": "React 19 & State Management",
+          "score": 8.3,
+          "attendanceRate": 91,
+          "homeworkRate": 89,
+          "rpoint": 125
+        },
+        {
+          "subjectCode": "DK-01",
+          "subjectName": "Docker & Kafka Message Queue",
+          "score": 7.5,
+          "attendanceRate": 94,
+          "homeworkRate": 94,
+          "rpoint": 133
+        }
+      ]
+    },
+    "std-012": {
+      "lmsUserId": "std-012",
+      "email": "candidate12@rikkeijobs.test",
+      "fullName": "Lý Thị Minh",
+      "role": "STUDENT",
+      "program": "Kỹ sư Dữ liệu & AI Khởi tạo",
+      "classCode": "RA-AI-2026",
+      "courseName": "Khóa đào tạo Kỹ sư Trí tuệ Nhân tạo & Data",
+      "results": [
+        {
+          "subjectCode": "PY-01",
+          "subjectName": "Python & Data Analysis Fundamentals",
+          "score": 8.9,
+          "attendanceRate": 90,
+          "homeworkRate": 88,
+          "rpoint": 134
+        },
+        {
+          "subjectCode": "ML-01",
+          "subjectName": "Machine Learning & Deep Learning",
+          "score": 8.1,
+          "attendanceRate": 93,
+          "homeworkRate": 93,
+          "rpoint": 142
+        },
+        {
+          "subjectCode": "AI-01",
+          "subjectName": "RAG & LLM Application Development",
+          "score": 8.8,
+          "attendanceRate": 96,
+          "homeworkRate": 98,
+          "rpoint": 152
+        },
+        {
+          "subjectCode": "ML-02",
+          "subjectName": "Data Pipeline & MLOps Architecture",
+          "score": 9.5,
+          "attendanceRate": 99,
+          "homeworkRate": 87,
+          "rpoint": 143
+        }
+      ]
+    },
+    "std-013": {
+      "lmsUserId": "std-013",
+      "email": "candidate13@rikkeijobs.test",
+      "fullName": "Trịnh Văn Nam",
+      "role": "STUDENT",
+      "program": "Lập trình Di động Đa nền tảng",
+      "classCode": "RA-MOB-2026",
+      "courseName": "Khóa đào tạo Lập trình Di động Flutter & React Native",
+      "results": [
+        {
+          "subjectCode": "FL-01",
+          "subjectName": "Dart & Flutter Architecture",
+          "score": 9.4,
+          "attendanceRate": 95,
+          "homeworkRate": 97,
+          "rpoint": 161
+        },
+        {
+          "subjectCode": "RN-01",
+          "subjectName": "React Native & Expo Ecosystem",
+          "score": 9.8,
+          "attendanceRate": 98,
+          "homeworkRate": 86,
+          "rpoint": 147
+        },
+        {
+          "subjectCode": "MOB-01",
+          "subjectName": "Mobile UI/UX & State Management",
+          "score": 9.3,
+          "attendanceRate": 90,
+          "homeworkRate": 91,
+          "rpoint": 160
+        },
+        {
+          "subjectCode": "MOB-02",
+          "subjectName": "REST API & Offline SQLite Storage",
+          "score": 9.8,
+          "attendanceRate": 93,
+          "homeworkRate": 96,
+          "rpoint": 167
+        }
+      ]
+    },
+    "std-014": {
+      "lmsUserId": "std-014",
+      "email": "candidate14@rikkeijobs.test",
+      "fullName": "Phan Thị Nga",
+      "role": "STUDENT",
+      "program": "Kiểm thử Phần mềm & Tự động hóa QA/QC",
+      "classCode": "RA-QA-2026",
+      "courseName": "Khóa đào tạo Chuyên viên Kiểm thử Tự động",
+      "results": [
+        {
+          "subjectCode": "QA-01",
+          "subjectName": "Software Testing Fundamentals",
+          "score": 7.7,
+          "attendanceRate": 100,
+          "homeworkRate": 90,
+          "rpoint": 116
+        },
+        {
+          "subjectCode": "QA-02",
+          "subjectName": "Selenium & Playwright Automation",
+          "score": 8.4,
+          "attendanceRate": 92,
+          "homeworkRate": 95,
+          "rpoint": 146
+        },
+        {
+          "subjectCode": "QA-03",
+          "subjectName": "API Testing with Postman & RestAssured",
+          "score": 7.6,
+          "attendanceRate": 95,
+          "homeworkRate": 100,
+          "rpoint": 134
+        },
+        {
+          "subjectCode": "QA-04",
+          "subjectName": "Performance Testing with JMeter",
+          "score": 8.3,
+          "attendanceRate": 98,
+          "homeworkRate": 89,
+          "rpoint": 125
+        }
+      ]
+    },
+    "std-015": {
+      "lmsUserId": "std-015",
+      "email": "candidate15@rikkeijobs.test",
+      "fullName": "Tạ Hoàng Phúc",
+      "role": "STUDENT",
+      "program": "Kỹ sư Điện toán Đám mây & DevOps",
+      "classCode": "RA-CLOUD-2026",
+      "courseName": "Khóa đào tạo Kỹ sư DevOps & Cloud AWS",
+      "results": [
+        {
+          "subjectCode": "LX-01",
+          "subjectName": "Linux System Administration",
+          "score": 8.2,
+          "attendanceRate": 94,
+          "homeworkRate": 99,
+          "rpoint": 143
+        },
+        {
+          "subjectCode": "K8S-01",
+          "subjectName": "Docker & Kubernetes Orchestration",
+          "score": 8.9,
+          "attendanceRate": 97,
+          "homeworkRate": 88,
+          "rpoint": 134
+        },
+        {
+          "subjectCode": "AWS-01",
+          "subjectName": "AWS Cloud Infrastructure & Terraform",
+          "score": 8.1,
+          "attendanceRate": 100,
+          "homeworkRate": 93,
+          "rpoint": 142
+        },
+        {
+          "subjectCode": "CICD-01",
+          "subjectName": "CI/CD Pipeline with GitHub Actions",
+          "score": 8.8,
+          "attendanceRate": 92,
+          "homeworkRate": 98,
+          "rpoint": 152
+        }
+      ]
+    },
+    "std-016": {
+      "lmsUserId": "std-016",
+      "email": "candidate16@rikkeijobs.test",
+      "fullName": "Cao Thị Quỳnh",
+      "role": "STUDENT",
+      "program": "Lập trình Golang & Microservices Hiệu năng cao",
+      "classCode": "RA-GO-2026",
+      "courseName": "Khóa đào tạo Golang Backend Developer",
+      "results": [
+        {
+          "subjectCode": "GO-01",
+          "subjectName": "Golang Core & Concurrency Patterns",
+          "score": 8.7,
+          "attendanceRate": 99,
+          "homeworkRate": 92,
+          "rpoint": 151
+        },
+        {
+          "subjectCode": "GO-02",
+          "subjectName": "Gin / Echo REST APIs & GORM",
+          "score": 9.4,
+          "attendanceRate": 91,
+          "homeworkRate": 97,
+          "rpoint": 161
+        },
+        {
+          "subjectCode": "DB-02",
+          "subjectName": "PostgreSQL & Redis Caching High Load",
+          "score": 9.8,
+          "attendanceRate": 94,
+          "homeworkRate": 86,
+          "rpoint": 147
+        },
+        {
+          "subjectCode": "GRPC-01",
+          "subjectName": "Microservices Architecture with gRPC",
+          "score": 9.3,
+          "attendanceRate": 97,
+          "homeworkRate": 91,
+          "rpoint": 160
+        }
+      ]
+    },
+    "std-017": {
+      "lmsUserId": "std-017",
+      "email": "candidate17@rikkeijobs.test",
+      "fullName": "Lương Văn Sơn",
+      "role": "STUDENT",
+      "program": "Lập trình Java Fullstack Chuyên sâu",
+      "classCode": "RA-JAVA-2026",
+      "courseName": "Khóa đào tạo Kỹ sư Phần mềm Java",
+      "results": [
+        {
+          "subjectCode": "JV-01",
+          "subjectName": "Java Core & OOP",
+          "score": 8.5,
+          "attendanceRate": 93,
+          "homeworkRate": 85,
+          "rpoint": 128
+        },
+        {
+          "subjectCode": "DB-01",
+          "subjectName": "Cơ sở dữ liệu SQL & PostgreSQL",
+          "score": 7.7,
+          "attendanceRate": 96,
+          "homeworkRate": 90,
+          "rpoint": 116
+        },
+        {
+          "subjectCode": "SB-01",
+          "subjectName": "Spring Boot RESTful Microservices",
+          "score": 8.4,
+          "attendanceRate": 99,
+          "homeworkRate": 95,
+          "rpoint": 146
+        },
+        {
+          "subjectCode": "GIT-01",
+          "subjectName": "Quản trị mã nguồn Git & Docker",
+          "score": 7.6,
+          "attendanceRate": 91,
+          "homeworkRate": 100,
+          "rpoint": 134
+        }
+      ]
+    },
+    "std-018": {
+      "lmsUserId": "std-018",
+      "email": "candidate18@rikkeijobs.test",
+      "fullName": "Trương Mỹ Tâm",
+      "role": "STUDENT",
+      "program": "Lập trình Web Frontend Chuyên nghiệp",
+      "classCode": "RA-FE-2026",
+      "courseName": "Khóa đào tạo Chuyên viên Frontend React",
+      "results": [
+        {
+          "subjectCode": "FE-01",
+          "subjectName": "HTML5, CSS3 & Responsive Design",
+          "score": 9,
+          "attendanceRate": 98,
+          "homeworkRate": 94,
+          "rpoint": 155
+        },
+        {
+          "subjectCode": "JS-01",
+          "subjectName": "JavaScript ES6+ & Asynchronous",
+          "score": 8.2,
+          "attendanceRate": 90,
+          "homeworkRate": 99,
+          "rpoint": 143
+        },
+        {
+          "subjectCode": "RC-01",
+          "subjectName": "React 19 & TypeScript",
+          "score": 8.9,
+          "attendanceRate": 93,
+          "homeworkRate": 88,
+          "rpoint": 134
+        },
+        {
+          "subjectCode": "TW-01",
+          "subjectName": "Tailwind CSS & UI Components",
+          "score": 8.1,
+          "attendanceRate": 96,
+          "homeworkRate": 93,
+          "rpoint": 142
+        }
+      ]
+    },
+    "std-019": {
+      "lmsUserId": "std-019",
+      "email": "candidate19@rikkeijobs.test",
+      "fullName": "Đoàn Quốc Thắng",
+      "role": "STUDENT",
+      "program": "Đào tạo Kỹ sư Phần mềm Toàn diện",
+      "classCode": "RA-FS-2026",
+      "courseName": "Khóa đào tạo Kỹ sư Phần mềm Fullstack",
+      "results": [
+        {
+          "subjectCode": "JV-01",
+          "subjectName": "Java Core & OOP",
+          "score": 9.5,
+          "attendanceRate": 92,
+          "homeworkRate": 87,
+          "rpoint": 143
+        },
+        {
+          "subjectCode": "SB-01",
+          "subjectName": "Spring Boot & Cloud Native",
+          "score": 8.7,
+          "attendanceRate": 95,
+          "homeworkRate": 92,
+          "rpoint": 151
+        },
+        {
+          "subjectCode": "RC-01",
+          "subjectName": "React 19 & State Management",
+          "score": 9.4,
+          "attendanceRate": 98,
+          "homeworkRate": 97,
+          "rpoint": 161
+        },
+        {
+          "subjectCode": "DK-01",
+          "subjectName": "Docker & Kafka Message Queue",
+          "score": 8.6,
+          "attendanceRate": 90,
+          "homeworkRate": 86,
+          "rpoint": 129
+        }
+      ]
+    },
+    "std-020": {
+      "lmsUserId": "std-020",
+      "email": "candidate20@rikkeijobs.test",
+      "fullName": "Hà Thị Trang",
+      "role": "STUDENT",
+      "program": "Kỹ sư Dữ liệu & AI Khởi tạo",
+      "classCode": "RA-AI-2026",
+      "courseName": "Khóa đào tạo Kỹ sư Trí tuệ Nhân tạo & Data",
+      "results": [
+        {
+          "subjectCode": "PY-01",
+          "subjectName": "Python & Data Analysis Fundamentals",
+          "score": 7.8,
+          "attendanceRate": 97,
+          "homeworkRate": 96,
+          "rpoint": 137
+        },
+        {
+          "subjectCode": "ML-01",
+          "subjectName": "Machine Learning & Deep Learning",
+          "score": 8.5,
+          "attendanceRate": 100,
+          "homeworkRate": 85,
+          "rpoint": 128
+        },
+        {
+          "subjectCode": "AI-01",
+          "subjectName": "RAG & LLM Application Development",
+          "score": 7.7,
+          "attendanceRate": 92,
+          "homeworkRate": 90,
+          "rpoint": 116
+        },
+        {
+          "subjectCode": "ML-02",
+          "subjectName": "Data Pipeline & MLOps Architecture",
+          "score": 8.4,
+          "attendanceRate": 95,
+          "homeworkRate": 95,
+          "rpoint": 146
+        }
+      ]
+    },
+    "std-021": {
+      "lmsUserId": "std-021",
+      "email": "candidate21@rikkeijobs.test",
+      "fullName": "Đinh Văn Tuấn",
+      "role": "STUDENT",
+      "program": "Lập trình Di động Đa nền tảng",
+      "classCode": "RA-MOB-2026",
+      "courseName": "Khóa đào tạo Lập trình Di động Flutter & React Native",
+      "results": [
+        {
+          "subjectCode": "FL-01",
+          "subjectName": "Dart & Flutter Architecture",
+          "score": 8.3,
+          "attendanceRate": 91,
+          "homeworkRate": 89,
+          "rpoint": 125
+        },
+        {
+          "subjectCode": "RN-01",
+          "subjectName": "React Native & Expo Ecosystem",
+          "score": 9,
+          "attendanceRate": 94,
+          "homeworkRate": 94,
+          "rpoint": 155
+        },
+        {
+          "subjectCode": "MOB-01",
+          "subjectName": "Mobile UI/UX & State Management",
+          "score": 8.2,
+          "attendanceRate": 97,
+          "homeworkRate": 99,
+          "rpoint": 143
+        },
+        {
+          "subjectCode": "MOB-02",
+          "subjectName": "REST API & Offline SQLite Storage",
+          "score": 8.9,
+          "attendanceRate": 100,
+          "homeworkRate": 88,
+          "rpoint": 134
+        }
+      ]
+    },
+    "std-022": {
+      "lmsUserId": "std-022",
+      "email": "candidate22@rikkeijobs.test",
+      "fullName": "Mai Thị Uyên",
+      "role": "STUDENT",
+      "program": "Kiểm thử Phần mềm & Tự động hóa QA/QC",
+      "classCode": "RA-QA-2026",
+      "courseName": "Khóa đào tạo Chuyên viên Kiểm thử Tự động",
+      "results": [
+        {
+          "subjectCode": "QA-01",
+          "subjectName": "Software Testing Fundamentals",
+          "score": 8.8,
+          "attendanceRate": 96,
+          "homeworkRate": 98,
+          "rpoint": 152
+        },
+        {
+          "subjectCode": "QA-02",
+          "subjectName": "Selenium & Playwright Automation",
+          "score": 9.5,
+          "attendanceRate": 99,
+          "homeworkRate": 87,
+          "rpoint": 143
+        },
+        {
+          "subjectCode": "QA-03",
+          "subjectName": "API Testing with Postman & RestAssured",
+          "score": 8.7,
+          "attendanceRate": 91,
+          "homeworkRate": 92,
+          "rpoint": 151
+        },
+        {
+          "subjectCode": "QA-04",
+          "subjectName": "Performance Testing with JMeter",
+          "score": 9.4,
+          "attendanceRate": 94,
+          "homeworkRate": 97,
+          "rpoint": 161
+        }
+      ]
+    },
+    "std-023": {
+      "lmsUserId": "std-023",
+      "email": "candidate23@rikkeijobs.test",
+      "fullName": "Lưu Văn Việt",
+      "role": "STUDENT",
+      "program": "Kỹ sư Điện toán Đám mây & DevOps",
+      "classCode": "RA-CLOUD-2026",
+      "courseName": "Khóa đào tạo Kỹ sư DevOps & Cloud AWS",
+      "results": [
+        {
+          "subjectCode": "LX-01",
+          "subjectName": "Linux System Administration",
+          "score": 7.2,
+          "attendanceRate": 90,
+          "homeworkRate": 91,
+          "rpoint": 128
+        },
+        {
+          "subjectCode": "K8S-01",
+          "subjectName": "Docker & Kubernetes Orchestration",
+          "score": 7.8,
+          "attendanceRate": 93,
+          "homeworkRate": 96,
+          "rpoint": 137
+        },
+        {
+          "subjectCode": "AWS-01",
+          "subjectName": "AWS Cloud Infrastructure & Terraform",
+          "score": 7.2,
+          "attendanceRate": 96,
+          "homeworkRate": 85,
+          "rpoint": 108
+        },
+        {
+          "subjectCode": "CICD-01",
+          "subjectName": "CI/CD Pipeline with GitHub Actions",
+          "score": 7.7,
+          "attendanceRate": 99,
+          "homeworkRate": 90,
+          "rpoint": 116
+        }
+      ]
+    },
+    "std-024": {
+      "lmsUserId": "std-024",
+      "email": "candidate24@rikkeijobs.test",
+      "fullName": "Đào Thị Xuân",
+      "role": "STUDENT",
+      "program": "Lập trình Golang & Microservices Hiệu năng cao",
+      "classCode": "RA-GO-2026",
+      "courseName": "Khóa đào tạo Golang Backend Developer",
+      "results": [
+        {
+          "subjectCode": "GO-01",
+          "subjectName": "Golang Core & Concurrency Patterns",
+          "score": 9.1,
+          "attendanceRate": 95,
+          "homeworkRate": 100,
+          "rpoint": 157
+        },
+        {
+          "subjectCode": "GO-02",
+          "subjectName": "Gin / Echo REST APIs & GORM",
+          "score": 8.3,
+          "attendanceRate": 98,
+          "homeworkRate": 89,
+          "rpoint": 125
+        },
+        {
+          "subjectCode": "DB-02",
+          "subjectName": "PostgreSQL & Redis Caching High Load",
+          "score": 9,
+          "attendanceRate": 90,
+          "homeworkRate": 94,
+          "rpoint": 155
+        },
+        {
+          "subjectCode": "GRPC-01",
+          "subjectName": "Microservices Architecture with gRPC",
+          "score": 8.2,
+          "attendanceRate": 93,
+          "homeworkRate": 99,
+          "rpoint": 143
+        }
+      ]
+    },
+    "std-025": {
+      "lmsUserId": "std-025",
+      "email": "candidate25@rikkeijobs.test",
+      "fullName": "Chu Văn Yên",
+      "role": "STUDENT",
+      "program": "Lập trình Java Fullstack Chuyên sâu",
+      "classCode": "RA-JAVA-2026",
+      "courseName": "Khóa đào tạo Kỹ sư Phần mềm Java",
+      "results": [
+        {
+          "subjectCode": "JV-01",
+          "subjectName": "Java Core & OOP",
+          "score": 9.6,
+          "attendanceRate": 100,
+          "homeworkRate": 93,
+          "rpoint": 164
+        },
+        {
+          "subjectCode": "DB-01",
+          "subjectName": "Cơ sở dữ liệu SQL & PostgreSQL",
+          "score": 8.8,
+          "attendanceRate": 92,
+          "homeworkRate": 98,
+          "rpoint": 152
+        },
+        {
+          "subjectCode": "SB-01",
+          "subjectName": "Spring Boot RESTful Microservices",
+          "score": 9.5,
+          "attendanceRate": 95,
+          "homeworkRate": 87,
+          "rpoint": 143
+        },
+        {
+          "subjectCode": "GIT-01",
+          "subjectName": "Quản trị mã nguồn Git & Docker",
+          "score": 8.7,
+          "attendanceRate": 98,
+          "homeworkRate": 92,
+          "rpoint": 151
+        }
+      ]
+    },
+    "std-026": {
+      "lmsUserId": "std-026",
+      "email": "candidate26@rikkeijobs.test",
+      "fullName": "Quách Bảo Anh",
+      "role": "STUDENT",
+      "program": "Lập trình Web Frontend Chuyên nghiệp",
+      "classCode": "RA-FE-2026",
+      "courseName": "Khóa đào tạo Chuyên viên Frontend React",
+      "results": [
+        {
+          "subjectCode": "FE-01",
+          "subjectName": "HTML5, CSS3 & Responsive Design",
+          "score": 9.8,
+          "attendanceRate": 94,
+          "homeworkRate": 86,
+          "rpoint": 147
+        },
+        {
+          "subjectCode": "JS-01",
+          "subjectName": "JavaScript ES6+ & Asynchronous",
+          "score": 9.3,
+          "attendanceRate": 97,
+          "homeworkRate": 91,
+          "rpoint": 160
+        },
+        {
+          "subjectCode": "RC-01",
+          "subjectName": "React 19 & TypeScript",
+          "score": 9.8,
+          "attendanceRate": 100,
+          "homeworkRate": 96,
+          "rpoint": 167
+        },
+        {
+          "subjectCode": "TW-01",
+          "subjectName": "Tailwind CSS & UI Components",
+          "score": 9.2,
+          "attendanceRate": 92,
+          "homeworkRate": 85,
+          "rpoint": 138
+        }
+      ]
+    },
+    "std-027": {
+      "lmsUserId": "std-027",
+      "email": "candidate27@rikkeijobs.test",
+      "fullName": "Thân Đức Bình",
+      "role": "STUDENT",
+      "program": "Đào tạo Kỹ sư Phần mềm Toàn diện",
+      "classCode": "RA-FS-2026",
+      "courseName": "Khóa đào tạo Kỹ sư Phần mềm Fullstack",
+      "results": [
+        {
+          "subjectCode": "JV-01",
+          "subjectName": "Java Core & OOP",
+          "score": 8.4,
+          "attendanceRate": 99,
+          "homeworkRate": 95,
+          "rpoint": 146
+        },
+        {
+          "subjectCode": "SB-01",
+          "subjectName": "Spring Boot & Cloud Native",
+          "score": 7.6,
+          "attendanceRate": 91,
+          "homeworkRate": 100,
+          "rpoint": 134
+        },
+        {
+          "subjectCode": "RC-01",
+          "subjectName": "React 19 & State Management",
+          "score": 8.3,
+          "attendanceRate": 94,
+          "homeworkRate": 89,
+          "rpoint": 125
+        },
+        {
+          "subjectCode": "DK-01",
+          "subjectName": "Docker & Kafka Message Queue",
+          "score": 9,
+          "attendanceRate": 97,
+          "homeworkRate": 94,
+          "rpoint": 155
+        }
+      ]
+    },
+    "std-028": {
+      "lmsUserId": "std-028",
+      "email": "candidate28@rikkeijobs.test",
+      "fullName": "Diệp Thanh Châu",
+      "role": "STUDENT",
+      "program": "Kỹ sư Dữ liệu & AI Khởi tạo",
+      "classCode": "RA-AI-2026",
+      "courseName": "Khóa đào tạo Kỹ sư Trí tuệ Nhân tạo & Data",
+      "results": [
+        {
+          "subjectCode": "PY-01",
+          "subjectName": "Python & Data Analysis Fundamentals",
+          "score": 8.9,
+          "attendanceRate": 93,
+          "homeworkRate": 88,
+          "rpoint": 134
+        },
+        {
+          "subjectCode": "ML-01",
+          "subjectName": "Machine Learning & Deep Learning",
+          "score": 9.6,
+          "attendanceRate": 96,
+          "homeworkRate": 93,
+          "rpoint": 164
+        },
+        {
+          "subjectCode": "AI-01",
+          "subjectName": "RAG & LLM Application Development",
+          "score": 8.8,
+          "attendanceRate": 99,
+          "homeworkRate": 98,
+          "rpoint": 152
+        },
+        {
+          "subjectCode": "ML-02",
+          "subjectName": "Data Pipeline & MLOps Architecture",
+          "score": 9.5,
+          "attendanceRate": 91,
+          "homeworkRate": 87,
+          "rpoint": 143
+        }
+      ]
+    },
+    "std-029": {
+      "lmsUserId": "std-029",
+      "email": "candidate29@rikkeijobs.test",
+      "fullName": "Nghiêm Văn Dũng",
+      "role": "STUDENT",
+      "program": "Lập trình Di động Đa nền tảng",
+      "classCode": "RA-MOB-2026",
+      "courseName": "Khóa đào tạo Lập trình Di động Flutter & React Native",
+      "results": [
+        {
+          "subjectCode": "FL-01",
+          "subjectName": "Dart & Flutter Architecture",
+          "score": 9.4,
+          "attendanceRate": 98,
+          "homeworkRate": 97,
+          "rpoint": 161
+        },
+        {
+          "subjectCode": "RN-01",
+          "subjectName": "React Native & Expo Ecosystem",
+          "score": 9.8,
+          "attendanceRate": 90,
+          "homeworkRate": 86,
+          "rpoint": 147
+        },
+        {
+          "subjectCode": "MOB-01",
+          "subjectName": "Mobile UI/UX & State Management",
+          "score": 9.3,
+          "attendanceRate": 93,
+          "homeworkRate": 91,
+          "rpoint": 160
+        },
+        {
+          "subjectCode": "MOB-02",
+          "subjectName": "REST API & Offline SQLite Storage",
+          "score": 9.8,
+          "attendanceRate": 96,
+          "homeworkRate": 96,
+          "rpoint": 167
+        }
+      ]
+    },
+    "std-030": {
+      "lmsUserId": "std-030",
+      "email": "candidate30@rikkeijobs.test",
+      "fullName": "Khổng Thị Hà",
+      "role": "STUDENT",
+      "program": "Kiểm thử Phần mềm & Tự động hóa QA/QC",
+      "classCode": "RA-QA-2026",
+      "courseName": "Khóa đào tạo Chuyên viên Kiểm thử Tự động",
+      "results": [
+        {
+          "subjectCode": "QA-01",
+          "subjectName": "Software Testing Fundamentals",
+          "score": 7.7,
+          "attendanceRate": 92,
+          "homeworkRate": 90,
+          "rpoint": 116
+        },
+        {
+          "subjectCode": "QA-02",
+          "subjectName": "Selenium & Playwright Automation",
+          "score": 8.4,
+          "attendanceRate": 95,
+          "homeworkRate": 95,
+          "rpoint": 146
+        },
+        {
+          "subjectCode": "QA-03",
+          "subjectName": "API Testing with Postman & RestAssured",
+          "score": 7.6,
+          "attendanceRate": 98,
+          "homeworkRate": 100,
+          "rpoint": 134
+        },
+        {
+          "subjectCode": "QA-04",
+          "subjectName": "Performance Testing with JMeter",
+          "score": 8.3,
+          "attendanceRate": 90,
+          "homeworkRate": 89,
+          "rpoint": 125
+        }
+      ]
+    },
+    "std-031": {
+      "lmsUserId": "std-031",
+      "email": "candidate31@rikkeijobs.test",
+      "fullName": "La Minh Khang",
+      "role": "STUDENT",
+      "program": "Kỹ sư Điện toán Đám mây & DevOps",
+      "classCode": "RA-CLOUD-2026",
+      "courseName": "Khóa đào tạo Kỹ sư DevOps & Cloud AWS",
+      "results": [
+        {
+          "subjectCode": "LX-01",
+          "subjectName": "Linux System Administration",
+          "score": 8.2,
+          "attendanceRate": 97,
+          "homeworkRate": 99,
+          "rpoint": 143
+        },
+        {
+          "subjectCode": "K8S-01",
+          "subjectName": "Docker & Kubernetes Orchestration",
+          "score": 8.9,
+          "attendanceRate": 100,
+          "homeworkRate": 88,
+          "rpoint": 134
+        },
+        {
+          "subjectCode": "AWS-01",
+          "subjectName": "AWS Cloud Infrastructure & Terraform",
+          "score": 9.6,
+          "attendanceRate": 92,
+          "homeworkRate": 93,
+          "rpoint": 164
+        },
+        {
+          "subjectCode": "CICD-01",
+          "subjectName": "CI/CD Pipeline with GitHub Actions",
+          "score": 8.8,
+          "attendanceRate": 95,
+          "homeworkRate": 98,
+          "rpoint": 152
+        }
+      ]
+    },
+    "std-032": {
+      "lmsUserId": "std-032",
+      "email": "candidate32@rikkeijobs.test",
+      "fullName": "Ôn Thị Liên",
+      "role": "STUDENT",
+      "program": "Lập trình Golang & Microservices Hiệu năng cao",
+      "classCode": "RA-GO-2026",
+      "courseName": "Khóa đào tạo Golang Backend Developer",
+      "results": [
+        {
+          "subjectCode": "GO-01",
+          "subjectName": "Golang Core & Concurrency Patterns",
+          "score": 9.8,
+          "attendanceRate": 91,
+          "homeworkRate": 92,
+          "rpoint": 167
+        },
+        {
+          "subjectCode": "GO-02",
+          "subjectName": "Gin / Echo REST APIs & GORM",
+          "score": 9.4,
+          "attendanceRate": 94,
+          "homeworkRate": 97,
+          "rpoint": 161
+        },
+        {
+          "subjectCode": "DB-02",
+          "subjectName": "PostgreSQL & Redis Caching High Load",
+          "score": 9.8,
+          "attendanceRate": 97,
+          "homeworkRate": 86,
+          "rpoint": 147
+        },
+        {
+          "subjectCode": "GRPC-01",
+          "subjectName": "Microservices Architecture with gRPC",
+          "score": 9.3,
+          "attendanceRate": 100,
+          "homeworkRate": 91,
+          "rpoint": 160
+        }
+      ]
+    },
+    "std-033": {
+      "lmsUserId": "std-033",
+      "email": "candidate33@rikkeijobs.test",
+      "fullName": "Phí Văn Nghĩa",
+      "role": "STUDENT",
+      "program": "Lập trình Java Fullstack Chuyên sâu",
+      "classCode": "RA-JAVA-2026",
+      "courseName": "Khóa đào tạo Kỹ sư Phần mềm Java",
+      "results": [
+        {
+          "subjectCode": "JV-01",
+          "subjectName": "Java Core & OOP",
+          "score": 8.5,
+          "attendanceRate": 96,
+          "homeworkRate": 85,
+          "rpoint": 128
+        },
+        {
+          "subjectCode": "DB-01",
+          "subjectName": "Cơ sở dữ liệu SQL & PostgreSQL",
+          "score": 7.7,
+          "attendanceRate": 99,
+          "homeworkRate": 90,
+          "rpoint": 116
+        },
+        {
+          "subjectCode": "SB-01",
+          "subjectName": "Spring Boot RESTful Microservices",
+          "score": 8.4,
+          "attendanceRate": 91,
+          "homeworkRate": 95,
+          "rpoint": 146
+        },
+        {
+          "subjectCode": "GIT-01",
+          "subjectName": "Quản trị mã nguồn Git & Docker",
+          "score": 7.6,
+          "attendanceRate": 94,
+          "homeworkRate": 100,
+          "rpoint": 134
+        }
+      ]
+    },
+    "std-034": {
+      "lmsUserId": "std-034",
+      "email": "candidate34@rikkeijobs.test",
+      "fullName": "Thiều Thị Oanh",
+      "role": "STUDENT",
+      "program": "Lập trình Web Frontend Chuyên nghiệp",
+      "classCode": "RA-FE-2026",
+      "courseName": "Khóa đào tạo Chuyên viên Frontend React",
+      "results": [
+        {
+          "subjectCode": "FE-01",
+          "subjectName": "HTML5, CSS3 & Responsive Design",
+          "score": 9,
+          "attendanceRate": 90,
+          "homeworkRate": 94,
+          "rpoint": 155
+        },
+        {
+          "subjectCode": "JS-01",
+          "subjectName": "JavaScript ES6+ & Asynchronous",
+          "score": 8.2,
+          "attendanceRate": 93,
+          "homeworkRate": 99,
+          "rpoint": 143
+        },
+        {
+          "subjectCode": "RC-01",
+          "subjectName": "React 19 & TypeScript",
+          "score": 8.9,
+          "attendanceRate": 96,
+          "homeworkRate": 88,
+          "rpoint": 134
+        },
+        {
+          "subjectCode": "TW-01",
+          "subjectName": "Tailwind CSS & UI Components",
+          "score": 8.1,
+          "attendanceRate": 99,
+          "homeworkRate": 93,
+          "rpoint": 142
+        }
+      ]
+    },
+    "std-035": {
+      "lmsUserId": "std-035",
+      "email": "candidate35@rikkeijobs.test",
+      "fullName": "Doãn Quốc Phong",
+      "role": "STUDENT",
+      "program": "Đào tạo Kỹ sư Phần mềm Toàn diện",
+      "classCode": "RA-FS-2026",
+      "courseName": "Khóa đào tạo Kỹ sư Phần mềm Fullstack",
+      "results": [
+        {
+          "subjectCode": "JV-01",
+          "subjectName": "Java Core & OOP",
+          "score": 9.5,
+          "attendanceRate": 95,
+          "homeworkRate": 87,
+          "rpoint": 143
+        },
+        {
+          "subjectCode": "SB-01",
+          "subjectName": "Spring Boot & Cloud Native",
+          "score": 9.8,
+          "attendanceRate": 98,
+          "homeworkRate": 92,
+          "rpoint": 167
+        },
+        {
+          "subjectCode": "RC-01",
+          "subjectName": "React 19 & State Management",
+          "score": 9.4,
+          "attendanceRate": 90,
+          "homeworkRate": 97,
+          "rpoint": 161
+        },
+        {
+          "subjectCode": "DK-01",
+          "subjectName": "Docker & Kafka Message Queue",
+          "score": 9.8,
+          "attendanceRate": 93,
+          "homeworkRate": 86,
+          "rpoint": 147
+        }
+      ]
+    },
+    "std-036": {
+      "lmsUserId": "std-036",
+      "email": "candidate36@rikkeijobs.test",
+      "fullName": "Triệu Thị Quyên",
+      "role": "STUDENT",
+      "program": "Kỹ sư Dữ liệu & AI Khởi tạo",
+      "classCode": "RA-AI-2026",
+      "courseName": "Khóa đào tạo Kỹ sư Trí tuệ Nhân tạo & Data",
+      "results": [
+        {
+          "subjectCode": "PY-01",
+          "subjectName": "Python & Data Analysis Fundamentals",
+          "score": 7.8,
+          "attendanceRate": 100,
+          "homeworkRate": 96,
+          "rpoint": 137
+        },
+        {
+          "subjectCode": "ML-01",
+          "subjectName": "Machine Learning & Deep Learning",
+          "score": 8.5,
+          "attendanceRate": 92,
+          "homeworkRate": 85,
+          "rpoint": 128
+        },
+        {
+          "subjectCode": "AI-01",
+          "subjectName": "RAG & LLM Application Development",
+          "score": 7.7,
+          "attendanceRate": 95,
+          "homeworkRate": 90,
+          "rpoint": 116
+        },
+        {
+          "subjectCode": "ML-02",
+          "subjectName": "Data Pipeline & MLOps Architecture",
+          "score": 8.4,
+          "attendanceRate": 98,
+          "homeworkRate": 95,
+          "rpoint": 146
+        }
+      ]
+    },
+    "std-037": {
+      "lmsUserId": "std-037",
+      "email": "candidate37@rikkeijobs.test",
+      "fullName": "Hứa Văn Thành",
+      "role": "STUDENT",
+      "program": "Lập trình Di động Đa nền tảng",
+      "classCode": "RA-MOB-2026",
+      "courseName": "Khóa đào tạo Lập trình Di động Flutter & React Native",
+      "results": [
+        {
+          "subjectCode": "FL-01",
+          "subjectName": "Dart & Flutter Architecture",
+          "score": 8.3,
+          "attendanceRate": 94,
+          "homeworkRate": 89,
+          "rpoint": 125
+        },
+        {
+          "subjectCode": "RN-01",
+          "subjectName": "React Native & Expo Ecosystem",
+          "score": 9,
+          "attendanceRate": 97,
+          "homeworkRate": 94,
+          "rpoint": 155
+        },
+        {
+          "subjectCode": "MOB-01",
+          "subjectName": "Mobile UI/UX & State Management",
+          "score": 8.2,
+          "attendanceRate": 100,
+          "homeworkRate": 99,
+          "rpoint": 143
+        },
+        {
+          "subjectCode": "MOB-02",
+          "subjectName": "REST API & Offline SQLite Storage",
+          "score": 8.9,
+          "attendanceRate": 92,
+          "homeworkRate": 88,
+          "rpoint": 134
+        }
+      ]
+    },
+    "std-038": {
+      "lmsUserId": "std-038",
+      "email": "candidate38@rikkeijobs.test",
+      "fullName": "Uông Thị Thảo",
+      "role": "STUDENT",
+      "program": "Kiểm thử Phần mềm & Tự động hóa QA/QC",
+      "classCode": "RA-QA-2026",
+      "courseName": "Khóa đào tạo Chuyên viên Kiểm thử Tự động",
+      "results": [
+        {
+          "subjectCode": "QA-01",
+          "subjectName": "Software Testing Fundamentals",
+          "score": 8.8,
+          "attendanceRate": 99,
+          "homeworkRate": 98,
+          "rpoint": 152
+        },
+        {
+          "subjectCode": "QA-02",
+          "subjectName": "Selenium & Playwright Automation",
+          "score": 9.5,
+          "attendanceRate": 91,
+          "homeworkRate": 87,
+          "rpoint": 143
+        },
+        {
+          "subjectCode": "QA-03",
+          "subjectName": "API Testing with Postman & RestAssured",
+          "score": 8.7,
+          "attendanceRate": 94,
+          "homeworkRate": 92,
+          "rpoint": 151
+        },
+        {
+          "subjectCode": "QA-04",
+          "subjectName": "Performance Testing with JMeter",
+          "score": 9.4,
+          "attendanceRate": 97,
+          "homeworkRate": 97,
+          "rpoint": 161
+        }
+      ]
+    },
+    "std-039": {
+      "lmsUserId": "std-039",
+      "email": "candidate39@rikkeijobs.test",
+      "fullName": "Nông Văn Tiến",
+      "role": "STUDENT",
+      "program": "Kỹ sư Điện toán Đám mây & DevOps",
+      "classCode": "RA-CLOUD-2026",
+      "courseName": "Khóa đào tạo Kỹ sư DevOps & Cloud AWS",
+      "results": [
+        {
+          "subjectCode": "LX-01",
+          "subjectName": "Linux System Administration",
+          "score": 8.6,
+          "attendanceRate": 93,
+          "homeworkRate": 91,
+          "rpoint": 149
+        },
+        {
+          "subjectCode": "K8S-01",
+          "subjectName": "Docker & Kubernetes Orchestration",
+          "score": 7.8,
+          "attendanceRate": 96,
+          "homeworkRate": 96,
+          "rpoint": 137
+        },
+        {
+          "subjectCode": "AWS-01",
+          "subjectName": "AWS Cloud Infrastructure & Terraform",
+          "score": 8.5,
+          "attendanceRate": 99,
+          "homeworkRate": 85,
+          "rpoint": 128
+        },
+        {
+          "subjectCode": "CICD-01",
+          "subjectName": "CI/CD Pipeline with GitHub Actions",
+          "score": 7.7,
+          "attendanceRate": 91,
+          "homeworkRate": 90,
+          "rpoint": 116
+        }
+      ]
+    },
+    "std-040": {
+      "lmsUserId": "std-040",
+      "email": "candidate40@rikkeijobs.test",
+      "fullName": "Vi Thị Yến",
+      "role": "STUDENT",
+      "program": "Lập trình Golang & Microservices Hiệu năng cao",
+      "classCode": "RA-GO-2026",
+      "courseName": "Khóa đào tạo Golang Backend Developer",
+      "results": [
+        {
+          "subjectCode": "GO-01",
+          "subjectName": "Golang Core & Concurrency Patterns",
+          "score": 9.1,
+          "attendanceRate": 98,
+          "homeworkRate": 100,
+          "rpoint": 157
+        },
+        {
+          "subjectCode": "GO-02",
+          "subjectName": "Gin / Echo REST APIs & GORM",
+          "score": 8.3,
+          "attendanceRate": 90,
+          "homeworkRate": 89,
+          "rpoint": 125
+        },
+        {
+          "subjectCode": "DB-02",
+          "subjectName": "PostgreSQL & Redis Caching High Load",
+          "score": 9,
+          "attendanceRate": 93,
+          "homeworkRate": 94,
+          "rpoint": 155
+        },
+        {
+          "subjectCode": "GRPC-01",
+          "subjectName": "Microservices Architecture with gRPC",
+          "score": 8.2,
+          "attendanceRate": 96,
+          "homeworkRate": 99,
+          "rpoint": 143
+        }
       ]
     }
   },
@@ -50,25 +1725,42 @@
     {
       "courseId": "CRS-01",
       "name": "Lập trình Spring Boot nâng cao & Microservices",
-      "skills": ["Spring Boot", "Microservices", "Docker", "Apache Kafka"],
+      "skills": [
+        "Spring Boot",
+        "Microservices",
+        "Docker",
+        "Apache Kafka"
+      ],
       "level": "Tốt"
     },
     {
       "courseId": "CRS-02",
       "name": "React 19 & Next.js Fullstack Architecture",
-      "skills": ["ReactJS", "TypeScript", "Tailwind CSS"],
+      "skills": [
+        "ReactJS",
+        "TypeScript",
+        "Tailwind CSS"
+      ],
       "level": "Tốt"
     },
     {
       "courseId": "CRS-03",
       "name": "Tối ưu hóa CSDL quan hệ PostgreSQL",
-      "skills": ["SQL", "PostgreSQL", "Database Optimization"],
+      "skills": [
+        "SQL",
+        "PostgreSQL",
+        "Database Optimization"
+      ],
       "level": "Khá"
     },
     {
       "courseId": "CRS-04",
       "name": "DevOps cơ bản: Docker, CI/CD và Linux",
-      "skills": ["Docker", "CI/CD", "Linux / Bash"],
+      "skills": [
+        "Docker",
+        "CI/CD",
+        "Linux / Bash"
+      ],
       "level": "Khá"
     }
   ],
@@ -78,7 +1770,7 @@
       "studentId": "std-001",
       "courseId": "CRS-04",
       "status": "IN_PROGRESS",
-      "progress": 45.0,
+      "progress": 45,
       "enrolledAt": "2026-10-15T08:00:00Z"
     },
     {
@@ -86,9 +1778,8 @@
       "studentId": "std-002",
       "courseId": "CRS-03",
       "status": "IN_PROGRESS",
-      "progress": 30.0,
+      "progress": 30,
       "enrolledAt": "2026-10-20T08:00:00Z"
     }
   ]
 }
-

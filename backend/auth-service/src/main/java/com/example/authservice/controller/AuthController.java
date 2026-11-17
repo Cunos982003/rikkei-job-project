@@ -2,12 +2,14 @@ package com.example.authservice.controller;
 
 import com.example.authservice.dto.AuthResponse;
 import com.example.authservice.dto.ChangePasswordRequest;
+import com.example.authservice.dto.FirstTimePasswordRequest;
 import com.example.authservice.dto.ForgotPasswordRequest;
 import com.example.authservice.dto.LoginRequest;
 import com.example.authservice.dto.MessageResponse;
 import com.example.authservice.dto.ResetPasswordRequest;
 import com.example.authservice.dto.SsoRequest;
 import com.example.authservice.dto.UserDto;
+import com.example.authservice.entity.User;
 import com.example.authservice.exception.ErrorCode;
 import com.example.authservice.exception.SsoException;
 import com.example.authservice.repository.UserRepository;
@@ -62,13 +64,14 @@ public class AuthController {
 
     @PostMapping("/change-password")
     public ResponseEntity<MessageResponse> changePassword(@Valid @RequestBody ChangePasswordRequest request, Authentication authentication) {
-        if (authentication == null || authentication.getName() == null) {
-            throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Authentication required");
-        }
-        UUID userId = UUID.fromString(authentication.getName());
-        return userRepository.findById(userId)
-            .map(user -> ResponseEntity.ok(hrAuthService.changePassword(user.getEmail(), request.currentPassword(), request.newPassword())))
-            .orElseThrow(() -> new SsoException(ErrorCode.INVALID_CREDENTIALS, "User not found"));
+        User user = resolveAuthenticatedUser(authentication);
+        return ResponseEntity.ok(hrAuthService.changePassword(user.getEmail(), request.currentPassword(), request.newPassword()));
+    }
+
+    @PostMapping("/first-time-password")
+    public ResponseEntity<MessageResponse> firstTimePassword(@Valid @RequestBody FirstTimePasswordRequest request, Authentication authentication) {
+        User user = resolveAuthenticatedUser(authentication);
+        return ResponseEntity.ok(hrAuthService.firstTimePassword(user.getId(), request.newPassword()));
     }
 
     @PostMapping("/reset-password")
@@ -79,13 +82,30 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<UserDto> getCurrentUser(Authentication authentication) {
-        if (authentication == null || authentication.getName() == null) {
+        try {
+            User user = resolveAuthenticatedUser(authentication);
+            return ResponseEntity.ok(UserDto.from(user));
+        } catch (Exception e) {
             return ResponseEntity.status(401).build();
         }
-        UUID userId = UUID.fromString(authentication.getName());
-        return userRepository.findById(userId)
-            .map(UserDto::from)
-            .map(ResponseEntity::ok)
-            .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    private User resolveAuthenticatedUser(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
+            throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Authentication required");
+        }
+        String principal = authentication.getName().trim();
+        try {
+            UUID userId = UUID.fromString(principal);
+            User user = userRepository.findById(userId).orElse(null);
+            if (user != null) {
+                return user;
+            }
+        } catch (IllegalArgumentException ignored) {
+            // principal may be an email instead of UUID
+        }
+
+        return userRepository.findByEmail(principal)
+            .orElseThrow(() -> new SsoException(ErrorCode.INVALID_CREDENTIALS, "User not found"));
     }
 }

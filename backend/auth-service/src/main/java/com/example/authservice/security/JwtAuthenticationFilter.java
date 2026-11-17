@@ -42,9 +42,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (SecurityContextHolder.getContext().getAuthentication() != null
             && SecurityContextHolder.getContext().getAuthentication().isAuthenticated()) {
             var principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-            if (principal instanceof String userId && !userId.isBlank()) {
-                request.setAttribute("currentUser", userId);
-                var userOpt = userRepository.findById(java.util.UUID.fromString(userId));
+            if (principal instanceof String principalStr && !principalStr.isBlank()) {
+                request.setAttribute("currentUser", principalStr);
+                java.util.Optional<User> userOpt;
+                try {
+                    java.util.UUID uid = java.util.UUID.fromString(principalStr);
+                    userOpt = userRepository.findById(uid);
+                } catch (IllegalArgumentException e) {
+                    userOpt = userRepository.findByEmail(principalStr);
+                }
                 if (userOpt.isPresent()) {
                     User user = userOpt.get();
                     if (!isPublicAuthPath(request.getRequestURI())) {

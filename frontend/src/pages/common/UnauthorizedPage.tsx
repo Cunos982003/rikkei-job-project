@@ -10,7 +10,7 @@ export function UnauthorizedPage() {
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
+    navigate("/login", { replace: true, state: null });
   };
 
   return (
