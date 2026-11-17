@@ -237,7 +237,7 @@ Dự án gồm 3 thành phần chính có thể khởi chạy độc lập:
 
 #### 1. Khởi động Mock Server hệ thống ngoài (LMS, Khảo thí, PM, Meet - Cổng 9000)
 ```bash
-# Tạo và cấu hình LMS_SERVICE_KEY trong .env gốc trước.
+# Tạo và cấu hình LMS_SERVICE_KEY trong ..env gốc trước.
 cd mock
 npm start
 # Server lắng nghe tại http://localhost:9000
@@ -264,9 +264,9 @@ trường chạy. Tạo các database `ai_db` và
 `recruitment_db` trên PostgreSQL trước khi khởi động, ví dụ với Docker Compose:
 
 ```bash
-docker compose --env-file .env -f infra/docker-compose.yml up -d postgres
-docker compose --env-file .env -f infra/docker-compose.yml exec postgres sh -c 'createdb -U "$POSTGRES_USER" ai_db'
-docker compose --env-file .env -f infra/docker-compose.yml exec postgres sh -c 'createdb -U "$POSTGRES_USER" recruitment_db'
+docker compose --.env-file ..env -f infra/docker-compose.yml up -d postgres
+docker compose --.env-file ..env -f infra/docker-compose.yml exec postgres sh -c 'createdb -U "$POSTGRES_USER" ai_db'
+docker compose --.env-file ..env -f infra/docker-compose.yml exec postgres sh -c 'createdb -U "$POSTGRES_USER" recruitment_db'
 ```
 
 Compose lấy thông tin PostgreSQL từ `.env` gốc; lệnh cần có `--env-file .env`.
@@ -282,7 +282,7 @@ H2 riêng, không dùng database PostgreSQL thật.
 
 ```bash
 # Tùy chọn A: Khởi động hạ tầng bổ trợ bằng Docker (PostgreSQL, Redis, Kafka, MinIO, Mailpit)
-docker compose --env-file .env -f infra/docker-compose.yml up -d
+docker compose --.env-file ..env -f infra/docker-compose.yml up -d
 
 # Tùy chọn B: Chạy service cụ thể bằng Gradle (ví dụ auth-service)
 cd backend/auth-service
@@ -292,7 +292,7 @@ cd backend/auth-service
 Để build và chạy các ứng dụng có thể triển khai cùng frontend:
 
 ```bash
-docker compose --env-file .env -f infra/docker-compose.yml --profile app up --build -d
+docker compose --.env-file ..env -f infra/docker-compose.yml --profile app up --build -d
 ```
 
 Frontend chạy tại `http://localhost:5173`; gateway tại `http://localhost:8080`.
@@ -312,12 +312,12 @@ giá trị mẫu trong `.env.prod` trước khi chạy; file này đã được 
 không được commit.
 
 ```bash
-cp .env.prod.example .env.prod
-# Chỉnh .env.prod: mật khẩu mạnh, JWT_SECRET, domain, LMS/PM, SMTP và AI key.
-docker compose --env-file .env.prod -f docker-compose.prod.yml config -q
-docker compose --env-file .env.prod -f docker-compose.prod.yml up --build -d
-docker compose --env-file .env.prod -f docker-compose.prod.yml ps
-docker compose --env-file .env.prod -f docker-compose.prod.yml down
+cp ..env.prod.example ..env.prod
+# Chỉnh ..env.prod: mật khẩu mạnh, JWT_SECRET, domain, LMS/PM, SMTP và AI key.
+docker compose --.env-file ..env.prod -f docker-compose.prod.yml config -q
+docker compose --.env-file ..env.prod -f docker-compose.prod.yml up --build -d
+docker compose --.env-file ..env.prod -f docker-compose.prod.yml ps
+docker compose --.env-file ..env.prod -f docker-compose.prod.yml down
 ```
 
 Frontend chỉ bind vào `127.0.0.1:8080` mặc định; cấu hình reverse proxy trên
@@ -327,7 +327,7 @@ named volumes; cần có kế hoạch backup riêng cho VPS.
 
 ##### Auth service và Mock LMS
 ```bash
-# Mock LMS đọc LMS_SERVICE_KEY từ .env gốc
+# Mock LMS đọc LMS_SERVICE_KEY từ ..env gốc
 cd mock
 npm start
 

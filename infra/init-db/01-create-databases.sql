@@ -7,7 +7,7 @@
 -- khi đó tạo tay bằng chính các câu lệnh bên dưới.
 --
 -- Quy ước: mỗi service một database riêng, đặt tên <tên-service>_db. Vì vậy
--- không thể gom chung vào biến SPRING_DATASOURCE_URL của một file .env dùng
+-- không thể gom chung vào biến SPRING_DATASOURCE_URL của một file ..env dùng
 -- chung — mỗi service phải được set biến này riêng khi chạy.
 -- =============================================================================
 
