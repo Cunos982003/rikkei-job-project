@@ -236,7 +236,7 @@ public class ProfileService {
                         .source(e.getSource())
                         .sourceRef(e.getSourceRef())
                         .title(e.getTitle())
-                        .score(e.getScore())
+                        .score(e.getScore() != null ? e.getScore().intValue() : null)
                         .recordedAt(e.getRecordedAt())
                         .verified(e.isVerified())
                         .build())
@@ -247,8 +247,8 @@ public class ProfileService {
                 .skillCode(skill.getCode())
                 .skillName(skill.getName())
                 .group(skill.getGroup())
-                .verifiedScore(score.getVerifiedScore())
-                .selfScore(score.getSelfScore())
+                .verifiedScore(score.getVerifiedScore() != null ? score.getVerifiedScore().intValue() : null)
+                .selfScore(score.getSelfScore() != null ? score.getSelfScore().intValue() : null)
                 .level(score.getLevel())
                 .evidences(evidenceDtos)
                 .build();
@@ -261,7 +261,7 @@ public class ProfileService {
                 .major(edu.getMajor())
                 .fromDate(edu.getFromDate() != null ? edu.getFromDate().toString() : null)
                 .toDate(edu.getToDate() != null ? edu.getToDate().toString() : null)
-                .gpa(edu.getGpa())
+                .gpa(edu.getGpa() != null ? edu.getGpa().doubleValue() : null)
                 .note(edu.getNote())
                 .build();
     }
