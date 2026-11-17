@@ -3,6 +3,7 @@ package com.example.authservice.service;
 import com.example.authservice.dto.CreateHrAccountAdminRequest;
 import com.example.authservice.dto.HrAccountAdminResponse;
 import com.example.authservice.entity.User;
+import com.example.authservice.entity.UserRole;
 import com.example.authservice.entity.UserStatus;
 import com.example.authservice.repository.UserRepository;
 import org.slf4j.Logger;
@@ -81,7 +82,7 @@ public class HrAccountAdminService {
         user.setFullName(req.fullName().trim());
         user.setCompanyId(req.companyId());
         user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
-        user.setRole("ROLE_HR");
+        user.setRole(UserRole.HR);
         user.setStatus(UserStatus.ACTIVE);
         user.setMustChangePassword(true);
         user.setFailedLoginCount(0);
@@ -95,9 +96,14 @@ public class HrAccountAdminService {
         log.info("👉 Mật khẩu ngẫu nhiên tạm thời: {}", temporaryPassword);
         log.info("==================================================");
 
-        boolean emailSent = sendTemporaryPasswordEmail(email, req.fullName().trim(), temporaryPassword);
+        boolean emailConfigured = mailSenderProvider.getIfAvailable() != null;
+        if (emailConfigured) {
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                sendTemporaryPasswordEmail(email, req.fullName().trim(), temporaryPassword);
+            });
+        }
 
-        return toResponse(saved, temporaryPassword, emailSent);
+        return toResponse(saved, temporaryPassword, emailConfigured);
     }
 
     @Transactional
@@ -167,7 +173,7 @@ public class HrAccountAdminService {
     }
 
     private boolean isHrUser(User user) {
-        return user != null && ("ROLE_HR".equalsIgnoreCase(user.getRole()) || "HR".equalsIgnoreCase(user.getRole()));
+        return user != null && user.getRole() == UserRole.HR;
     }
 
     private boolean sendTemporaryPasswordEmail(String toEmail, String fullName, String temporaryPassword) {

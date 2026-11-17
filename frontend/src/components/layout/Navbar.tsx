@@ -40,7 +40,7 @@ export function Navbar() {
   const handleLogout = () => {
     logout();
     setIsUserMenuOpen(false);
-    navigate("/login");
+    navigate("/login", { replace: true, state: null });
   };
 
   const getRoleBadgeVariant = (role?: Role) => {

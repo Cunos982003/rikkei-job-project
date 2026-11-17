@@ -90,13 +90,20 @@ spring:
             - id: profile
               uri: ${GATEWAY_PROFILE_URL:http://localhost:8082}
               predicates:
-                - Path=/api/v1/profiles/**,/api/v1/files/**
+                - Path=/api/v1/profiles/**,/api/v1/files/**,/api/v1/staff/profile-reviews,/api/v1/staff/profiles/**
               filters: *cors-response-filters
             - id: job
               uri: ${GATEWAY_JOB_URL:http://localhost:8085}
               predicates:
-                - Path=/companies/**,/staff/**
-              filters: *cors-response-filters
+                - Path=/api/v1/companies/**,/api/v1/staff/companies/**,/api/v1/staff/hr-accounts/**,/companies/**,/staff/companies/**,/staff/hr-accounts/**
+              filters:
+                - RewritePath=/api/v1/(?<segment>.*), /${segment}
+                - RemoveResponseHeader=Access-Control-Allow-Origin
+                - RemoveResponseHeader=Access-Control-Allow-Credentials
+                - RemoveResponseHeader=Access-Control-Expose-Headers
+                - RemoveResponseHeader=Access-Control-Allow-Methods
+                - RemoveResponseHeader=Access-Control-Allow-Headers
+                - RemoveResponseHeader=Access-Control-Max-Age
             - id: recruitment
               uri: ${GATEWAY_RECRUITMENT_URL:http://localhost:8086}
               predicates:
@@ -139,7 +146,7 @@ spring:
 
 app:
   jwt:
-    secret: ${JWT_SECRET}
+    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
   gateway:
     allowed-origins: ${GATEWAY_ALLOWED_ORIGINS:http://localhost:5173}
     rate-limit-per-minute: ${GATEWAY_RATE_LIMIT_PER_MINUTE:60}

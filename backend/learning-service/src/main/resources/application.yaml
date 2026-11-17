@@ -13,7 +13,7 @@ spring:
   datasource:
     url: ${LEARNING_DATABASE_URL:jdbc:postgresql://localhost:5432/learning_sv_rikkei_jobs_db}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD}
+    password: ${SPRING_DATASOURCE_PASSWORD:123}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -42,7 +42,7 @@ springdoc:
 
 app:
   jwt:
-    secret: ${JWT_SECRET}
+    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
   integrations:
     profile-service-url: ${PROFILE_SERVICE_URL:http://localhost:8082}
     job-service-url: ${JOB_SERVICE_URL:http://localhost:9000}
