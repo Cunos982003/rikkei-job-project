@@ -12,4 +12,5 @@ public interface ProfileReviewRepository extends JpaRepository<ProfileReview, UU
     List<ProfileReview> findByUserIdOrderByCreatedAtDesc(UUID userId);
     List<ProfileReview> findByUserIdInAndActionOrderByCreatedAtDesc(
             Collection<UUID> userIds, ProfileReview.Action action);
+    long countByUserIdAndAction(UUID userId, ProfileReview.Action action);
 }

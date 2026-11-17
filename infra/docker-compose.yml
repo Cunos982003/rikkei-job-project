@@ -17,8 +17,8 @@ services:
     image: postgres:17-alpine
     container_name: rikkei_postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in root .env}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in root ..env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root ..env}
       POSTGRES_DB: ${POSTGRES_DB:-rikkei_jobs}
     ports:
       - "5432:5432"
@@ -54,7 +54,7 @@ services:
       context: ..
       dockerfile: mock/Dockerfile
     env_file:
-      - ../.env
+      - ../..env
     profiles: ["app"]
     ports:
       - "9000:9000"
@@ -65,12 +65,12 @@ services:
       context: ..
       dockerfile: backend/api-gateway/Dockerfile
     env_file:
-      - ../.env
+      - ../..env
     profiles: ["app"]
     environment:
       PORT: 8080
       REDIS_HOST: redis
-      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in root .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in root ..env}
       GATEWAY_AUTH_URL: http://auth-service:8081
       GATEWAY_PROFILE_URL: http://profile-service:8082
       GATEWAY_JOB_URL: http://job-service:8085
@@ -88,15 +88,15 @@ services:
       context: ..
       dockerfile: backend/auth-service/Dockerfile
     env_file:
-      - ../.env
+      - ../..env
     profiles: ["app"]
     environment:
       SERVER_PORT: 8081
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auth_db
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in root .env}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
-      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in root .env}
-      LMS_SERVICE_KEY: ${LMS_SERVICE_KEY:?Set LMS_SERVICE_KEY in root .env}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in root ..env}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root ..env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in root ..env}
+      LMS_SERVICE_KEY: ${LMS_SERVICE_KEY:?Set LMS_SERVICE_KEY in root ..env}
       LMS_BASE_URL: http://mock-api:9000
       SPRING_MAIL_HOST: mailpit
       SPRING_MAIL_PORT: 1025
@@ -116,12 +116,12 @@ services:
       context: ..
       dockerfile: backend/profile-service/Dockerfile
     env_file:
-      - ../.env
+      - ../..env
     profiles: ["app"]
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/profile_db
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in root .env}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in root ..env}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root ..env}
       LMS_BASE_URL: http://mock-api:9000
       INTEGRATIONS_PM_BASE_URL: http://mock-api:9000
     depends_on:
@@ -140,13 +140,13 @@ services:
       context: ..
       dockerfile: backend/job-service/Dockerfile
     env_file:
-      - ../.env
+      - ../..env
     profiles: ["app"]
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/job_db
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in root .env}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
-      APP_JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in root .env}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in root ..env}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root ..env}
+      APP_JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in root ..env}
       MAIL_HOST: mailpit
     depends_on:
       postgres:
@@ -164,14 +164,14 @@ services:
       context: ..
       dockerfile: backend/recruitment-service/Dockerfile
     env_file:
-      - ../.env
+      - ../..env
     profiles: ["app"]
     environment:
       SERVER_PORT: 8086
       RECRUITMENT_DATABASE_URL: jdbc:postgresql://postgres:5432/recruitment_db
-      RECRUITMENT_DATABASE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in root .env}
-      RECRUITMENT_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
-      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in root .env}
+      RECRUITMENT_DATABASE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in root ..env}
+      RECRUITMENT_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root ..env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in root ..env}
       JOB_SERVICE_URL: http://job-service:8085
       PROFILE_SERVICE_URL: http://profile-service:8082
       AI_CAREER_SERVICE_URL: http://ai-career-service:8090
@@ -198,14 +198,14 @@ services:
       context: ..
       dockerfile: backend/learning-service/Dockerfile
     env_file:
-      - ../.env
+      - ../..env
     profiles: ["app"]
     environment:
       SERVER_PORT: 8089
       LEARNING_DATABASE_URL: jdbc:postgresql://postgres:5432/learning_db
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in root .env}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
-      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in root .env}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in root ..env}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root ..env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in root ..env}
       PROFILE_SERVICE_URL: http://profile-service:8082
       JOB_SERVICE_URL: http://job-service:8085
       MOCK_SERVER_URL: http://mock-api:9000
@@ -227,7 +227,7 @@ services:
       context: ..
       dockerfile: ai_career_service/Dockerfile
     env_file:
-      - ../.env
+      - ../..env
     profiles: ["app"]
     environment:
       AI_DATABASE_URL: jdbc:postgresql://postgres:5432/ai_db
@@ -247,7 +247,7 @@ services:
       dockerfile: frontend/Dockerfile
     profiles: ["app"]
     environment:
-      LMS_SERVICE_KEY: ${LMS_SERVICE_KEY:?Set LMS_SERVICE_KEY in root .env}
+      LMS_SERVICE_KEY: ${LMS_SERVICE_KEY:?Set LMS_SERVICE_KEY in root ..env}
       NGINX_ENVSUBST_FILTER: LMS_SERVICE_KEY
     depends_on:
       - api-gateway
