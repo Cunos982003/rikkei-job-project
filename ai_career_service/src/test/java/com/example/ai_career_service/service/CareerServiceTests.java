@@ -191,4 +191,18 @@ class CareerServiceTests {
                 .isEqualTo(HttpStatus.NOT_FOUND);
         verifyNoInteractions(aiProvider, repository);
     }
+
+    @Test
+    void getMatchScorePropagatesMissingCandidateNotFound() {
+        var missingCandidate = new ResponseStatusException(HttpStatus.NOT_FOUND, "Candidate not found");
+        when(dataSource.loadSnapshot(USER_ID)).thenThrow(missingCandidate);
+
+        CareerService service = new CareerService(dataSource, repository, aiProvider, directExecutor);
+
+        assertThatThrownBy(() -> service.getMatchScore(USER_ID, jobId(1)))
+                .isSameAs(missingCandidate)
+                .extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        verifyNoInteractions(aiProvider, repository);
+    }
 }
