@@ -25,6 +25,8 @@ import MentorEvaluationFormPage from "../features/profile/MentorEvaluationFormPa
 
 // Role Dashboard Pages
 import { CandidateProfilePage } from "../pages/candidate/CandidateProfilePage";
+import CandidateJobsPage from "../pages/candidate/CandidateJobsPage";
+import CandidateLearningPage from "../pages/candidate/CandidateLearningPage";
 import { HrCompanyPage } from "../pages/hr/HrCompanyPage";
 import { MentorStudentsPage } from "../pages/mentor/MentorStudentsPage";
 import { StaffJobsPage } from "../pages/staff/StaffJobsPage";
@@ -61,9 +63,9 @@ export function AppRoutes() {
                     {/* CANDIDATE */}
                     <Route element={<RoleGuard allowedRoles={["CANDIDATE"]} />}>
                         <Route path="/candidate/profile" element={<CandidateProfilePage />} />
-                        <Route path="/candidate/jobs" element={<CandidateProfilePage />} />
+                        <Route path="/candidate/jobs" element={<CandidateJobsPage />} />
                         <Route path="/candidate/applications" element={<CandidateProfilePage />} />
-                        <Route path="/candidate/learning" element={<CandidateProfilePage />} />
+                        <Route path="/candidate/learning" element={<CandidateLearningPage />} />
                         <Route path="/candidate/evaluations" element={<EvaluationsPage />} />
                         <Route path="/profile/evaluations" element={<EvaluationsPage />} />
                         <Route path="/profile/skills" element={<SkillProfilePage />} />

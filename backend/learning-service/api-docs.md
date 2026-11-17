@@ -1,7 +1,7 @@
-# Tài Liệu Đặc Tả API - Module Đào Tạo Bổ Sung (DT-01)
+# Tài Liệu Đặc Tả API - Module Đào Tạo Bổ Sung (DT-01 & DT-02)
 
 > **Dự án**: Rikkei Jobs  
-> **Module**: Đào tạo bổ sung · DT-01 (Phân tích khoảng thiếu hụt năng lực theo JD và vị trí mục tiêu)  
+> **Module**: Đào tạo bổ sung · DT-01 (Phân tích khoảng thiếu hụt năng lực) & DT-02 (Gợi ý khóa học LMS, ghi danh, theo dõi)  
 > **Cổng API Gateway chính thức**: `http://localhost:8080`  
 > **Cổng Learning Service nội bộ**: `http://localhost:8089`  
 > **Cổng Mock Server dịch vụ ngoài**: `http://localhost:9000`  
@@ -43,13 +43,17 @@ Mọi phản hồi từ hệ thống (kể cả thành công 2xx, lỗi nghiệp
 
 ### 1.3. Bảng Tổng Hợp Phân Quyền API (Access Control Matrix)
 
-| STT | Phương thức | Đường dẫn (Qua Gateway `:8080`)          | Mức độ bảo mật | Đối tượng / Vai trò được phép            | Mô tả quyền truy cập                                                                 |
-| :-: | :---------: | :--------------------------------------- | :------------: | :--------------------------------------- | :----------------------------------------------------------------------------------- |
-|  1  |    `GET`    | `/api/v1/learning/target-positions`      |   **Public**   | Tất cả (Khách chưa đăng nhập & mọi Role) | Xem danh mục 4 vị trí mục tiêu chuẩn và bộ kỹ năng tham khảo.                        |
-|  2  |    `GET`    | `/api/v1/learning/target-positions/{id}` |   **Public**   | Tất cả (Khách chưa đăng nhập & mọi Role) | Xem chi tiết yêu cầu điểm sàn của một vị trí mục tiêu.                               |
-|  3  |    `PUT`    | `/api/v1/learning/me/target`             |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Thiết lập hoặc thay đổi vị trí / JD mục tiêu cá nhân.                                |
-|  4  |    `GET`    | `/api/v1/learning/me/target`             |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Lấy mục tiêu nghề nghiệp hiện tại của chính ứng viên đang đăng nhập.                 |
-|  5  |    `GET`    | `/api/v1/learning/me/gap-analysis`       |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Phân tích khoảng thiếu hụt năng lực của chính ứng viên theo mục tiêu hoặc `?jobId=`. |
+| STT | Phương thức | Đường dẫn (Qua Gateway `:8080`)           | Mức độ bảo mật | Đối tượng / Vai trò được phép            | Mô tả quyền truy cập                                                                 |
+| :-: | :---------: | :---------------------------------------- | :------------: | :--------------------------------------- | :----------------------------------------------------------------------------------- |
+|  1  |    `GET`    | `/api/v1/learning/target-positions`       |   **Public**   | Tất cả (Khách chưa đăng nhập & mọi Role) | Xem danh mục 4 vị trí mục tiêu chuẩn và bộ kỹ năng tham khảo.                        |
+|  2  |    `GET`    | `/api/v1/learning/target-positions/{id}`  |   **Public**   | Tất cả (Khách chưa đăng nhập & mọi Role) | Xem chi tiết yêu cầu điểm sàn của một vị trí mục tiêu.                               |
+|  3  |    `PUT`    | `/api/v1/learning/me/target`              |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Thiết lập hoặc thay đổi vị trí / JD mục tiêu cá nhân.                                |
+|  4  |    `GET`    | `/api/v1/learning/me/target`              |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Lấy mục tiêu nghề nghiệp hiện tại của chính ứng viên đang đăng nhập.                 |
+|  5  |    `GET`    | `/api/v1/learning/me/gap-analysis`        |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Phân tích khoảng thiếu hụt năng lực của chính ứng viên theo mục tiêu hoặc `?jobId=`. |
+|  6  |    `GET`    | `/api/v1/learning/me/course-suggestions`  |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Gợi ý danh sách khóa học LMS theo từng kỹ năng thiếu và cấp độ hiện tại (DT-02).     |
+|  7  |   `POST`    | `/api/v1/learning/me/enrollments`         |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Ghi danh khóa học bổ sung trên LMS; chặn trùng lặp 409; LMS lỗi thì không lưu.       |
+|  8  |    `GET`    | `/api/v1/learning/me/enrollments`         |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Xem danh sách các khóa học ứng viên đã ghi danh kèm tiến độ và điểm số.              |
+|  9  |   `POST`    | `/api/v1/learning/me/enrollments/refresh` |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Làm mới tiến độ và điểm số từ LMS; tự động cập nhật tăng chỉ số hồ sơ khi COMPLETED. |
 
 #### Phản hồi lỗi bảo mật chuẩn (HTTP 401 & HTTP 403):
 
@@ -391,7 +395,240 @@ Khi truyền cả 2 tham số hoặc không truyền:
 
 ---
 
-## 3. Hướng Dẫn Frontend Tích Hợp (React SPA)
+### API 6: Gợi ý khóa học bổ sung trên LMS theo từng kỹ năng thiếu (DT-02)
+
+- **Mục đích**: Gợi ý các khóa học LMS phù hợp cho từng kỹ năng bị thiếu hụt (từ kết quả phân tích DT-01), lọc theo trình độ/thang điểm hiện tại của ứng viên (`level_from` $\le$ `currentScore` $\le$ `level_to`).
+- **Phương thức HTTP**: `GET`
+- **Đường dẫn qua Gateway**: `http://localhost:8080/api/v1/learning/me/course-suggestions`
+- **Đường dẫn trực tiếp nội bộ**: `http://localhost:8089/api/v1/learning/me/course-suggestions` (hỗ trợ cả `/me/course-suggestions`)
+- **Quyền hạn**: **Bảo mật (Authenticated)** — Chỉ vai trò **`CANDIDATE`** được phép truy cập.
+- **Request Headers**: `X-User-Id: cand-001`, `Authorization: Bearer <token>`.
+
+#### Quy tắc nghiệp vụ gợi ý:
+
+1. Lấy danh sách kỹ năng bị thiếu hụt (`gap > 0`) từ kết quả phân tích mục tiêu hiện tại (DT-01).
+2. Tra cứu bảng ánh xạ `skill_course_mappings` để tìm các khóa học tương ứng cho từng kỹ năng.
+3. Lọc theo trình độ hiện tại của ứng viên: Chọn khóa học có khung điểm phù hợp (`currentScore` nằm giữa `level_from` và `level_to`).
+4. Đính kèm trạng thái ghi danh thực tế của học viên từ bảng `enrollments`:
+   - Nếu đã ghi danh: `isEnrolled = true`, hiển thị `enrollmentStatus` (`ENROLLED`, `IN_PROGRESS`, `COMPLETED`), `progress` (%), và `score`.
+   - Nếu chưa ghi danh: `isEnrolled = false`, `enrollmentStatus = null`.
+
+#### Response Mẫu (HTTP 200 OK):
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Lấy danh sách khóa học gợi ý thành công",
+  "data": [
+    {
+      "skillId": "JAVA_CORE",
+      "skillName": "Java Core",
+      "requiredScore": 75,
+      "currentScore": 60,
+      "gap": 15,
+      "priority": "MEDIUM",
+      "courses": [
+        {
+          "lmsCourseId": "CRS-01",
+          "courseName": "Lập trình Spring Boot nâng cao & Microservices",
+          "lessonHint": "Bài 1-3: Ôn tập OOP, Concurrency & Stream API nâng cao",
+          "levelFrom": 0,
+          "levelTo": 75,
+          "level": "Tốt",
+          "isEnrolled": true,
+          "enrollmentId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+          "enrollmentStatus": "IN_PROGRESS",
+          "progress": 45.0,
+          "score": null,
+          "enrolledAt": "2026-11-17T08:00:00Z",
+          "completedAt": null
+        },
+        {
+          "lmsCourseId": "CRS-05",
+          "courseName": "Kiểm thử tự động & Chất lượng phần mềm",
+          "lessonHint": "Bài 2-4: Unit Test Java với JUnit 5 và Mockito",
+          "levelFrom": 0,
+          "levelTo": 80,
+          "level": "Tốt",
+          "isEnrolled": false,
+          "enrollmentId": null,
+          "enrollmentStatus": null,
+          "progress": null,
+          "score": null,
+          "enrolledAt": null,
+          "completedAt": null
+        }
+      ]
+    }
+  ],
+  "timestamp": "2026-11-17T15:30:00.1234567"
+}
+```
+
+---
+
+### API 7: Ghi danh khóa học bổ sung trên LMS (DT-02)
+
+- **Mục đích**: Ứng viên đăng ký tham gia một khóa học được gợi ý trên hệ thống LMS.
+- **Phương thức HTTP**: `POST`
+- **Đường dẫn qua Gateway**: `http://localhost:8080/api/v1/learning/me/enrollments`
+- **Đường dẫn trực tiếp nội bộ**: `http://localhost:8089/api/v1/learning/me/enrollments` (hỗ trợ cả `/me/enrollments`)
+- **Quyền hạn**: **Bảo mật (Authenticated)** — Chỉ vai trò **`CANDIDATE`**.
+- **Request Headers**: `Content-Type: application/json`, `X-User-Id: cand-001`, `Authorization: Bearer <token>`.
+
+#### Request Body:
+
+```json
+{
+  "lmsCourseId": "CRS-01",
+  "skillId": "JAVA_CORE"
+}
+```
+
+#### Quy tắc xử lý & Nghiệm thu:
+
+1. **Kiểm tra trùng lặp (AC2)**:
+   - Nếu ứng viên đã từng ghi danh khóa học này trong bảng `enrollments`, hệ thống từ chối và trả về ngay **HTTP 409 Conflict**.
+2. **Gọi Mock LMS POST /lms/enrollments (AC4)**:
+   - Hệ thống gọi sang Mock LMS kèm header `X-Service-Key`.
+   - Nếu Mock LMS phản hồi lỗi 5xx hoặc không kết nối được: Trả về **HTTP 502 Bad Gateway**, **tuyệt đối không lưu bản ghi vào CSDL**.
+3. **Lưu trữ CSDL**:
+   - Khi Mock LMS thành công: Tạo bản ghi vào bảng `enrollments` với trạng thái `IN_PROGRESS`, `progress = 0.00`, thời gian ghi danh hiện tại.
+
+#### Response Thành Công (HTTP 201 Created):
+
+```json
+{
+  "success": true,
+  "statusCode": 201,
+  "message": "Ghi danh khóa học thành công",
+  "data": {
+    "id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+    "userId": "11111111-1111-1111-1111-111111111111",
+    "lmsCourseId": "CRS-01",
+    "courseName": "Lập trình Spring Boot nâng cao & Microservices",
+    "skillId": "JAVA_CORE",
+    "status": "IN_PROGRESS",
+    "progress": 0.0,
+    "score": null,
+    "enrolledAt": "2026-11-17T15:35:00.123456Z",
+    "completedAt": null
+  },
+  "timestamp": "2026-11-17T15:35:00.1234567"
+}
+```
+
+#### Response Lỗi Trùng Lặp (HTTP 409 Conflict - AC2):
+
+```json
+{
+  "success": false,
+  "statusCode": 409,
+  "message": "Bạn đã ghi danh khóa học CRS-01 này rồi (không được ghi danh trùng).",
+  "data": null,
+  "timestamp": "2026-11-17T15:35:10.1234567"
+}
+```
+
+#### Response Lỗi Mock LMS (HTTP 502 Bad Gateway - AC4):
+
+```json
+{
+  "success": false,
+  "statusCode": 502,
+  "message": "Hệ thống LMS từ chối ghi danh hoặc đang bận (500): LMS_ERROR...",
+  "data": null,
+  "timestamp": "2026-11-17T15:35:20.1234567"
+}
+```
+
+---
+
+### API 8: Lấy danh sách các khóa học ứng viên đã ghi danh (DT-02)
+
+- **Mục đích**: Lấy toàn bộ lịch sử các khóa học mà ứng viên đang tham gia hoặc đã hoàn thành.
+- **Phương thức HTTP**: `GET`
+- **Đường dẫn qua Gateway**: `http://localhost:8080/api/v1/learning/me/enrollments`
+- **Đường dẫn trực tiếp nội bộ**: `http://localhost:8089/api/v1/learning/me/enrollments` (hỗ trợ cả `/me/enrollments`)
+- **Quyền hạn**: **Bảo mật (Authenticated)** — Chỉ vai trò **`CANDIDATE`**.
+- **Request Headers**: `X-User-Id: cand-001`, `Authorization: Bearer <token>`.
+
+#### Response Mẫu (HTTP 200 OK):
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Lấy danh sách khóa học đã ghi danh thành công",
+  "data": [
+    {
+      "id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+      "userId": "11111111-1111-1111-1111-111111111111",
+      "lmsCourseId": "CRS-01",
+      "courseName": "Lập trình Spring Boot nâng cao & Microservices",
+      "skillId": "JAVA_CORE",
+      "status": "IN_PROGRESS",
+      "progress": 45.0,
+      "score": null,
+      "enrolledAt": "2026-11-17T08:00:00Z",
+      "completedAt": null
+    }
+  ],
+  "timestamp": "2026-11-17T15:36:00.1234567"
+}
+```
+
+---
+
+### API 9: Làm mới & Đồng bộ tiến độ khóa học từ LMS (DT-02 - AC3)
+
+- **Mục đích**: Bấm nút **"Cập nhật tiến độ"** trên giao diện để kéo tiến độ và điểm số mới nhất từ Mock LMS về CSDL.
+- **Phương thức HTTP**: `POST`
+- **Đường dẫn qua Gateway**: `http://localhost:8080/api/v1/learning/me/enrollments/refresh`
+- **Đường dẫn trực tiếp nội bộ**: `http://localhost:8089/api/v1/learning/me/enrollments/refresh` (hỗ trợ cả `/me/enrollments/refresh`)
+- **Quyền hạn**: **Bảo mật (Authenticated)** — Chỉ vai trò **`CANDIDATE`**.
+- **Request Headers**: `X-User-Id: cand-001`, `Authorization: Bearer <token>`.
+
+#### Quy tắc xử lý & Tích hợp hồ sơ năng lực (AC3):
+
+1. Gọi mock `GET /lms/enrollments/{lmsUserId}` để lấy tiến độ (`progress`), điểm (`score`), và trạng thái mới nhất.
+2. Cập nhật lại các bản ghi trong bảng `enrollments`.
+3. **Khi một khóa học chuyển sang trạng thái `COMPLETED`**:
+   - Hệ thống tự động đẩy bằng chứng năng lực sang `profile-service` với `source = LMS`, `sourceCode = lms_course_id`, `verified = true`, `score = điểm khóa`.
+   - `profile-service` lập tức chạy `recomputeSkills(...)` để tính lại điểm xác thực (`verified_score`) của kỹ năng.
+   - Nhờ đó, chỉ số kỹ năng của ứng viên tăng lên và khoảng thiếu hụt (`gap`) giảm xuống tương ứng.
+
+#### Response Mẫu (HTTP 200 OK):
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Đồng bộ tiến độ học tập từ LMS thành công",
+  "data": {
+    "totalUpdated": 1,
+    "completedCoursesCount": 1,
+    "enrollments": [
+      {
+        "id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+        "userId": "11111111-1111-1111-1111-111111111111",
+        "lmsCourseId": "CRS-01",
+        "courseName": "Lập trình Spring Boot nâng cao & Microservices",
+        "skillId": "JAVA_CORE",
+        "status": "COMPLETED",
+        "progress": 100.0,
+        "score": 85.0,
+        "enrolledAt": "2026-11-17T08:00:00Z",
+        "completedAt": "2026-11-17T15:38:00Z"
+      }
+    ]
+  },
+  "timestamp": "2026-11-17T15:38:00.1234567"
+}
+```
+
+---
 
 ### 3.1. Cấu hình Axios / API Client trong Frontend:
 
@@ -458,6 +695,57 @@ export interface GapAnalysisData {
   missingSkillsCount: number;
   computedAt: string;
   items: GapItem[];
+}
+
+// Module DT-02: Gợi ý khóa học LMS & Ghi danh
+export type EnrollmentStatus =
+  | "ENROLLED"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "FAILED";
+
+export interface SuggestedCourseItem {
+  lmsCourseId: string;
+  courseName: string;
+  lessonHint?: string;
+  levelFrom: number;
+  levelTo: number;
+  level?: string;
+  isEnrolled: boolean;
+  enrollmentId?: string | null;
+  enrollmentStatus?: EnrollmentStatus | null;
+  progress?: number | null;
+  score?: number | null;
+  enrolledAt?: string | null;
+  completedAt?: string | null;
+}
+
+export interface SkillCourseSuggestion {
+  skillId: string;
+  skillName: string;
+  requiredScore: number;
+  currentScore: number;
+  gap: number;
+  priority: GapPriority;
+  courses: SuggestedCourseItem[];
+}
+
+export interface EnrollmentRequest {
+  lmsCourseId: string;
+  skillId: string;
+}
+
+export interface EnrollmentResponse {
+  id: string;
+  userId: string;
+  lmsCourseId: string;
+  courseName: string;
+  skillId: string;
+  status: EnrollmentStatus;
+  progress: number;
+  score?: number | null;
+  enrolledAt: string;
+  completedAt?: string | null;
 }
 ```
 
@@ -530,4 +818,62 @@ curl -X GET "http://localhost:8080/api/v1/learning/me/gap-analysis"
 curl -X GET "http://localhost:8080/api/v1/learning/me/gap-analysis" \
   -H "X-User-Id: hr-001" \
   -H "X-User-Role: HR"
+```
+
+---
+
+### 7. Lấy danh sách khóa học gợi ý theo kỹ năng thiếu (DT-02 / AC1):
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/learning/me/course-suggestions" \
+  -H "X-User-Id: cand-001" \
+  -H "X-User-Role: CANDIDATE"
+```
+
+### 8. Ghi danh khóa học bổ sung trên LMS:
+
+```bash
+curl -X POST "http://localhost:8080/api/v1/learning/me/enrollments" \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: cand-001" \
+  -H "X-User-Role: CANDIDATE" \
+  -d '{"lmsCourseId": "CRS-01", "skillId": "JAVA_CORE"}'
+```
+
+### 9. Kiểm thử ghi danh trùng lặp (AC2 - HTTP 409 Conflict):
+
+```bash
+# Ghi danh lại cùng khóa học CRS-01 đã ghi danh trước đó:
+curl -X POST "http://localhost:8080/api/v1/learning/me/enrollments" \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: cand-001" \
+  -H "X-User-Role: CANDIDATE" \
+  -d '{"lmsCourseId": "CRS-01", "skillId": "JAVA_CORE"}'
+```
+
+### 10. Kiểm thử khi Mock LMS gặp sự cố (AC4 - HTTP 502 Bad Gateway):
+
+```bash
+# Ghi danh với mã khóa học gây lỗi CRS-ERROR hoặc header X-Mock-Fail:
+curl -X POST "http://localhost:8080/api/v1/learning/me/enrollments" \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: cand-001" \
+  -H "X-User-Role: CANDIDATE" \
+  -d '{"lmsCourseId": "CRS-ERROR", "skillId": "JAVA_CORE"}'
+```
+
+### 11. Xem danh sách các khóa học đã ghi danh:
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/learning/me/enrollments" \
+  -H "X-User-Id: cand-001" \
+  -H "X-User-Role: CANDIDATE"
+```
+
+### 12. Bấm cập nhật làm mới tiến độ từ LMS (AC3):
+
+```bash
+curl -X POST "http://localhost:8080/api/v1/learning/me/enrollments/refresh" \
+  -H "X-User-Id: cand-001" \
+  -H "X-User-Role: CANDIDATE"
 ```

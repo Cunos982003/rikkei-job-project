@@ -48,6 +48,11 @@ export const setAccessToken = (token: string | null) => {
       } catch {}
     }
   }
+  if (token) {
+    axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  } else {
+    delete axiosInstance.defaults.headers.common["Authorization"];
+  }
 };
 
 export const getAccessToken = (): string | null => {
@@ -78,6 +83,31 @@ export const setCurrentUserId = (userId: string | null) => {
       } catch {}
     }
   }
+  if (userId) {
+    axiosInstance.defaults.headers.common["X-User-Id"] = userId;
+  } else {
+    delete axiosInstance.defaults.headers.common["X-User-Id"];
+  }
+};
+
+/**
+ * Xóa sạch toàn bộ phiên đăng nhập (Access Token, User ID, Storage và Axios Headers)
+ * khi người dùng Đăng xuất để đảm bảo không còn sót lại dữ liệu/token của tài khoản cũ.
+ */
+export const clearAuthSession = () => {
+  inMemoryAccessToken = null;
+  inMemoryUserId = null;
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem(USER_ID_STORAGE_KEY);
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      sessionStorage.clear();
+    } catch {}
+  }
+  delete axiosInstance.defaults.headers.common["Authorization"];
+  delete axiosInstance.defaults.headers.common["X-User-Id"];
+  delete axiosInstance.defaults.headers.common["X-User-Role"];
 };
 
 export const getCurrentUserId = (): string | null => {
@@ -133,7 +163,7 @@ export function resolveAssetUrl(path: string | null | undefined): string {
  */
 export const axiosInstance: AxiosInstance = axios.create({
   baseURL: "/api/v1",
-  timeout: 15000,
+  timeout: 30000,
   headers: {
     "Content-Type": "application/json",
   },
@@ -240,7 +270,7 @@ axiosInstance.interceptors.response.use(
 
     // Xử lý riêng mã 401 Unauthorized
     if (status === 401) {
-      setAccessToken(null);
+      clearAuthSession();
       if (onUnauthorizedCallback) {
         onUnauthorizedCallback();
       }

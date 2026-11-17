@@ -1,13 +1,18 @@
 server:
-  port: 8085
+  port: ${SERVER_PORT:8085}
 
 spring:
+  config:
+    import:
+      - optional:file:../../.env[.properties]
+      - optional:file:../.env[.properties]
+      - optional:file:.env[.properties]
   application:
     name: job-service
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/job_db}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:123}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -22,6 +27,7 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+    validate-on-migrate: ${SPRING_FLYWAY_VALIDATE_ON_MIGRATE:false}
     locations: classpath:db/migration
   servlet:
     multipart:
@@ -30,7 +36,7 @@ spring:
 
 app:
   jwt:
-    secret: ${JWT_SECRET}
+    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
     expiration-ms: 86400000
   upload:
     dir: "uploads/logos"
