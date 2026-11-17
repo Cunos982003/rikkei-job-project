@@ -176,6 +176,64 @@ async function runTests() {
   assert(res15.statusCode === 200 && res15.body.message === 'Đổi mật khẩu thành công.',
     '15. Endpoint /api/v1/auth/change-password đổi mật khẩu thành công');
 
+  // TEST 16: Phục vụ Cổng Đào Tạo Học Viên LMS Portal HTML
+  const res16 = await simulateRequest({ method: 'GET', url: '/lms/portal' });
+  assert(res16.statusCode === 200 && typeof res16.body === 'string' && res16.body.includes('Rikkei Education LMS'),
+    '16. Endpoint /lms/portal trả về giao diện HTML Cổng Sinh Viên LMS thành công');
+
+  // TEST 17: Tạo vé SSO từ Cổng LMS trả về ticket và redirectUrl
+  const res17 = await simulateRequest({
+    method: 'POST',
+    url: '/lms/sso/tickets'
+  }, { lmsUserId: 'std-002' });
+  assert(res17.statusCode === 200 && res17.body.ticket.includes('STD-002') && res17.body.redirectUrl.includes('5173/login?ticket='),
+    '17. Endpoint POST /lms/sso/tickets cấp vé SSO hợp lệ kèm URL chuyển tiếp tự động');
+
+  // TEST 18: Đặt mật khẩu lần đầu không cần mật khẩu tạm qua Mock Server
+  const res18 = await simulateRequest({
+    method: 'POST',
+    url: '/api/v1/auth/first-time-password',
+    headers: { authorization: 'Bearer mock-jwt-token-for-hr' }
+  }, { newPassword: 'BrandNewPassword123' });
+  assert(res18.statusCode === 200 && res18.body.message.includes('thành công'),
+    '18. Endpoint POST /api/v1/auth/first-time-password đặt mật khẩu mới lần đầu thành công');
+
+  // TEST 19: Cấp vé SSO động cho sinh viên mới std-004 và xác thực qua /lms/sso/verify
+  const res19Ticket = await simulateRequest({
+    method: 'POST',
+    url: '/lms/sso/tickets'
+  }, { lmsUserId: 'std-004' });
+  const res19Verify = await simulateRequest({
+    method: 'POST',
+    url: '/lms/sso/verify',
+    headers: { 'x-service-key': TEST_SERVICE_KEY }
+  }, { ticket: res19Ticket.body.ticket });
+  assert(res19Verify.statusCode === 200 && res19Verify.body.lmsUserId === 'std-004' && res19Verify.body.email === 'candidate4@rikkeijobs.test',
+    '19. Xác thực vé SSO động qua /lms/sso/verify chính xác cho std-004 (Phạm Thu Dung)');
+
+  // TEST 20: Đăng nhập SSO qua /api/v1/auth/sso cho sinh viên std-020 (Hà Thị Trang)
+  const res20Ticket = await simulateRequest({
+    method: 'POST',
+    url: '/lms/sso/tickets'
+  }, { lmsUserId: 'std-020' });
+  const res20Login = await simulateRequest({
+    method: 'POST',
+    url: '/api/v1/auth/sso'
+  }, { ticket: res20Ticket.body.ticket });
+  assert(res20Login.statusCode === 200 && res20Login.body.user.email === 'candidate20@rikkeijobs.test',
+    '20. Đăng nhập SSO tự động qua /api/v1/auth/sso thành công cho std-020 (Hà Thị Trang)');
+
+  // TEST 21: Kiểm tra Giao diện LMS Portal chứa cả Quick Select và Tab Đăng Nhập Email/Password
+  const res21 = await simulateRequest({ method: 'GET', url: '/lms/portal' });
+  const htmlContent = res21.body || '';
+  assert(
+    res21.statusCode === 200 &&
+    htmlContent.includes('tabBtnEmail') &&
+    htmlContent.includes('seedAccountsList') &&
+    htmlContent.includes('studentSelectDropdown'),
+    '21. Giao diện LMS Portal hiển thị đầy đủ Tab Đăng Nhập Email, Datalist Seed và Dropdown 40 sinh viên'
+  );
+
   console.log('\n====================================================');
   console.log(`📊 KẾT QUẢ KIỂM THỬ: ${passed} PASS, ${failed} FAIL`);
   console.log('====================================================');

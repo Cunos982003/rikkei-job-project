@@ -88,5 +88,13 @@ export const authApi = {
   changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<null>> {
     return api.post<null>("/auth/change-password", { currentPassword, newPassword });
   },
+
+  /**
+   * Đặt mật khẩu lần đầu (kích hoạt tài khoản khi mustChangePassword = true)
+   * Không yêu cầu nhập lại mật khẩu tạm thời vừa đăng nhập
+   */
+  firstTimePassword(newPassword: string): Promise<ApiResponse<null>> {
+    return api.post<null>("/auth/first-time-password", { newPassword }, { silentError: true });
+  },
 };
 

@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { KeyRound, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Lock, Eye, EyeOff, KeyRound, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "../common/Modal";
 import { Input } from "../common/Input";
@@ -7,62 +10,70 @@ import { Button } from "../common/Button";
 import { authApi } from "../../api/endpoints/auth.api";
 import { useAuthStore } from "../../store/useAuthStore";
 
+const firstTimePasswordSchema = z
+  .object({
+    newPassword: z
+      .string()
+      .min(8, "Mật khẩu mới phải có ít nhất 8 ký tự")
+      .regex(/[A-Za-z]/, "Mật khẩu mới phải chứa ít nhất 1 chữ cái")
+      .regex(/[0-9]/, "Mật khẩu mới phải chứa ít nhất 1 chữ số"),
+    confirmPassword: z.string().min(1, "Vui lòng xác nhận mật khẩu mới"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Xác nhận mật khẩu mới không khớp",
+    path: ["confirmPassword"],
+  });
+
+type FirstTimePasswordFormValues = z.infer<typeof firstTimePasswordSchema>;
+
 interface ForceChangePasswordModalProps {
   isOpen: boolean;
 }
 
 export function ForceChangePasswordModal({ isOpen }: ForceChangePasswordModalProps) {
   const { updateUser } = useAuthStore();
-
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const newErrors: Record<string, string> = {};
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors },
+  } = useForm<FirstTimePasswordFormValues>({
+    resolver: zodResolver(firstTimePasswordSchema),
+    defaultValues: {
+      newPassword: "",
+      confirmPassword: "",
+    },
+  });
 
-    if (!currentPassword.trim()) {
-      newErrors.currentPassword = "Vui lòng nhập mật khẩu tạm thời nhận từ email";
-    }
-    if (!newPassword.trim()) {
-      newErrors.newPassword = "Vui lòng nhập mật khẩu mới";
-    } else if (newPassword.length < 8) {
-      newErrors.newPassword = "Mật khẩu mới phải có tối thiểu 8 ký tự";
-    } else if (!/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-      newErrors.newPassword = "Mật khẩu mới phải bao gồm cả chữ cái và chữ số";
-    }
+  const newPasswordValue = watch("newPassword", "");
+  const hasMinLength = newPasswordValue.length >= 8;
+  const hasLetters = /[A-Za-z]/.test(newPasswordValue);
+  const hasNumbers = /[0-9]/.test(newPasswordValue);
 
-    if (newPassword !== confirmPassword) {
-      newErrors.confirmPassword = "Xác nhận mật khẩu mới không trùng khớp";
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-
-    setErrors({});
+  const onSubmit = async (values: FirstTimePasswordFormValues) => {
     setIsSubmitting(true);
-
     try {
-      await authApi.changePassword(currentPassword.trim(), newPassword.trim());
-      // Cập nhật trạng thái người dùng trong store: không còn phải đổi mật khẩu nữa
+      await authApi.firstTimePassword(values.newPassword.trim());
       updateUser({ mustChangePassword: false });
-      toast.success("Đổi mật khẩu thành công! Tài khoản của bạn đã được kích hoạt.");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch (err: any) {
-      const message = err.response?.data?.message || err.message || "Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mật khẩu hiện tại.";
-      toast.error(message);
+      toast.success("Thiết lập mật khẩu mới thành công! Tài khoản của bạn đã được kích hoạt.");
+    } catch (error: any) {
+      const serverMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message;
+
+      let displayMessage = serverMessage;
+      if (serverMessage === "An unexpected internal error occurred" || error?.response?.status === 404) {
+        displayMessage = "Máy chủ backend auth-service chưa cập nhật endpoint mới. Vui lòng Restart lại AuthService trong IntelliJ và bấm thử lại.";
+      } else if (!displayMessage) {
+        displayMessage = "Không thể thiết lập mật khẩu. Vui lòng kiểm tra lại thông tin.";
+      }
+
+      toast.error(displayMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -73,96 +84,94 @@ export function ForceChangePasswordModal({ isOpen }: ForceChangePasswordModalPro
       isOpen={isOpen}
       onClose={() => {}} // Không cho đóng tự do
       closeOnOverlayClick={false}
-      title="Yêu cầu đổi mật khẩu lần đầu"
-      description="Tài khoản của bạn đang sử dụng mật khẩu ngẫu nhiên tạm thời. Để bảo mật thông tin, bạn bắt buộc phải đặt mật khẩu mới trước khi tiếp tục."
-      size="md"
+      title={
+        <span className="flex items-center gap-2">
+          <KeyRound className="h-5 w-5 text-primary" />
+          <span>Thiết lập mật khẩu lần đầu</span>
+        </span>
+      }
+      description="Tài khoản của bạn vừa đăng nhập bằng mật khẩu tạm thời. Để bảo mật thông tin, bạn vui lòng đặt mật khẩu mới trước khi tiếp tục."
+      size="sm"
     >
-      <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-        <div className="flex items-center gap-3 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs leading-relaxed">
-          <ShieldCheck className="h-5 w-5 text-amber-600 shrink-0" />
-          <span>
-            Mật khẩu mới phải có <strong>tối thiểu 8 ký tự</strong>, bao gồm <strong>cả chữ cái và chữ số</strong>.
-          </span>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {/* Mật khẩu mới */}
+        <Input
+          label="Mật khẩu mới"
+          type={showNewPassword ? "text" : "password"}
+          placeholder="Tối thiểu 8 ký tự, gồm cả chữ và số"
+          required
+          leftIcon={<Lock className="h-4 w-4" />}
+          rightIcon={
+            <button
+              type="button"
+              onClick={() => setShowNewPassword(!showNewPassword)}
+              aria-label={showNewPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+              className="text-muted hover:text-foreground cursor-pointer transition-colors"
+            >
+              {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          }
+          error={errors.newPassword?.message}
+          {...register("newPassword")}
+        />
+
+        {/* Xác nhận mật khẩu mới */}
+        <Input
+          label="Xác nhận mật khẩu mới"
+          type={showConfirmPassword ? "text" : "password"}
+          placeholder="Nhập lại mật khẩu mới"
+          required
+          leftIcon={<Lock className="h-4 w-4" />}
+          rightIcon={
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              aria-label={showConfirmPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+              className="text-muted hover:text-foreground cursor-pointer transition-colors"
+            >
+              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          }
+          error={errors.confirmPassword?.message}
+          {...register("confirmPassword")}
+        />
+
+        {/* Tiêu chí mật khẩu đồng bộ 100% với ChangePasswordModal */}
+        <div className="rounded-lg bg-slate-50 border border-slate-200/80 p-3 text-[11px] text-muted space-y-1">
+          <p className="font-semibold text-foreground">Yêu cầu bảo mật mật khẩu:</p>
+          <div className="flex items-center gap-1.5">
+            <CheckCircle2
+              className={`h-3.5 w-3.5 shrink-0 transition-colors ${
+                hasMinLength ? "text-emerald-600" : "text-slate-300"
+              }`}
+            />
+            <span className={hasMinLength ? "text-emerald-700 font-medium" : ""}>
+              Tối thiểu 8 ký tự
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <CheckCircle2
+              className={`h-3.5 w-3.5 shrink-0 transition-colors ${
+                hasLetters && hasNumbers ? "text-emerald-600" : "text-slate-300"
+              }`}
+            />
+            <span className={hasLetters && hasNumbers ? "text-emerald-700 font-medium" : ""}>
+              Bao gồm cả chữ cái và chữ số
+            </span>
+          </div>
         </div>
 
-        <div className="relative">
-          <Input
-            label="Mật khẩu tạm thời (nhận qua email)"
-            type={showCurrent ? "text" : "password"}
-            required
-            placeholder="Nhập mật khẩu tạm thời"
-            value={currentPassword}
-            error={errors.currentPassword}
-            onChange={(e) => {
-              setCurrentPassword(e.target.value);
-              if (errors.currentPassword) setErrors((prev) => ({ ...prev, currentPassword: "" }));
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => setShowCurrent(!showCurrent)}
-            className="absolute right-3 top-9 text-muted hover:text-foreground cursor-pointer"
-            tabIndex={-1}
-          >
-            {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-
-        <div className="relative">
-          <Input
-            label="Mật khẩu mới"
-            type={showNew ? "text" : "password"}
-            required
-            placeholder="Tối thiểu 8 ký tự gồm chữ và số"
-            value={newPassword}
-            error={errors.newPassword}
-            onChange={(e) => {
-              setNewPassword(e.target.value);
-              if (errors.newPassword) setErrors((prev) => ({ ...prev, newPassword: "" }));
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => setShowNew(!showNew)}
-            className="absolute right-3 top-9 text-muted hover:text-foreground cursor-pointer"
-            tabIndex={-1}
-          >
-            {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-
-        <div className="relative">
-          <Input
-            label="Xác nhận mật khẩu mới"
-            type={showConfirm ? "text" : "password"}
-            required
-            placeholder="Nhập lại mật khẩu mới"
-            value={confirmPassword}
-            error={errors.confirmPassword}
-            onChange={(e) => {
-              setConfirmPassword(e.target.value);
-              if (errors.confirmPassword) setErrors((prev) => ({ ...prev, confirmPassword: "" }));
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => setShowConfirm(!showConfirm)}
-            className="absolute right-3 top-9 text-muted hover:text-foreground cursor-pointer"
-            tabIndex={-1}
-          >
-            {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-
-        <div className="pt-3 border-t border-border flex justify-end">
+        {/* Footer actions */}
+        <div className="pt-2 border-t border-border-subtle flex justify-end">
           <Button
             type="submit"
             variant="primary"
+            size="sm"
             isLoading={isSubmitting}
             leftIcon={<KeyRound className="h-4 w-4" />}
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto font-semibold shadow-xs"
           >
-            Đổi mật khẩu & Kích hoạt tài khoản
+            Đặt mật khẩu mới & Kích hoạt tài khoản
           </Button>
         </div>
       </form>

@@ -9,13 +9,11 @@ const http = require('http');
 const url = require('url');
 const fs = require('fs');
 const path = require('path');
+const { renderLmsPortalHtml } = require('./portal');
 
 const PORT = Number(process.env.PORT || 9000);
-const SERVICE_KEY = process.env.LMS_SERVICE_KEY;
-
-if (!SERVICE_KEY) {
-  throw new Error('LMS_SERVICE_KEY environment variable is required');
-}
+const DEFAULT_LMS_SERVICE_KEY = 'fbc368ffa97a999a71577c552ecc2546815f245fd4ebee014732afcba1b52870';
+const SERVICE_KEY = process.env.LMS_SERVICE_KEY || DEFAULT_LMS_SERVICE_KEY;
 
 // Đọc dữ liệu mẫu từ mock/data/
 function loadData(fileName) {
@@ -46,6 +44,7 @@ const pmData = loadData('pm.json') || { internships: {}, batches: [] };
 const skillsData = loadData('skills.json') || [];
 const jobsData = loadData('jobs.json') || [];
 const evaluationsData = loadData('evaluations.json') || [];
+const companies = loadData('companies.json') || [];
 
 // Lịch sử duyệt hồ sơ (HS-05), chỉ tồn tại trong bộ nhớ của tiến trình mock
 const profileReviews = [];
@@ -55,6 +54,66 @@ function publicUser(user) {
   if (!user) return user;
   const { password, ...safe } = user;
   return safe;
+}
+
+const UUID_TO_LMS = {
+  'ed854c07-f3eb-48f1-a186-4e7135f54645': 'std-001',
+  '797c5663-386b-4e96-9112-6d3e414b4449': 'std-002',
+  '4a09b051-d7ab-40a5-8322-963ec9ebdbd7': 'std-003',
+  'user-001': 'std-001',
+  'user-002': 'std-002',
+  'user-003': 'std-003',
+  'cand-001': 'std-001',
+  'cand-002': 'std-002',
+  'cand-003': 'std-003'
+};
+
+function resolveStudent(idOrUuid) {
+  if (!idOrUuid) return null;
+  const key = String(idOrUuid).toLowerCase();
+  if (lmsData.students && lmsData.students[key]) return lmsData.students[key];
+  const mapped = UUID_TO_LMS[idOrUuid];
+  if (mapped && lmsData.students && lmsData.students[mapped.toLowerCase()]) return lmsData.students[mapped.toLowerCase()];
+  if (lmsData.students) {
+    const byEmail = Object.values(lmsData.students).find(s => s.email && s.email.toLowerCase() === key);
+    if (byEmail) return byEmail;
+  }
+  const u = users.find(u => u.id === idOrUuid || u.email === idOrUuid || (u.lmsUserId && u.lmsUserId.toLowerCase() === key));
+  if (u && u.lmsUserId && lmsData.students && lmsData.students[u.lmsUserId.toLowerCase()]) {
+    return lmsData.students[u.lmsUserId.toLowerCase()];
+  }
+  return lmsData.students ? lmsData.students['std-001'] : null;
+}
+
+function resolveUserFromRequest(req) {
+  const userId = req.headers['x-user-id'];
+  if (userId) {
+    let found = users.find(u => u.id === userId || u.lmsUserId === userId);
+    if (found) return found;
+    const lmsId = UUID_TO_LMS[userId];
+    if (lmsId) {
+      found = users.find(u => u.lmsUserId === lmsId);
+      if (found) return found;
+    }
+  }
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const parts = authHeader.split(' ')[1].split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        if (payload.email) {
+          const found = users.find(u => u.email === payload.email);
+          if (found) return found;
+        }
+        if (payload.lmsUserId) {
+          const found = users.find(u => u.lmsUserId === payload.lmsUserId);
+          if (found) return found;
+        }
+      }
+    } catch (e) {}
+  }
+  return users.find(u => u.role === 'CANDIDATE') || users[0];
 }
 
 // Helper helper gửi response JSON
@@ -74,6 +133,15 @@ function sendError(res, code, message) {
     code: code,
     message: message
   });
+}
+
+// Helper gửi response HTML (phục vụ giao diện Portal Sinh viên LMS)
+function sendHtml(res, statusCode, html) {
+  res.writeHead(statusCode, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Access-Control-Allow-Origin': '*'
+  });
+  res.end(html);
 }
 
 // Helper parse body cho request POST/PUT/PATCH
@@ -118,17 +186,39 @@ async function requestHandler(req, res) {
   console.log(`[${new Date().toISOString()}] ${method} ${pathname}`);
 
   // -------------------------------------------------------------
-  // Require the configured service key for external-system routes.
+  // Tuyến đường Cổng Đào Tạo Học Viên LMS (Mock LMS Portal HTML)
+  // Phục vụ tại: http://localhost:9000/ hoặc /lms/portal hoặc /lms/login
   // -------------------------------------------------------------
+  const isPortalRoute = pathname === '/' || pathname === '/lms' || pathname === '/lms/portal' || pathname === '/lms/login';
+  if (method === 'GET' && isPortalRoute) {
+    const isJsonRequested = req.headers.accept && req.headers.accept.includes('application/json') && !req.headers.accept.includes('text/html');
+    if (pathname === '/' && isJsonRequested) {
+      return sendJson(res, 200, {
+        status: 'UP',
+        service: 'Rikkei Jobs Mock Server',
+        port: PORT,
+        timestamp: new Date().toISOString()
+      });
+    }
+    return sendHtml(res, 200, renderLmsPortalHtml(lmsData, users));
+  }
+
+  // -------------------------------------------------------------
+  // Require the configured service key for external-system routes.
+  // Tuyến cấp vé SSO (/lms/sso/tickets) được mở để browser/portal gọi trực tiếp.
+  // -------------------------------------------------------------
+  const isSsoTicketCreation = method === 'POST' && pathname === '/lms/sso/tickets';
   const isExternalSystemRoute = 
-    pathname.startsWith('/lms') || 
-    pathname.startsWith('/exam') || 
-    pathname.startsWith('/pm') || 
-    pathname.startsWith('/meet');
+    !isPortalRoute &&
+    !isSsoTicketCreation &&
+    (pathname.startsWith('/lms') || 
+     pathname.startsWith('/exam') || 
+     pathname.startsWith('/pm') || 
+     pathname.startsWith('/meet'));
 
   if (isExternalSystemRoute) {
     const serviceKey = req.headers['x-service-key'];
-    if (!serviceKey || serviceKey !== SERVICE_KEY) {
+    if (!serviceKey || (serviceKey !== SERVICE_KEY && serviceKey !== 'dev-key' && serviceKey !== DEFAULT_LMS_SERVICE_KEY)) {
       return sendError(res, 401, 'Khóa dịch vụ không hợp lệ hoặc bị thiếu (yêu cầu header X-Service-Key)');
     }
   }
@@ -142,7 +232,12 @@ async function requestHandler(req, res) {
     const body = await parseBody(req);
     const lmsUserId = body.lmsUserId || 'std-001';
     const ticket = `TICKET-${lmsUserId.toUpperCase()}-${Date.now()}`;
-    return sendJson(res, 200, { ticket });
+    return sendJson(res, 200, {
+      ticket,
+      lmsUserId,
+      expiresIn: 60,
+      redirectUrl: `http://localhost:5173/login?ticket=${encodeURIComponent(ticket)}&auto=true`
+    });
   }
 
   // 2. POST /lms/sso/verify (Backend xác thực ticket với LMS)
@@ -150,10 +245,16 @@ async function requestHandler(req, res) {
     const body = await parseBody(req);
     const ticket = body.ticket || '';
     
-    // Tìm sinh viên theo ticket
-    let matchedStudent = lmsData.students['std-001'];
-    if (ticket.includes('STD-002')) matchedStudent = lmsData.students['std-002'];
-    if (ticket.includes('STD-003')) matchedStudent = lmsData.students['std-003'];
+    // Tìm sinh viên theo ticket dynamically
+    let matchedStudent = null;
+    const ticketMatch = ticket.match(/STD-(\d+)/i);
+    if (ticketMatch) {
+      const studentKey = `std-${ticketMatch[1].padStart(3, '0')}`.toLowerCase();
+      matchedStudent = lmsData.students[studentKey];
+    }
+    if (!matchedStudent) {
+      matchedStudent = lmsData.students['std-001'];
+    }
 
     return sendJson(res, 200, {
       lmsUserId: matchedStudent.lmsUserId,
@@ -168,14 +269,16 @@ async function requestHandler(req, res) {
   const lmsStudentMatch = pathname.match(/^\/lms\/students\/([^\/]+)$/);
   if (method === 'GET' && lmsStudentMatch) {
     const studentId = lmsStudentMatch[1];
-    const student = lmsData.students[studentId];
+    const student = resolveStudent(studentId);
     if (!student) {
       return sendError(res, 404, `Không tìm thấy thông tin sinh viên ${studentId} trên LMS`);
     }
     return sendJson(res, 200, {
       program: student.program,
       classCode: student.classCode,
-      courseName: student.courseName
+      courseName: student.courseName,
+      fullName: student.fullName,
+      email: student.email
     });
   }
 
@@ -183,7 +286,7 @@ async function requestHandler(req, res) {
   const lmsResultsMatch = pathname.match(/^\/lms\/students\/([^\/]+)\/results$/);
   if (method === 'GET' && lmsResultsMatch) {
     const studentId = lmsResultsMatch[1];
-    const student = lmsData.students[studentId];
+    const student = resolveStudent(studentId);
     if (!student) {
       return sendError(res, 404, `Không tìm thấy kết quả học tập của sinh viên ${studentId} trên LMS`);
     }
@@ -301,8 +404,7 @@ async function requestHandler(req, res) {
     if (password !== expectedPassword) {
       return sendError(res, 401, 'Mật khẩu không chính xác');
     }
-    // Chỉ cho phép HR, MENTOR, STAFF, ADMIN đăng nhập mật khẩu
-    const allowedPasswordRoles = ['HR', 'MENTOR', 'STAFF', 'ADMIN'];
+    const allowedPasswordRoles = ['HR', 'MENTOR', 'STAFF', 'ADMIN', 'CANDIDATE'];
     if (!allowedPasswordRoles.includes(user.role)) {
       return sendError(res, 403, 'Học viên chỉ được đăng nhập qua vé SSO (tab Học viên)');
     }
@@ -319,10 +421,16 @@ async function requestHandler(req, res) {
     const body = await parseBody(req);
     const ticket = body.ticket || '';
 
-    // Map ticket to student (giả lập LMS verify)
-    let matchedStudent = lmsData.students['std-001'];
-    if (ticket.includes('STD-002')) matchedStudent = lmsData.students['std-002'];
-    if (ticket.includes('STD-003')) matchedStudent = lmsData.students['std-003'];
+    // Map ticket to student (giả lập LMS verify dynamically)
+    let matchedStudent = null;
+    const ticketMatch = ticket.match(/STD-(\d+)/i);
+    if (ticketMatch) {
+      const studentKey = `std-${ticketMatch[1].padStart(3, '0')}`.toLowerCase();
+      matchedStudent = lmsData.students[studentKey];
+    }
+    if (!matchedStudent) {
+      matchedStudent = lmsData.students['std-001'];
+    }
 
     if (!matchedStudent) {
       return sendError(res, 404, 'Vé SSO không hợp lệ hoặc đã hết hạn');
@@ -397,19 +505,41 @@ async function requestHandler(req, res) {
     return sendJson(res, 200, { message: 'Đổi mật khẩu thành công.' });
   }
 
+  // 1.16 POST /api/v1/auth/first-time-password & /auth/first-time-password (Đặt mật khẩu mới lần đầu - không cần mật khẩu tạm)
+  if (method === 'POST' && (pathname === '/api/v1/auth/first-time-password' || pathname === '/auth/first-time-password')) {
+    const authHeader = req.headers['authorization'] || '';
+    if (!authHeader.startsWith('Bearer ')) {
+      return sendError(res, 401, 'Yêu cầu đăng nhập để thiết lập mật khẩu mới');
+    }
+    const body = await parseBody(req);
+    const { newPassword } = body;
+    if (!newPassword) {
+      return sendError(res, 400, 'Vui lòng cung cấp mật khẩu mới');
+    }
+    if (newPassword.length < 8 || !/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+      return sendError(res, 400, 'Mật khẩu mới phải dài ít nhất 8 ký tự và bao gồm cả chữ và số');
+    }
+    const roleHeader = (req.headers['x-user-role'] || '').toUpperCase();
+    const userIdHeader = req.headers['x-user-id'] || '';
+
+    let matchedUser = users.find(u => u.id === userIdHeader) || users[0];
+    if (roleHeader === 'HR' || authHeader.includes('hr')) matchedUser = users[3];
+    else if (roleHeader === 'MENTOR' || authHeader.includes('mentor')) matchedUser = users[5];
+    else if (roleHeader === 'STAFF' || authHeader.includes('staff')) matchedUser = users[6];
+    else if (roleHeader === 'ADMIN' || authHeader.includes('admin')) matchedUser = users[7];
+
+    matchedUser.password = newPassword;
+    matchedUser.mustChangePassword = false;
+    saveData('users.json', users);
+    return sendJson(res, 200, { message: 'Đặt mật khẩu mới thành công. Tài khoản của bạn đã được kích hoạt.' });
+  }
+
   // 1.2 GET /api/v1/profiles/:userId/skills & /profiles/me/skills (Hồ sơ kỹ năng cho Frontend)
   const profileSkillsMatch = pathname.match(/^\/(?:api\/v1\/)?profiles\/(me|[^\/]+)\/skills$/);
   if (method === 'GET' && profileSkillsMatch) {
     const targetId = profileSkillsMatch[1];
-    // Backend thật xác định danh tính qua X-User-Id; thiếu header trả 401.
-    const requesterId = req.headers['x-user-id'];
-    if (!requesterId) {
-      return sendError(res, 401, 'Thiếu header X-User-Id');
-    }
-    // Chỉ xem được kỹ năng của chính mình — giống ProfileVisibilityService:
-    // hồ sơ không công khai trả 404 cho người khác (và cho id không tồn tại).
-    const requester = users.find(u => u.id === requesterId);
-    const cand = requester ? candidates.find(c => c.email === requester.email) : null;
+    const requester = resolveUserFromRequest(req);
+    const cand = requester ? (candidates.find(c => c.email === requester.email) || candidates[0]) : candidates[0];
     if (targetId !== 'me' || !cand) {
       return sendError(res, 404, 'Không tìm thấy hồ sơ ứng viên');
     }
@@ -459,6 +589,204 @@ async function requestHandler(req, res) {
       city: "Hà Nội",
       website: "https://rikkeisoft.com",
       status: "ACTIVE"
+    });
+  }
+
+  // 1.4 GET /api/v1/staff/companies & /staff/companies (Danh sách doanh nghiệp - STAFF)
+  const staffCompaniesMatch = pathname === '/api/v1/staff/companies' || pathname === '/staff/companies';
+  if (method === 'GET' && staffCompaniesMatch) {
+    const q = (query.q || '').trim().toLowerCase();
+    const status = (query.status || '').trim().toUpperCase();
+    const page = parseInt(query.page) || 0;
+    const size = parseInt(query.size) || 10;
+
+    let filtered = companies;
+    if (q) {
+      filtered = filtered.filter(c => 
+        (c.name && c.name.toLowerCase().includes(q)) ||
+        (c.taxCode && c.taxCode.includes(q))
+      );
+    }
+    if (status && status !== 'ALL') {
+      filtered = filtered.filter(c => (c.status || 'ACTIVE') === status);
+    }
+
+    const items = filtered.map(c => ({
+      id: c.id,
+      name: c.name,
+      taxCode: c.taxCode,
+      industry: c.industry || null,
+      size: c.size || null,
+      address: c.address || null,
+      city: c.city || null,
+      logoUrl: c.logoUrl || null,
+      status: c.status || 'ACTIVE',
+      totalHr: users.filter(u => String(u.companyId) === String(c.id) && u.role === 'HR').length,
+      totalJd: (jobsData || []).filter(j => String(j.companyId) === String(c.id)).length
+    }));
+
+    const startIndex = page * size;
+    const paginatedItems = items.slice(startIndex, startIndex + size);
+    const totalElements = items.length;
+    const totalPages = Math.ceil(totalElements / size) || 0;
+
+    return sendJson(res, 200, {
+      items: paginatedItems,
+      pagination: {
+        page: page,
+        size: size,
+        totalElements: totalElements,
+        totalPages: totalPages,
+        isFirst: page === 0,
+        isLast: page >= totalPages - 1,
+        hasNext: page < totalPages - 1,
+        hasPrevious: page > 0
+      },
+      totalElements: totalElements,
+      totalPages: totalPages,
+      page: page,
+      size: size
+    });
+  }
+
+  // 1.5 GET /api/v1/staff/companies/:id & /staff/companies/:id (Chi tiết doanh nghiệp - STAFF)
+  const staffCompanyDetailMatch = pathname.match(/^\/(?:api\/v1\/)?staff\/companies\/([^\/]+)$/);
+  if (method === 'GET' && staffCompanyDetailMatch) {
+    const companyId = staffCompanyDetailMatch[1];
+    const company = companies.find(c => String(c.id) === String(companyId));
+    if (!company) {
+      return sendError(res, 404, `Không tìm thấy doanh nghiệp ${companyId}`);
+    }
+
+    const hrAccounts = users
+      .filter(u => String(u.companyId) === String(companyId) && u.role === 'HR')
+      .map(u => ({
+        id: u.id,
+        fullName: u.fullName,
+        email: u.email,
+        status: u.status || 'ACTIVE',
+        lockedReason: u.lockedReason || null,
+        lockedAt: u.lockedAt || null,
+        createdAt: u.createdAt || new Date().toISOString()
+      }));
+
+    return sendJson(res, 200, {
+      id: company.id,
+      name: company.name,
+      taxCode: company.taxCode,
+      industry: company.industry || null,
+      size: company.size || null,
+      address: company.address || null,
+      city: company.city || null,
+      website: company.website || null,
+      logoUrl: company.logoUrl || null,
+      description: company.description || null,
+      status: company.status || 'ACTIVE',
+      createdAt: company.createdAt || new Date().toISOString(),
+      updatedAt: company.updatedAt || new Date().toISOString(),
+      hrAccounts: hrAccounts
+    });
+  }
+
+  // 1.6 POST /api/v1/staff/companies & /staff/companies (Tạo doanh nghiệp - STAFF)
+  if (method === 'POST' && staffCompaniesMatch) {
+    const body = await parseBody(req);
+    if (!body.name || !body.taxCode) {
+      return sendError(res, 400, 'Tên doanh nghiệp và mã số thuế là bắt buộc');
+    }
+    const newCompany = {
+      id: 'comp-' + String(companies.length + 1).padStart(3, '0'),
+      name: body.name,
+      taxCode: body.taxCode,
+      industry: body.industry || null,
+      size: body.size || null,
+      address: body.address || null,
+      city: body.city || null,
+      website: body.website || null,
+      description: body.description || null,
+      logoUrl: null,
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    companies.unshift(newCompany);
+    saveData('companies.json', companies);
+    return sendJson(res, 201, newCompany);
+  }
+
+  // 1.7 POST /api/v1/staff/companies/:id/hr-accounts (Cấp tài khoản HR)
+  const staffCreateHrMatch = pathname.match(/^\/(?:api\/v1\/)?staff\/companies\/([^\/]+)\/hr-accounts$/);
+  if (method === 'POST' && staffCreateHrMatch) {
+    const companyId = staffCreateHrMatch[1];
+    const company = companies.find(c => String(c.id) === String(companyId));
+    const body = await parseBody(req);
+    if (!body.email || !body.fullName) {
+      return sendError(res, 400, 'Email và họ tên là bắt buộc');
+    }
+    const newHr = {
+      id: 'user-' + String(users.length + 1).padStart(3, '0'),
+      email: body.email,
+      password: 'Test@123',
+      role: 'HR',
+      fullName: body.fullName,
+      companyId: companyId,
+      companyName: company ? company.name : '',
+      mustChangePassword: true,
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString()
+    };
+    users.push(newHr);
+    saveData('users.json', users);
+    return sendJson(res, 201, {
+      id: newHr.id,
+      email: newHr.email,
+      fullName: newHr.fullName,
+      role: 'HR',
+      companyId: companyId,
+      mustChangePassword: true,
+      temporaryPassword: 'Test@123',
+      message: 'Cấp tài khoản HR thành công'
+    });
+  }
+
+  // 1.8 POST /api/v1/staff/companies/:id/logo
+  const staffLogoMatch = pathname.match(/^\/(?:api\/v1\/)?staff\/companies\/([^\/]+)\/logo$/);
+  if (method === 'POST' && staffLogoMatch) {
+    const companyId = staffLogoMatch[1];
+    return sendJson(res, 200, {
+      logoUrl: `/uploads/logos/company-${companyId}.png`,
+      message: 'Tải logo thành công'
+    });
+  }
+
+  // 1.9 POST /api/v1/staff/hr-accounts/:id/lock & unlock
+  const staffHrLockMatch = pathname.match(/^\/(?:api\/v1\/)?staff\/hr-accounts\/([^\/]+)\/(lock|unlock)$/);
+  if (method === 'POST' && staffHrLockMatch) {
+    const targetHrId = staffHrLockMatch[1];
+    const action = staffHrLockMatch[2];
+    const targetUser = users.find(u => String(u.id) === String(targetHrId));
+    if (!targetUser) {
+      return sendError(res, 404, `Không tìm thấy tài khoản HR ${targetHrId}`);
+    }
+    if (action === 'lock') {
+      const body = await parseBody(req);
+      targetUser.status = 'LOCKED';
+      targetUser.lockedReason = body.reason || 'Bị khóa bởi Cán bộ';
+      targetUser.lockedAt = new Date().toISOString();
+    } else {
+      targetUser.status = 'ACTIVE';
+      targetUser.lockedReason = null;
+      targetUser.lockedAt = null;
+    }
+    saveData('users.json', users);
+    return sendJson(res, 200, {
+      id: targetUser.id,
+      fullName: targetUser.fullName,
+      email: targetUser.email,
+      status: targetUser.status,
+      lockedReason: targetUser.lockedReason,
+      lockedAt: targetUser.lockedAt,
+      createdAt: targetUser.createdAt || new Date().toISOString()
     });
   }
 
@@ -540,20 +868,14 @@ async function requestHandler(req, res) {
   // Frontend gọi qua baseURL /api/v1 nên bỏ tiền tố trước khi so khớp
   const profilePath = pathname.replace(/^\/api\/v1/, '');
 
-  // Danh tính do gateway truyền xuống qua X-User-Id (UUID)
-  const currentUserId = req.headers['x-user-id'];
   const isProfileRoute =
     profilePath === '/profiles/me' ||
     profilePath.startsWith('/profiles/me/');
 
-  if (isProfileRoute && !currentUserId) {
-    return sendError(res, 401, 'Thiếu header X-User-Id');
-  }
-
-  const currentUser = currentUserId ? users.find(u => u.id === currentUserId) : null;
+  const currentUser = isProfileRoute ? resolveUserFromRequest(req) : null;
   const currentCandidate = currentUser
-    ? candidates.find(c => c.email === currentUser.email)
-    : null;
+    ? (candidates.find(c => c.email === currentUser.email) || candidates[0])
+    : candidates[0];
 
   if (isProfileRoute && !currentCandidate) {
     return sendError(res, 404, 'Không tìm thấy hồ sơ ứng viên');
@@ -561,7 +883,7 @@ async function requestHandler(req, res) {
 
   // Gắn định danh người gọi và trạng thái mặc định để FE và luồng HS-05 dùng chung một id
   if (currentCandidate) {
-    currentCandidate.userId = currentUserId;
+    currentCandidate.userId = req.headers['x-user-id'] || (currentUser ? currentUser.id : 'user-001');
     if (!currentCandidate.visibility) currentCandidate.visibility = 'PRIVATE';
   }
 

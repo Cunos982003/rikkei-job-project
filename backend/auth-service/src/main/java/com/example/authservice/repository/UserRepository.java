@@ -19,10 +19,10 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     boolean existsByEmail(String email);
 
-    @Query("SELECT u FROM User u WHERE u.companyId = :companyId AND (u.role = 'ROLE_HR' OR u.role = 'HR') ORDER BY u.createdAt DESC")
+    @Query("SELECT u FROM User u WHERE u.companyId = :companyId AND u.role = com.example.authservice.entity.UserRole.HR ORDER BY u.createdAt DESC")
     List<User> findHrAccountsByCompanyId(@Param("companyId") UUID companyId);
 
-    @Query("SELECT u.companyId, COUNT(u) FROM User u WHERE u.companyId IN :companyIds AND (u.role = 'ROLE_HR' OR u.role = 'HR') GROUP BY u.companyId")
+    @Query("SELECT u.companyId, COUNT(u) FROM User u WHERE u.companyId IN :companyIds AND u.role = com.example.authservice.entity.UserRole.HR GROUP BY u.companyId")
     List<Object[]> countHrAccountsByCompanyIds(@Param("companyIds") Collection<UUID> companyIds);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

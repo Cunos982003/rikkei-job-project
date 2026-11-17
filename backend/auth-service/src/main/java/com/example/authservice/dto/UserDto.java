@@ -19,10 +19,7 @@ public record UserDto(
     }
 
     public static UserDto from(User user) {
-        String normalizedRole = user.getRole() == null ? null : user.getRole().trim();
-        if (normalizedRole != null && !normalizedRole.startsWith("ROLE_")) {
-            normalizedRole = "ROLE_" + normalizedRole;
-        }
+        String normalizedRole = user.getRole() == null ? null : user.getRole().withPrefix();
 
         return new UserDto(
             user.getId(),

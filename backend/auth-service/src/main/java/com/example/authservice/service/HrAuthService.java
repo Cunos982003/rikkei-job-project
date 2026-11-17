@@ -21,6 +21,8 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
+import java.util.UUID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -143,6 +145,24 @@ public class HrAuthService {
         user.setUpdatedAt(Instant.now());
         userRepository.save(user);
         return new MessageResponse("Password changed successfully.");
+    }
+
+    @Transactional
+    public MessageResponse firstTimePassword(UUID userId, String newPassword) {
+        if (newPassword == null || newPassword.length() < 8 || !newPassword.matches(".*[A-Za-z].*")
+                || !newPassword.matches(".*[0-9].*")) {
+            throw new SsoException(ErrorCode.INVALID_CREDENTIALS,
+                    "Password must be at least 8 characters long and contain both letters and numbers");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new SsoException(ErrorCode.INVALID_CREDENTIALS, "User not found"));
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setMustChangePassword(false);
+        user.setUpdatedAt(Instant.now());
+        userRepository.save(user);
+        return new MessageResponse("First-time password set successfully.");
     }
 
     @Transactional
