@@ -1,6 +1,9 @@
 package com.example.profileservice.profile.api;
 
 import com.example.profileservice.profile.api.dto.PendingReviewDto;
+import com.example.profileservice.profile.api.dto.StaffEditSelfDeclaredRequest;
+import com.example.profileservice.profile.api.dto.StaffEditSelfDeclaredResponse;
+import com.example.profileservice.profile.api.dto.StaffPreviewProfileDto;
 import com.example.profileservice.profile.api.dto.StaffRejectRequest;
 import com.example.profileservice.profile.domain.CandidateProfile.Visibility;
 import com.example.profileservice.profile.service.InvalidTransitionException;
@@ -33,6 +36,8 @@ public class StaffProfileController {
             @RequestHeader(value = "X-User-Id", required = false) UUID staffId,
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @RequestParam(value = "status", required = false, defaultValue = "PENDING") String status,
+            @RequestParam(value = "q", required = false) String q,
+            @RequestParam(value = "classCode", required = false) String classCode,
             @RequestParam(value = "page", required = false, defaultValue = "0") int page,
             @RequestParam(value = "size", required = false, defaultValue = "20") int size) {
         ResponseEntity<Map<String, Object>> denied = requireStaff(staffId, role);
@@ -50,8 +55,37 @@ public class StaffProfileController {
         }
 
         Page<PendingReviewDto> result = visibilityService.listByStatus(
-                visibility, PageRequest.of(Math.max(page, 0), size <= 0 ? 20 : size));
+                visibility, q, classCode, PageRequest.of(Math.max(page, 0), size <= 0 ? 20 : size));
         return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/profiles/{userId}/preview")
+    public ResponseEntity<?> previewProfile(
+            @RequestHeader(value = "X-User-Id", required = false) UUID staffId,
+            @RequestHeader(value = "X-User-Role", required = false) String role,
+            @PathVariable UUID userId) {
+        ResponseEntity<Map<String, Object>> denied = requireStaff(staffId, role);
+        if (denied != null) {
+            return denied;
+        }
+
+        StaffPreviewProfileDto preview = visibilityService.getPreviewProfile(userId);
+        return ResponseEntity.ok(preview);
+    }
+
+    @PutMapping("/profiles/{userId}/self-declared")
+    public ResponseEntity<?> editSelfDeclared(
+            @RequestHeader(value = "X-User-Id", required = false) UUID staffId,
+            @RequestHeader(value = "X-User-Role", required = false) String role,
+            @PathVariable UUID userId,
+            @RequestBody StaffEditSelfDeclaredRequest request) {
+        ResponseEntity<Map<String, Object>> denied = requireStaff(staffId, role);
+        if (denied != null) {
+            return denied;
+        }
+
+        StaffEditSelfDeclaredResponse response = visibilityService.editSelfDeclared(userId, staffId, request);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/profiles/{userId}/approve")

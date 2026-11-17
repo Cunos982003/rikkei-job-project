@@ -6,6 +6,9 @@ import com.example.profileservice.profile.api.dto.SelfSkillDto;
 import com.example.profileservice.profile.api.dto.UpdateProfileRequest;
 import com.example.profileservice.profile.domain.CandidateProfile;
 import com.example.profileservice.profile.infrastructure.CandidateProfileRepository;
+import com.example.profileservice.profile.infrastructure.EducationRepository;
+import com.example.profileservice.profile.infrastructure.CertificateRepository;
+import com.example.profileservice.profile.infrastructure.ProfileReviewRepository;
 import com.example.profileservice.profile.infrastructure.LmsClient;
 import com.example.profileservice.skill.domain.Skill;
 import com.example.profileservice.skill.domain.SkillEvidence;
@@ -13,6 +16,7 @@ import com.example.profileservice.skill.domain.SkillScore;
 import com.example.profileservice.skill.infrastructure.SkillEvidenceRepository;
 import com.example.profileservice.skill.infrastructure.SkillRepository;
 import com.example.profileservice.skill.infrastructure.SkillScoreRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,6 +47,15 @@ class ProfileServiceTest {
     CandidateProfileRepository candidateProfileRepository;
 
     @Mock
+    EducationRepository educationRepository;
+
+    @Mock
+    CertificateRepository certificateRepository;
+
+    @Mock
+    ProfileReviewRepository profileReviewRepository;
+
+    @Mock
     LmsClient lmsClient;
 
     @Mock
@@ -54,11 +67,14 @@ class ProfileServiceTest {
     @Mock
     SkillRepository skillRepository;
 
+    @Mock
+    ObjectMapper objectMapper;
+
     ProfileService profileService;
 
     @BeforeEach
     void setup() {
-        profileService = new ProfileService(candidateProfileRepository, lmsClient, skillEvidenceRepository, skillScoreRepository, skillRepository);
+        profileService = new ProfileService(candidateProfileRepository, educationRepository, certificateRepository, profileReviewRepository, lmsClient, skillEvidenceRepository, skillScoreRepository, skillRepository, objectMapper);
     }
 
     @Test
