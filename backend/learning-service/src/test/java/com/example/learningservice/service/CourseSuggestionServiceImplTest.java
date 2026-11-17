@@ -1,6 +1,7 @@
 package com.example.learningservice.service;
 
 import com.example.learningservice.client.LmsClient;
+import com.example.learningservice.client.ProfileServiceClient;
 import com.example.learningservice.exception.BusinessException;
 import com.example.learningservice.model.dto.lms.LmsCourseDto;
 import com.example.learningservice.model.dto.lms.LmsEnrollmentDto;
@@ -13,8 +14,10 @@ import com.example.learningservice.model.entity.Enrollment;
 import com.example.learningservice.model.entity.EnrollmentStatus;
 import com.example.learningservice.model.entity.GapPriority;
 import com.example.learningservice.model.entity.SkillCourseMapping;
+import com.example.learningservice.repository.CandidateTargetRepository;
 import com.example.learningservice.repository.EnrollmentRepository;
 import com.example.learningservice.repository.SkillCourseMappingRepository;
+import com.example.learningservice.repository.TargetPositionRepository;
 import com.example.learningservice.service.impl.CourseSuggestionServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -51,13 +54,13 @@ class CourseSuggestionServiceImplTest {
     private EnrollmentRepository enrollmentRepository;
 
     @Mock
-    private com.example.learningservice.repository.CandidateTargetRepository candidateTargetRepository;
+    private CandidateTargetRepository candidateTargetRepository;
 
     @Mock
     private TargetPositionRepository targetPositionRepository;
 
     @Mock
-    private com.example.learningservice.client.ProfileServiceClient profileServiceClient;
+    private ProfileServiceClient profileServiceClient;
 
     @Mock
     private LmsClient lmsClient;
