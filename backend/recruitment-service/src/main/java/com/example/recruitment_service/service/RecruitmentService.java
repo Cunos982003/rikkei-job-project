@@ -137,6 +137,9 @@ public class RecruitmentService {
                 || recruitment.getStatus() == RecruitmentStatus.OFFER) {
             throw new ApiException(HttpStatus.CONFLICT, "This recruitment can no longer be withdrawn");
         }
+        if (!StringUtils.hasText(recruitment.getCandidate_email())) {
+            throw new ApiException(HttpStatus.CONFLICT, "Candidate email must be backfilled before withdrawing");
+        }
 
         Recruitment saved = transitionStatus(
                 recruitment, candidate.id(), RecruitmentStatus.WITHDRAWN, reason.trim());
@@ -187,7 +190,6 @@ public class RecruitmentService {
         InterviewRound round = new InterviewRound();
         round.setRecruitment(recruitment);
         round.setRoundNo(nextRoundNo);
-        round.setScheduledAt(request.scheduledAt());
         round.setResult(InterviewRoundResult.PENDING);
         return interviewRoundRepository.save(round);
     }
@@ -277,6 +279,8 @@ public class RecruitmentService {
         recruitment.setStatus(nextStatus);
         Recruitment saved = recruitmentRepository.save(recruitment);
         recordStatus(saved, actorId, previousStatus, note);
+        eventPublisher.publishEvent(new RecruitmentStatusChangedEvent(
+                saved.getId(), saved.getCandidate_email(), previousStatus, nextStatus));
         return saved;
     }
 

@@ -2,6 +2,7 @@ package com.example.recruitment_service.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -12,7 +13,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -187,6 +187,7 @@ class RecruitmentServiceTest {
     @Test
     void withdrawRecordsEveryStatusTransition() {
         Recruitment recruitment = recruitmentWithStatus(RecruitmentStatus.INTERVIEW);
+        recruitment.setCandidate_email(CANDIDATE_EMAIL);
         when(recruitmentRepository.findForUserById(RECRUITMENT_ID, USER_ID))
                 .thenReturn(java.util.Optional.of(recruitment));
         when(recruitmentRepository.save(recruitment)).thenReturn(recruitment);
@@ -199,6 +200,29 @@ class RecruitmentServiceTest {
                         && history.getTo_status() == RecruitmentStatus.WITHDRAWN
                         && "candidate request".equals(history.getNote())
                         && history.getActor_id().equals(USER_ID)));
+        verify(eventPublisher).publishEvent(argThat((Object event) ->
+                event instanceof RecruitmentStatusChangedEvent changed
+                        && changed.recruitmentId().equals(RECRUITMENT_ID)
+                        && changed.candidateEmail().equals(CANDIDATE_EMAIL)
+                        && changed.fromStatus() == RecruitmentStatus.INTERVIEW
+                        && changed.toStatus() == RecruitmentStatus.WITHDRAWN));
+    }
+
+    @Test
+    void withdrawRejectsLegacyRecruitmentWithoutCandidateEmail() {
+        Recruitment recruitment = recruitmentWithStatus(RecruitmentStatus.INTERVIEW);
+        when(recruitmentRepository.findForUserById(RECRUITMENT_ID, USER_ID))
+                .thenReturn(java.util.Optional.of(recruitment));
+
+        ApiException exception = assertThrows(
+                ApiException.class,
+                () -> recruitmentService.withdraw(RECRUITMENT_ID, "candidate request", candidate));
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatus());
+        assertEquals(RecruitmentStatus.INTERVIEW, recruitment.getStatus());
+        verify(recruitmentRepository, never()).save(any());
+        verify(historyRepository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -284,11 +308,14 @@ class RecruitmentServiceTest {
         when(interviewRoundRepository.save(any(InterviewRound.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var result = recruitmentService.createRound(
-                RECRUITMENT_ID, new CreateInterviewRoundRequest(LocalDateTime.of(2026, 11, 18, 9, 0)), hr, "Bearer token");
+                RECRUITMENT_ID, new CreateInterviewRoundRequest(), hr, "Bearer token");
 
         assertEquals(3, result.getRoundNo());
+        assertNull(result.getScheduledAt());
         verify(interviewRoundRepository).save(argThat(round ->
-                round.getRoundNo() == 3 && round.getResult() == InterviewRoundResult.PENDING));
+                round.getRoundNo() == 3
+                        && round.getResult() == InterviewRoundResult.PENDING
+                        && round.getScheduledAt() == null));
     }
 
     @Test
@@ -319,7 +346,7 @@ class RecruitmentServiceTest {
         ApiException exception = assertThrows(
                 ApiException.class,
                 () -> recruitmentService.createRound(
-                        RECRUITMENT_ID, new CreateInterviewRoundRequest(null), hr, "Bearer token"));
+                        RECRUITMENT_ID, new CreateInterviewRoundRequest(), hr, "Bearer token"));
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatus());
         verify(interviewRoundRepository, never()).save(any());
