@@ -11,6 +11,8 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -100,6 +102,24 @@ class AiCareerServiceClientTest {
         server.expect(requestTo(BASE_URL + "/internal/v1/recruitments/" + USER_ID + "/jobs/" + JOB_ID + "/match-score"))
                 .andRespond(withSuccess(
                         "{\"userId\":\"" + USER_ID + "\",\"jobId\":\"" + JOB_ID + "\"}",
+                        MediaType.APPLICATION_JSON));
+        AiCareerServiceClient client = new AiCareerServiceClient(BASE_URL, INTERNAL_TOKEN, builder);
+
+        ApiException exception = assertThrows(ApiException.class, () -> client.getMatchScore(USER_ID, JOB_ID));
+
+        assertEquals(HttpStatus.BAD_GATEWAY, exception.getStatus());
+        assertEquals("UPSTREAM_ERROR", exception.getCode());
+        server.verify();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"101", "-1", "NaN", "Infinity", "-Infinity"})
+    void rejectsOutOfRangeAndNonFiniteScores(String score) {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(BASE_URL + "/internal/v1/recruitments/" + USER_ID + "/jobs/" + JOB_ID + "/match-score"))
+                .andRespond(withSuccess(
+                        "{\"userId\":\"" + USER_ID + "\",\"jobId\":\"" + JOB_ID + "\",\"score\":" + score + "}",
                         MediaType.APPLICATION_JSON));
         AiCareerServiceClient client = new AiCareerServiceClient(BASE_URL, INTERNAL_TOKEN, builder);
 

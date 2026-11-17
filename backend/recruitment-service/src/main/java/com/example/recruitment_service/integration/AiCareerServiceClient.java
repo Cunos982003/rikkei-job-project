@@ -50,7 +50,12 @@ public class AiCareerServiceClient {
             throw upstreamFailure();
         }
 
-        if (response == null || !userId.equals(response.userId()) || !jobId.equals(response.jobId())) {
+        if (response == null
+                || !userId.equals(response.userId())
+                || !jobId.equals(response.jobId())
+                || !Double.isFinite(response.score())
+                || response.score() < 0
+                || response.score() > 100) {
             throw upstreamFailure();
         }
         return response;
