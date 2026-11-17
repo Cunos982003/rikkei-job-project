@@ -9,6 +9,11 @@ export default defineConfig(({ mode }) => {
     ...loadEnv(mode, fileURLToPath(new URL('.', import.meta.url)), ''),
   }
 
+  // Chế độ test với Mock Server: đặt VITE_MOCK_API_URL trong .env gốc (vd: http://localhost:9000).
+  // Khi đó /api, /uploads, /lms, /staff đều trỏ về Mock Server.
+  // Muốn trỏ về các service thật thì xoá hoặc để trống VITE_MOCK_API_URL.
+  const mockTarget = env.VITE_MOCK_API_URL || ''
+
   return {
     plugins: [react(), tailwindcss()],
     resolve: {
@@ -21,23 +26,24 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // 1. Phân luồng đăng nhập & xác thực -> auth-service (:8081) hoặc Gateway
         '/api/v1/auth': {
-          target: env.VITE_AUTH_SERVICE_URL || env.VITE_BACKEND_URL || 'http://localhost:8081',
+          target: mockTarget || env.VITE_AUTH_SERVICE_URL || env.VITE_BACKEND_URL || 'http://localhost:8081',
           changeOrigin: true
         },
         // 2. Phân luồng quản lý công ty, tin tuyển dụng -> job-service (:8085) hoặc Gateway
         '/api/v1': {
-          target: env.VITE_JOB_SERVICE_URL || env.VITE_BACKEND_URL || 'http://localhost:8085',
+          target: mockTarget || env.VITE_JOB_SERVICE_URL || env.VITE_BACKEND_URL || 'http://localhost:8085',
           changeOrigin: true,
-          rewrite: (path) => env.VITE_BACKEND_URL ? path : path.replace(/^\/api\/v1/, '')
+          // Mock Server nhận đúng tiền tố /api/v1; chỉ bỏ tiền tố khi gọi thẳng service.
+          rewrite: (path) => (mockTarget || env.VITE_BACKEND_URL) ? path : path.replace(/^\/api\/v1/, '')
         },
         // 3. Phân luồng xem ảnh logo tải lên -> job-service (:8085)
         '/uploads': {
-          target: env.VITE_JOB_SERVICE_URL || 'http://localhost:8085',
+          target: mockTarget || env.VITE_JOB_SERVICE_URL || 'http://localhost:8085',
           changeOrigin: true
         },
         // 4. Mock LMS / WireMock
         '/lms': {
-          target: env.VITE_MOCK_API_URL || 'http://localhost:9000',
+          target: mockTarget || env.VITE_LMS_BASE_URL || 'http://localhost:9000',
           changeOrigin: true,
           configure: (proxy) => {
             proxy.on('proxyReq', (proxyReq) => {
@@ -47,7 +53,12 @@ export default defineConfig(({ mode }) => {
             })
           }
         },
-        // 5. AI Career
+        // 5. API cho Cán bộ tuyển sinh (STAFF) -> Gateway hoặc Mock Server
+        '/staff': {
+          target: mockTarget || env.VITE_BACKEND_URL || 'http://localhost:8080',
+          changeOrigin: true
+        },
+        // 6. AI Career
         '/ai-career': {
           target: env.VITE_AI_CAREER_URL || 'http://localhost:8090',
           changeOrigin: true,

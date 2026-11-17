@@ -30,6 +30,8 @@ import CandidateLearningPage from "../pages/candidate/CandidateLearningPage";
 import { HrCompanyPage } from "../pages/hr/HrCompanyPage";
 import { MentorStudentsPage } from "../pages/mentor/MentorStudentsPage";
 import { StaffJobsPage } from "../pages/staff/StaffJobsPage";
+import { StaffCandidatesPage } from "../pages/staff/StaffCandidatesPage";
+import { StaffCandidateDetailPage } from "../pages/staff/StaffCandidateDetailPage";
 import { AdminSkillsPage } from "../pages/admin/AdminSkillsPage";
 
 function RootRedirect() {
@@ -38,7 +40,7 @@ function RootRedirect() {
     switch (user.role) {
         case "HR": return <Navigate to="/hr/company" replace />;
         case "MENTOR": return <Navigate to="/mentor/students" replace />;
-        case "STAFF": return <Navigate to="/staff/jobs" replace />;
+        case "STAFF": return <Navigate to="/staff/candidates" replace />;
         case "ADMIN": return <Navigate to="/admin/skills" replace />;
         case "CANDIDATE":
         default: return <Navigate to="/candidate/profile" replace />;
@@ -94,6 +96,8 @@ export function AppRoutes() {
                         <Route path="/staff/companies" element={<StaffJobsPage />} />
                         <Route path="/staff/ioc" element={<StaffJobsPage />} />
                         <Route path="/staff/unlock-contacts" element={<StaffJobsPage />} />
+                        <Route path="/staff/candidates" element={<StaffCandidatesPage />} />
+                        <Route path="/staff/candidates/:userId" element={<StaffCandidateDetailPage />} />
                     </Route>
                     <Route element={<RoleGuard allowedRoles={["ADMIN"]} />}>
                         <Route path="/admin/skills" element={<AdminSkillsPage />} />

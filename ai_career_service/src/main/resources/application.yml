@@ -1,6 +1,6 @@
 spring:
   config:
-    import: optional:file:../.env[.properties],optional:file:.env[.properties]
+    import: optional:file:../..env[.properties],optional:file:..env[.properties]
   application:
     name: ai_career_service
   datasource:
@@ -30,3 +30,7 @@ app:
 
 server:
   port: 8090
+
+internal:
+  service:
+    token: ${INTERNAL_SERVICE_TOKEN:}

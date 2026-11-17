@@ -857,7 +857,7 @@ async function requestHandler(req, res) {
     return sendJson(res, 200, profileReviews.filter(r => r.userId === currentUserId));
   }
 
-  // 16. GET /staff/profile-reviews?status=PENDING — chỉ STAFF/ADMIN
+  // 16. GET /staff/profile-reviews?status=PENDING&q=&classCode= — chỉ STAFF/ADMIN
   if (method === 'GET' && profilePath === '/staff/profile-reviews') {
     const role = (req.headers['x-user-role'] || '').toUpperCase().replace('ROLE_', '');
     if (!currentUserId) {
@@ -867,9 +867,27 @@ async function requestHandler(req, res) {
       return sendError(res, 403, 'Chức năng chỉ dành cho Cán bộ tuyển dụng (STAFF)');
     }
     const status = (query.status || 'PENDING').toUpperCase();
-    const matched = candidates.filter(c => (c.visibility || 'PRIVATE') === status);
+    const q = (query.q || '').toLowerCase();
+    const classCode = query.classCode || '';
+    let matched = candidates.filter(c => (c.visibility || 'PRIVATE') === status);
+    if (q) {
+      matched = matched.filter(c =>
+        (c.fullName || '').toLowerCase().includes(q) ||
+        (c.email || '').toLowerCase().includes(q)
+      );
+    }
+    if (classCode) {
+      matched = matched.filter(c => c.classCode === classCode);
+    }
+    // Sort by updatedAt ascending (oldest first)
+    matched.sort((a, b) => new Date(a.updatedAt || 0) - new Date(b.updatedAt || 0));
     const page = parseInt(query.page) || 0;
     const size = parseInt(query.size) || 20;
+    // Calculate rejection counts
+    const rejectionCounts = {};
+    profileReviews.filter(r => r.action === 'REJECT').forEach(r => {
+      rejectionCounts[r.userId] = (rejectionCounts[r.userId] || 0) + 1;
+    });
     return sendJson(res, 200, {
       content: matched.slice(page * size, page * size + size).map(c => ({
         userId: c.userId || c.id,
@@ -877,7 +895,9 @@ async function requestHandler(req, res) {
         email: c.email,
         headline: c.headline || null,
         avatarUrl: c.avatarUrl || null,
-        submittedAt: (profileReviews.find(r => r.userId === (c.userId || c.id) && r.action === 'SUBMIT') || {}).createdAt || null
+        classCode: c.classCode || null,
+        submittedAt: (profileReviews.find(r => r.userId === (c.userId || c.id) && r.action === 'SUBMIT') || {}).createdAt || null,
+        rejectionCount: rejectionCounts[c.userId || c.id] || 0
       })),
       totalElements: matched.length,
       totalPages: Math.ceil(matched.length / size) || 0,
@@ -886,7 +906,139 @@ async function requestHandler(req, res) {
     });
   }
 
-  // 17. POST /staff/profiles/:userId/approve | /reject
+  // 17. GET /staff/profiles/:userId/preview — chỉ STAFF/ADMIN
+  const previewMatch = profilePath.match(/^\/staff\/profiles\/([^\/]+)\/preview$/);
+  if (method === 'GET' && previewMatch) {
+    const role = (req.headers['x-user-role'] || '').toUpperCase().replace('ROLE_', '');
+    if (!currentUserId) {
+      return sendError(res, 401, 'Thiếu header X-User-Id');
+    }
+    if (role !== 'STAFF' && role !== 'ADMIN') {
+      return sendError(res, 403, 'Chức năng chỉ dành cho Cán bộ tuyển dụng (STAFF)');
+    }
+    const targetId = previewMatch[1];
+    const candidate = candidates.find(c => c.userId === targetId || c.id === targetId);
+    if (!candidate) {
+      return sendError(res, 404, `Không tìm thấy hồ sơ ứng viên ${targetId}`);
+    }
+    // Mask email and phone
+    const maskEmail = (email) => {
+      if (!email || !email.includes('@')) return email;
+      const [local, domain] = email.split('@');
+      if (local.length <= 3) return '***@' + domain;
+      return local.substring(0, 3) + '***@' + domain;
+    };
+    const maskPhone = (phone) => {
+      if (!phone || phone.length < 4) return phone;
+      return phone.substring(0, 3) + '***' + phone.substring(phone.length - 1);
+    };
+    // Get review history
+    const history = profileReviews.filter(r => r.userId === targetId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const rejectionCount = history.filter(r => r.action === 'REJECT').length;
+    // Get skills (mock)
+    const skills = candidate.skills || [];
+    // Get educations
+    const educations = candidate.educations || [];
+    // Get certificates
+    const certificates = candidate.certificates || [];
+    return sendJson(res, 200, {
+      userId: candidate.userId || candidate.id,
+      fullName: candidate.fullName,
+      email: candidate.email,
+      phone: candidate.phone,
+      maskedEmail: maskEmail(candidate.email),
+      maskedPhone: maskPhone(candidate.phone),
+      dob: candidate.dob,
+      gender: candidate.gender,
+      address: candidate.address,
+      avatarUrl: candidate.avatarUrl,
+      headline: candidate.headline,
+      summary: candidate.summary,
+      program: candidate.program,
+      classCode: candidate.classCode,
+      courseName: candidate.courseName,
+      visibility: candidate.visibility || 'PRIVATE',
+      consentAt: candidate.consentAt,
+      consentWithdrawnAt: candidate.consentWithdrawnAt,
+      updatedAt: candidate.updatedAt,
+      skills: skills,
+      educations: educations,
+      certificates: certificates,
+      reviewHistory: history.map(r => ({
+        id: r.id,
+        action: r.action,
+        reason: r.reason,
+        actorId: r.actorId,
+        createdAt: r.createdAt
+      })),
+      rejectionCount: rejectionCount
+    });
+  }
+
+  // 18. PUT /staff/profiles/:userId/self-declared — chỉ STAFF/ADMIN
+  const editSelfDeclaredMatch = profilePath.match(/^\/staff\/profiles\/([^\/]+)\/self-declared$/);
+  if (method === 'PUT' && editSelfDeclaredMatch) {
+    const role = (req.headers['x-user-role'] || '').toUpperCase().replace('ROLE_', '');
+    if (!currentUserId) {
+      return sendError(res, 401, 'Thiếu header X-User-Id');
+    }
+    if (role !== 'STAFF' && role !== 'ADMIN') {
+      return sendError(res, 403, 'Chức năng chỉ dành cho Cán bộ tuyển dụng (STAFF)');
+    }
+    const targetId = editSelfDeclaredMatch[1];
+    const candidate = candidates.find(c => c.userId === targetId || c.id === targetId);
+    if (!candidate) {
+      return sendError(res, 404, `Không tìm thấy hồ sơ ứng viên ${targetId}`);
+    }
+    const body = await parseBody(req);
+    const { field, value, reason } = body;
+    if (!field || !value || !reason) {
+      return sendError(res, 400, 'Thiếu field, value hoặc reason');
+    }
+    let oldValue;
+    switch (field) {
+      case 'HEADLINE':
+        oldValue = candidate.headline || '';
+        candidate.headline = value;
+        break;
+      case 'SUMMARY':
+        oldValue = candidate.summary || '';
+        candidate.summary = value;
+        break;
+      case 'SELF_SKILLS':
+        oldValue = JSON.stringify(candidate.skills || []);
+        // value should be JSON array
+        try {
+          candidate.skills = JSON.parse(value);
+        } catch (e) {
+          return sendError(res, 400, 'SELF_SKILLS value must be valid JSON array');
+        }
+        break;
+      default:
+        return sendError(res, 400, 'Trường không được phép sửa: ' + field);
+    }
+    candidate.updatedAt = new Date().toISOString();
+    // Log to profileEdits (in-memory)
+    if (!global.profileEdits) global.profileEdits = [];
+    global.profileEdits.unshift({
+      id: 'edit-' + Date.now(),
+      userId: targetId,
+      field: field,
+      oldValue: oldValue,
+      newValue: value,
+      reason: reason,
+      staffId: currentUserId,
+      createdAt: new Date().toISOString()
+    });
+    return sendJson(res, 200, {
+      userId: targetId,
+      field: field,
+      oldValue: oldValue,
+      newValue: value
+    });
+  }
+
+  // 19. POST /staff/profiles/:userId/approve | /reject
   const staffActionMatch = profilePath.match(/^\/staff\/profiles\/([^\/]+)\/(approve|reject)$/);
   if (method === 'POST' && staffActionMatch) {
     const role = (req.headers['x-user-role'] || '').toUpperCase().replace('ROLE_', '');

@@ -141,6 +141,25 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_profile_reviews_user_approve
 CREATE UNIQUE INDEX IF NOT EXISTS uq_profile_reviews_user_reject
     ON profile_reviews(user_id) WHERE action = 'REJECT';
 
+-- Profile edit audit trail (HS-06)
+CREATE TABLE IF NOT EXISTS profile_edits (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    field VARCHAR(100) NOT NULL,
+    old_value TEXT,
+    new_value TEXT,
+    reason TEXT NOT NULL,
+    staff_id UUID NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT transaction_timestamp()
+);
+
+CREATE INDEX IF NOT EXISTS idx_profile_edits_user_id ON profile_edits(user_id);
+CREATE INDEX IF NOT EXISTS idx_profile_edits_staff_id ON profile_edits(staff_id);
+
+-- Composite index for queue: filter by visibility + sort by updated_at (oldest first)
+CREATE INDEX IF NOT EXISTS idx_candidate_profiles_visibility_updated
+    ON candidate_profiles(visibility, updated_at);
+
 -- File metadata (chứng chỉ, ảnh minh chứng, ảnh đại diện)
 CREATE TABLE IF NOT EXISTS files (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

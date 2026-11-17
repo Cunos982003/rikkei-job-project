@@ -19,6 +19,17 @@ public interface CandidateProfileRepository extends JpaRepository<CandidateProfi
     List<CandidateProfile> findByVisibility(CandidateProfile.Visibility visibility);
     Page<CandidateProfile> findByVisibility(CandidateProfile.Visibility visibility, Pageable pageable);
 
+    @Query("SELECT p FROM CandidateProfile p WHERE p.visibility = :visibility " +
+           "AND (:q IS NULL OR :q = '' OR LOWER(p.fullName) LIKE LOWER(CONCAT('%', :q, '%')) " +
+           "    OR LOWER(p.email) LIKE LOWER(CONCAT('%', :q, '%'))) " +
+           "AND (:classCode IS NULL OR :classCode = '' OR p.classCode = :classCode) " +
+           "ORDER BY p.updatedAt ASC")
+    Page<CandidateProfile> findByVisibilityAndFilters(
+            @Param("visibility") CandidateProfile.Visibility visibility,
+            @Param("q") String q,
+            @Param("classCode") String classCode,
+            Pageable pageable);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM CandidateProfile p WHERE p.userId = :userId")
     Optional<CandidateProfile> findByUserIdForUpdate(@Param("userId") UUID userId);

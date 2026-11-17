@@ -16,4 +16,6 @@ public class PendingReviewDto {
     private String headline;
     private String avatarUrl;
     private OffsetDateTime submittedAt;
+    private String classCode;
+    private int rejectionCount;
 }
