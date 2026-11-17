@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -85,6 +86,37 @@ class ProfileIntegrationTest {
         byte[] content = new byte[256];
         System.arraycopy(new byte[]{0x25, 0x50, 0x44, 0x46}, 0, content, 0, 4);
         return content;
+    }
+
+    @Test
+    void profile_created_with_minimal_data_when_lms_returns_404() throws Exception {
+        UUID userId = UUID.randomUUID();
+        // LMS returns 404 (empty Mono)
+        when(lmsClient.getStudent(any())).thenReturn(Mono.empty());
+
+        mvc.perform(get("/api/v1/profiles/me").header("X-User-Id", userId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(userId.toString()))
+                .andExpect(jsonPath("$.fullName").doesNotExist())
+                .andExpect(jsonPath("$.email").doesNotExist())
+                .andExpect(jsonPath("$.program").doesNotExist())
+                .andExpect(jsonPath("$.classCode").doesNotExist())
+                .andExpect(jsonPath("$.courseName").doesNotExist())
+                .andExpect(jsonPath("$.visibility").value("PRIVATE"));
+    }
+
+    @Test
+    void profile_created_with_minimal_data_when_lms_throws_exception() throws Exception {
+        UUID userId = UUID.randomUUID();
+        // LMS throws exception (e.g., 500)
+        when(lmsClient.getStudent(any())).thenReturn(Mono.error(
+                new LmsClient.LmsClientException("LMS request failed: 500 Internal Server Error", HttpStatus.INTERNAL_SERVER_ERROR)));
+
+        mvc.perform(get("/api/v1/profiles/me").header("X-User-Id", userId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(userId.toString()))
+                .andExpect(jsonPath("$.fullName").doesNotExist())
+                .andExpect(jsonPath("$.visibility").value("PRIVATE"));
     }
 
     @Test
