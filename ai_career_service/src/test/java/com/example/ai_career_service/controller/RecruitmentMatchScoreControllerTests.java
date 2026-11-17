@@ -47,9 +47,11 @@ class RecruitmentMatchScoreControllerTests {
         mockMvc(INTERNAL_TOKEN)
                 .perform(get(path()).header("X-Internal-Service-Token", INTERNAL_TOKEN))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.userId").value(USER_ID.toString()))
-                .andExpect(jsonPath("$.jobId").value(JOB_ID.toString()))
-                .andExpect(jsonPath("$.score").value(87.5));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.data.userId").value(USER_ID.toString()))
+                .andExpect(jsonPath("$.data.jobId").value(JOB_ID.toString()))
+                .andExpect(jsonPath("$.data.score").value(87.5));
 
         verify(careerService).getMatchScore(USER_ID, JOB_ID);
     }

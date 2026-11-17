@@ -32,6 +32,8 @@ import { MentorStudentsPage } from "../pages/mentor/MentorStudentsPage";
 import { StaffJobsPage } from "../pages/staff/StaffJobsPage";
 import { StaffCandidatesPage } from "../pages/staff/StaffCandidatesPage";
 import { StaffCandidateDetailPage } from "../pages/staff/StaffCandidateDetailPage";
+import { StaffApplicationsPage } from "../pages/staff/StaffApplicationsPage";
+import { ApplicationDetailPage } from "../pages/hr/ApplicationDetailPage";
 import { AdminSkillsPage } from "../pages/admin/AdminSkillsPage";
 
 function RootRedirect() {
@@ -80,6 +82,7 @@ export function AppRoutes() {
                         <Route path="/hr/jobs" element={<HrCompanyPage />} />
                         <Route path="/hr/candidates" element={<HrCompanyPage />} />
                         <Route path="/hr/interviews" element={<HrCompanyPage />} />
+                        <Route path="/hr/applications/:id" element={<ApplicationDetailPage />} />
                         <Route path="/hr/ioc" element={<HrCompanyPage />} />
                     </Route>
 
@@ -94,6 +97,8 @@ export function AppRoutes() {
                     <Route element={<RoleGuard allowedRoles={["STAFF", "ADMIN"]} />}>
                         <Route path="/staff/jobs" element={<StaffJobsPage />} />
                         <Route path="/staff/companies" element={<StaffJobsPage />} />
+                        <Route path="/staff/applications" element={<StaffApplicationsPage />} />
+                        <Route path="/staff/applications/:id" element={<ApplicationDetailPage />} />
                         <Route path="/staff/ioc" element={<StaffJobsPage />} />
                         <Route path="/staff/unlock-contacts" element={<StaffJobsPage />} />
                         <Route path="/staff/candidates" element={<StaffCandidatesPage />} />

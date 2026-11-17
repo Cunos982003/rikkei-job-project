@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.recruitment_service.dto.ApiResponse;
 import com.example.recruitment_service.dto.CreateInterviewRoundRequest;
 import com.example.recruitment_service.dto.InterviewRoundSummary;
 import com.example.recruitment_service.dto.RecruitmentDetails;
@@ -47,80 +48,90 @@ public class RecruitmentController {
     }
 
     @PostMapping("/jobs/{id}/recruit")
-    public ResponseEntity<RecruitmentSummary> recruit(
+    public ResponseEntity<ApiResponse<RecruitmentSummary>> recruit(
             @PathVariable UUID id,
             @Valid @RequestBody ApplyRequest request,
             @AuthenticationPrincipal UserPrincipal candidate,
             @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
-        return ResponseEntity.status(201).body(recruitmentService.recruit(id, request, candidate, authorization));
+        RecruitmentSummary summary = recruitmentService.recruit(id, request, candidate, authorization);
+        return ResponseEntity.status(201).body(ApiResponse.created("Nộp đơn ứng tuyển thành công", summary));
     }
 
     @GetMapping("/me/recruitments")
-    public List<RecruitmentSummary> list(
+    public ResponseEntity<ApiResponse<List<RecruitmentSummary>>> list(
             @AuthenticationPrincipal UserPrincipal candidate,
             @RequestParam(required = false) RecruitmentStatus status) {
-        return recruitmentService.list(candidate, status);
+        List<RecruitmentSummary> result = recruitmentService.list(candidate, status);
+        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách đơn ứng tuyển thành công", result));
     }
 
     @GetMapping("/me/recruitments/{id}")
-    public RecruitmentDetails get(
+    public ResponseEntity<ApiResponse<RecruitmentDetails>> get(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal candidate) {
-        return recruitmentService.get(id, candidate);
+        RecruitmentDetails details = recruitmentService.get(id, candidate);
+        return ResponseEntity.ok(ApiResponse.success("Lấy chi tiết đơn ứng tuyển thành công", details));
     }
 
-    @GetMapping("/recruitments/{id}")
-    public RecruitmentReviewDetails getForReview(
+    @GetMapping({"/recruitments/{id}", "/applications/{id}"})
+    public ResponseEntity<ApiResponse<RecruitmentReviewDetails>> getForReview(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
-        return recruitmentService.getReviewDetails(id, principal, authorization);
+        RecruitmentReviewDetails details = recruitmentService.getReviewDetails(id, principal, authorization);
+        return ResponseEntity.ok(ApiResponse.success("Lấy chi tiết đánh giá ứng viên thành công", details));
     }
 
-    @PostMapping("/recruitments/{id}/transition")
-    public RecruitmentSummary transition(
+    @PostMapping({"/recruitments/{id}/transition", "/applications/{id}/transition"})
+    public ResponseEntity<ApiResponse<RecruitmentSummary>> transition(
             @PathVariable UUID id,
             @Valid @RequestBody TransitionRequest request,
             @AuthenticationPrincipal UserPrincipal actor,
             @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
-        return recruitmentService.transition(id, request, actor, authorization);
+        RecruitmentSummary summary = recruitmentService.transition(id, request, actor, authorization);
+        return ResponseEntity.ok(ApiResponse.success("Chuyển trạng thái tuyển dụng thành công", summary));
     }
 
-    @PostMapping("/recruitments/{id}/rounds")
-    public InterviewRoundSummary createRound(
+    @PostMapping({"/recruitments/{id}/rounds", "/applications/{id}/rounds"})
+    public ResponseEntity<ApiResponse<InterviewRoundSummary>> createRound(
             @PathVariable UUID id,
             @Valid @RequestBody CreateInterviewRoundRequest request,
             @AuthenticationPrincipal UserPrincipal actor,
             @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
-        return InterviewRoundSummary.from(recruitmentService.createRound(id, request, actor, authorization));
+        InterviewRoundSummary round = InterviewRoundSummary.from(
+                recruitmentService.createRound(id, request, actor, authorization));
+        return ResponseEntity.status(201).body(ApiResponse.created("Tạo vòng phỏng vấn thành công", round));
     }
 
-    @PutMapping("/recruitments/{id}/rounds/{roundId}")
-    public InterviewRoundSummary updateRound(
+    @PutMapping({"/recruitments/{id}/rounds/{roundId}", "/applications/{id}/rounds/{roundId}"})
+    public ResponseEntity<ApiResponse<InterviewRoundSummary>> updateRound(
             @PathVariable UUID id,
             @PathVariable UUID roundId,
             @Valid @RequestBody UpdateInterviewRoundRequest request,
             @AuthenticationPrincipal UserPrincipal actor,
             @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
-        return InterviewRoundSummary.from(
+        InterviewRoundSummary round = InterviewRoundSummary.from(
                 recruitmentService.updateRound(id, roundId, request, actor, authorization));
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật vòng phỏng vấn thành công", round));
     }
 
-    @GetMapping("/staff/recruitments")
-    public Page<RecruitmentStaffSummary> listForStaff(
+    @GetMapping({"/staff/recruitments", "/staff/applications"})
+    public ResponseEntity<ApiResponse<Page<RecruitmentStaffSummary>>> listForStaff(
             @RequestParam(required = false) UUID companyId,
             @RequestParam(required = false) UUID jobId,
             @RequestParam(required = false) RecruitmentStatus status,
             @RequestParam(defaultValue = "0") @Min(0) int page) {
-        return recruitmentService.listForStaff(companyId, jobId, status, page);
+        Page<RecruitmentStaffSummary> result = recruitmentService.listForStaff(companyId, jobId, status, page);
+        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách đơn ứng tuyển cho cán bộ thành công", result));
     }
 
     @PostMapping("/me/recruitments/{id}/withdraw")
-    public RecruitmentSummary withdraw(
+    public ResponseEntity<ApiResponse<RecruitmentSummary>> withdraw(
             @PathVariable UUID id,
             @Valid @RequestBody WithdrawRequest request,
             @AuthenticationPrincipal UserPrincipal candidate) {
-        return recruitmentService.withdraw(id, request.reason(), candidate);
+        RecruitmentSummary summary = recruitmentService.withdraw(id, request.reason(), candidate);
+        return ResponseEntity.ok(ApiResponse.success("Rút đơn ứng tuyển thành công", summary));
     }
 
     @GetMapping("/recruitments/{id}/cv-snapshot")
