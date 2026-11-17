@@ -45,9 +45,10 @@ public class GlobalHandleException {
 
         @ExceptionHandler(BusinessException.class)
         public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
-                log.warn("Lỗi nghiệp vụ đào tạo: {}", ex.getMessage());
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, ex.getMessage()));
+                HttpStatus status = ex.getStatus() != null ? ex.getStatus() : HttpStatus.BAD_REQUEST;
+                log.warn("Lỗi nghiệp vụ đào tạo [{}]: {}", status, ex.getMessage());
+                return ResponseEntity.status(status)
+                                .body(ApiResponse.error(status, ex.getMessage()));
         }
 
         @ExceptionHandler(UnauthorizedException.class)

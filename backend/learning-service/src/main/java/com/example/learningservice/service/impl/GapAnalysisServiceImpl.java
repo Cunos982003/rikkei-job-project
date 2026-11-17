@@ -49,7 +49,7 @@ public class GapAnalysisServiceImpl implements GapAnalysisService {
     private final JobServiceClient jobServiceClient;
 
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = BusinessException.class)
     public GapAnalysisResponse analyzeGap(UUID userId, String jobIdOverride, String authHeader) {
         log.info("Bắt đầu phân tích khoảng thiếu hụt năng lực cho userId: {}, jobIdOverride: {}", userId, jobIdOverride);
 

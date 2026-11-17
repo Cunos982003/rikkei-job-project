@@ -52,5 +52,28 @@ public class ProfileServiceClient {
             return Collections.emptyList();
         }
     }
+
+    public boolean syncLmsSkillEvidence(UUID userId, String skillCode, String courseId, String courseName, Short score) {
+        log.info("Đồng bộ bằng chứng LMS sang profile-service: userId={}, skillCode={}, courseId={}, score={}",
+                userId, skillCode, courseId, score);
+        try {
+            restClient.post()
+                    .uri("/api/v1/profiles/internal/lms-evidence")
+                    .body(java.util.Map.of(
+                            "userId", userId.toString(),
+                            "skillCode", skillCode,
+                            "courseId", courseId,
+                            "courseName", courseName != null ? courseName : courseId,
+                            "score", score
+                    ))
+                    .retrieve()
+                    .toBodilessEntity();
+            log.info("Đồng bộ bằng chứng LMS sang profile-service thành công");
+            return true;
+        } catch (Exception e) {
+            log.warn("Không thể đồng bộ bằng chứng LMS sang profile-service tại {}: {}", profileServiceUrl, e.getMessage());
+            return false;
+        }
+    }
 }
 

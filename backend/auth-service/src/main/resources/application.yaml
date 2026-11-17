@@ -2,6 +2,11 @@ server:
   port: ${SERVER_PORT:8081}
 
 spring:
+  config:
+    import:
+      - optional:file:../../.env[.properties]
+      - optional:file:../.env[.properties]
+      - optional:file:.env[.properties]
   application:
     name: auth-service
   datasource:
@@ -17,6 +22,7 @@ spring:
     show-sql: false
   flyway:
     enabled: ${SPRING_FLYWAY_ENABLED:true}
+    validate-on-migrate: ${SPRING_FLYWAY_VALIDATE_ON_MIGRATE:false}
   mail:
     host: ${SPRING_MAIL_HOST:smtp.gmail.com}
     port: ${SPRING_MAIL_PORT:587}

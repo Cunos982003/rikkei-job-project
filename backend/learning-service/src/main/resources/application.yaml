@@ -11,14 +11,14 @@ spring:
     name: learning-service
 
   datasource:
-    url: ${LEARNING_DATABASE_URL:jdbc:postgresql://localhost:5432/learning_db}
+    url: ${LEARNING_DATABASE_URL:jdbc:postgresql://localhost:5432/learning_sv_rikkei_jobs_db}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
     open-in-view: false
     show-sql: false
     properties:
@@ -29,7 +29,9 @@ spring:
 
   flyway:
     enabled: true
+    table: flyway_schema_history
     baseline-on-migrate: true
+    validate-on-migrate: ${SPRING_FLYWAY_VALIDATE_ON_MIGRATE:false}
     locations: classpath:db/migration
 
 springdoc:
@@ -45,6 +47,7 @@ app:
     profile-service-url: ${PROFILE_SERVICE_URL:http://localhost:8082}
     job-service-url: ${JOB_SERVICE_URL:http://localhost:9000}
     mock-server-url: ${MOCK_SERVER_URL:http://localhost:9000}
+    lms-service-key: ${LMS_SERVICE_KEY:dev-key}
 
 logging:
   level:

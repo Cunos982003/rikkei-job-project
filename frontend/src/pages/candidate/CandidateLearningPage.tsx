@@ -14,6 +14,7 @@ import { Button } from "../../components/common/Button";
 import { Card, CardContent } from "../../components/common/Card";
 import { ReadinessGaugeCard } from "../../features/learning/components/ReadinessGaugeCard";
 import { SkillGapTable } from "../../features/learning/components/SkillGapTable";
+import { CourseSuggestionsSection } from "../../features/learning/components/CourseSuggestionsSection";
 import { TargetSelectorCard } from "../../features/learning/components/TargetSelectorCard";
 import { JobAnalysisBanner } from "../../features/learning/components/JobAnalysisBanner";
 
@@ -22,6 +23,7 @@ export const CandidateLearningPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [enrollingCourseId, setEnrollingCourseId] = React.useState<string | null>(null);
 
   const jobIdOverride = searchParams.get("jobId") || undefined;
 
@@ -64,7 +66,18 @@ export const CandidateLearningPage: React.FC = () => {
     retry: 1,
   });
 
-  // 4. Mutation to set / change target
+  // 4. Fetch course suggestions based on missing skills (DT-02)
+  const {
+    data: suggestionsRes,
+    isLoading: suggestionsLoading,
+    refetch: refetchSuggestions,
+  } = useQuery({
+    queryKey: ["courseSuggestions"],
+    queryFn: () => learningApi.getCourseSuggestions(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // 5. Mutation to set / change target
   const setTargetMutation = useMutation({
     mutationFn: (payload: { positionId?: string; jobId?: string }) =>
       learningApi.setMyTarget(payload),
@@ -72,12 +85,58 @@ export const CandidateLearningPage: React.FC = () => {
       toast.success(res.message || "Thiết lập mục tiêu nghề nghiệp thành công!");
       queryClient.invalidateQueries({ queryKey: ["myTarget"] });
       queryClient.invalidateQueries({ queryKey: ["gapAnalysis"] });
+      queryClient.invalidateQueries({ queryKey: ["courseSuggestions"] });
       if (jobIdOverride) {
         setSearchParams({});
       }
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.message || "Không thể cập nhật mục tiêu. Vui lòng thử lại sau";
+      toast.error(msg);
+    },
+  });
+
+  // 6. Mutation to enroll course (DT-02)
+  const enrollMutation = useMutation({
+    mutationFn: (payload: { lmsCourseId: string; skillId: string }) =>
+      learningApi.enrollCourse(payload),
+    onMutate: (payload) => {
+      setEnrollingCourseId(payload.lmsCourseId);
+    },
+    onSuccess: (res) => {
+      toast.success(res.message || "Ghi danh khóa học thành công!");
+      queryClient.invalidateQueries({ queryKey: ["courseSuggestions"] });
+      queryClient.invalidateQueries({ queryKey: ["gapAnalysis"] });
+    },
+    onError: (err: any) => {
+      const msg =
+        err?.response?.data?.message ||
+        "Không thể ghi danh khóa học. Vui lòng thử lại sau";
+      toast.error(msg);
+    },
+    onSettled: () => {
+      setEnrollingCourseId(null);
+    },
+  });
+
+  // 7. Mutation to refresh LMS enrollments & progress (DT-02)
+  const refreshMutation = useMutation({
+    mutationFn: () => learningApi.refreshEnrollments(),
+    onSuccess: (res) => {
+      const total = res.data?.totalUpdated ?? 0;
+      const completed = res.data?.completedCoursesCount ?? 0;
+      toast.success(
+        res.message ||
+          `Đã đồng bộ ${total} khóa học từ LMS! (${completed} môn đã hoàn thành)`
+      );
+      queryClient.invalidateQueries({ queryKey: ["courseSuggestions"] });
+      queryClient.invalidateQueries({ queryKey: ["gapAnalysis"] });
+      queryClient.invalidateQueries({ queryKey: ["myProfileSkills"] });
+    },
+    onError: (err: any) => {
+      const msg =
+        err?.response?.data?.message ||
+        "Không thể đồng bộ tiến độ LMS. Vui lòng thử lại sau";
       toast.error(msg);
     },
   });
@@ -105,6 +164,14 @@ export const CandidateLearningPage: React.FC = () => {
     }
   };
 
+  const handleEnroll = async (lmsCourseId: string, skillId: string) => {
+    await enrollMutation.mutateAsync({ lmsCourseId, skillId });
+  };
+
+  const handleRefreshEnrollments = async () => {
+    await refreshMutation.mutateAsync();
+  };
+
   return (
     <div className="space-y-6 pb-12">
       {/* Header Bar */}
@@ -129,9 +196,12 @@ export const CandidateLearningPage: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => refetchGap()}
-            isLoading={gapRefetching}
-            leftIcon={<RefreshCw className={`h-4 w-4 ${gapRefetching ? "animate-spin" : ""}`} />}
+            onClick={() => {
+              refetchGap();
+              refetchSuggestions();
+            }}
+            isLoading={gapRefetching || suggestionsLoading}
+            leftIcon={<RefreshCw className={`h-4 w-4 ${gapRefetching || suggestionsLoading ? "animate-spin" : ""}`} />}
           >
             Làm mới phân tích
           </Button>
@@ -201,7 +271,17 @@ export const CandidateLearningPage: React.FC = () => {
             <SkillGapTable items={gapAnalysis.items} />
           )}
 
-          {/* 4. Target Selector Card */}
+          {/* 4. Course Suggestions Section (DT-02) */}
+          <CourseSuggestionsSection
+            suggestions={suggestionsRes?.data || []}
+            isLoading={suggestionsLoading}
+            onEnroll={handleEnroll}
+            onRefresh={handleRefreshEnrollments}
+            isRefreshing={refreshMutation.isPending}
+            enrollingCourseId={enrollingCourseId}
+          />
+
+          {/* 5. Target Selector Card */}
           <TargetSelectorCard
             positions={positions}
             currentPositionId={myTarget?.positionId}

@@ -29,11 +29,12 @@
   {
     "id": "user-004",
     "email": "hr1@rikkeijobs.test",
-    "password": "Test@123",
+    "password": "NewPassword123",
     "role": "HR",
     "fullName": "HR Account One",
     "companyId": "comp-001",
-    "companyName": "Công ty Cổ phần Rikkeisoft"
+    "companyName": "Công ty Cổ phần Rikkeisoft",
+    "mustChangePassword": false
   },
   {
     "id": "user-005",
