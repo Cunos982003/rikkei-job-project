@@ -59,6 +59,6 @@ class RecruitmentMatchScoreControllerTests {
     }
 
     private static String path() {
-        return "/internal/v1/recruitments/" + USER_ID + "/jobs/" + JOB_ID + "/match-score";
+        return "/api/v1/recruitments/" + USER_ID + "/jobs/" + JOB_ID + "/match-score";
     }
 }
