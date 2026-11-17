@@ -274,11 +274,11 @@ async function requestHandler(req, res) {
       return sendError(res, 404, `Không tìm thấy thông tin sinh viên ${studentId} trên LMS`);
     }
     return sendJson(res, 200, {
+      fullName: student.fullName || 'Nguyễn Văn An',
+      email: student.email || 'candidate1@rikkeijobs.test',
       program: student.program,
       classCode: student.classCode,
-      courseName: student.courseName,
-      fullName: student.fullName,
-      email: student.email
+      courseName: student.courseName
     });
   }
 
@@ -290,7 +290,7 @@ async function requestHandler(req, res) {
     if (!student) {
       return sendError(res, 404, `Không tìm thấy kết quả học tập của sinh viên ${studentId} trên LMS`);
     }
-    return sendJson(res, 200, student.results);
+    return sendJson(res, 200, student.results || []);
   }
 
   // 5. GET /lms/courses
@@ -301,27 +301,93 @@ async function requestHandler(req, res) {
   // 6. POST /lms/enrollments
   if (method === 'POST' && pathname === '/lms/enrollments') {
     const body = await parseBody(req);
+    // Hỗ trợ mô phỏng lỗi LMS cho AC4
+    if (req.headers['x-mock-fail'] === 'true' ||
+        parsedUrl.query?.fail === 'true' ||
+        body.mockError === true ||
+        body.courseId === 'CRS-ERROR' ||
+        body.lmsCourseId === 'CRS-ERROR') {
+      return sendError(res, 500, 'LMS_ERROR: Máy chủ LMS gặp sự cố nội bộ khi ghi danh (Simulated Failure)');
+    }
+
+    const studentId = body.studentId || body.lmsUserId || body.userId || 'std-001';
+    const courseId = body.courseId || body.lmsCourseId || 'CRS-01';
+
     const newEnrollment = {
       id: `enr-${Date.now()}`,
-      studentId: body.studentId || 'std-001',
-      courseId: body.courseId || 'CRS-01',
+      studentId,
+      userId: studentId,
+      courseId,
+      lmsCourseId: courseId,
       status: 'IN_PROGRESS',
       progress: 0.0,
+      score: null,
       enrolledAt: new Date().toISOString()
     };
     lmsData.enrollments.push(newEnrollment);
     return sendJson(res, 201, newEnrollment);
   }
 
-  // 7. GET /lms/enrollments/:id
+  // 6b. POST /lms/mock/complete-course (Endpoint hỗ trợ test AC3: cập nhật hoàn thành môn học kèm điểm)
+  if (method === 'POST' && (pathname === '/lms/mock/complete-course' || pathname === '/lms/enrollments/complete')) {
+    const body = await parseBody(req);
+    const studentId = body.studentId || body.lmsUserId || body.userId;
+    const courseId = body.courseId || body.lmsCourseId;
+    const score = body.score !== undefined ? Number(body.score) : 85.0;
+
+    let enr = lmsData.enrollments.find(e => 
+      (e.courseId === courseId || e.lmsCourseId === courseId) &&
+      (!studentId || e.studentId === studentId || e.userId === studentId)
+    );
+
+    if (!enr) {
+      enr = {
+        id: `enr-${Date.now()}`,
+        studentId: studentId || 'std-001',
+        userId: studentId || 'std-001',
+        courseId: courseId || 'CRS-01',
+        lmsCourseId: courseId || 'CRS-01',
+        status: 'COMPLETED',
+        progress: 100.0,
+        score: score,
+        enrolledAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+        completedAt: new Date().toISOString()
+      };
+      lmsData.enrollments.push(enr);
+    } else {
+      enr.status = 'COMPLETED';
+      enr.progress = 100.0;
+      enr.score = score;
+      enr.completedAt = new Date().toISOString();
+    }
+
+    return sendJson(res, 200, {
+      message: 'Cập nhật hoàn thành khóa học trên Mock LMS thành công',
+      enrollment: enr
+    });
+  }
+
+  // 7. GET /lms/enrollments/:param (param có thể là enrollmentId hoặc lmsUserId/studentId)
   const enrollmentMatch = pathname.match(/^\/lms\/enrollments\/([^\/]+)$/);
   if (method === 'GET' && enrollmentMatch) {
-    const enrId = enrollmentMatch[1];
-    const enrollment = lmsData.enrollments.find(e => e.id === enrId);
-    if (!enrollment) {
-      return sendError(res, 404, `Không tìm thấy thông tin đăng ký môn học ${enrId}`);
+    const enrParam = enrollmentMatch[1];
+    
+    // Tìm danh sách đăng ký theo studentId / lmsUserId
+    const studentEnrollments = lmsData.enrollments.filter(e => 
+      e.studentId === enrParam || e.userId === enrParam || e.lmsUserId === enrParam
+    );
+    if (studentEnrollments.length > 0) {
+      return sendJson(res, 200, studentEnrollments);
     }
-    return sendJson(res, 200, enrollment);
+
+    // Hoặc tìm bản ghi đơn lẻ theo enrollmentId
+    const single = lmsData.enrollments.find(e => e.id === enrParam);
+    if (single) {
+      return sendJson(res, 200, single);
+    }
+
+    // Nếu hỏi theo dạng ID người dùng mà chưa có môn nào
+    return sendJson(res, 200, []);
   }
 
   // -------------------------------------------------------------

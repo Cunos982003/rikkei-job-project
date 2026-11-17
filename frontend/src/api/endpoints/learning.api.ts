@@ -63,6 +63,62 @@ export interface GapAnalysisResult {
   items: GapItem[];
 }
 
+// ==============================================================================
+// DT-02: TYPESCRIPT INTERFACES CHO GỢI Ý KHÓA HỌC & GHI DANH LMS
+// ==============================================================================
+
+export type EnrollmentStatus = "ENROLLED" | "IN_PROGRESS" | "COMPLETED" | "FAILED";
+
+export interface SuggestedCourseItem {
+  lmsCourseId: string;
+  courseName: string;
+  lessonHint?: string;
+  levelFrom: number;
+  levelTo: number;
+  level?: string;
+  isEnrolled: boolean;
+  enrollmentId?: string | null;
+  enrollmentStatus?: EnrollmentStatus | null;
+  progress?: number | null;
+  score?: number | null;
+  enrolledAt?: string | null;
+  completedAt?: string | null;
+}
+
+export interface SkillCourseSuggestion {
+  skillId: string;
+  skillName: string;
+  requiredScore: number;
+  currentScore: number;
+  gap: number;
+  priority: GapPriority;
+  courses: SuggestedCourseItem[];
+}
+
+export interface EnrollmentRequest {
+  lmsCourseId: string;
+  skillId: string;
+}
+
+export interface EnrollmentResponse {
+  id: string;
+  userId: string;
+  lmsCourseId: string;
+  courseName: string;
+  skillId: string;
+  status: EnrollmentStatus;
+  progress: number;
+  score?: number | null;
+  enrolledAt: string;
+  completedAt?: string | null;
+}
+
+export interface RefreshEnrollmentsResponse {
+  totalUpdated: number;
+  completedCoursesCount: number;
+  enrollments: EnrollmentResponse[];
+}
+
 /**
  * Endpoints phân tích khoảng thiếu hụt năng lực và mục tiêu nghề nghiệp (learning-service qua API Gateway :8080)
  */
@@ -102,6 +158,34 @@ export const learningApi = {
     return api.get<GapAnalysisResult>("/learning/me/gap-analysis", {
       params: jobId ? { jobId } : undefined,
     });
+  },
+
+  /**
+   * DT-02: Lấy danh sách khóa học gợi ý theo từng kỹ năng thiếu hụt
+   */
+  getCourseSuggestions(): Promise<ApiResponse<SkillCourseSuggestion[]>> {
+    return api.get<SkillCourseSuggestion[]>("/learning/me/course-suggestions");
+  },
+
+  /**
+   * DT-02: Ghi danh khóa học bổ sung trên LMS
+   */
+  enrollCourse(payload: EnrollmentRequest): Promise<ApiResponse<EnrollmentResponse>> {
+    return api.post<EnrollmentResponse>("/learning/me/enrollments", payload);
+  },
+
+  /**
+   * DT-02: Lấy danh sách các khóa học ứng viên đã ghi danh
+   */
+  getMyEnrollments(): Promise<ApiResponse<EnrollmentResponse[]>> {
+    return api.get<EnrollmentResponse[]>("/learning/me/enrollments");
+  },
+
+  /**
+   * DT-02: Làm mới tiến độ và điểm số từ LMS, tự động kích hoạt tính lại điểm hồ sơ khi COMPLETED
+   */
+  refreshEnrollments(): Promise<ApiResponse<RefreshEnrollmentsResponse>> {
+    return api.post<RefreshEnrollmentsResponse>("/learning/me/enrollments/refresh");
   },
 };
 

@@ -1,3 +1,16 @@
+server:
+  port: ${SERVER_PORT:8084}
+
 spring:
+  config:
+    import:
+      - optional:file:../../.env[.properties]
+      - optional:file:../.env[.properties]
+      - optional:file:.env[.properties]
   application:
     name: assessment-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/postgres}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:Manhcuong281207@}
+    driver-class-name: org.postgresql.Driver
