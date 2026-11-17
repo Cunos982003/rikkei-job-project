@@ -40,11 +40,11 @@ public class RestAuthClient implements AuthClient {
             @Value("${auth.base-url:http://localhost:8081}") String baseUrl,
             @Autowired(required = false) ObjectMapper objectMapper) {
         HttpClient httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(3))
+                .connectTimeout(Duration.ofSeconds(5))
                 .build();
 
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
-        requestFactory.setReadTimeout(Duration.ofSeconds(5));
+        requestFactory.setReadTimeout(Duration.ofSeconds(20));
 
         this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
@@ -73,7 +73,8 @@ public class RestAuthClient implements AuthClient {
         return spec;
     }
 
-    private <T> T execute(RestClient.RequestHeadersSpec<?> spec, ParameterizedTypeReference<AuthEnvelope<T>> typeRef, boolean isCreateHr) {
+    private <T> T execute(RestClient.RequestHeadersSpec<?> spec, ParameterizedTypeReference<AuthEnvelope<T>> typeRef,
+            boolean isCreateHr) {
         try {
             AuthEnvelope<T> response = withAuth(spec)
                     .accept(MediaType.APPLICATION_JSON)
@@ -140,49 +141,49 @@ public class RestAuthClient implements AuthClient {
         Map<String, Object> requestBody = Map.of(
                 "email", email,
                 "fullName", fullName,
-                "companyId", companyId
-        );
+                "companyId", companyId);
 
-        ParameterizedTypeReference<AuthEnvelope<AuthHrAccount>> typeRef = new ParameterizedTypeReference<>() {};
+        ParameterizedTypeReference<AuthEnvelope<AuthHrAccount>> typeRef = new ParameterizedTypeReference<>() {
+        };
         return execute(
                 restClient.post()
                         .uri("/api/v1/auth/internal/hr-accounts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .body(requestBody),
                 typeRef,
-                true
-        );
+                true);
     }
 
     @Override
     public AuthHrAccount lockHrAccount(UUID userId, String reason) {
         Map<String, Object> requestBody = Map.of("reason", reason);
 
-        ParameterizedTypeReference<AuthEnvelope<AuthHrAccount>> typeRef = new ParameterizedTypeReference<>() {};
+        ParameterizedTypeReference<AuthEnvelope<AuthHrAccount>> typeRef = new ParameterizedTypeReference<>() {
+        };
         return execute(
                 restClient.post()
                         .uri("/api/v1/auth/internal/hr-accounts/{id}/lock", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .body(requestBody),
                 typeRef,
-                false
-        );
+                false);
     }
 
     @Override
     public AuthHrAccount unlockHrAccount(UUID userId) {
-        ParameterizedTypeReference<AuthEnvelope<AuthHrAccount>> typeRef = new ParameterizedTypeReference<>() {};
+        ParameterizedTypeReference<AuthEnvelope<AuthHrAccount>> typeRef = new ParameterizedTypeReference<>() {
+        };
         return execute(
                 restClient.post()
                         .uri("/api/v1/auth/internal/hr-accounts/{id}/unlock", userId),
                 typeRef,
-                false
-        );
+                false);
     }
 
     @Override
     public List<AuthHrAccount> listHrAccounts(UUID companyId) {
-        ParameterizedTypeReference<AuthEnvelope<List<AuthHrAccount>>> typeRef = new ParameterizedTypeReference<>() {};
+        ParameterizedTypeReference<AuthEnvelope<List<AuthHrAccount>>> typeRef = new ParameterizedTypeReference<>() {
+        };
         List<AuthHrAccount> result = execute(
                 restClient.get()
                         .uri(uriBuilder -> uriBuilder
@@ -190,8 +191,7 @@ public class RestAuthClient implements AuthClient {
                                 .queryParam("companyId", companyId)
                                 .build()),
                 typeRef,
-                false
-        );
+                false);
         return result != null ? result : Collections.emptyList();
     }
 
@@ -204,7 +204,8 @@ public class RestAuthClient implements AuthClient {
                 .map(UUID::toString)
                 .collect(Collectors.joining(","));
 
-        ParameterizedTypeReference<AuthEnvelope<Map<String, Long>>> typeRef = new ParameterizedTypeReference<>() {};
+        ParameterizedTypeReference<AuthEnvelope<Map<String, Long>>> typeRef = new ParameterizedTypeReference<>() {
+        };
         Map<String, Long> rawMap = execute(
                 restClient.get()
                         .uri(uriBuilder -> uriBuilder
@@ -212,8 +213,7 @@ public class RestAuthClient implements AuthClient {
                                 .queryParam("companyIds", idsJoined)
                                 .build()),
                 typeRef,
-                false
-        );
+                false);
 
         Map<UUID, Long> result = new HashMap<>();
         if (rawMap != null) {
