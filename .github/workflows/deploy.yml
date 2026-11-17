@@ -2,9 +2,8 @@
 name: Deploy to VPS
 
 on:
-  push:
-    branches:
-      - dev
+  workflow_call:
+  workflow_dispatch:
 
 concurrency:
   group: production-deploy
