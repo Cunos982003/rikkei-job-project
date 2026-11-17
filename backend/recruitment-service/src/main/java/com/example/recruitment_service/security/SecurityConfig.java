@@ -26,12 +26,31 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/jobs/*/recruit", "/me/recruitments/*/withdraw")
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/v1/jobs/*/recruit",
+                                "/api/v1/me/recruitments/*/withdraw")
                         .hasRole("CANDIDATE")
-                        .requestMatchers(HttpMethod.GET, "/me/recruitments", "/me/recruitments/**")
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/v1/me/recruitments",
+                                "/api/v1/me/recruitments/**")
                         .hasRole("CANDIDATE")
-                        .requestMatchers(HttpMethod.GET, "/recruitments/*/cv-snapshot")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/staff/recruitments")
+                        .hasRole("STAFF")
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/v1/recruitments/*/cv-snapshot")
                         .hasAnyRole("CANDIDATE", "HR")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/recruitments/*")
+                        .hasAnyRole("HR", "STAFF")
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/v1/recruitments/*/transition",
+                                "/api/v1/recruitments/*/rounds")
+                        .hasRole("HR")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/recruitments/*/rounds/*")
+                        .hasRole("HR")
                         .anyRequest().denyAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

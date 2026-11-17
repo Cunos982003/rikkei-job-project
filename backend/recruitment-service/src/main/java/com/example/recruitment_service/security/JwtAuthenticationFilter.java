@@ -60,10 +60,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
                 String authority = role.startsWith("ROLE_") ? role : "ROLE_" + role;
                 String companyId = claims.get("companyId", String.class);
+                String email = claims.get("email", String.class);
                 UserPrincipal principal = new UserPrincipal(
                         UUID.fromString(userId),
                         authority.substring("ROLE_".length()),
-                        companyId == null || companyId.isBlank() ? null : UUID.fromString(companyId));
+                        companyId == null || companyId.isBlank() ? null : UUID.fromString(companyId),
+                        email);
                 var authentication = new UsernamePasswordAuthenticationToken(
                         principal, null, java.util.List.of(new SimpleGrantedAuthority(authority)));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
