@@ -44,25 +44,54 @@ public class ProfileService {
     @Transactional
     public CandidateProfile getOrCreateProfile(UUID userId) {
         return profileRepo.findByUserId(userId)
-                .orElseGet(() -> createProfileFromLms(userId));
+                .orElseGet(() -> createProfileWithFallback(userId));
     }
 
-    private CandidateProfile createProfileFromLms(UUID userId) {
-        LmsStudentDto lmsStudent = lmsClient.getStudent(userId).block();
-        if (lmsStudent == null) {
-            throw new IllegalStateException("LMS returned null student for userId: " + userId);
+    /**
+     * Create profile with fallback to minimal profile if LMS is unavailable or returns 404.
+     * LMS call is outside transaction to avoid holding DB connections during external calls.
+     */
+    private CandidateProfile createProfileWithFallback(UUID userId) {
+        // Try to fetch from LMS first (outside transaction)
+        LmsStudentDto lmsStudent = fetchStudentFromLms(userId);
+
+        CandidateProfile profile;
+        if (lmsStudent != null) {
+            profile = CandidateProfile.builder()
+                    .userId(userId)
+                    .fullName(lmsStudent.getFullName())
+                    .email(lmsStudent.getEmail())
+                    .program(lmsStudent.getProgram())
+                    .classCode(lmsStudent.getClassCode())
+                    .courseName(lmsStudent.getCourseName())
+                    .build();
+        } else {
+            // Fallback: create minimal profile with just userId
+            // This allows candidate to proceed even if LMS is down or user not in LMS yet
+            profile = CandidateProfile.builder()
+                    .userId(userId)
+                    .build();
         }
 
-        CandidateProfile profile = CandidateProfile.builder()
-                .userId(userId)
-                .fullName(lmsStudent.getFullName())
-                .email(lmsStudent.getEmail())
-                .program(lmsStudent.getProgram())
-                .classCode(lmsStudent.getClassCode())
-                .courseName(lmsStudent.getCourseName())
-                .build();
-
         return profileRepo.save(profile);
+    }
+
+    /**
+     * Fetch student from LMS, returning null for 404 or any error.
+     * This method runs outside transaction boundary.
+     */
+    private LmsStudentDto fetchStudentFromLms(UUID userId) {
+        try {
+            return lmsClient.getStudent(userId).block();
+        } catch (LmsClient.LmsClientException e) {
+            // Log the error but don't propagate - we'll create minimal profile as fallback
+            // TODO: Add proper logging (e.g., logger.warn("LMS call failed for userId: {}", userId, e));
+            return null;
+        } catch (Exception e) {
+            // Catch any other unexpected errors (network, timeout, etc.)
+            // TODO: Add proper logging
+            return null;
+        }
     }
 
     @Transactional

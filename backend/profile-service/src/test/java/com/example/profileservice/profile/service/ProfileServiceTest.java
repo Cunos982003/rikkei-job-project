@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.http.HttpStatus;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -102,6 +104,48 @@ class ProfileServiceTest {
         assertThat(profile.getClassCode()).isEqualTo("Class 1A");
         assertThat(profile.getCourseName()).isEqualTo("Java Course");
         assertThat(profile.getVisibility()).isEqualTo(CandidateProfile.Visibility.PRIVATE);
+        verify(lmsClient).getStudent(TEST_USER_ID);
+        verify(candidateProfileRepository).save(any(CandidateProfile.class));
+    }
+
+    @Test
+    void getOrCreateProfile_handles_lms_404_gracefully_creates_minimal_profile() {
+        // Given — LMS returns 404 (empty Mono)
+        when(lmsClient.getStudent(TEST_USER_ID)).thenReturn(Mono.empty());
+        when(candidateProfileRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.empty());
+        when(candidateProfileRepository.save(any(CandidateProfile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        CandidateProfile profile = profileService.getOrCreateProfile(TEST_USER_ID);
+
+        // Then — minimal profile created with just userId, no LMS data
+        assertThat(profile).isNotNull();
+        assertThat(profile.getUserId()).isEqualTo(TEST_USER_ID);
+        assertThat(profile.getFullName()).isNull();
+        assertThat(profile.getEmail()).isNull();
+        assertThat(profile.getProgram()).isNull();
+        assertThat(profile.getClassCode()).isNull();
+        assertThat(profile.getCourseName()).isNull();
+        assertThat(profile.getVisibility()).isEqualTo(CandidateProfile.Visibility.PRIVATE);
+        verify(lmsClient).getStudent(TEST_USER_ID);
+        verify(candidateProfileRepository).save(any(CandidateProfile.class));
+    }
+
+    @Test
+    void getOrCreateProfile_handles_lms_exception_gracefully_creates_minimal_profile() {
+        // Given — LMS throws exception (e.g., 500, network error)
+        when(lmsClient.getStudent(TEST_USER_ID)).thenReturn(Mono.error(
+                new LmsClient.LmsClientException("LMS request failed: 500 Internal Server Error", HttpStatus.INTERNAL_SERVER_ERROR)));
+        when(candidateProfileRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.empty());
+        when(candidateProfileRepository.save(any(CandidateProfile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        CandidateProfile profile = profileService.getOrCreateProfile(TEST_USER_ID);
+
+        // Then — minimal profile created as fallback
+        assertThat(profile).isNotNull();
+        assertThat(profile.getUserId()).isEqualTo(TEST_USER_ID);
+        assertThat(profile.getFullName()).isNull();
         verify(lmsClient).getStudent(TEST_USER_ID);
         verify(candidateProfileRepository).save(any(CandidateProfile.class));
     }

@@ -5,6 +5,7 @@ import com.example.profileservice.profile.api.dto.ReviewHistoryItemDto;
 import com.example.profileservice.profile.api.dto.SelfSkillDto;
 import com.example.profileservice.profile.api.dto.UpdateProfileRequest;
 import com.example.profileservice.profile.domain.CandidateProfile;
+import com.example.profileservice.profile.infrastructure.LmsClient;
 import com.example.profileservice.profile.service.InvalidTransitionException;
 import com.example.profileservice.profile.service.ProfileService;
 import com.example.profileservice.profile.service.VisibilityService;
@@ -102,6 +103,17 @@ public class ProfileController {
     public ResponseEntity<Map<String, Object>> handleBadRequest(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
                 "statusCode", HttpStatus.BAD_REQUEST.value(),
+                "message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(LmsClient.LmsClientException.class)
+    public ResponseEntity<Map<String, Object>> handleLmsClientException(LmsClient.LmsClientException ex) {
+        HttpStatus status = ex.getStatusCode() != null ? ex.getStatusCode() : HttpStatus.SERVICE_UNAVAILABLE;
+        // For 404 (student not in LMS), return 404 to indicate resource not found
+        // For other errors (5xx, other 4xx), return 503 Service Unavailable
+        HttpStatus responseStatus = (status == HttpStatus.NOT_FOUND) ? HttpStatus.NOT_FOUND : HttpStatus.SERVICE_UNAVAILABLE;
+        return ResponseEntity.status(responseStatus).body(Map.of(
+                "statusCode", responseStatus.value(),
                 "message", ex.getMessage()));
     }
 }
