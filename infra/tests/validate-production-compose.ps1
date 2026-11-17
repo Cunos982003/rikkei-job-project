@@ -36,6 +36,14 @@ foreach ($serviceName in $requiredServices) {
     }
 }
 
+$recruitmentEnvironment = $config.services.'recruitment-service'.environment
+$aiCareerEnvironment = $config.services.'ai-career-service'.environment
+if ($recruitmentEnvironment.AI_CAREER_SERVICE_URL -ne 'http://ai-career-service:8090' -or
+    [string]::IsNullOrWhiteSpace($recruitmentEnvironment.INTERNAL_SERVICE_TOKEN) -or
+    $recruitmentEnvironment.INTERNAL_SERVICE_TOKEN -ne $aiCareerEnvironment.INTERNAL_SERVICE_TOKEN) {
+    throw 'Recruitment and AI Career must share the internal token and Recruitment must use the in-container AI URL.'
+}
+
 $forbiddenServices = @(
     'wiremock',
     'mock-api',
@@ -118,9 +126,9 @@ if ($nginxConfig -notmatch 'location \^~ /lms/\s*\{\s*return 404;\s*\}' -or
     throw 'Production Nginx must block mock LMS ticket routes without forwarding the service key.'
 }
 
-$requiredVariables = @('LMS_BASE_URL', 'AI_PROVIDER_API_KEY')
+$requiredVariables = @('LMS_BASE_URL', 'AI_PROVIDER_API_KEY', 'INTERNAL_SERVICE_TOKEN')
 foreach ($requiredVariable in $requiredVariables) {
-    $temporaryEnvFile = Join-Path ([IO.Path]::GetTempPath()) "rikkei-prod-compose-$([Guid]::NewGuid().ToString('N')).env"
+    $temporaryEnvFile = Join-Path $root ".env.prod.validation-$([Guid]::NewGuid().ToString('N'))"
     try {
         $environmentLines = @(Get-Content -LiteralPath $envFile | Where-Object { $_ -notmatch "^$requiredVariable=" })
         [IO.File]::WriteAllLines($temporaryEnvFile, [string[]]$environmentLines, [Text.Encoding]::ASCII)

@@ -93,6 +93,16 @@ class GatewayIntegrationTest {
     }
 
     @Test
+    void routesStaffRecruitmentsToRecruitmentService() throws Exception {
+        String token = token(Instant.now().plusSeconds(60));
+        HttpResponse<String> response = send("GET", "/api/v1/staff/recruitments", token);
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).isEqualTo("/api/v1/staff/recruitments|Bearer " + token);
+        assertThat(response.headers().firstValue("X-Test-Upstream")).contains("recruitment");
+    }
+
+    @Test
     void permitsPublicLoginButRejectsMissingInvalidAndExpiredTokensElsewhere() throws Exception {
         assertThat(send("POST", "/api/v1/auth/login", null).statusCode()).isEqualTo(200);
         assertThat(send("POST", "/api/services/job/api/v1/auth/login", null).statusCode()).isEqualTo(200);
