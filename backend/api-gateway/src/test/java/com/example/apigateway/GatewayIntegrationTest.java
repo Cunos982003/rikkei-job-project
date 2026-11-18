@@ -36,7 +36,10 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "app.jwt.secret=test-only-signing-key-not-for-production")
+        properties = {
+                "app.jwt.secret=test-only-signing-key-not-for-production",
+                "app.gateway.rate-limit-fail-open=false"
+        })
 class GatewayIntegrationTest {
     private static final String SECRET = "test-only-signing-key-not-for-production";
     private static final Map<String, HttpServer> UPSTREAMS = startUpstreams();

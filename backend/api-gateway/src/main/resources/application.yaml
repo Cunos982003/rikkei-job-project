@@ -150,3 +150,4 @@ app:
   gateway:
     allowed-origins: ${GATEWAY_ALLOWED_ORIGINS:http://localhost:5173}
     rate-limit-per-minute: ${GATEWAY_RATE_LIMIT_PER_MINUTE:60}
+    rate-limit-fail-open: ${GATEWAY_RATE_LIMIT_FAIL_OPEN:false}

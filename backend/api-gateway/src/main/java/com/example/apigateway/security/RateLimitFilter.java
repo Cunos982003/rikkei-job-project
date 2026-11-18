@@ -31,13 +31,19 @@ abstract class RateLimitFilter extends OncePerRequestFilter {
 
     private final StringRedisTemplate redis;
     private final int limit;
+    private final boolean failOpen;
 
     RateLimitFilter(StringRedisTemplate redis, int limit) {
+        this(redis, limit, false);
+    }
+
+    RateLimitFilter(StringRedisTemplate redis, int limit, boolean failOpen) {
         if (limit < 1) {
             throw new IllegalArgumentException("Rate limit must be at least one request per minute");
         }
         this.redis = redis;
         this.limit = limit;
+        this.failOpen = failOpen;
     }
 
     @Override
@@ -57,6 +63,11 @@ abstract class RateLimitFilter extends OncePerRequestFilter {
         try {
             Long allowed = redis.execute(SCRIPT, List.of("gateway:rate:" + identity), Integer.toString(limit));
             if (allowed == null) {
+                if (failOpen) {
+                    log.warn("Redis returned no result for gateway rate limit; allowing request because fail-open is enabled");
+                    chain.doFilter(request, response);
+                    return;
+                }
                 log.error("Redis returned no result for the gateway rate limit");
                 GatewayError.write(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                         "Dịch vụ giới hạn tần suất không khả dụng");
@@ -67,6 +78,12 @@ abstract class RateLimitFilter extends OncePerRequestFilter {
                 return;
             }
         } catch (DataAccessException ex) {
+            if (failOpen) {
+                log.warn("Gateway rate limiting Redis unavailable; allowing request because fail-open is enabled: {}",
+                        ex.getMessage());
+                chain.doFilter(request, response);
+                return;
+            }
             log.error("Gateway rate limiting is unavailable", ex);
             GatewayError.write(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                     "Dịch vụ giới hạn tần suất không khả dụng");
@@ -88,7 +105,11 @@ abstract class RateLimitFilter extends OncePerRequestFilter {
 
     static final class IpRateLimitFilter extends RateLimitFilter {
         IpRateLimitFilter(StringRedisTemplate redis, int limit) {
-            super(redis, limit);
+            super(redis, limit, false);
+        }
+
+        IpRateLimitFilter(StringRedisTemplate redis, int limit, boolean failOpen) {
+            super(redis, limit, failOpen);
         }
 
         @Override
@@ -99,7 +120,11 @@ abstract class RateLimitFilter extends OncePerRequestFilter {
 
     static final class UserRateLimitFilter extends RateLimitFilter {
         UserRateLimitFilter(StringRedisTemplate redis, int limit) {
-            super(redis, limit);
+            super(redis, limit, false);
+        }
+
+        UserRateLimitFilter(StringRedisTemplate redis, int limit, boolean failOpen) {
+            super(redis, limit, failOpen);
         }
 
         @Override
