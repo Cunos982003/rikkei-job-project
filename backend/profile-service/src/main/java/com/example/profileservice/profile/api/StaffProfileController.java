@@ -1,5 +1,6 @@
 package com.example.profileservice.profile.api;
 
+import com.example.profileservice.common.ApiResponse;
 import com.example.profileservice.profile.api.dto.PendingReviewDto;
 import com.example.profileservice.profile.api.dto.StaffEditSelfDeclaredRequest;
 import com.example.profileservice.profile.api.dto.StaffEditSelfDeclaredResponse;
@@ -32,7 +33,7 @@ public class StaffProfileController {
     private final VisibilityService visibilityService;
 
     @GetMapping("/profile-reviews")
-    public ResponseEntity<?> listProfileReviews(
+    public ResponseEntity<ApiResponse<Page<PendingReviewDto>>> listProfileReviews(
             @RequestHeader(value = "X-User-Id", required = false) UUID staffId,
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @RequestParam(value = "status", required = false, defaultValue = "PENDING") String status,
@@ -40,116 +41,108 @@ public class StaffProfileController {
             @RequestParam(value = "classCode", required = false) String classCode,
             @RequestParam(value = "page", required = false, defaultValue = "0") int page,
             @RequestParam(value = "size", required = false, defaultValue = "20") int size) {
-        ResponseEntity<Map<String, Object>> denied = requireStaff(staffId, role);
+        ResponseEntity<?> denied = requireStaff(staffId, role);
         if (denied != null) {
-            return denied;
+            return (ResponseEntity<ApiResponse<Page<PendingReviewDto>>>) denied;
         }
 
         Visibility visibility;
         try {
             visibility = Visibility.valueOf(status.trim().toUpperCase());
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "statusCode", HttpStatus.BAD_REQUEST.value(),
-                    "message", "Trạng thái không hợp lệ: " + status));
+            return ResponseEntity.badRequest().body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Trạng thái không hợp lệ: " + status));
         }
 
         Page<PendingReviewDto> result = visibilityService.listByStatus(
                 visibility, q, classCode, PageRequest.of(Math.max(page, 0), size <= 0 ? 20 : size));
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(ApiResponse.success("Profile reviews retrieved successfully", result));
     }
 
     @GetMapping("/profiles/{userId}/preview")
-    public ResponseEntity<?> previewProfile(
+    public ResponseEntity<ApiResponse<StaffPreviewProfileDto>> previewProfile(
             @RequestHeader(value = "X-User-Id", required = false) UUID staffId,
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable UUID userId) {
-        ResponseEntity<Map<String, Object>> denied = requireStaff(staffId, role);
+        ResponseEntity<?> denied = requireStaff(staffId, role);
         if (denied != null) {
-            return denied;
+            return (ResponseEntity<ApiResponse<StaffPreviewProfileDto>>) denied;
         }
 
         StaffPreviewProfileDto preview = visibilityService.getPreviewProfile(userId);
-        return ResponseEntity.ok(preview);
+        return ResponseEntity.ok(ApiResponse.success("Profile preview retrieved successfully", preview));
     }
 
     @PutMapping("/profiles/{userId}/self-declared")
-    public ResponseEntity<?> editSelfDeclared(
+    public ResponseEntity<ApiResponse<StaffEditSelfDeclaredResponse>> editSelfDeclared(
             @RequestHeader(value = "X-User-Id", required = false) UUID staffId,
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable UUID userId,
             @RequestBody StaffEditSelfDeclaredRequest request) {
-        ResponseEntity<Map<String, Object>> denied = requireStaff(staffId, role);
+        ResponseEntity<?> denied = requireStaff(staffId, role);
         if (denied != null) {
-            return denied;
+            return (ResponseEntity<ApiResponse<StaffEditSelfDeclaredResponse>>) denied;
         }
 
         StaffEditSelfDeclaredResponse response = visibilityService.editSelfDeclared(userId, staffId, request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Self-declared field updated successfully", response));
     }
 
     @PostMapping("/profiles/{userId}/approve")
-    public ResponseEntity<?> approve(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> approve(
             @RequestHeader(value = "X-User-Id", required = false) UUID staffId,
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable UUID userId) {
-        ResponseEntity<Map<String, Object>> denied = requireStaff(staffId, role);
+        ResponseEntity<?> denied = requireStaff(staffId, role);
         if (denied != null) {
-            return denied;
+            return (ResponseEntity<ApiResponse<Map<String, Object>>>) denied;
         }
 
         visibilityService.approve(userId, staffId);
-        return ResponseEntity.ok(Map.of(
+        Map<String, Object> data = Map.of(
                 "userId", userId.toString(),
-                "visibility", Visibility.PUBLIC.name()));
+                "visibility", Visibility.PUBLIC.name());
+        return ResponseEntity.ok(ApiResponse.success("Profile approved successfully", data));
     }
 
     @PostMapping("/profiles/{userId}/reject")
-    public ResponseEntity<?> reject(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> reject(
             @RequestHeader(value = "X-User-Id", required = false) UUID staffId,
             @RequestHeader(value = "X-User-Role", required = false) String role,
             @PathVariable UUID userId,
             @RequestBody(required = false) StaffRejectRequest request) {
-        ResponseEntity<Map<String, Object>> denied = requireStaff(staffId, role);
+        ResponseEntity<?> denied = requireStaff(staffId, role);
         if (denied != null) {
-            return denied;
+            return (ResponseEntity<ApiResponse<Map<String, Object>>>) denied;
         }
 
         visibilityService.reject(userId, staffId, request == null ? null : request.getReason());
-        return ResponseEntity.ok(Map.of(
+        Map<String, Object> data = Map.of(
                 "userId", userId.toString(),
-                "visibility", Visibility.REJECTED.name()));
+                "visibility", Visibility.REJECTED.name());
+        return ResponseEntity.ok(ApiResponse.success("Profile rejected successfully", data));
     }
 
     /**
      * @return null khi hợp lệ, ngược lại là response 401/403 tương ứng.
      */
-    private ResponseEntity<Map<String, Object>> requireStaff(UUID staffId, String role) {
+    private ResponseEntity<?> requireStaff(UUID staffId, String role) {
         if (staffId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
-                    "statusCode", HttpStatus.UNAUTHORIZED.value(),
-                    "message", "Thiếu header X-User-Id"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Thiếu header X-User-Id"));
         }
         String normalized = role == null ? "" : role.trim().toUpperCase().replace("ROLE_", "");
         if (!"STAFF".equals(normalized) && !"ADMIN".equals(normalized)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                    "statusCode", HttpStatus.FORBIDDEN.value(),
-                    "message", "Chức năng chỉ dành cho Cán bộ tuyển dụng (STAFF)"));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(HttpStatus.FORBIDDEN, "Chức năng chỉ dành cho Cán bộ tuyển dụng (STAFF)"));
         }
         return null;
     }
 
     @ExceptionHandler(InvalidTransitionException.class)
-    public ResponseEntity<Map<String, Object>> handleInvalidTransition(InvalidTransitionException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
-                "statusCode", HttpStatus.CONFLICT.value(),
-                "message", ex.getMessage()));
+    public ResponseEntity<ApiResponse<Void>> handleInvalidTransition(InvalidTransitionException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(HttpStatus.CONFLICT, ex.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleBadRequest(IllegalArgumentException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
-                "statusCode", HttpStatus.BAD_REQUEST.value(),
-                "message", ex.getMessage()));
+    public ResponseEntity<ApiResponse<Void>> handleBadRequest(IllegalArgumentException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(HttpStatus.BAD_REQUEST, ex.getMessage()));
     }
 }

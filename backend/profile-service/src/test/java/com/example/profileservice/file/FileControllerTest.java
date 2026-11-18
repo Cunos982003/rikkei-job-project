@@ -42,7 +42,7 @@ class FileControllerTest {
 
         mockMvc.perform(multipart("/api/v1/files").file(file))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.url").value(org.hamcrest.Matchers.startsWith("/files/")));
+                .andExpect(jsonPath("$.data.url").value(org.hamcrest.Matchers.startsWith("/files/")));
     }
 
     @Test

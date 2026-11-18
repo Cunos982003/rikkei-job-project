@@ -96,13 +96,13 @@ class ProfileIntegrationTest {
 
         mvc.perform(get("/api/v1/profiles/me").header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.userId").value(userId.toString()))
-                .andExpect(jsonPath("$.fullName").doesNotExist())
-                .andExpect(jsonPath("$.email").doesNotExist())
-                .andExpect(jsonPath("$.program").doesNotExist())
-                .andExpect(jsonPath("$.classCode").doesNotExist())
-                .andExpect(jsonPath("$.courseName").doesNotExist())
-                .andExpect(jsonPath("$.visibility").value("PRIVATE"));
+                .andExpect(jsonPath("$.data.userId").value(userId.toString()))
+                .andExpect(jsonPath("$.data.fullName").doesNotExist())
+                .andExpect(jsonPath("$.data.email").doesNotExist())
+                .andExpect(jsonPath("$.data.program").doesNotExist())
+                .andExpect(jsonPath("$.data.classCode").doesNotExist())
+                .andExpect(jsonPath("$.data.courseName").doesNotExist())
+                .andExpect(jsonPath("$.data.visibility").value("PRIVATE"));
     }
 
     @Test
@@ -114,9 +114,9 @@ class ProfileIntegrationTest {
 
         mvc.perform(get("/api/v1/profiles/me").header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.userId").value(userId.toString()))
-                .andExpect(jsonPath("$.fullName").doesNotExist())
-                .andExpect(jsonPath("$.visibility").value("PRIVATE"));
+                .andExpect(jsonPath("$.data.userId").value(userId.toString()))
+                .andExpect(jsonPath("$.data.fullName").doesNotExist())
+                .andExpect(jsonPath("$.data.visibility").value("PRIVATE"));
     }
 
     @Test
@@ -128,12 +128,12 @@ class ProfileIntegrationTest {
 
         mvc.perform(get("/api/v1/profiles/me").header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.fullName").value("Nguyễn Văn An"))
-                .andExpect(jsonPath("$.email").value("an@rikkeijobs.test"))
-                .andExpect(jsonPath("$.program").value("Java Fullstack"))
-                .andExpect(jsonPath("$.classCode").value("RA-JAVA-2026"))
-                .andExpect(jsonPath("$.courseName").value("Lập trình Java Fullstack"))
-                .andExpect(jsonPath("$.visibility").value("PRIVATE"));
+                .andExpect(jsonPath("$.data.fullName").value("Nguyễn Văn An"))
+                .andExpect(jsonPath("$.data.email").value("an@rikkeijobs.test"))
+                .andExpect(jsonPath("$.data.program").value("Java Fullstack"))
+                .andExpect(jsonPath("$.data.classCode").value("RA-JAVA-2026"))
+                .andExpect(jsonPath("$.data.courseName").value("Lập trình Java Fullstack"))
+                .andExpect(jsonPath("$.data.visibility").value("PRIVATE"));
     }
 
     @Test
@@ -171,17 +171,17 @@ class ProfileIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.phone").value("0987654321"))
-                .andExpect(jsonPath("$.address").value("Hà Nội"))
-                .andExpect(jsonPath("$.headline").value("Java Backend Developer"))
+                .andExpect(jsonPath("$.data.phone").value("0987654321"))
+                .andExpect(jsonPath("$.data.address").value("Hà Nội"))
+                .andExpect(jsonPath("$.data.headline").value("Java Backend Developer"))
                 // visibility is workflow-owned: a PUT cannot self-publish
-                .andExpect(jsonPath("$.visibility").value("PRIVATE"))
+                .andExpect(jsonPath("$.data.visibility").value("PRIVATE"))
                 // LMS-owned fields must survive untouched
-                .andExpect(jsonPath("$.fullName").value("Nguyễn Văn An"))
-                .andExpect(jsonPath("$.email").value("an@rikkeijobs.test"))
-                .andExpect(jsonPath("$.program").value("Java Fullstack"))
-                .andExpect(jsonPath("$.classCode").value("RA-JAVA-2026"))
-                .andExpect(jsonPath("$.courseName").value("Java Course"));
+                .andExpect(jsonPath("$.data.fullName").value("Nguyễn Văn An"))
+                .andExpect(jsonPath("$.data.email").value("an@rikkeijobs.test"))
+                .andExpect(jsonPath("$.data.program").value("Java Fullstack"))
+                .andExpect(jsonPath("$.data.classCode").value("RA-JAVA-2026"))
+                .andExpect(jsonPath("$.data.courseName").value("Java Course"));
     }
 
     @Test
@@ -203,9 +203,9 @@ class ProfileIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"visibility\":\"PUBLIC\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.phone").value("0900000000"))
-                .andExpect(jsonPath("$.headline").value("Dev"))
-                .andExpect(jsonPath("$.visibility").value("PRIVATE"));
+                .andExpect(jsonPath("$.data.phone").value("0900000000"))
+                .andExpect(jsonPath("$.data.headline").value("Dev"))
+                .andExpect(jsonPath("$.data.visibility").value("PRIVATE"));
     }
 
     @Test
@@ -223,16 +223,16 @@ class ProfileIntegrationTest {
                                  "fromDate":"2021-09-01","toDate":"2025-06-30","gpa":3.45,"note":"Học bổng"}
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.school").value("Đại học Bách Khoa Hà Nội"))
-                .andExpect(jsonPath("$.fromDate").value("2021-09-01"))
-                .andExpect(jsonPath("$.gpa").value(3.45))
+                .andExpect(jsonPath("$.data.school").value("Đại học Bách Khoa Hà Nội"))
+                .andExpect(jsonPath("$.data.fromDate").value("2021-09-01"))
+                .andExpect(jsonPath("$.data.gpa").value(3.45))
                 .andReturn().getResponse().getContentAsString();
 
         String id = created.replaceAll(".*\"id\"\\s*:\\s*\"([^\"]+)\".*", "$1");
 
         mvc.perform(get("/api/v1/profiles/me/educations").header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)));
+                .andExpect(jsonPath("$.data", hasSize(1)));
 
         mvc.perform(put("/api/v1/profiles/me/educations/" + id)
                         .header("X-User-Id", userId.toString())
@@ -242,15 +242,15 @@ class ProfileIntegrationTest {
                                  "fromDate":"2021-09-01","toDate":"2025-06-30","gpa":3.9,"note":""}
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.school").value("Đại học Quốc gia"))
-                .andExpect(jsonPath("$.gpa").value(3.9));
+                .andExpect(jsonPath("$.data.school").value("Đại học Quốc gia"))
+                .andExpect(jsonPath("$.data.gpa").value(3.9));
 
         mvc.perform(delete("/api/v1/profiles/me/educations/" + id).header("X-User-Id", userId.toString()))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk());
 
         mvc.perform(get("/api/v1/profiles/me/educations").header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(0)));
+                .andExpect(jsonPath("$.data", hasSize(0)));
     }
 
     @Test
@@ -268,8 +268,8 @@ class ProfileIntegrationTest {
                                  "expiresAt":null,"fileUrl":"/files/x.pdf","fileType":"PDF"}
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.issuer").value("Oracle"))
-                .andExpect(jsonPath("$.issuedAt").value("2026-05-20"))
+                .andExpect(jsonPath("$.data.issuer").value("Oracle"))
+                .andExpect(jsonPath("$.data.issuedAt").value("2026-05-20"))
                 .andReturn().getResponse().getContentAsString();
 
         String id = created.replaceAll(".*\"id\"\\s*:\\s*\"([^\"]+)\".*", "$1");
@@ -281,14 +281,14 @@ class ProfileIntegrationTest {
                                 {"name":"OCP Java SE 17","issuer":"Oracle","issuedAt":"2026-05-20"}
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("OCP Java SE 17"));
+                .andExpect(jsonPath("$.data.name").value("OCP Java SE 17"));
 
         mvc.perform(delete("/api/v1/profiles/me/certificates/" + id).header("X-User-Id", userId.toString()))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk());
 
         mvc.perform(get("/api/v1/profiles/me/certificates").header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(0)));
+                .andExpect(jsonPath("$.data", hasSize(0)));
     }
 
     @Test
@@ -298,7 +298,7 @@ class ProfileIntegrationTest {
 
         String body = mvc.perform(multipart("/api/v1/files").file(file))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.url", startsWith("/files/")))
+                .andExpect(jsonPath("$.data.url", startsWith("/files/")))
                 .andReturn().getResponse().getContentAsString();
 
         String storedName = body.replaceAll(".*\"/files/([^\"]+)\".*", "$1");
@@ -322,10 +322,10 @@ class ProfileIntegrationTest {
 
         mvc.perform(get("/api/v1/profiles/me/skills").header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.skillCode=='JAVA_CORE')].selfScore", hasItem(88)))
+                .andExpect(jsonPath("$.data[?(@.skillCode=='JAVA_CORE')].selfScore", hasItem(88)))
                 // self-declared only — never a verified score
-                .andExpect(jsonPath("$[?(@.skillCode=='JAVA_CORE')].verifiedScore", hasItem(nullValue())))
-                .andExpect(jsonPath("$[?(@.skillCode=='JAVA_CORE')].evidences[?(@.source=='SELF')].score", hasItem(88)));
+                .andExpect(jsonPath("$.data[?(@.skillCode=='JAVA_CORE')].verifiedScore", hasItem(nullValue())))
+                .andExpect(jsonPath("$.data[?(@.skillCode=='JAVA_CORE')].evidences[?(@.source=='SELF')].score", hasItem(88)));
     }
 
 }
