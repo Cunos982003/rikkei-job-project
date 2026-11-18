@@ -374,7 +374,31 @@ public class RecruitmentService {
         if (request.scheduledAt() != null) {
             round.setScheduledAt(request.scheduledAt());
         }
-        return interviewRoundRepository.save(round);
+        InterviewRound saved = interviewRoundRepository.save(round);
+
+        if (request.result() != InterviewRoundResult.PENDING) {
+            if (interviewScheduleRepository != null) {
+                var activeSchedules = interviewScheduleRepository.findByRound_IdAndStatus(
+                        roundId, InterviewScheduleStatus.SCHEDULED);
+                if (!activeSchedules.isEmpty()) {
+                    for (InterviewSchedule schedule : activeSchedules) {
+                        schedule.setStatus(InterviewScheduleStatus.DONE);
+                    }
+                    interviewScheduleRepository.saveAll(activeSchedules);
+                }
+            }
+            eventPublisher.publishEvent(new InterviewResultReportedEvent(
+                    recruitmentId,
+                    saved.getId(),
+                    saved.getRoundNo(),
+                    saved.getName(),
+                    recruitment.getCandidate_email(),
+                    saved.getResult(),
+                    saved.getScore(),
+                    saved.getNote()));
+        }
+
+        return saved;
     }
 
     @Transactional(readOnly = true)

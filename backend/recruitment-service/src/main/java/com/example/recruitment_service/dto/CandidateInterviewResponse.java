@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.example.recruitment_service.enums.InterviewRoundResult;
+import com.example.recruitment_service.enums.RecruitmentStatus;
 
 public record CandidateInterviewResponse(
         UUID roundId,
@@ -14,6 +15,9 @@ public record CandidateInterviewResponse(
         String roundName,
         String interviewerEmail,
         InterviewRoundResult result,
+        Integer score,
+        String note,
+        RecruitmentStatus applicationStatus,
         List<InterviewSlotResponse> slots,
         InterviewScheduleResponse schedule) {
 }

@@ -205,6 +205,9 @@ public class InterviewScheduleService {
                     round.getName(),
                     round.getInterviewerEmail(),
                     round.getResult(),
+                    round.getScore(),
+                    round.getNote(),
+                    recruitment.getStatus(),
                     roundSlots,
                     schedule));
         }

@@ -243,4 +243,50 @@ public class RecruitmentEmailNotifier {
             log.error("Failed to send offer email for offer {}", event.offerId(), exception);
         }
     }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void notifyInterviewResult(InterviewResultReportedEvent event) {
+        if (!StringUtils.hasText(event.candidateEmail())) {
+            log.warn("No candidate email is recorded for interview result on round {}", event.roundId());
+            return;
+        }
+        if (!StringUtils.hasText(smtpHost)) {
+            log.info("SMTP is not configured; skipping interview result email for round {} (result={}, score={}) to {}",
+                    event.roundId(), event.result(), event.score(), event.candidateEmail());
+            return;
+        }
+        JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
+        if (mailSender == null) {
+            log.warn("JavaMailSender is unavailable; cannot send interview result for round {}", event.roundId());
+            return;
+        }
+        String resultLabel = switch (event.result()) {
+            case PASS -> "ĐẠT (PASS)";
+            case FAIL -> "KHÔNG ĐẠT (FAIL)";
+            case PENDING -> "ĐANG CHỜ KẾT QUẢ";
+        };
+        SimpleMailMessage message = new SimpleMailMessage();
+        if (StringUtils.hasText(senderAddress)) {
+            message.setFrom(senderAddress);
+        }
+        message.setTo(event.candidateEmail());
+        message.setSubject("[Rikkei Jobs] Báo cáo kết quả phỏng vấn Vòng " + event.roundNo() + ": " + event.roundName());
+        StringBuilder body = new StringBuilder();
+        body.append("Nhà tuyển dụng đã cập nhật kết quả phỏng vấn của bạn.\n");
+        body.append("Vòng phỏng vấn: Vòng ").append(event.roundNo()).append(" - ").append(event.roundName()).append("\n");
+        body.append("Kết quả: ").append(resultLabel).append("\n");
+        if (event.score() != null) {
+            body.append("Điểm đánh giá: ").append(event.score()).append("/100\n");
+        }
+        if (StringUtils.hasText(event.note())) {
+            body.append("Nhận xét từ nhà tuyển dụng: ").append(event.note()).append("\n");
+        }
+        body.append("Vui lòng đăng nhập Rikkei Jobs (mục Lịch phỏng vấn) để xem chi tiết báo cáo.");
+        message.setText(body.toString());
+        try {
+            mailSender.send(message);
+        } catch (MailException exception) {
+            log.error("Failed to send interview result email for round {}", event.roundId(), exception);
+        }
+    }
 }

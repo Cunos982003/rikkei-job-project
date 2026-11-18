@@ -1,6 +1,6 @@
 import { api } from "../client";
 import type { ApiResponse } from "../types/api";
-import type { InterviewRoundResult } from "./recruitment.api";
+import type { InterviewRoundResult, RecruitmentStatus } from "./recruitment.api";
 
 export type InterviewSlotStatus = "OPEN" | "PICKED" | "CANCELLED";
 export type InterviewScheduleStatus = "SCHEDULED" | "DONE" | "CANCELLED";
@@ -39,6 +39,9 @@ export interface CandidateInterviewItem {
   roundName: string;
   interviewerEmail: string | null;
   result: InterviewRoundResult;
+  score: number | null;
+  note: string | null;
+  applicationStatus?: RecruitmentStatus;
   slots: InterviewSlotItem[];
   schedule: InterviewScheduleItem | null;
 }

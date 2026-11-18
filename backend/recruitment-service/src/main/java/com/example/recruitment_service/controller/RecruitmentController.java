@@ -115,16 +115,6 @@ public class RecruitmentController {
         return ResponseEntity.ok(ApiResponse.success("Cập nhật vòng phỏng vấn thành công", round));
     }
 
-    @GetMapping("/hr/applications")
-    public ResponseEntity<ApiResponse<Page<RecruitmentStaffSummary>>> listForHr(
-            @AuthenticationPrincipal UserPrincipal actor,
-            @RequestParam(required = false) UUID jobId,
-            @RequestParam(required = false) RecruitmentStatus status,
-            @RequestParam(defaultValue = "0") @Min(0) int page) {
-        Page<RecruitmentStaffSummary> result = recruitmentService.listForHr(actor, jobId, status, page);
-        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách đơn ứng tuyển của doanh nghiệp thành công", result));
-    }
-
     @GetMapping({"/staff/recruitments", "/staff/applications"})
     public ResponseEntity<ApiResponse<Page<RecruitmentStaffSummary>>> listForStaff(
             @RequestParam(required = false) UUID companyId,

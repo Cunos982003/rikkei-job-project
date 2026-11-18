@@ -1,13 +1,17 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  Award,
   Bell,
   CalendarCheck,
   CheckCircle2,
   Clock,
   ExternalLink,
+  Gift,
   Mail,
+  MessageSquareText,
   RefreshCw,
   Video,
   XCircle,
@@ -47,6 +51,7 @@ function rangesOverlap(aStartIso: string, aEndIso: string, bStartIso: string, bE
 }
 
 export function CandidateInterviewsPage() {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const [selectedSlotByRound, setSelectedSlotByRound] = useState<Record<string, string>>({});
@@ -170,21 +175,34 @@ export function CandidateInterviewsPage() {
         <div className="space-y-5">
           {interviews.map((item) => {
             const activeSchedule =
-              item.schedule && item.schedule.status === "SCHEDULED" ? item.schedule : null;
+              item.schedule &&
+              (item.schedule.status === "SCHEDULED" || item.schedule.status === "DONE")
+                ? item.schedule
+                : null;
             const openSlots: InterviewSlotItem[] = item.slots.filter((s) => s.status === "OPEN");
             const selectedSlotId = selectedSlotByRound[item.roundId] || "";
+            const hasResultReport =
+              item.result !== "PENDING" || item.score !== null || Boolean(item.note);
 
             return (
               <Card key={item.roundId} className="overflow-hidden">
                 <CardHeader className="bg-slate-50/70 border-b border-border-subtle flex flex-row items-center justify-between gap-3">
                   <div>
-                    <CardTitle className="text-base flex items-center gap-2">
+                    <CardTitle className="text-base flex flex-wrap items-center gap-2">
                       <span>
                         Vòng {item.roundNo}: {item.roundName}
                       </span>
-                      {activeSchedule ? (
+                      {item.result === "PASS" ? (
                         <Badge variant="verified" size="sm">
-                          Đã chốt lịch
+                          Đạt (PASS)
+                        </Badge>
+                      ) : item.result === "FAIL" ? (
+                        <Badge variant="danger" size="sm">
+                          Không đạt (FAIL)
+                        </Badge>
+                      ) : activeSchedule ? (
+                        <Badge variant="verified" size="sm">
+                          {activeSchedule.status === "DONE" ? "Đã phỏng vấn" : "Đã chốt lịch"}
                         </Badge>
                       ) : openSlots.length > 0 ? (
                         <Badge variant="warning" size="sm">
@@ -193,6 +211,11 @@ export function CandidateInterviewsPage() {
                       ) : (
                         <Badge variant="default" size="sm">
                           Đã hủy / Chờ cập nhật
+                        </Badge>
+                      )}
+                      {item.score !== null && item.score !== undefined && (
+                        <Badge variant="primary" size="sm">
+                          Điểm: {item.score}/100
                         </Badge>
                       )}
                     </CardTitle>
@@ -206,13 +229,106 @@ export function CandidateInterviewsPage() {
                 </CardHeader>
 
                 <CardContent className="p-5 space-y-4">
+                  {/* Báo cáo điểm & kết quả phỏng vấn từ HR */}
+                  {hasResultReport && (
+                    <div
+                      className={`p-4 rounded-xl border space-y-3 ${
+                        item.result === "PASS"
+                          ? "bg-emerald-50/80 border-emerald-200"
+                          : item.result === "FAIL"
+                          ? "bg-rose-50/80 border-rose-200"
+                          : "bg-amber-50/70 border-amber-200"
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <Award
+                            className={`h-5 w-5 shrink-0 ${
+                              item.result === "PASS"
+                                ? "text-emerald-600"
+                                : item.result === "FAIL"
+                                ? "text-rose-600"
+                                : "text-amber-600"
+                            }`}
+                          />
+                          <div>
+                            <div className="text-xs font-bold text-foreground">
+                              Báo cáo kết quả phỏng vấn từ Nhà tuyển dụng
+                            </div>
+                            <div className="text-[11px] text-muted">
+                              {item.result === "PASS"
+                                ? "Chúc mừng! Bạn đã vượt qua vòng phỏng vấn này."
+                                : item.result === "FAIL"
+                                ? "Rất tiếc, kết quả vòng phỏng vấn này chưa đạt yêu cầu."
+                                : "Nhà tuyển dụng đã cập nhật đánh giá cho vòng phỏng vấn."}
+                            </div>
+                          </div>
+                        </div>
+
+                        {item.score !== null && item.score !== undefined && (
+                          <div className="flex items-center gap-2">
+                            <div className="text-right">
+                              <span className="text-lg font-extrabold text-primary">
+                                {item.score}
+                              </span>
+                              <span className="text-xs text-muted font-medium"> / 100 điểm</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {item.score !== null && item.score !== undefined && (
+                        <div className="w-full h-2 rounded-full bg-white/80 overflow-hidden border border-border-subtle">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              item.result === "FAIL"
+                                ? "bg-rose-500"
+                                : item.score >= 70
+                                ? "bg-emerald-500"
+                                : "bg-amber-500"
+                            }`}
+                            style={{ width: `${Math.min(100, Math.max(0, item.score))}%` }}
+                          />
+                        </div>
+                      )}
+
+                      {item.note && (
+                        <div className="rounded-lg bg-white/80 border border-border-subtle p-3 text-xs text-foreground flex items-start gap-2">
+                          <MessageSquareText className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-semibold block text-[11px] text-muted mb-0.5">
+                              Nhận xét / Phản hồi từ người phỏng vấn:
+                            </span>
+                            <p className="whitespace-pre-wrap leading-relaxed">{item.note}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {(item.applicationStatus === "OFFER" ||
+                        item.applicationStatus === "HIRED") && (
+                        <div className="flex justify-end pt-1">
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            leftIcon={<Gift className="h-3.5 w-3.5" />}
+                            onClick={() => navigate("/candidate/offers")}
+                          >
+                            Xem thư mời nhận việc (Offer)
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Confirmed Schedule Block */}
                   {activeSchedule && (
                     <div className="p-4 rounded-xl bg-emerald-50/80 border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="space-y-1.5">
                         <div className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
                           <CheckCircle2 className="h-4 w-4" />
-                          Thời gian phỏng vấn đã xác nhận
+                          {activeSchedule.status === "DONE"
+                            ? "Buổi phỏng vấn đã hoàn thành"
+                            : "Thời gian phỏng vấn đã xác nhận"}
                         </div>
                         <div className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                           <Clock className="h-4 w-4 text-emerald-700" />
@@ -233,16 +349,18 @@ export function CandidateInterviewsPage() {
                         </div>
                       </div>
 
-                      <a
-                        href={activeSchedule.meetUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors shrink-0 shadow-xs"
-                      >
-                        <Video className="h-4 w-4" />
-                        Vào phòng họp
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
+                      {activeSchedule.status === "SCHEDULED" && (
+                        <a
+                          href={activeSchedule.meetUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors shrink-0 shadow-xs"
+                        >
+                          <Video className="h-4 w-4" />
+                          Vào phòng họp
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
                     </div>
                   )}
 
