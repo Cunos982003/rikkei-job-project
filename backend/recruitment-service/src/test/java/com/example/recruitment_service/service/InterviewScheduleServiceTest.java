@@ -302,6 +302,86 @@ class InterviewScheduleServiceTest {
         assertEquals("candidate1@rikkeijobs.test", items.get(0).candidateEmail());
     }
 
+    @Test
+    void pickSlot_rejectsCandidateScheduleConflictWith409() {
+        InterviewRound round = sampleRound();
+        InterviewSlot chosenSlot = sampleSlot(round, FIXED_NOW.plus(24, ChronoUnit.HOURS), InterviewSlotStatus.OPEN);
+
+        InterviewRound otherRound = sampleRound();
+        otherRound.setId(UUID.randomUUID());
+        otherRound.setName("Other Interview Round");
+        InterviewSlot otherSlot = sampleSlot(otherRound, FIXED_NOW.plus(24, ChronoUnit.HOURS), InterviewSlotStatus.PICKED);
+        InterviewSchedule existingSchedule = new InterviewSchedule();
+        existingSchedule.setId(UUID.randomUUID());
+        existingSchedule.setRound(otherRound);
+        existingSchedule.setSlot(otherSlot);
+        existingSchedule.setStatus(InterviewScheduleStatus.SCHEDULED);
+
+        when(roundRepository.findById(ROUND_ID)).thenReturn(Optional.of(round));
+        when(slotRepository.findByIdAndRound_Id(chosenSlot.getId(), ROUND_ID)).thenReturn(Optional.of(chosenSlot));
+        when(scheduleRepository.findFirstByRound_IdAndStatusOrderByCreatedAtDesc(
+                ROUND_ID, InterviewScheduleStatus.SCHEDULED)).thenReturn(Optional.empty());
+        when(scheduleRepository.findConflictingCandidateSchedules(
+                CANDIDATE_ID, ROUND_ID, chosenSlot.getStartAt(), chosenSlot.getEndAt()))
+                .thenReturn(List.of(existingSchedule));
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> service.pickSlot(ROUND_ID, chosenSlot.getId(), candidateActor, "Bearer tok"));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatus());
+        assertEquals("CANDIDATE_SCHEDULE_CONFLICT", ex.getCode());
+        verify(rikkeiMeetClient, never()).createRoom(anyString(), any(), any());
+    }
+
+    @Test
+    void pickSlot_rejectsInterviewerScheduleConflictWith409() {
+        InterviewRound round = sampleRound();
+        InterviewSlot chosenSlot = sampleSlot(round, FIXED_NOW.plus(24, ChronoUnit.HOURS), InterviewSlotStatus.OPEN);
+
+        InterviewRound otherRound = sampleRound();
+        otherRound.setId(UUID.randomUUID());
+        otherRound.setName("Another Candidate Interview");
+        InterviewSlot otherSlot = sampleSlot(otherRound, FIXED_NOW.plus(24, ChronoUnit.HOURS), InterviewSlotStatus.PICKED);
+        InterviewSchedule interviewerSchedule = new InterviewSchedule();
+        interviewerSchedule.setId(UUID.randomUUID());
+        interviewerSchedule.setRound(otherRound);
+        interviewerSchedule.setSlot(otherSlot);
+        interviewerSchedule.setStatus(InterviewScheduleStatus.SCHEDULED);
+
+        when(roundRepository.findById(ROUND_ID)).thenReturn(Optional.of(round));
+        when(slotRepository.findByIdAndRound_Id(chosenSlot.getId(), ROUND_ID)).thenReturn(Optional.of(chosenSlot));
+        when(scheduleRepository.findFirstByRound_IdAndStatusOrderByCreatedAtDesc(
+                ROUND_ID, InterviewScheduleStatus.SCHEDULED)).thenReturn(Optional.empty());
+        when(scheduleRepository.findConflictingCandidateSchedules(
+                CANDIDATE_ID, ROUND_ID, chosenSlot.getStartAt(), chosenSlot.getEndAt()))
+                .thenReturn(List.of());
+        when(scheduleRepository.findConflictingInterviewerSchedules(
+                "mentor1@rikkeijobs.test", ROUND_ID, chosenSlot.getStartAt(), chosenSlot.getEndAt()))
+                .thenReturn(List.of(interviewerSchedule));
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> service.pickSlot(ROUND_ID, chosenSlot.getId(), candidateActor, "Bearer tok"));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatus());
+        assertEquals("INTERVIEWER_SCHEDULE_CONFLICT", ex.getCode());
+        verify(rikkeiMeetClient, never()).createRoom(anyString(), any(), any());
+    }
+
+    @Test
+    void proposeSlots_rejectsOverlapWithExistingOpenSlotWith409() {
+        InterviewRound round = sampleRound();
+        InterviewSlot existingOpen = sampleSlot(round, FIXED_NOW.plus(2, ChronoUnit.HOURS), InterviewSlotStatus.OPEN);
+
+        when(roundRepository.findById(ROUND_ID)).thenReturn(Optional.of(round));
+        when(scheduleRepository.findFirstByRound_IdAndStatusOrderByCreatedAtDesc(
+                ROUND_ID, InterviewScheduleStatus.SCHEDULED)).thenReturn(Optional.empty());
+        when(slotRepository.findByRound_IdAndStatus(ROUND_ID, InterviewSlotStatus.OPEN))
+                .thenReturn(List.of(existingOpen));
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> service.proposeSlots(ROUND_ID, List.of(slotInput(2, 3)), hrActor, "Bearer tok"));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatus());
+        assertEquals("SLOT_OVERLAP_EXISTING", ex.getCode());
+    }
+
     private InterviewSlotInput slotInput(long plusStartHours, long plusEndHours) {
         return new InterviewSlotInput(
                 FIXED_NOW.plus(plusStartHours, ChronoUnit.HOURS),

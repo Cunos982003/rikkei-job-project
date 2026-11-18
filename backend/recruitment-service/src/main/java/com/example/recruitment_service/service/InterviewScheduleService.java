@@ -94,6 +94,9 @@ public class InterviewScheduleService {
                     "ROUND_ALREADY_SCHEDULED");
         }
 
+        ensureNoOverlapWithExistingOpenSlots(roundId, inputs);
+        ensureNoScheduleConflictsForSlots(round, inputs);
+
         List<InterviewSlot> saved = saveOpenSlots(round, inputs);
         return saved.stream().map(InterviewSlotResponse::from).toList();
     }
@@ -124,6 +127,7 @@ public class InterviewScheduleService {
         InterviewRound round = getOwnedRoundForHr(roundId, actor, authorization);
         ensureRecruitmentInInterview(round.getRecruitment());
         validateSlotInputs(newInputs);
+        ensureNoScheduleConflictsForSlots(round, newInputs);
 
         List<InterviewSchedule> activeSchedules =
                 scheduleRepository.findByRound_IdAndStatus(roundId, InterviewScheduleStatus.SCHEDULED);
@@ -239,6 +243,8 @@ public class InterviewScheduleService {
                     "An interview schedule is already confirmed for this round",
                     "ROUND_ALREADY_SCHEDULED");
         }
+
+        ensureNoScheduleConflict(round, chosenSlot.getStartAt(), chosenSlot.getEndAt());
 
         String roomTitle = "Phỏng vấn Vòng " + round.getRoundNo() + " - " + round.getName();
         String meetUrl = rikkeiMeetClient.createRoom(roomTitle, chosenSlot.getStartAt(), chosenSlot.getEndAt());
@@ -462,6 +468,60 @@ public class InterviewScheduleService {
         List<InterviewSlot> saved = slotRepository.saveAll(entities);
         saved.sort(Comparator.comparing(InterviewSlot::getStartAt));
         return saved;
+    }
+
+    private void ensureNoOverlapWithExistingOpenSlots(UUID roundId, List<InterviewSlotInput> inputs) {
+        List<InterviewSlot> existingOpen = slotRepository.findByRound_IdAndStatus(roundId, InterviewSlotStatus.OPEN);
+        if (existingOpen.isEmpty()) {
+            return;
+        }
+        for (InterviewSlotInput candidateInput : inputs) {
+            for (InterviewSlot existing : existingOpen) {
+                if (existing.getStartAt().isBefore(candidateInput.endAt())
+                        && existing.getEndAt().isAfter(candidateInput.startAt())) {
+                    throw new ApiException(
+                            HttpStatus.CONFLICT,
+                            "Khung giờ đề xuất bị trùng với khung giờ đang mở của vòng phỏng vấn này",
+                            "SLOT_OVERLAP_EXISTING");
+                }
+            }
+        }
+    }
+
+    private void ensureNoScheduleConflictsForSlots(InterviewRound round, List<InterviewSlotInput> inputs) {
+        for (InterviewSlotInput input : inputs) {
+            ensureNoScheduleConflict(round, input.startAt(), input.endAt());
+        }
+    }
+
+    private void ensureNoScheduleConflict(InterviewRound round, Instant startAt, Instant endAt) {
+        Recruitment recruitment = round.getRecruitment();
+        List<InterviewSchedule> candidateConflicts = scheduleRepository.findConflictingCandidateSchedules(
+                recruitment.getUser_id(), round.getId(), startAt, endAt);
+        if (!candidateConflicts.isEmpty()) {
+            InterviewSchedule conflict = candidateConflicts.get(0);
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "Khung giờ bị trùng với lịch phỏng vấn khác của ứng viên ("
+                            + conflict.getRound().getName() + ": "
+                            + conflict.getSlot().getStartAt() + " - " + conflict.getSlot().getEndAt() + ")",
+                    "CANDIDATE_SCHEDULE_CONFLICT");
+        }
+
+        if (StringUtils.hasText(round.getInterviewerEmail())) {
+            List<InterviewSchedule> interviewerConflicts = scheduleRepository.findConflictingInterviewerSchedules(
+                    round.getInterviewerEmail().trim(), round.getId(), startAt, endAt);
+            if (!interviewerConflicts.isEmpty()) {
+                InterviewSchedule conflict = interviewerConflicts.get(0);
+                throw new ApiException(
+                        HttpStatus.CONFLICT,
+                        "Người phỏng vấn (" + round.getInterviewerEmail().trim()
+                                + ") đã có lịch phỏng vấn trùng khung giờ ("
+                                + conflict.getRound().getName() + ": "
+                                + conflict.getSlot().getStartAt() + " - " + conflict.getSlot().getEndAt() + ")",
+                        "INTERVIEWER_SCHEDULE_CONFLICT");
+            }
+        }
     }
 
     private List<String> resolveHrRecipients(InterviewRound round, Recruitment recruitment, String authorization) {

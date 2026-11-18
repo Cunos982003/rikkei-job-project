@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AlertTriangle,
   Bell,
   CalendarCheck,
   CheckCircle2,
@@ -37,6 +38,14 @@ function formatRange(startIso: string, endIso: string): string {
   return `${dateStr} • ${startTime} - ${endTime}`;
 }
 
+function rangesOverlap(aStartIso: string, aEndIso: string, bStartIso: string, bEndIso: string): boolean {
+  const aStart = new Date(aStartIso).getTime();
+  const aEnd = new Date(aEndIso).getTime();
+  const bStart = new Date(bStartIso).getTime();
+  const bEnd = new Date(bEndIso).getTime();
+  return aStart < bEnd && aEnd > bStart;
+}
+
 export function CandidateInterviewsPage() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
@@ -67,6 +76,36 @@ export function CandidateInterviewsPage() {
   });
 
   const interviews: CandidateInterviewItem[] = res?.data ?? [];
+
+  const scheduledInterviews = useMemo(
+    () =>
+      interviews.filter(
+        (i): i is CandidateInterviewItem & { schedule: NonNullable<CandidateInterviewItem["schedule"]> } =>
+          Boolean(i.schedule && i.schedule.status === "SCHEDULED")
+      ),
+    [interviews]
+  );
+
+  const findScheduledConflict = (roundId: string, slot: InterviewSlotItem) => {
+    return scheduledInterviews.find(
+      (other) =>
+        other.roundId !== roundId &&
+        rangesOverlap(slot.startAt, slot.endAt, other.schedule.startAt, other.schedule.endAt)
+    );
+  };
+
+  const findOpenInvitationConflict = (roundId: string, slot: InterviewSlotItem) => {
+    return interviews.find(
+      (other) =>
+        other.roundId !== roundId &&
+        (!other.schedule || other.schedule.status !== "SCHEDULED") &&
+        other.slots.some(
+          (otherSlot) =>
+            otherSlot.status === "OPEN" &&
+            rangesOverlap(slot.startAt, slot.endAt, otherSlot.startAt, otherSlot.endAt)
+        )
+    );
+  };
 
   const handlePickSlot = (roundId: string) => {
     const slotId = selectedSlotByRound[roundId];
@@ -215,36 +254,69 @@ export function CandidateInterviewsPage() {
                       </p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         {openSlots.map((slot) => {
-                          const isSelected = selectedSlotId === slot.id;
+                          const scheduledConflict = findScheduledConflict(item.roundId, slot);
+                          const openConflict = !scheduledConflict
+                            ? findOpenInvitationConflict(item.roundId, slot)
+                            : undefined;
+                          const isBlocked = Boolean(scheduledConflict);
+                          const isSelected = !isBlocked && selectedSlotId === slot.id;
                           return (
                             <button
                               key={slot.id}
                               type="button"
-                              onClick={() =>
+                              disabled={isBlocked}
+                              onClick={() => {
+                                if (isBlocked) return;
                                 setSelectedSlotByRound((prev) => ({
                                   ...prev,
                                   [item.roundId]: slot.id,
-                                }))
-                              }
-                              className={`p-3 rounded-xl border text-left transition-all flex items-center justify-between gap-2 ${
-                                isSelected
+                                }));
+                              }}
+                              className={`p-3 rounded-xl border text-left transition-all flex flex-col gap-1.5 ${
+                                isBlocked
+                                  ? "border-danger/40 bg-danger/5 opacity-70 cursor-not-allowed"
+                                  : isSelected
                                   ? "border-primary bg-primary-light/50 ring-2 ring-primary/20"
                                   : "border-border bg-surface hover:border-primary/50 hover:bg-slate-50"
                               }`}
                             >
-                              <div className="flex items-center gap-2 text-xs font-medium text-foreground">
-                                <Clock className="h-4 w-4 text-primary shrink-0" />
-                                <span>{formatRange(slot.startAt, slot.endAt)}</span>
+                              <div className="flex items-center justify-between gap-2 w-full">
+                                <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+                                  <Clock className={`h-4 w-4 shrink-0 ${isBlocked ? "text-danger" : "text-primary"}`} />
+                                  <span className={isBlocked ? "line-through text-muted" : ""}>
+                                    {formatRange(slot.startAt, slot.endAt)}
+                                  </span>
+                                </div>
+                                <span
+                                  className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                                    isBlocked
+                                      ? "border-danger/50 bg-transparent"
+                                      : isSelected
+                                      ? "border-primary bg-primary"
+                                      : "border-slate-300"
+                                  }`}
+                                >
+                                  {isSelected && (
+                                    <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                                  )}
+                                </span>
                               </div>
-                              <span
-                                className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                                  isSelected ? "border-primary bg-primary" : "border-slate-300"
-                                }`}
-                              >
-                                {isSelected && (
-                                  <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                                )}
-                              </span>
+                              {scheduledConflict && (
+                                <div className="flex items-center gap-1 text-[11px] font-medium text-danger">
+                                  <AlertTriangle className="h-3 w-3 shrink-0" />
+                                  <span>
+                                    Trùng lịch đã chốt: Vòng {scheduledConflict.roundNo} ({scheduledConflict.roundName})
+                                  </span>
+                                </div>
+                              )}
+                              {openConflict && (
+                                <div className="flex items-center gap-1 text-[11px] font-medium text-amber-600">
+                                  <AlertTriangle className="h-3 w-3 shrink-0" />
+                                  <span>
+                                    Trùng giờ với lời mời khác: Vòng {openConflict.roundNo} ({openConflict.roundName})
+                                  </span>
+                                </div>
+                              )}
                             </button>
                           );
                         })}

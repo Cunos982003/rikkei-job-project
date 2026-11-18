@@ -51,6 +51,42 @@ public interface InterviewScheduleRepository extends JpaRepository<InterviewSche
             JOIN FETCH s.round r
             JOIN FETCH r.recruitment rec
             WHERE s.status = com.example.recruitment_service.enums.InterviewScheduleStatus.SCHEDULED
+              AND rec.user_id = :candidateId
+              AND r.id <> :excludeRoundId
+              AND sl.startAt < :endAt
+              AND sl.endAt > :startAt
+            ORDER BY sl.startAt ASC
+            """)
+    List<InterviewSchedule> findConflictingCandidateSchedules(
+            @Param("candidateId") UUID candidateId,
+            @Param("excludeRoundId") UUID excludeRoundId,
+            @Param("startAt") Instant startAt,
+            @Param("endAt") Instant endAt);
+
+    @Query("""
+            SELECT s FROM InterviewSchedule s
+            JOIN FETCH s.slot sl
+            JOIN FETCH s.round r
+            WHERE s.status = com.example.recruitment_service.enums.InterviewScheduleStatus.SCHEDULED
+              AND r.interviewerEmail IS NOT NULL
+              AND LOWER(r.interviewerEmail) = LOWER(:interviewerEmail)
+              AND r.id <> :excludeRoundId
+              AND sl.startAt < :endAt
+              AND sl.endAt > :startAt
+            ORDER BY sl.startAt ASC
+            """)
+    List<InterviewSchedule> findConflictingInterviewerSchedules(
+            @Param("interviewerEmail") String interviewerEmail,
+            @Param("excludeRoundId") UUID excludeRoundId,
+            @Param("startAt") Instant startAt,
+            @Param("endAt") Instant endAt);
+
+    @Query("""
+            SELECT s FROM InterviewSchedule s
+            JOIN FETCH s.slot sl
+            JOIN FETCH s.round r
+            JOIN FETCH r.recruitment rec
+            WHERE s.status = com.example.recruitment_service.enums.InterviewScheduleStatus.SCHEDULED
               AND s.reminded24hAt IS NULL
               AND sl.startAt > :windowStart
               AND sl.startAt <= :windowEnd

@@ -97,4 +97,55 @@ class InterviewReminderIntegrationTest {
         assertEquals(0, run2.sent24hCount());
         assertEquals(0, run2.sent1hCount());
     }
+
+    @Test
+    void conflictQueriesDetectOverlappingRangesAndAllowBackToBackSlots() {
+        Instant base = Instant.now(Clock.systemUTC()).plus(24, ChronoUnit.HOURS).truncatedTo(ChronoUnit.HOURS);
+        UUID candidateId = UUID.randomUUID();
+
+        Recruitment rec = new Recruitment();
+        rec.setJob_id(UUID.randomUUID());
+        rec.setUser_id(candidateId);
+        rec.setCv_id(UUID.randomUUID());
+        rec.setCompany_id(UUID.randomUUID());
+        rec.setCandidate_email("overlap@rikkeijobs.test");
+        rec.setCv_snapshot_url("/cv/overlap.pdf");
+        rec.setStatus(RecruitmentStatus.INTERVIEW);
+        rec = recruitmentRepository.save(rec);
+
+        InterviewRound round1 = new InterviewRound();
+        round1.setRecruitment(rec);
+        round1.setRoundNo(1);
+        round1.setName("Round 1");
+        round1.setInterviewerEmail("interviewer-conflict@rikkeijobs.test");
+        round1.setResult(InterviewRoundResult.PENDING);
+        round1 = roundRepository.save(round1);
+
+        InterviewSlot slot1 = new InterviewSlot();
+        slot1.setRound(round1);
+        slot1.setStartAt(base);
+        slot1.setEndAt(base.plus(1, ChronoUnit.HOURS));
+        slot1.setStatus(InterviewSlotStatus.PICKED);
+        slot1 = slotRepository.save(slot1);
+
+        InterviewSchedule schedule1 = new InterviewSchedule();
+        schedule1.setRound(round1);
+        schedule1.setSlot(slot1);
+        schedule1.setMeetUrl("https://meet.rikkei.edu.vn/room-conflict-1");
+        schedule1.setStatus(InterviewScheduleStatus.SCHEDULED);
+        scheduleRepository.saveAndFlush(schedule1);
+
+        UUID otherRoundId = UUID.randomUUID();
+        // Overlapping 30m into slot1 -> MUST detect conflict for both candidate and interviewer
+        assertEquals(1, scheduleRepository.findConflictingCandidateSchedules(
+                candidateId, otherRoundId, base.plus(30, ChronoUnit.MINUTES), base.plus(90, ChronoUnit.MINUTES)).size());
+        assertEquals(1, scheduleRepository.findConflictingInterviewerSchedules(
+                "INTERVIEWER-CONFLICT@rikkeijobs.test", otherRoundId, base.plus(30, ChronoUnit.MINUTES), base.plus(90, ChronoUnit.MINUTES)).size());
+
+        // Back-to-back (starts exactly when slot1 ends) -> NO conflict
+        assertEquals(0, scheduleRepository.findConflictingCandidateSchedules(
+                candidateId, otherRoundId, base.plus(1, ChronoUnit.HOURS), base.plus(2, ChronoUnit.HOURS)).size());
+        assertEquals(0, scheduleRepository.findConflictingInterviewerSchedules(
+                "interviewer-conflict@rikkeijobs.test", otherRoundId, base.plus(1, ChronoUnit.HOURS), base.plus(2, ChronoUnit.HOURS)).size());
+    }
 }
