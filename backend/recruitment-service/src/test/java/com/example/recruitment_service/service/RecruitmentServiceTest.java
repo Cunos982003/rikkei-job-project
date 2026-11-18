@@ -334,7 +334,7 @@ class RecruitmentServiceTest {
         when(interviewRoundRepository.save(any(InterviewRound.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var result = recruitmentService.createRound(
-                RECRUITMENT_ID, new CreateInterviewRoundRequest(), hr, "Bearer token");
+                RECRUITMENT_ID, new CreateInterviewRoundRequest("Technical Interview", null, null), hr, "Bearer token");
 
         assertEquals(3, result.getRoundNo());
         assertNull(result.getScheduledAt());
@@ -355,7 +355,7 @@ class RecruitmentServiceTest {
                 () -> recruitmentService.updateRound(
                         RECRUITMENT_ID,
                         ROUND_ID,
-                        new UpdateInterviewRoundRequest(InterviewRoundResult.PASS, 101),
+                        new UpdateInterviewRoundRequest(InterviewRoundResult.PASS, 101, null, null),
                         hr,
                         "Bearer token"));
 
@@ -372,7 +372,7 @@ class RecruitmentServiceTest {
         ApiException exception = assertThrows(
                 ApiException.class,
                 () -> recruitmentService.createRound(
-                        RECRUITMENT_ID, new CreateInterviewRoundRequest(), hr, "Bearer token"));
+                        RECRUITMENT_ID, new CreateInterviewRoundRequest("Technical Interview", null, null), hr, "Bearer token"));
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatus());
         verify(interviewRoundRepository, never()).save(any());

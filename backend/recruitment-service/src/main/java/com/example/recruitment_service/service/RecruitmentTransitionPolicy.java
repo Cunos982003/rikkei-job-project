@@ -18,4 +18,8 @@ public class RecruitmentTransitionPolicy {
     public boolean allows(RecruitmentStatus from, RecruitmentStatus to) {
         return from != null && to != null && ALLOWED_TRANSITIONS.getOrDefault(from, Set.of()).contains(to);
     }
+
+    public Set<RecruitmentStatus> getAllowedTargets(RecruitmentStatus from) {
+        return ALLOWED_TRANSITIONS.getOrDefault(from, Set.of());
+    }
 }

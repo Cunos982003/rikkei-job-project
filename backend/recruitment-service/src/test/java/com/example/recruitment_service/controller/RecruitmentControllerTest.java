@@ -72,8 +72,9 @@ class RecruitmentControllerTest {
         mockMvc.perform(get("/api/v1/recruitments/{id}", RECRUITMENT_ID)
                         .header(HttpHeaders.AUTHORIZATION, bearer("STAFF")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.candidateId").value(USER_ID.toString()))
-                .andExpect(jsonPath("$.score").value(91.0));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.candidateId").value(USER_ID.toString()))
+                .andExpect(jsonPath("$.data.score").value(91.0));
 
         mockMvc.perform(post("/api/v1/recruitments/{id}/transition", RECRUITMENT_ID)
                         .header(HttpHeaders.AUTHORIZATION, bearer("STAFF"))

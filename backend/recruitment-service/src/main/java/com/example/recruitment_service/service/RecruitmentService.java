@@ -255,6 +255,9 @@ public class RecruitmentService {
         round.setRecruitment(recruitment);
         round.setRoundNo(nextRoundNo);
         round.setResult(InterviewRoundResult.PENDING);
+        round.setName(request.name());
+        round.setInterviewerEmail(request.interviewerEmail());
+        round.setScheduledAt(request.scheduledAt());
         return interviewRoundRepository.save(round);
     }
 
@@ -282,6 +285,12 @@ public class RecruitmentService {
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Interview round not found"));
         round.setResult(request.result());
         round.setScore(score);
+        if (request.note() != null) {
+            round.setNote(request.note());
+        }
+        if (request.scheduledAt() != null) {
+            round.setScheduledAt(request.scheduledAt());
+        }
         return interviewRoundRepository.save(round);
     }
 

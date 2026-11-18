@@ -74,6 +74,7 @@ class InterviewRoundRepositoryTest {
         InterviewRound round = new InterviewRound();
         round.setRecruitment(recruitment);
         round.setRoundNo(roundNo);
+        round.setName("Round " + roundNo);
         round.setScore(score);
         return round;
     }
