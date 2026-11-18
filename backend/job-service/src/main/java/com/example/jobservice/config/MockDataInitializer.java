@@ -246,6 +246,7 @@ public class MockDataInitializer implements ApplicationRunner {
                             required,
                             minScore
                     ));
+
                 }
                 if (!jobSkills.isEmpty()) {
                     jobSkillRepository.saveAll(jobSkills);
@@ -298,11 +299,6 @@ public class MockDataInitializer implements ApplicationRunner {
         for (JsonNode data : companies) {
             String mockId = requiredText(data, "id", file);
             Company company = new Company();
-            if ("comp-001".equalsIgnoreCase(mockId)) {
-                company.setId(UUID.fromString("11111111-1111-4111-8111-111111111111"));
-            } else if ("comp-002".equalsIgnoreCase(mockId)) {
-                company.setId(UUID.fromString("22222222-2222-4222-8222-222222222222"));
-            }
             company.setName(requiredText(data, "name", file));
             company.setTaxCode(requiredText(data, "taxCode", file));
             company.setIndustry(optionalText(data, "industry"));
