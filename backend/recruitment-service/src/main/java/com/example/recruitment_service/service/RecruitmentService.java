@@ -215,6 +215,23 @@ public class RecruitmentService {
     }
 
     @Transactional(readOnly = true)
+    public Page<RecruitmentStaffSummary> listForHr(
+            UserPrincipal actor,
+            UUID jobId,
+            RecruitmentStatus status,
+            int page) {
+        if (!"HR".equals(actor.role()) || actor.companyId() == null) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Only HR with a valid company can list applications");
+        }
+        if (page < 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Page must be zero or greater", "INVALID_PAGE");
+        }
+        PageRequest pageable = PageRequest.of(page, 20, Sort.by(Sort.Direction.DESC, "created_at"));
+        return recruitmentRepository.findForStaff(actor.companyId(), jobId, status, pageable)
+                .map(RecruitmentStaffSummary::from);
+    }
+
+    @Transactional(readOnly = true)
     public Page<RecruitmentStaffSummary> listForStaff(
             UUID companyId,
             UUID jobId,

@@ -49,7 +49,10 @@ public class SecurityConfig {
                                 "/api/v1/recruitments/*",
                                 "/api/v1/rounds/*/slots")
                         .hasAnyRole("HR", "STAFF")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/companies/me/interviews")
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/v1/companies/me/interviews",
+                                "/api/v1/hr/applications")
                         .hasRole("HR")
                         .requestMatchers(
                                 HttpMethod.POST,

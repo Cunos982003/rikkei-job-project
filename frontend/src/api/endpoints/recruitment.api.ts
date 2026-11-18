@@ -108,21 +108,21 @@ export const recruitmentApi = {
    * Lấy chi tiết đơn ứng tuyển cho HR hoặc STAFF
    */
   getReviewDetails: (id: string): Promise<ApiResponse<RecruitmentReviewDetails>> => {
-    return api.get<RecruitmentReviewDetails>(`/api/v1/recruitments/${id}`);
+    return api.get<RecruitmentReviewDetails>(`/recruitments/${id}`);
   },
 
   /**
    * Chuyển trạng thái đơn ứng tuyển (chỉ HR)
    */
   transitionStatus: (id: string, data: TransitionRequest): Promise<ApiResponse<RecruitmentSummary>> => {
-    return api.post<RecruitmentSummary>(`/api/v1/recruitments/${id}/transition`, data);
+    return api.post<RecruitmentSummary>(`/recruitments/${id}/transition`, data);
   },
 
   /**
    * Tạo vòng phỏng vấn mới (chỉ HR khi đang INTERVIEW)
    */
   createRound: (id: string, data: CreateInterviewRoundRequest): Promise<ApiResponse<InterviewRoundSummary>> => {
-    return api.post<InterviewRoundSummary>(`/api/v1/recruitments/${id}/rounds`, data);
+    return api.post<InterviewRoundSummary>(`/recruitments/${id}/rounds`, data);
   },
 
   /**
@@ -133,14 +133,25 @@ export const recruitmentApi = {
     roundId: string,
     data: UpdateInterviewRoundRequest
   ): Promise<ApiResponse<InterviewRoundSummary>> => {
-    return api.put<InterviewRoundSummary>(`/api/v1/recruitments/${id}/rounds/${roundId}`, data);
+    return api.put<InterviewRoundSummary>(`/recruitments/${id}/rounds/${roundId}`, data);
+  },
+
+  /**
+   * Danh sách đơn ứng tuyển dành cho HR của doanh nghiệp
+   */
+  listForHr: (params?: {
+    jobId?: string;
+    status?: RecruitmentStatus;
+    page?: number;
+  }): Promise<ApiResponse<SpringPage<RecruitmentStaffSummary>>> => {
+    return api.get<SpringPage<RecruitmentStaffSummary>>("/hr/applications", { params });
   },
 
   /**
    * Danh sách đơn ứng tuyển dành cho STAFF
    */
   listForStaff: (params: StaffRecruitmentFilterParams): Promise<ApiResponse<SpringPage<RecruitmentStaffSummary>>> => {
-    return api.get<SpringPage<RecruitmentStaffSummary>>("/api/v1/staff/recruitments", { params });
+    return api.get<SpringPage<RecruitmentStaffSummary>>("/staff/recruitments", { params });
   },
 
   /**
