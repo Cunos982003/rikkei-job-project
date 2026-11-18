@@ -63,6 +63,9 @@ public class SecurityConfig {
                                                 .requestMatchers("/companies/**")
                                                 .authenticated()
 
+                                                .requestMatchers("/jobs/**")
+                                                .authenticated()
+
                                                 .anyRequest().authenticated())
 
                                 .addFilterBefore(

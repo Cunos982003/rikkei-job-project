@@ -46,28 +46,43 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true
         },
         '/api/v1/staff/profiles': {
-          target: env.VITE_PROFILE_SERVICE_URL || env.VITE_BACKEND_URL || 'http://localhost:9000',
+          target: env.VITE_PROFILE_SERVICE_URL || env.VITE_BACKEND_URL || 'http://127.0.0.1:9000',
+          changeOrigin: true
+        },
+        // Danh mục kỹ năng chuẩn (profile-service hoặc mock)
+        '/api/v1/skills': {
+          target: env.VITE_PROFILE_SERVICE_URL || env.VITE_BACKEND_URL || 'http://127.0.0.1:9000',
           changeOrigin: true
         },
         // 4. Phân luồng Quản lý Doanh nghiệp & HR -> job-service (:8085)
+        '/api/v1/staff/jobs': {
+          target: env.VITE_JOB_SERVICE_URL || env.VITE_GATEWAY_URL || 'http://127.0.0.1:8085',
+          changeOrigin: true,
+          rewrite: (path) => env.VITE_JOB_SERVICE_URL?.includes('9000') ? path : path.replace(/^\/api\/v1/, '')
+        },
         '/api/v1/staff/companies': {
-          target: env.VITE_JOB_SERVICE_URL || env.VITE_GATEWAY_URL || 'http://localhost:8085',
+          target: env.VITE_JOB_SERVICE_URL || env.VITE_GATEWAY_URL || 'http://127.0.0.1:8085',
           changeOrigin: true,
           rewrite: (path) => env.VITE_JOB_SERVICE_URL?.includes('9000') ? path : path.replace(/^\/api\/v1/, '')
         },
         '/api/v1/staff/hr-accounts': {
-          target: env.VITE_JOB_SERVICE_URL || env.VITE_GATEWAY_URL || 'http://localhost:8085',
+          target: env.VITE_JOB_SERVICE_URL || env.VITE_GATEWAY_URL || 'http://127.0.0.1:8085',
           changeOrigin: true,
           rewrite: (path) => env.VITE_JOB_SERVICE_URL?.includes('9000') ? path : path.replace(/^\/api\/v1/, '')
         },
         '/api/v1/companies': {
-          target: env.VITE_JOB_SERVICE_URL || env.VITE_GATEWAY_URL || 'http://localhost:8085',
+          target: env.VITE_JOB_SERVICE_URL || env.VITE_GATEWAY_URL || 'http://127.0.0.1:8085',
+          changeOrigin: true,
+          rewrite: (path) => env.VITE_JOB_SERVICE_URL?.includes('9000') ? path : path.replace(/^\/api\/v1/, '')
+        },
+        '/api/v1/jobs': {
+          target: env.VITE_JOB_SERVICE_URL || env.VITE_GATEWAY_URL || 'http://127.0.0.1:8085',
           changeOrigin: true,
           rewrite: (path) => env.VITE_JOB_SERVICE_URL?.includes('9000') ? path : path.replace(/^\/api\/v1/, '')
         },
         // 5. Tuyến chung /api/v1 (fallback)
         '/api/v1': {
-          target: env.VITE_GATEWAY_URL || env.VITE_BACKEND_URL || 'http://localhost:9000',
+          target: env.VITE_GATEWAY_URL || env.VITE_BACKEND_URL || 'http://127.0.0.1:9000',
           changeOrigin: true
         },
         // 6. Phân luồng xem ảnh logo tải lên -> job-service (:8085)
