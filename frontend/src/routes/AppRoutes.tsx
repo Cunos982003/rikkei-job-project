@@ -27,6 +27,7 @@ import MentorEvaluationFormPage from "../features/profile/MentorEvaluationFormPa
 import { CandidateProfilePage } from "../pages/candidate/CandidateProfilePage";
 import CandidateJobsPage from "../pages/candidate/CandidateJobsPage";
 import CandidateLearningPage from "../pages/candidate/CandidateLearningPage";
+import { CandidateRecruitmentsPage } from "../pages/candidate/CandidateRecruitmentsPage";
 import { HrCompanyPage } from "../pages/hr/HrCompanyPage";
 import { HrJobsPage } from "../pages/hr/HrJobsPage";
 import { HrJobFormPage } from "../pages/hr/HrJobFormPage";
@@ -36,6 +37,8 @@ import { StaffCompaniesPage } from "../pages/staff/StaffCompaniesPage";
 import { StaffCompanyDetailPage } from "../pages/staff/StaffCompanyDetailPage";
 import { StaffCandidatesPage } from "../pages/staff/StaffCandidatesPage";
 import { StaffCandidateDetailPage } from "../pages/staff/StaffCandidateDetailPage";
+import { StaffRecruitmentsPage } from "../pages/staff/StaffRecruitmentsPage";
+import { RecruitmentDetailPage } from "../pages/hr/RecruitmentDetailPage";
 import { AdminSkillsPage } from "../pages/admin/AdminSkillsPage";
 
 function RootRedirect() {
@@ -68,7 +71,7 @@ export function AppRoutes() {
                     <Route element={<RoleGuard allowedRoles={["CANDIDATE"]} />}>
                         <Route path="/candidate/profile" element={<CandidateProfilePage />} />
                         <Route path="/candidate/jobs" element={<CandidateJobsPage />} />
-                        <Route path="/candidate/applications" element={<CandidateProfilePage />} />
+                        <Route path="/candidate/recruitments" element={<CandidateRecruitmentsPage />} />
                         <Route path="/candidate/learning" element={<CandidateLearningPage />} />
                         <Route path="/candidate/evaluations" element={<EvaluationsPage />} />
                         <Route path="/profile/evaluations" element={<EvaluationsPage />} />
@@ -86,6 +89,7 @@ export function AppRoutes() {
                         <Route path="/hr/jobs/:id/edit" element={<HrJobFormPage />} />
                         <Route path="/hr/candidates" element={<HrCompanyPage />} />
                         <Route path="/hr/interviews" element={<HrCompanyPage />} />
+                        <Route path="/hr/recruitments/:id" element={<RecruitmentDetailPage />} />
                         <Route path="/hr/ioc" element={<HrCompanyPage />} />
                     </Route>
 
@@ -101,6 +105,9 @@ export function AppRoutes() {
                         <Route path="/staff/jobs" element={<StaffJobsPage />} />
                         <Route path="/staff/companies" element={<StaffCompaniesPage />} />
                         <Route path="/staff/companies/:id" element={<StaffCompanyDetailPage />} />
+                        <Route path="/staff/companies" element={<StaffJobsPage />} />
+                        <Route path="/staff/recruitments" element={<StaffRecruitmentsPage />} />
+                        <Route path="/staff/recruitments/:id" element={<RecruitmentDetailPage />} />
                         <Route path="/staff/ioc" element={<StaffJobsPage />} />
                         <Route path="/staff/unlock-contacts" element={<StaffJobsPage />} />
                         <Route path="/staff/candidates" element={<StaffCandidatesPage />} />
