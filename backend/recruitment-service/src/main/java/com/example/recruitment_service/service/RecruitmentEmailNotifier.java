@@ -1,18 +1,27 @@
 package com.example.recruitment_service.service;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.util.StringUtils;
+
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 
 @Component
 public class RecruitmentEmailNotifier {
@@ -96,6 +105,108 @@ public class RecruitmentEmailNotifier {
         }
     }
 
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void notifyInterviewScheduled(InterviewScheduledEvent event) {
+        List<String> recipients = collectRecipients(event.candidateEmail(), event.hrRecipients());
+        if (recipients.isEmpty()) {
+            log.warn("No email recipients recorded for interview schedule {}", event.scheduleId());
+            return;
+        }
+        if (!StringUtils.hasText(smtpHost)) {
+            log.info("SMTP is not configured; skipping interview scheduled email with .ics for schedule {} to {}",
+                    event.scheduleId(), recipients);
+            return;
+        }
+        JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
+        if (mailSender == null) {
+            log.warn("JavaMailSender is unavailable; cannot send interview invite for schedule {}", event.scheduleId());
+            return;
+        }
+        String subject = "[Rikkei Jobs] Xác nhận lịch phỏng vấn: " + event.roundName();
+        String body = "Lịch phỏng vấn vòng \"" + event.roundName() + "\" đã được xác nhận.\n"
+                + "Thời gian: " + event.startAt() + " - " + event.endAt() + "\n"
+                + "Phòng họp Rikkei Meet: " + event.meetUrl() + "\n"
+                + "Đính kèm file lịch (.ics) để bạn thêm vào Google Calendar / Outlook.";
+        byte[] icsBytes = event.icsContent() != null
+                ? event.icsContent().getBytes(StandardCharsets.UTF_8)
+                : new byte[0];
+
+        for (String recipient : recipients) {
+            try {
+                MimeMessage mimeMessage = mailSender.createMimeMessage();
+                MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, StandardCharsets.UTF_8.name());
+                if (StringUtils.hasText(senderAddress)) {
+                    helper.setFrom(senderAddress);
+                }
+                helper.setTo(recipient);
+                helper.setSubject(subject);
+                helper.setText(body, false);
+                if (icsBytes.length > 0) {
+                    helper.addAttachment("interview-" + event.scheduleId() + ".ics",
+                            new ByteArrayResource(icsBytes), "text/calendar; charset=UTF-8");
+                }
+                mailSender.send(mimeMessage);
+            } catch (MailException | MessagingException exception) {
+                log.error("Failed to send interview confirmation email to {} for schedule {}",
+                        recipient, event.scheduleId(), exception);
+            }
+        }
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void notifyInterviewReminder(InterviewReminderEvent event) {
+        List<String> recipients = collectRecipients(event.candidateEmail(), event.hrRecipients());
+        if (recipients.isEmpty()) {
+            log.warn("No email recipients recorded for interview reminder {}", event.scheduleId());
+            return;
+        }
+        if (!StringUtils.hasText(smtpHost)) {
+            log.info("SMTP is not configured; skipping {} interview reminder for schedule {} to {}",
+                    event.milestone(), event.scheduleId(), recipients);
+            return;
+        }
+        JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
+        if (mailSender == null) {
+            log.warn("JavaMailSender is unavailable; cannot send interview reminder for schedule {}", event.scheduleId());
+            return;
+        }
+        String subject = "[Rikkei Jobs] Nhắc lịch phỏng vấn (" + event.milestone() + "): " + event.roundName();
+        String body = "Nhắc lịch phỏng vấn sắp diễn ra trong " + event.milestone() + ".\n"
+                + "Vòng phỏng vấn: " + event.roundName() + "\n"
+                + "Thời gian: " + event.startAt() + " - " + event.endAt() + "\n"
+                + "Link phòng họp Rikkei Meet: " + event.meetUrl();
+        for (String recipient : recipients) {
+            SimpleMailMessage message = new SimpleMailMessage();
+            if (StringUtils.hasText(senderAddress)) {
+                message.setFrom(senderAddress);
+            }
+            message.setTo(recipient);
+            message.setSubject(subject);
+            message.setText(body);
+            try {
+                mailSender.send(message);
+            } catch (MailException exception) {
+                log.error("Failed to send {} interview reminder to {} for schedule {}",
+                        event.milestone(), recipient, event.scheduleId(), exception);
+            }
+        }
+    }
+
+    private List<String> collectRecipients(String candidateEmail, List<String> hrRecipients) {
+        Set<String> result = new LinkedHashSet<>();
+        if (StringUtils.hasText(candidateEmail)) {
+            result.add(candidateEmail.trim());
+        }
+        if (hrRecipients != null) {
+            for (String email : hrRecipients) {
+                if (StringUtils.hasText(email)) {
+                    result.add(email.trim());
+                }
+            }
+        }
+        return new ArrayList<>(result);
+    }
+
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void notifyOfferSent(OfferSentEvent event) {
         if (!StringUtils.hasText(event.candidateEmail())) {
@@ -103,7 +214,8 @@ public class RecruitmentEmailNotifier {
             return;
         }
         if (!StringUtils.hasText(smtpHost)) {
-            log.error("SMTP is not configured; cannot send offer email for offer {}", event.offerId());
+            log.info("SMTP is not configured; skipping offer email for offer {} to {}",
+                    event.offerId(), event.candidateEmail());
             return;
         }
 
@@ -129,6 +241,52 @@ public class RecruitmentEmailNotifier {
             mailSender.send(message);
         } catch (MailException exception) {
             log.error("Failed to send offer email for offer {}", event.offerId(), exception);
+        }
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void notifyInterviewResult(InterviewResultReportedEvent event) {
+        if (!StringUtils.hasText(event.candidateEmail())) {
+            log.warn("No candidate email is recorded for interview result on round {}", event.roundId());
+            return;
+        }
+        if (!StringUtils.hasText(smtpHost)) {
+            log.info("SMTP is not configured; skipping interview result email for round {} (result={}, score={}) to {}",
+                    event.roundId(), event.result(), event.score(), event.candidateEmail());
+            return;
+        }
+        JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
+        if (mailSender == null) {
+            log.warn("JavaMailSender is unavailable; cannot send interview result for round {}", event.roundId());
+            return;
+        }
+        String resultLabel = switch (event.result()) {
+            case PASS -> "ĐẠT (PASS)";
+            case FAIL -> "KHÔNG ĐẠT (FAIL)";
+            case PENDING -> "ĐANG CHỜ KẾT QUẢ";
+        };
+        SimpleMailMessage message = new SimpleMailMessage();
+        if (StringUtils.hasText(senderAddress)) {
+            message.setFrom(senderAddress);
+        }
+        message.setTo(event.candidateEmail());
+        message.setSubject("[Rikkei Jobs] Báo cáo kết quả phỏng vấn Vòng " + event.roundNo() + ": " + event.roundName());
+        StringBuilder body = new StringBuilder();
+        body.append("Nhà tuyển dụng đã cập nhật kết quả phỏng vấn của bạn.\n");
+        body.append("Vòng phỏng vấn: Vòng ").append(event.roundNo()).append(" - ").append(event.roundName()).append("\n");
+        body.append("Kết quả: ").append(resultLabel).append("\n");
+        if (event.score() != null) {
+            body.append("Điểm đánh giá: ").append(event.score()).append("/100\n");
+        }
+        if (StringUtils.hasText(event.note())) {
+            body.append("Nhận xét từ nhà tuyển dụng: ").append(event.note()).append("\n");
+        }
+        body.append("Vui lòng đăng nhập Rikkei Jobs (mục Lịch phỏng vấn) để xem chi tiết báo cáo.");
+        message.setText(body.toString());
+        try {
+            mailSender.send(message);
+        } catch (MailException exception) {
+            log.error("Failed to send interview result email for round {}", event.roundId(), exception);
         }
     }
 }

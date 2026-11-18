@@ -31,12 +31,12 @@ export default defineConfig(({ mode }) => {
             })
           }
         },
-        // 2. Đăng nhập & xác thực -> auth-service (:8081) / PostgreSQL auth_db
+        // 2. Đăng nhập & xác thực -> auth-service (:8081)
         '/api/v1/auth': {
           target: env.VITE_AUTH_SERVICE_URL || env.VITE_GATEWAY_URL || 'http://localhost:8081',
           changeOrigin: true
         },
-        // 3. Hồ sơ ứng viên, danh mục ứng viên & kỹ năng -> profile-service (:8082) / PostgreSQL profile_db
+        // 3. Hồ sơ ứng viên, danh mục ứng viên & kỹ năng -> profile-service (:8082)
         '/api/v1/profiles': {
           target: env.VITE_PROFILE_SERVICE_URL || 'http://localhost:8082',
           changeOrigin: true
@@ -61,7 +61,12 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_PROFILE_SERVICE_URL || 'http://localhost:8082',
           changeOrigin: true
         },
-        // 4. Doanh nghiệp, HR & Tin tuyển dụng -> job-service (:8085) / PostgreSQL job_db
+        // 4. Lịch phỏng vấn doanh nghiệp -> API Gateway (:8080) -> recruitment-service (:8086)
+        '/api/v1/companies/me/interviews': {
+          target: env.VITE_GATEWAY_URL || 'http://localhost:8080',
+          changeOrigin: true
+        },
+        // 5. Quản lý Doanh nghiệp & HR -> job-service (:8085)
         '/api/v1/staff/companies': {
           target: env.VITE_JOB_SERVICE_URL || 'http://localhost:8085',
           changeOrigin: true,
@@ -77,17 +82,17 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/v1/, '')
         },
-        // 5. Tuyến chung /api/v1 (tuyển dụng, offer, việc làm, learning...) -> API Gateway (:8080)
+        // 6. Tuyến chung /api/v1 (jobs, recruitment, interviews, learning...) -> API Gateway (:8080)
         '/api/v1': {
           target: env.VITE_GATEWAY_URL || 'http://localhost:8080',
           changeOrigin: true
         },
-        // 6. Xem ảnh logo tải lên -> job-service (:8085)
+        // 7. Xem ảnh logo tải lên -> job-service (:8085)
         '/uploads': {
           target: env.VITE_JOB_SERVICE_URL || 'http://localhost:8085',
           changeOrigin: true
         },
-        // 7. AI Career -> API Gateway (:8080) -> ai_career_service (:8090) / PostgreSQL ai_db
+        // 8. AI Career -> API Gateway (:8080) -> ai_career_service (:8090)
         '/ai-career': {
           target: env.VITE_AI_CAREER_URL || env.VITE_GATEWAY_URL || 'http://localhost:8080',
           changeOrigin: true

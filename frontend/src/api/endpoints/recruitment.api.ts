@@ -1,5 +1,6 @@
 import { api } from "../client";
 import type { ApiResponse } from "../types/api";
+import type { InterviewScheduleItem, InterviewSlotItem } from "./interviews.api";
 import type { EmploymentRecordItem, OfferItem } from "./offers.api";
 
 export type RecruitmentStatus =
@@ -50,6 +51,8 @@ export interface InterviewRoundSummary {
   result: InterviewRoundResult;
   score: number | null;
   note: string | null;
+  slots?: InterviewSlotItem[];
+  schedule?: InterviewScheduleItem | null;
 }
 
 export interface RecruitmentHistoryItem {
@@ -198,6 +201,17 @@ export const recruitmentApi = {
     data: UpdateInterviewRoundRequest
   ): Promise<ApiResponse<InterviewRoundSummary>> => {
     return api.put<InterviewRoundSummary>(`/recruitments/${id}/rounds/${roundId}`, data);
+  },
+
+  /**
+   * Danh sách đơn ứng tuyển dành cho HR của doanh nghiệp
+   */
+  listForHr: (params?: {
+    jobId?: string;
+    status?: RecruitmentStatus;
+    page?: number;
+  }): Promise<ApiResponse<SpringPage<RecruitmentStaffSummary>>> => {
+    return api.get<SpringPage<RecruitmentStaffSummary>>("/hr/applications", { params });
   },
 
   /**

@@ -1,7 +1,10 @@
 package com.example.recruitment_service.service;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +20,8 @@ import org.springframework.util.StringUtils;
 import com.example.recruitment_service.dto.CreateInterviewRoundRequest;
 import com.example.recruitment_service.dto.EmploymentRecordResponse;
 import com.example.recruitment_service.dto.InterviewRoundSummary;
+import com.example.recruitment_service.dto.InterviewScheduleResponse;
+import com.example.recruitment_service.dto.InterviewSlotResponse;
 import com.example.recruitment_service.dto.OfferResponse;
 import com.example.recruitment_service.dto.RecruitmentReviewDetails;
 import com.example.recruitment_service.dto.RecruitmentStaffSummary;
@@ -27,9 +32,12 @@ import com.example.recruitment_service.dto.ApplyRequest;
 import com.example.recruitment_service.dto.TransitionRequest;
 import com.example.recruitment_service.dto.UpdateInterviewRoundRequest;
 import com.example.recruitment_service.entity.InterviewRound;
+import com.example.recruitment_service.entity.InterviewSchedule;
+import com.example.recruitment_service.entity.InterviewSlot;
 import com.example.recruitment_service.entity.Recruitment;
 import com.example.recruitment_service.entity.RecruitmentStatusHistory;
 import com.example.recruitment_service.enums.InterviewRoundResult;
+import com.example.recruitment_service.enums.InterviewScheduleStatus;
 import com.example.recruitment_service.enums.RecruitmentStatus;
 import com.example.recruitment_service.exception.ApiException;
 import com.example.recruitment_service.integration.AiCareerServiceClient;
@@ -37,6 +45,8 @@ import com.example.recruitment_service.integration.CvServiceClient;
 import com.example.recruitment_service.integration.JobServiceClient;
 import com.example.recruitment_service.repository.EmploymentRecordRepository;
 import com.example.recruitment_service.repository.InterviewRoundRepository;
+import com.example.recruitment_service.repository.InterviewScheduleRepository;
+import com.example.recruitment_service.repository.InterviewSlotRepository;
 import com.example.recruitment_service.repository.OfferRepository;
 import com.example.recruitment_service.repository.RecruitmentRepository;
 import com.example.recruitment_service.repository.RecruitmentStatusHistoryRepository;
@@ -48,6 +58,8 @@ public class RecruitmentService {
     private final RecruitmentRepository recruitmentRepository;
     private final RecruitmentStatusHistoryRepository historyRepository;
     private final InterviewRoundRepository interviewRoundRepository;
+    private final InterviewSlotRepository interviewSlotRepository;
+    private final InterviewScheduleRepository interviewScheduleRepository;
     private final OfferRepository offerRepository;
     private final EmploymentRecordRepository employmentRecordRepository;
     private final RecruitmentTransitionPolicy transitionPolicy;
@@ -57,11 +69,39 @@ public class RecruitmentService {
     private final CvSnapshotStorage snapshotStorage;
     private final ApplicationEventPublisher eventPublisher;
 
+    public RecruitmentService(
+            RecruitmentRepository recruitmentRepository,
+            RecruitmentStatusHistoryRepository historyRepository,
+            InterviewRoundRepository interviewRoundRepository,
+            RecruitmentTransitionPolicy transitionPolicy,
+            JobServiceClient jobServiceClient,
+            AiCareerServiceClient aiCareerServiceClient,
+            CvServiceClient cvServiceClient,
+            CvSnapshotStorage snapshotStorage,
+            ApplicationEventPublisher eventPublisher) {
+        this(
+                recruitmentRepository,
+                historyRepository,
+                interviewRoundRepository,
+                null,
+                null,
+                null,
+                null,
+                transitionPolicy,
+                jobServiceClient,
+                aiCareerServiceClient,
+                cvServiceClient,
+                snapshotStorage,
+                eventPublisher);
+    }
+
     @Autowired
     public RecruitmentService(
             RecruitmentRepository recruitmentRepository,
             RecruitmentStatusHistoryRepository historyRepository,
             InterviewRoundRepository interviewRoundRepository,
+            InterviewSlotRepository interviewSlotRepository,
+            InterviewScheduleRepository interviewScheduleRepository,
             OfferRepository offerRepository,
             EmploymentRecordRepository employmentRecordRepository,
             RecruitmentTransitionPolicy transitionPolicy,
@@ -73,6 +113,8 @@ public class RecruitmentService {
         this.recruitmentRepository = recruitmentRepository;
         this.historyRepository = historyRepository;
         this.interviewRoundRepository = interviewRoundRepository;
+        this.interviewSlotRepository = interviewSlotRepository;
+        this.interviewScheduleRepository = interviewScheduleRepository;
         this.offerRepository = offerRepository;
         this.employmentRecordRepository = employmentRecordRepository;
         this.transitionPolicy = transitionPolicy;
@@ -81,21 +123,6 @@ public class RecruitmentService {
         this.cvServiceClient = cvServiceClient;
         this.snapshotStorage = snapshotStorage;
         this.eventPublisher = eventPublisher;
-    }
-
-    public RecruitmentService(
-            RecruitmentRepository recruitmentRepository,
-            RecruitmentStatusHistoryRepository historyRepository,
-            InterviewRoundRepository interviewRoundRepository,
-            RecruitmentTransitionPolicy transitionPolicy,
-            JobServiceClient jobServiceClient,
-            AiCareerServiceClient aiCareerServiceClient,
-            CvServiceClient cvServiceClient,
-            CvSnapshotStorage snapshotStorage,
-            ApplicationEventPublisher eventPublisher) {
-        this(recruitmentRepository, historyRepository, interviewRoundRepository, null, null,
-                transitionPolicy, jobServiceClient, aiCareerServiceClient, cvServiceClient,
-                snapshotStorage, eventPublisher);
     }
 
     @Transactional
@@ -183,9 +210,9 @@ public class RecruitmentService {
         }
 
         var matchScore = aiCareerServiceClient.getMatchScore(recruitment.getUser_id(), recruitment.getJob_id());
-        List<InterviewRoundSummary> rounds = interviewRoundRepository
-                .findByRecruitment_IdOrderByRoundNoAsc(recruitmentId)
-                .stream().map(InterviewRoundSummary::from).toList();
+        List<InterviewRound> roundEntities = interviewRoundRepository
+                .findByRecruitment_IdOrderByRoundNoAsc(recruitmentId);
+        List<InterviewRoundSummary> rounds = mapRoundSummaries(roundEntities);
         List<RecruitmentHistoryItem> history = historyRepository.findHistory(recruitmentId)
                 .stream().map(RecruitmentHistoryItem::from).toList();
         EmploymentRecordResponse employmentRecord = employmentRecordRepository == null
@@ -347,7 +374,31 @@ public class RecruitmentService {
         if (request.scheduledAt() != null) {
             round.setScheduledAt(request.scheduledAt());
         }
-        return interviewRoundRepository.save(round);
+        InterviewRound saved = interviewRoundRepository.save(round);
+
+        if (request.result() != InterviewRoundResult.PENDING) {
+            if (interviewScheduleRepository != null) {
+                var activeSchedules = interviewScheduleRepository.findByRound_IdAndStatus(
+                        roundId, InterviewScheduleStatus.SCHEDULED);
+                if (!activeSchedules.isEmpty()) {
+                    for (InterviewSchedule schedule : activeSchedules) {
+                        schedule.setStatus(InterviewScheduleStatus.DONE);
+                    }
+                    interviewScheduleRepository.saveAll(activeSchedules);
+                }
+            }
+            eventPublisher.publishEvent(new InterviewResultReportedEvent(
+                    recruitmentId,
+                    saved.getId(),
+                    saved.getRoundNo(),
+                    saved.getName(),
+                    recruitment.getCandidate_email(),
+                    saved.getResult(),
+                    saved.getScore(),
+                    saved.getNote()));
+        }
+
+        return saved;
     }
 
     @Transactional(readOnly = true)
@@ -425,5 +476,35 @@ public class RecruitmentService {
         history.setActor_id(actorId);
         history.setNote(note);
         historyRepository.save(history);
+    }
+
+    private List<InterviewRoundSummary> mapRoundSummaries(List<InterviewRound> roundEntities) {
+        if (roundEntities.isEmpty()) {
+            return List.of();
+        }
+        if (interviewSlotRepository == null || interviewScheduleRepository == null) {
+            return roundEntities.stream().map(InterviewRoundSummary::from).toList();
+        }
+        List<UUID> roundIds = roundEntities.stream().map(InterviewRound::getId).toList();
+        Map<UUID, List<InterviewSlotResponse>> slotsByRound = new LinkedHashMap<>();
+        for (InterviewSlot slot : interviewSlotRepository.findByRound_IdInOrderByStartAtAsc(roundIds)) {
+            slotsByRound.computeIfAbsent(slot.getRound().getId(), k -> new ArrayList<>())
+                    .add(InterviewSlotResponse.from(slot));
+        }
+        Map<UUID, InterviewScheduleResponse> scheduleByRound = new LinkedHashMap<>();
+        for (InterviewSchedule schedule : interviewScheduleRepository.findAllWithDetailsByRoundIds(roundIds)) {
+            UUID rId = schedule.getRound().getId();
+            if (!scheduleByRound.containsKey(rId)
+                    || (schedule.getStatus() == InterviewScheduleStatus.SCHEDULED
+                    && scheduleByRound.get(rId).status() != InterviewScheduleStatus.SCHEDULED)) {
+                scheduleByRound.put(rId, InterviewScheduleResponse.from(schedule));
+            }
+        }
+        return roundEntities.stream()
+                .map(r -> InterviewRoundSummary.from(
+                        r,
+                        slotsByRound.getOrDefault(r.getId(), List.of()),
+                        scheduleByRound.get(r.getId())))
+                .toList();
     }
 }

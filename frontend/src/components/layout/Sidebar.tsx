@@ -37,6 +37,7 @@ const ROLE_NAV_ITEMS: Record<Role, { groupTitle: string; items: NavItem[] }> = {
       { title: "Cơ hội việc làm", path: "/candidate/jobs", icon: Briefcase },
       { title: "AI Career", path: "/candidate/career", icon: Sparkles },
       { title: "Đơn ứng tuyển của tôi", path: "/candidate/recruitments", icon: FileText },
+      { title: "Lịch phỏng vấn", path: "/candidate/interviews", icon: CalendarCheck },
       { title: "Thư mời nhận việc", path: "/candidate/offers", icon: Gift },
       { title: "Học bổ sung LMS", path: "/candidate/learning", icon: GraduationCap },
     ],
