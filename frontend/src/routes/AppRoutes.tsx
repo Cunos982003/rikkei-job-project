@@ -28,6 +28,7 @@ import { CandidateProfilePage } from "../pages/candidate/CandidateProfilePage";
 import CandidateJobsPage from "../pages/candidate/CandidateJobsPage";
 import CandidateLearningPage from "../pages/candidate/CandidateLearningPage";
 import { CandidateInterviewsPage } from "../pages/candidate/CandidateInterviewsPage";
+import { CandidateOffersPage } from "../pages/candidate/CandidateOffersPage";
 import { CareerLayout } from "../features/career/CareerLayout";
 import { OverviewPage } from "../pages/career/OverviewPage";
 import { RecommendationsPage } from "../pages/career/RecommendationsPage";
@@ -79,6 +80,7 @@ export function AppRoutes() {
                         </Route>
                         <Route path="/candidate/applications" element={<CandidateProfilePage />} />
                         <Route path="/candidate/interviews" element={<CandidateInterviewsPage />} />
+                        <Route path="/candidate/offers" element={<CandidateOffersPage />} />
                         <Route path="/candidate/learning" element={<CandidateLearningPage />} />
                         <Route path="/candidate/evaluations" element={<EvaluationsPage />} />
                         <Route path="/profile/evaluations" element={<EvaluationsPage />} />

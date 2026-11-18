@@ -18,9 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.example.recruitment_service.dto.CreateInterviewRoundRequest;
+import com.example.recruitment_service.dto.EmploymentRecordResponse;
 import com.example.recruitment_service.dto.InterviewRoundSummary;
 import com.example.recruitment_service.dto.InterviewScheduleResponse;
 import com.example.recruitment_service.dto.InterviewSlotResponse;
+import com.example.recruitment_service.dto.OfferResponse;
 import com.example.recruitment_service.dto.RecruitmentReviewDetails;
 import com.example.recruitment_service.dto.RecruitmentStaffSummary;
 import com.example.recruitment_service.dto.RecruitmentDetails;
@@ -41,9 +43,11 @@ import com.example.recruitment_service.exception.ApiException;
 import com.example.recruitment_service.integration.AiCareerServiceClient;
 import com.example.recruitment_service.integration.CvServiceClient;
 import com.example.recruitment_service.integration.JobServiceClient;
+import com.example.recruitment_service.repository.EmploymentRecordRepository;
 import com.example.recruitment_service.repository.InterviewRoundRepository;
 import com.example.recruitment_service.repository.InterviewScheduleRepository;
 import com.example.recruitment_service.repository.InterviewSlotRepository;
+import com.example.recruitment_service.repository.OfferRepository;
 import com.example.recruitment_service.repository.RecruitmentRepository;
 import com.example.recruitment_service.repository.RecruitmentStatusHistoryRepository;
 import com.example.recruitment_service.security.UserPrincipal;
@@ -56,6 +60,8 @@ public class RecruitmentService {
     private final InterviewRoundRepository interviewRoundRepository;
     private final InterviewSlotRepository interviewSlotRepository;
     private final InterviewScheduleRepository interviewScheduleRepository;
+    private final OfferRepository offerRepository;
+    private final EmploymentRecordRepository employmentRecordRepository;
     private final RecruitmentTransitionPolicy transitionPolicy;
     private final JobServiceClient jobServiceClient;
     private final AiCareerServiceClient aiCareerServiceClient;
@@ -79,6 +85,8 @@ public class RecruitmentService {
                 interviewRoundRepository,
                 null,
                 null,
+                null,
+                null,
                 transitionPolicy,
                 jobServiceClient,
                 aiCareerServiceClient,
@@ -94,6 +102,8 @@ public class RecruitmentService {
             InterviewRoundRepository interviewRoundRepository,
             InterviewSlotRepository interviewSlotRepository,
             InterviewScheduleRepository interviewScheduleRepository,
+            OfferRepository offerRepository,
+            EmploymentRecordRepository employmentRecordRepository,
             RecruitmentTransitionPolicy transitionPolicy,
             JobServiceClient jobServiceClient,
             AiCareerServiceClient aiCareerServiceClient,
@@ -105,6 +115,8 @@ public class RecruitmentService {
         this.interviewRoundRepository = interviewRoundRepository;
         this.interviewSlotRepository = interviewSlotRepository;
         this.interviewScheduleRepository = interviewScheduleRepository;
+        this.offerRepository = offerRepository;
+        this.employmentRecordRepository = employmentRecordRepository;
         this.transitionPolicy = transitionPolicy;
         this.jobServiceClient = jobServiceClient;
         this.aiCareerServiceClient = aiCareerServiceClient;
@@ -203,6 +215,16 @@ public class RecruitmentService {
         List<InterviewRoundSummary> rounds = mapRoundSummaries(roundEntities);
         List<RecruitmentHistoryItem> history = historyRepository.findHistory(recruitmentId)
                 .stream().map(RecruitmentHistoryItem::from).toList();
+        EmploymentRecordResponse employmentRecord = employmentRecordRepository == null
+                ? null
+                : employmentRecordRepository.findByApplicationId(recruitmentId)
+                        .map(EmploymentRecordResponse::from)
+                        .orElse(null);
+        OfferResponse offer = offerRepository == null
+                ? null
+                : offerRepository.findByRecruitment_Id(recruitmentId)
+                        .map(o -> OfferResponse.from(o, employmentRecord != null ? employmentRecord.confirmedAt() : null))
+                        .orElse(null);
         return new RecruitmentReviewDetails(
                 RecruitmentSummary.from(recruitment),
                 recruitment.getUser_id(),
@@ -211,7 +233,9 @@ public class RecruitmentService {
                 recruitment.getCv_snapshot_url(),
                 matchScore.score(),
                 rounds,
-                history);
+                history,
+                offer,
+                employmentRecord);
     }
 
     @Transactional(readOnly = true)
