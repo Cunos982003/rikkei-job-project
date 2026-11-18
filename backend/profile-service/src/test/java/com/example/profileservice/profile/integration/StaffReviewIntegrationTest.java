@@ -76,7 +76,7 @@ class StaffReviewIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"consent\":true}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.visibility").value("PENDING"));
+                .andExpect(jsonPath("$.data.visibility").value("PENDING"));
 
         return userId;
     }
@@ -90,9 +90,9 @@ class StaffReviewIntegrationTest {
                         .header("X-User-Role", "ROLE_STAFF")
                         .param("status", "PENDING"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[?(@.userId=='" + userId + "')].fullName")
+                .andExpect(jsonPath("$.data.content[?(@.userId=='" + userId + "')].fullName")
                         .value("Nguyễn Văn An"))
-                .andExpect(jsonPath("$.content[?(@.userId=='" + userId + "')].submittedAt")
+                .andExpect(jsonPath("$.data.content[?(@.userId=='" + userId + "')].submittedAt")
                         .isNotEmpty());
     }
 
@@ -104,10 +104,10 @@ class StaffReviewIntegrationTest {
                         .header("X-User-Id", STAFF_ID.toString())
                         .header("X-User-Role", "ROLE_STAFF"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.visibility").value("PUBLIC"));
+                .andExpect(jsonPath("$.data.visibility").value("PUBLIC"));
 
         mvc.perform(get("/api/v1/profiles/me").header("X-User-Id", userId.toString()))
-                .andExpect(jsonPath("$.visibility").value("PUBLIC"));
+                .andExpect(jsonPath("$.data.visibility").value("PUBLIC"));
     }
 
     @Test
@@ -127,16 +127,16 @@ class StaffReviewIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reason\":\"Thiếu minh chứng kỹ năng\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.visibility").value("REJECTED"));
+                .andExpect(jsonPath("$.data.visibility").value("REJECTED"));
 
         // Ứng viên thấy lý do bị trả lại trong lịch sử
         mvc.perform(get("/api/v1/profiles/me/review-history")
                         .header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].action").value("REJECT"))
-                .andExpect(jsonPath("$[0].reason").value("Thiếu minh chứng kỹ năng"))
-                .andExpect(jsonPath("$[0].actorId").value(STAFF_ID.toString()))
-                .andExpect(jsonPath("$[1].action").value("SUBMIT"));
+                .andExpect(jsonPath("$.data[0].action").value("REJECT"))
+                .andExpect(jsonPath("$.data[0].reason").value("Thiếu minh chứng kỹ năng"))
+                .andExpect(jsonPath("$.data[0].actorId").value(STAFF_ID.toString()))
+                .andExpect(jsonPath("$.data[1].action").value("SUBMIT"));
     }
 
     @Test
@@ -171,7 +171,7 @@ class StaffReviewIntegrationTest {
 
         // Hồ sơ vẫn chưa bị đổi trạng thái
         mvc.perform(get("/api/v1/profiles/me").header("X-User-Id", userId.toString()))
-                .andExpect(jsonPath("$.visibility").value("PENDING"));
+                .andExpect(jsonPath("$.data.visibility").value("PENDING"));
     }
 
     @Test

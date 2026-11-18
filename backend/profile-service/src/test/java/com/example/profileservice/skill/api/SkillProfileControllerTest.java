@@ -86,11 +86,11 @@ class SkillProfileControllerTest {
                         .header("X-User-Id", userId.toString())
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(3))))
-                .andExpect(jsonPath("$[*].skillCode", hasItems("JAVA_CORE", "SPRING_BOOT", "SQL")))
-                .andExpect(jsonPath("$[*].verifiedScore", everyItem(notNullValue())))
-                .andExpect(jsonPath("$[*].level", everyItem(notNullValue())))
-                .andExpect(jsonPath("$[*].evidences", everyItem(not(empty()))));
+                .andExpect(jsonPath("$.data", hasSize(greaterThanOrEqualTo(3))))
+                .andExpect(jsonPath("$.data[*].skillCode", hasItems("JAVA_CORE", "SPRING_BOOT", "SQL")))
+                .andExpect(jsonPath("$.data[*].verifiedScore", everyItem(notNullValue())))
+                .andExpect(jsonPath("$.data[*].level", everyItem(notNullValue())))
+                .andExpect(jsonPath("$.data[*].evidences", everyItem(not(empty()))));
     }
 
     @Test
@@ -129,8 +129,8 @@ class SkillProfileControllerTest {
                         .header("X-User-Id", userId.toString())
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.skillCode=='JAVA_CORE')].selfScore", hasItem(90)))
-                .andExpect(jsonPath("$[?(@.skillCode=='JAVA_CORE')].verifiedScore", hasItem(nullValue())))
-                .andExpect(jsonPath("$[?(@.skillCode=='JAVA_CORE')].level", hasItem("Nâng cao")));
+                .andExpect(jsonPath("$.data[?(@.skillCode=='JAVA_CORE')].selfScore", hasItem(90)))
+                .andExpect(jsonPath("$.data[?(@.skillCode=='JAVA_CORE')].verifiedScore", hasItem(nullValue())))
+                .andExpect(jsonPath("$.data[?(@.skillCode=='JAVA_CORE')].level", hasItem("Nâng cao")));
     }
 }

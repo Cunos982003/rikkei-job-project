@@ -28,6 +28,7 @@ import { CandidateProfilePage } from "../pages/candidate/CandidateProfilePage";
 import CandidateJobsPage from "../pages/candidate/CandidateJobsPage";
 import CandidateLearningPage from "../pages/candidate/CandidateLearningPage";
 import { CandidateOffersPage } from "../pages/candidate/CandidateOffersPage";
+import { CandidateRecruitmentsPage } from "../pages/candidate/CandidateRecruitmentsPage";
 import { CareerLayout } from "../features/career/CareerLayout";
 import { OverviewPage } from "../pages/career/OverviewPage";
 import { RecommendationsPage } from "../pages/career/RecommendationsPage";
@@ -38,8 +39,8 @@ import { MentorStudentsPage } from "../pages/mentor/MentorStudentsPage";
 import { StaffJobsPage } from "../pages/staff/StaffJobsPage";
 import { StaffCandidatesPage } from "../pages/staff/StaffCandidatesPage";
 import { StaffCandidateDetailPage } from "../pages/staff/StaffCandidateDetailPage";
-import { StaffApplicationsPage } from "../pages/staff/StaffApplicationsPage";
-import { ApplicationDetailPage } from "../pages/hr/ApplicationDetailPage";
+import { StaffRecruitmentsPage } from "../pages/staff/StaffRecruitmentsPage";
+import { RecruitmentDetailPage } from "../pages/hr/RecruitmentDetailPage";
 import { AdminSkillsPage } from "../pages/admin/AdminSkillsPage";
 
 function RootRedirect() {
@@ -77,7 +78,8 @@ export function AppRoutes() {
                             <Route path="recommendations" element={<RecommendationsPage />} />
                             <Route path="skills" element={<SkillsPage />} />
                         </Route>
-                        <Route path="/candidate/applications" element={<CandidateProfilePage />} />
+                        <Route path="/candidate/recruitments" element={<CandidateRecruitmentsPage />} />
+                        <Route path="/candidate/applications" element={<CandidateRecruitmentsPage />} />
                         <Route path="/candidate/offers" element={<CandidateOffersPage />} />
                         <Route path="/candidate/learning" element={<CandidateLearningPage />} />
                         <Route path="/candidate/evaluations" element={<EvaluationsPage />} />
@@ -94,7 +96,8 @@ export function AppRoutes() {
                         <Route path="/hr/jobs" element={<HrCompanyPage />} />
                         <Route path="/hr/candidates" element={<HrCompanyPage />} />
                         <Route path="/hr/interviews" element={<HrApplicationsPage />} />
-                        <Route path="/hr/applications/:id" element={<ApplicationDetailPage />} />
+                        <Route path="/hr/applications/:id" element={<RecruitmentDetailPage />} />
+                        <Route path="/hr/recruitments/:id" element={<RecruitmentDetailPage />} />
                         <Route path="/hr/ioc" element={<HrCompanyPage />} />
                     </Route>
 
@@ -109,8 +112,8 @@ export function AppRoutes() {
                     <Route element={<RoleGuard allowedRoles={["STAFF", "ADMIN"]} />}>
                         <Route path="/staff/jobs" element={<StaffJobsPage />} />
                         <Route path="/staff/companies" element={<StaffJobsPage />} />
-                        <Route path="/staff/applications" element={<StaffApplicationsPage />} />
-                        <Route path="/staff/applications/:id" element={<ApplicationDetailPage />} />
+                        <Route path="/staff/recruitments" element={<StaffRecruitmentsPage />} />
+                        <Route path="/staff/recruitments/:id" element={<RecruitmentDetailPage />} />
                         <Route path="/staff/ioc" element={<StaffJobsPage />} />
                         <Route path="/staff/unlock-contacts" element={<StaffJobsPage />} />
                         <Route path="/staff/candidates" element={<StaffCandidatesPage />} />

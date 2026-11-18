@@ -90,7 +90,7 @@ const ROUND_RESULT_CONFIG: Record<
   FAIL: { label: "Không đạt (FAIL)", variant: "danger" },
 };
 
-export function ApplicationDetailPage() {
+export function RecruitmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
