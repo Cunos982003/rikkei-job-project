@@ -1,5 +1,6 @@
 package com.example.profileservice.skill.api;
 
+import com.example.profileservice.common.ApiResponse;
 import com.example.profileservice.skill.application.SkillRecomputeService;
 import com.example.profileservice.skill.application.dto.ExternalRecordDto;
 import com.example.profileservice.skill.domain.Skill;
@@ -9,6 +10,7 @@ import com.example.profileservice.skill.infrastructure.SkillRepository;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -42,12 +44,12 @@ public class InternalEvidenceController {
     }
 
     @PostMapping("/lms-evidence")
-    public ResponseEntity<Map<String, Object>> addLmsEvidence(@RequestBody LmsEvidenceRequest request) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> addLmsEvidence(@RequestBody LmsEvidenceRequest request) {
         log.info("Nhận bằng chứng LMS nội bộ cho userId={}, courseId={}, skillCode={}, score={}",
                 request.getUserId(), request.getCourseId(), request.getSkillCode(), request.getScore());
 
         if (request.getUserId() == null || request.getCourseId() == null || request.getScore() == null) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Thiếu tham số bắt buộc"));
+            return ResponseEntity.badRequest().body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Thiếu tham số bắt buộc"));
         }
 
         // 1. Tìm kỹ năng theo skillCode và đảm bảo ánh xạ SkillMapping tồn tại
@@ -81,10 +83,11 @@ public class InternalEvidenceController {
         recomputeService.recomputeSkills(request.getUserId(), List.of(record));
         log.info("Đã kích hoạt recomputeSkills thành công cho userId={}", request.getUserId());
 
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "Đã cập nhật bằng chứng LMS và tính toán lại điểm kỹ năng"
-        ));
+        Map<String, Object> data = Map.of(
+                "userId", request.getUserId().toString(),
+                "courseId", request.getCourseId()
+        );
+        return ResponseEntity.ok(ApiResponse.success("Đã cập nhật bằng chứng LMS và tính toán lại điểm kỹ năng", data));
     }
 }
 

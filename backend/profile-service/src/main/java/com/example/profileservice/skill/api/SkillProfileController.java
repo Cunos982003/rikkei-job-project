@@ -1,5 +1,6 @@
 package com.example.profileservice.skill.api;
 
+import com.example.profileservice.common.ApiResponse;
 import com.example.profileservice.skill.api.dto.SkillProfileResponse;
 import com.example.profileservice.skill.domain.Skill;
 import com.example.profileservice.skill.domain.SkillEvidence;
@@ -7,6 +8,7 @@ import com.example.profileservice.skill.domain.SkillScore;
 import com.example.profileservice.skill.infrastructure.SkillEvidenceRepository;
 import com.example.profileservice.skill.infrastructure.SkillRepository;
 import com.example.profileservice.skill.infrastructure.SkillScoreRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,25 +44,28 @@ public class SkillProfileController {
     }
 
     @GetMapping("/me/skills")
-    public ResponseEntity<List<SkillProfileResponse>> getMySkills(
+    public ResponseEntity<ApiResponse<List<SkillProfileResponse>>> getMySkills(
             @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
         if (userId == null) {
-            return ResponseEntity.status(401).build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
         }
-        return ResponseEntity.ok(buildResponse(userId, userId));
+        return ResponseEntity.ok(ApiResponse.success("Skills retrieved successfully", buildResponse(userId, userId)));
     }
 
     @GetMapping("/{userId}/skills")
-    public ResponseEntity<List<SkillProfileResponse>> getUserSkills(
+    public ResponseEntity<ApiResponse<List<SkillProfileResponse>>> getUserSkills(
             @PathVariable UUID userId,
             @RequestHeader(value = "X-User-Id", required = false) UUID requesterId) {
         if (requesterId == null) {
-            return ResponseEntity.status(401).build(); // 401 Unauthorized
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
         }
         if (!visibilityService.canViewProfile(requesterId, userId)) {
-            return ResponseEntity.notFound().build(); // 404 to avoid enumeration
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(HttpStatus.NOT_FOUND, "Profile not found"));
         }
-        return ResponseEntity.ok(buildResponse(userId, requesterId));
+        return ResponseEntity.ok(ApiResponse.success("Skills retrieved successfully", buildResponse(userId, requesterId)));
     }
 
     private List<SkillProfileResponse> buildResponse(UUID targetUserId, UUID requesterId) {

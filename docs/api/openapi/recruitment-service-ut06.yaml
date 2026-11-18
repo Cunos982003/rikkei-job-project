@@ -1,0 +1,292 @@
+openapi: 3.0.3
+info:
+  title: Recruitment Service — UT-06 Interview Scheduling & Reminder API
+  version: 1.0.0
+  description: >
+    API đặt lịch phỏng vấn giữa HR và Ứng viên: HR đề xuất 1–5 khung giờ, ứng viên chọn khung để tạo phòng họp
+    Rikkei Meet và gửi email kèm file lịch .ics cho cả 2 bên, đổi lịch (reschedule), xem lịch tuần của HR và nhắc lịch tự động 24h / 1h.
+servers:
+  - url: http://localhost:8080/api/v1
+    description: API Gateway
+  - url: http://localhost:8086/api/v1
+    description: Recruitment Service (direct)
+
+tags:
+  - name: Interview Scheduling (HR)
+  - name: Interview Scheduling (Candidate)
+
+paths:
+  /rounds/{roundId}/slots:
+    post:
+      tags: [Interview Scheduling (HR)]
+      summary: HR đề xuất 1–5 khung giờ phỏng vấn cho 1 vòng phỏng vấn
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              minItems: 1
+              maxItems: 5
+              items:
+                $ref: '#/components/schemas/InterviewSlotInput'
+      responses:
+        '201':
+          description: Đề xuất khung giờ thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlotListEnvelope'
+        '400':
+          description: Số khung ngoài 1–5, khung ở quá khứ, ngắn hơn 30 phút hoặc bị trùng nhau
+        '403':
+          description: Không có quyền HR
+        '404':
+          description: Không tìm thấy vòng phỏng vấn hoặc không thuộc doanh nghiệp
+        '409':
+          description: Đơn không ở trạng thái INTERVIEW hoặc vòng đã có lịch SCHEDULED
+    get:
+      tags: [Interview Scheduling (HR)]
+      summary: Lấy danh sách khung giờ của vòng phỏng vấn
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlotListEnvelope'
+
+  /rounds/{roundId}/reschedule:
+    post:
+      tags: [Interview Scheduling (HR)]
+      summary: HR hủy lịch cũ, hủy khung cũ và đề xuất 1–5 khung giờ mới
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              minItems: 1
+              maxItems: 5
+              items:
+                $ref: '#/components/schemas/InterviewSlotInput'
+      responses:
+        '200':
+          description: Đổi lịch thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RescheduleEnvelope'
+        '400':
+          description: Khung giờ mới không hợp lệ
+
+  /me/interviews:
+    get:
+      tags: [Interview Scheduling (Candidate)]
+      summary: Ứng viên xem danh sách lời mời phỏng vấn, các khung giờ và phòng họp đã chốt
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateInterviewListEnvelope'
+
+  /me/interviews/{roundId}/pick:
+    post:
+      tags: [Interview Scheduling (Candidate)]
+      summary: Ứng viên chọn 1 khung giờ OPEN, tạo phòng Rikkei Meet, hủy khung khác & gửi email kèm .ics
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [slotId]
+              properties:
+                slotId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Chốt lịch thành công, trả về thông tin lịch kèm meetUrl
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleEnvelope'
+        '404':
+          description: Không tìm thấy vòng hoặc khung giờ (hoặc không phải vòng của ứng viên)
+        '409':
+          description: Khung giờ đã bị hủy (CANCELLED) hoặc không còn OPEN
+        '502':
+          description: Lỗi kết nối mock Rikkei Meet (/meet/rooms)
+
+  /companies/me/interviews:
+    get:
+      tags: [Interview Scheduling (HR)]
+      summary: Lấy lịch phỏng vấn của doanh nghiệp HR trong khoảng thời gian (lịch tuần)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+          description: Thời điểm bắt đầu (ISO-8601 UTC). Mặc định thứ 2 đầu tuần hiện tại.
+        - name: to
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+          description: Thời điểm kết thúc (ISO-8601 UTC). Mặc định Chủ nhật cuối tuần hiện tại.
+      responses:
+        '200':
+          description: Danh sách lịch phỏng vấn theo thứ tự thời gian tăng dần
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyInterviewListEnvelope'
+        '400':
+          description: Khoảng thời gian không hợp lệ (to < from)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    InterviewSlotInput:
+      type: object
+      required: [startAt, endAt]
+      properties:
+        startAt: { type: string, format: date-time, example: "2026-11-20T02:00:00Z" }
+        endAt: { type: string, format: date-time, example: "2026-11-20T03:00:00Z" }
+    InterviewSlotResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        roundId: { type: string, format: uuid }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        status: { type: string, enum: [OPEN, PICKED, CANCELLED] }
+    InterviewScheduleResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        roundId: { type: string, format: uuid }
+        slotId: { type: string, format: uuid }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        meetUrl: { type: string, example: "https://meet.rikkei.edu.vn/room-abc123" }
+        reminded24hAt: { type: string, format: date-time, nullable: true }
+        reminded1hAt: { type: string, format: date-time, nullable: true }
+        status: { type: string, enum: [SCHEDULED, DONE, CANCELLED] }
+    CandidateInterviewResponse:
+      type: object
+      properties:
+        roundId: { type: string, format: uuid }
+        recruitmentId: { type: string, format: uuid }
+        jobId: { type: string, format: uuid }
+        companyId: { type: string, format: uuid, nullable: true }
+        roundNo: { type: integer }
+        roundName: { type: string }
+        interviewerEmail: { type: string, nullable: true }
+        result: { type: string, enum: [PENDING, PASS, FAIL] }
+        slots:
+          type: array
+          items: { $ref: '#/components/schemas/InterviewSlotResponse' }
+        schedule:
+          allOf:
+            - $ref: '#/components/schemas/InterviewScheduleResponse'
+          nullable: true
+    CompanyInterviewResponse:
+      type: object
+      properties:
+        scheduleId: { type: string, format: uuid }
+        roundId: { type: string, format: uuid }
+        recruitmentId: { type: string, format: uuid }
+        jobId: { type: string, format: uuid }
+        candidateId: { type: string, format: uuid }
+        candidateEmail: { type: string, nullable: true }
+        roundNo: { type: integer }
+        roundName: { type: string }
+        interviewerEmail: { type: string, nullable: true }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        meetUrl: { type: string }
+        status: { type: string, enum: [SCHEDULED, DONE, CANCELLED] }
+        reminded24hAt: { type: string, format: date-time, nullable: true }
+        reminded1hAt: { type: string, format: date-time, nullable: true }
+    SlotListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean }
+        statusCode: { type: integer }
+        message: { type: string }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/InterviewSlotResponse' }
+    ScheduleEnvelope:
+      type: object
+      properties:
+        success: { type: boolean }
+        statusCode: { type: integer }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/InterviewScheduleResponse' }
+    RescheduleEnvelope:
+      type: object
+      properties:
+        success: { type: boolean }
+        statusCode: { type: integer }
+        message: { type: string }
+        data:
+          type: object
+          properties:
+            roundId: { type: string, format: uuid }
+            cancelledSchedulesCount: { type: integer }
+            cancelledSlotsCount: { type: integer }
+            slots:
+              type: array
+              items: { $ref: '#/components/schemas/InterviewSlotResponse' }
+    CandidateInterviewListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean }
+        statusCode: { type: integer }
+        message: { type: string }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/CandidateInterviewResponse' }
+    CompanyInterviewListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean }
+        statusCode: { type: integer }
+        message: { type: string }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/CompanyInterviewResponse' }

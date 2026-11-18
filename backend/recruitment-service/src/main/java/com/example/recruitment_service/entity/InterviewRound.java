@@ -5,6 +5,8 @@ import java.util.UUID;
 
 import com.example.recruitment_service.enums.InterviewRoundResult;
 
+import org.hibernate.annotations.CreationTimestamp;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -47,6 +49,12 @@ public class InterviewRound {
     @Column(name = "round_no", nullable = false)
     private Integer roundNo;
 
+    @Column(name = "name", nullable = false)
+    private String name;
+
+    @Column(name = "interviewer_email")
+    private String interviewerEmail;
+
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
 
@@ -56,4 +64,11 @@ public class InterviewRound {
 
     @Column(name = "score", columnDefinition = "integer check (score IS NULL OR (score >= 0 AND score <= 100))")
     private Integer score;
+
+    @Column(name = "note")
+    private String note;
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 }
