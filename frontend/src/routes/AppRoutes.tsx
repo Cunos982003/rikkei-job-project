@@ -28,6 +28,10 @@ import { CandidateProfilePage } from "../pages/candidate/CandidateProfilePage";
 import CandidateJobsPage from "../pages/candidate/CandidateJobsPage";
 import CandidateLearningPage from "../pages/candidate/CandidateLearningPage";
 import { CandidateInterviewsPage } from "../pages/candidate/CandidateInterviewsPage";
+import { CareerLayout } from "../features/career/CareerLayout";
+import { OverviewPage } from "../pages/career/OverviewPage";
+import { RecommendationsPage } from "../pages/career/RecommendationsPage";
+import { SkillsPage } from "../pages/career/SkillsPage";
 import { HrCompanyPage } from "../pages/hr/HrCompanyPage";
 import { HrInterviewSchedulePage } from "../pages/hr/HrInterviewSchedulePage";
 import { MentorStudentsPage } from "../pages/mentor/MentorStudentsPage";
@@ -68,6 +72,11 @@ export function AppRoutes() {
                     <Route element={<RoleGuard allowedRoles={["CANDIDATE"]} />}>
                         <Route path="/candidate/profile" element={<CandidateProfilePage />} />
                         <Route path="/candidate/jobs" element={<CandidateJobsPage />} />
+                        <Route path="/candidate/career" element={<CareerLayout />}>
+                            <Route index element={<OverviewPage />} />
+                            <Route path="recommendations" element={<RecommendationsPage />} />
+                            <Route path="skills" element={<SkillsPage />} />
+                        </Route>
                         <Route path="/candidate/applications" element={<CandidateProfilePage />} />
                         <Route path="/candidate/interviews" element={<CandidateInterviewsPage />} />
                         <Route path="/candidate/learning" element={<CandidateLearningPage />} />

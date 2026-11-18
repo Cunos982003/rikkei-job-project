@@ -18,14 +18,18 @@ export interface JobRecommendation {
 }
 
 export async function fetchRecommendations(limit: number, token: string, signal?: AbortSignal) {
-  const response = await axios.get<JobRecommendation[]>("/me/job-recommendations", {
+  const response = await axios.get<JobRecommendation[] | { data?: JobRecommendation[] }>("/me/job-recommendations", {
     baseURL: import.meta.env.VITE_AI_CAREER_BASE_URL || "/ai-career",
     params: { limit },
     timeout: 15000,
     headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
     signal,
   });
-  return response.data;
+  const payload = response.data;
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  return Array.isArray(payload?.data) ? payload.data : [];
 }
 
 export function getCareerApiError(error: unknown) {
