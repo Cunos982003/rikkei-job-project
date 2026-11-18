@@ -1,10 +1,12 @@
 package com.example.profileservice.internship;
 
 
+import com.example.profileservice.common.ApiResponse;
 import com.example.profileservice.skill.application.SkillRecomputeService;
 import com.example.profileservice.skill.application.dto.ExternalRecordDto;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestClient;
@@ -36,17 +38,23 @@ public class InternshipController {
     }
 
     @GetMapping("/me/internships")
-    public List<Map<String, Object>> syncAndGet(@RequestHeader(value = "X-User-Id", required = false) UUID userId,
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> syncAndGet(@RequestHeader(value = "X-User-Id", required = false) UUID userId,
                                                  @RequestHeader(value = "X-PM-Student-Id", required = false) String pmStudentId) {
-        if (userId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
+        }
         String externalId = pmStudentId == null || pmStudentId.isBlank() ? studentId : pmStudentId;
         JsonNode records;
         try {
             records = pmClient.get().uri("/pm/students/{id}/internships", externalId).retrieve().body(JsonNode.class);
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Không thể lấy dữ liệu thực tập từ lms-pm", e);
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .body(ApiResponse.error(HttpStatus.BAD_GATEWAY, "Không thể lấy dữ liệu thực tập từ lms-pm"));
         }
-        if (records == null || !records.isArray()) return List.of();
+        if (records == null || !records.isArray()) {
+            return ResponseEntity.ok(ApiResponse.success("Internships retrieved successfully", List.of()));
+        }
         List<ExternalRecordDto> evidence = new ArrayList<>();
         for (JsonNode item : records) {
             String batchId = item.path("batchId").asText();
@@ -66,17 +74,25 @@ public class InternshipController {
             }
         }
         if (!evidence.isEmpty()) recompute.recomputeSkills(userId, evidence);
-        return jdbc.queryForList("SELECT i.*, COALESCE((SELECT json_agg(t ORDER BY t.accepted_at) FROM internship_tasks t WHERE t.internship_id=i.id), '[]'::json) AS tasks " +
+        List<Map<String, Object>> result = jdbc.queryForList("SELECT i.*, COALESCE((SELECT json_agg(t ORDER BY t.accepted_at) FROM internship_tasks t WHERE t.internship_id=i.id), '[]'::json) AS tasks " +
                 "FROM internships i WHERE i.user_id=? ORDER BY i.start_date DESC NULLS LAST, i.batch_id", userId);
+        return ResponseEntity.ok(ApiResponse.success("Internships retrieved successfully", result));
     }
 
     @GetMapping("/{userId}/internships")
-    public List<Map<String, Object>> getUserInternships(@PathVariable UUID userId,
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getUserInternships(@PathVariable UUID userId,
             @RequestHeader(value = "X-User-Id", required = false) UUID requesterId) {
-        if (requesterId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
-        if (!visibility.canViewProfile(requesterId, userId)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-        return jdbc.queryForList("SELECT i.*, COALESCE((SELECT json_agg(t ORDER BY t.accepted_at) FROM internship_tasks t WHERE t.internship_id=i.id), '[]'::json) AS tasks " +
+        if (requesterId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
+        }
+        if (!visibility.canViewProfile(requesterId, userId)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(HttpStatus.NOT_FOUND, "Profile not found"));
+        }
+        List<Map<String, Object>> result = jdbc.queryForList("SELECT i.*, COALESCE((SELECT json_agg(t ORDER BY t.accepted_at) FROM internship_tasks t WHERE t.internship_id=i.id), '[]'::json) AS tasks " +
                 "FROM internships i WHERE i.user_id=? ORDER BY i.start_date DESC NULLS LAST, i.batch_id", userId);
+        return ResponseEntity.ok(ApiResponse.success("Internships retrieved successfully", result));
     }
 
     private UUID upsertInternship(UUID userId, JsonNode row, String batchId) {
