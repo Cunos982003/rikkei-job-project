@@ -75,7 +75,7 @@ class VisibilityWorkflowIntegrationTest {
                 "Nguyễn Văn An", "an@rikkeijobs.test", "Java Fullstack", "RA-JAVA-2026", "Java")));
         mvc.perform(get("/api/v1/profiles/me").header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.visibility").value("PRIVATE"));
+                .andExpect(jsonPath("$.data.visibility").value("PRIVATE"));
         return userId;
     }
 
@@ -119,14 +119,14 @@ class VisibilityWorkflowIntegrationTest {
         // Gửi duyệt (có đồng ý) → PENDING
         submit(userId, true, 200);
         mvc.perform(get("/api/v1/profiles/me").header("X-User-Id", userId.toString()))
-                .andExpect(jsonPath("$.visibility").value("PENDING"));
+                .andExpect(jsonPath("$.data.visibility").value("PENDING"));
         assertThat(publicProfileQuery.isVisibleToRecruiters(userId)).isFalse();
 
         // Cán bộ trả lại kèm lý do → REJECTED, ứng viên thấy lý do
         staffReject(userId, "Bổ sung minh chứng kỹ năng", 200);
         mvc.perform(get("/api/v1/profiles/me/review-history").header("X-User-Id", userId.toString()))
-                .andExpect(jsonPath("$[0].action").value("REJECT"))
-                .andExpect(jsonPath("$[0].reason").value("Bổ sung minh chứng kỹ năng"));
+                .andExpect(jsonPath("$.data[0].action").value("REJECT"))
+                .andExpect(jsonPath("$.data[0].reason").value("Bổ sung minh chứng kỹ năng"));
         assertThat(publicProfileQuery.isVisibleToRecruiters(userId)).isFalse();
 
         // Sửa xong gửi lại → PENDING
@@ -135,13 +135,13 @@ class VisibilityWorkflowIntegrationTest {
         // Cán bộ duyệt → PUBLIC, doanh nghiệp tìm thấy
         staffApprove(userId, 200);
         mvc.perform(get("/api/v1/profiles/me").header("X-User-Id", userId.toString()))
-                .andExpect(jsonPath("$.visibility").value("PUBLIC"));
+                .andExpect(jsonPath("$.data.visibility").value("PUBLIC"));
         assertThat(publicProfileQuery.isVisibleToRecruiters(userId)).isTrue();
 
         // Ứng viên rút → PRIVATE, doanh nghiệp không thấy ngay
         withdraw(userId, 200);
         mvc.perform(get("/api/v1/profiles/me").header("X-User-Id", userId.toString()))
-                .andExpect(jsonPath("$.visibility").value("PRIVATE"));
+                .andExpect(jsonPath("$.data.visibility").value("PRIVATE"));
         assertThat(publicProfileQuery.isVisibleToRecruiters(userId)).isFalse();
     }
 
@@ -157,17 +157,17 @@ class VisibilityWorkflowIntegrationTest {
 
         mvc.perform(get("/api/v1/profiles/me/review-history").header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(5))
-                .andExpect(jsonPath("$[0].action").value("WITHDRAW"))
-                .andExpect(jsonPath("$[1].action").value("APPROVE"))
-                .andExpect(jsonPath("$[2].action").value("SUBMIT"))
-                .andExpect(jsonPath("$[3].action").value("REJECT"))
-                .andExpect(jsonPath("$[4].action").value("SUBMIT"))
+                .andExpect(jsonPath("$.data.length()").value(5))
+                .andExpect(jsonPath("$.data[0].action").value("WITHDRAW"))
+                .andExpect(jsonPath("$.data[1].action").value("APPROVE"))
+                .andExpect(jsonPath("$.data[2].action").value("SUBMIT"))
+                .andExpect(jsonPath("$.data[3].action").value("REJECT"))
+                .andExpect(jsonPath("$.data[4].action").value("SUBMIT"))
                 // Người thực hiện và thời điểm đều được ghi lại
-                .andExpect(jsonPath("$[0].actorId").value(userId.toString()))
-                .andExpect(jsonPath("$[1].actorId").value(STAFF_ID.toString()))
-                .andExpect(jsonPath("$[0].createdAt").isNotEmpty())
-                .andExpect(jsonPath("$[1].createdAt").isNotEmpty());
+                .andExpect(jsonPath("$.data[0].actorId").value(userId.toString()))
+                .andExpect(jsonPath("$.data[1].actorId").value(STAFF_ID.toString()))
+                .andExpect(jsonPath("$.data[0].createdAt").isNotEmpty())
+                .andExpect(jsonPath("$.data[1].createdAt").isNotEmpty());
     }
 
     @Test
@@ -177,9 +177,9 @@ class VisibilityWorkflowIntegrationTest {
         submit(userId, false, 400);
 
         mvc.perform(get("/api/v1/profiles/me").header("X-User-Id", userId.toString()))
-                .andExpect(jsonPath("$.visibility").value("PRIVATE"));
+                .andExpect(jsonPath("$.data.visibility").value("PRIVATE"));
         mvc.perform(get("/api/v1/profiles/me/review-history").header("X-User-Id", userId.toString()))
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.data.length()").value(0));
     }
 
     @Test
@@ -215,8 +215,8 @@ class VisibilityWorkflowIntegrationTest {
                         .header("X-User-Role", STAFF_ROLE)
                         .param("status", "PENDING"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[?(@.userId=='" + pendingCandidate + "')]").isNotEmpty())
-                .andExpect(jsonPath("$.content[?(@.userId=='" + privateCandidate + "')]").isEmpty());
+                .andExpect(jsonPath("$.data.content[?(@.userId=='" + pendingCandidate + "')]").isNotEmpty())
+                .andExpect(jsonPath("$.data.content[?(@.userId=='" + privateCandidate + "')]").isEmpty());
     }
 
     @Test

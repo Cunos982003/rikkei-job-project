@@ -1,5 +1,6 @@
 package com.example.profileservice.file;
 
+import com.example.profileservice.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -10,7 +11,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.Path;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/files")
@@ -22,12 +22,14 @@ public class FileController {
     public record FileUploadResponse(String url) {}
 
     @PostMapping
-    public ResponseEntity<FileUploadResponse> upload(
+    public ResponseEntity<ApiResponse<FileUploadResponse>> upload(
             @RequestParam(value = "file", required = false) MultipartFile file) {
         if (file == null) {
-            throw new InvalidFileException("Thiếu tệp tải lên");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Thiếu tệp tải lên"));
         }
-        return ResponseEntity.ok(new FileUploadResponse(fileUploadService.store(file)));
+        String url = fileUploadService.store(file);
+        return ResponseEntity.ok(ApiResponse.success("File uploaded successfully", new FileUploadResponse(url)));
     }
 
     @GetMapping("/{storedName}")
@@ -39,10 +41,9 @@ public class FileController {
     }
 
     @ExceptionHandler(InvalidFileException.class)
-    public ResponseEntity<Map<String, Object>> handleInvalidFile(InvalidFileException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
-                "statusCode", HttpStatus.BAD_REQUEST.value(),
-                "message", ex.getMessage()));
+    public ResponseEntity<ApiResponse<Void>> handleInvalidFile(InvalidFileException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, ex.getMessage()));
     }
 
     private static MediaType mediaTypeFor(String storedName) {
