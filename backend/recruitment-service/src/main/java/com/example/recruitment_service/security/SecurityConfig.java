@@ -58,7 +58,8 @@ public class SecurityConfig {
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/v1/companies/me/interviews",
-                                "/api/v1/hr/applications")
+                                "/api/v1/hr/applications",
+                                "/api/v1/applications")
                         .hasRole("HR")
                         .requestMatchers(
                                 HttpMethod.POST,
@@ -67,7 +68,9 @@ public class SecurityConfig {
                                 "/api/v1/applications/*/transition",
                                 "/api/v1/applications/*/rounds",
                                 "/api/v1/applications/*/offer",
+                                "/api/v1/recruitments/*/offer",
                                 "/api/v1/applications/*/offer/confirm-onboard",
+                                "/api/v1/recruitments/*/offer/confirm-onboard",
                                 "/api/v1/rounds/*/slots",
                                 "/api/v1/rounds/*/reschedule")
                         .hasRole("HR")

@@ -106,6 +106,25 @@ class GatewayIntegrationTest {
     }
 
     @Test
+    void routesUt07OfferAndEmploymentEndpointsToRecruitmentService() throws Exception {
+        String token = token(Instant.now().plusSeconds(60));
+        for (String path : List.of(
+                "/api/v1/hr/applications",
+                "/api/v1/applications/123",
+                "/api/v1/me/offers",
+                "/api/v1/me/offers/456",
+                "/api/v1/me/employment-records")) {
+            HttpResponse<String> response = send("GET", path, token);
+            assertThat(response.statusCode()).as(path).isEqualTo(200);
+            assertThat(response.body()).isEqualTo(path + "|Bearer " + token);
+            assertThat(response.headers().firstValue("X-Test-Upstream")).contains("recruitment");
+        }
+        HttpResponse<String> offerPost = send("POST", "/api/v1/applications/123/offer", token);
+        assertThat(offerPost.statusCode()).isEqualTo(200);
+        assertThat(offerPost.headers().firstValue("X-Test-Upstream")).contains("recruitment");
+    }
+
+    @Test
     void permitsPublicLoginButRejectsMissingInvalidAndExpiredTokensElsewhere() throws Exception {
         assertThat(send("POST", "/api/v1/auth/login", null).statusCode()).isEqualTo(200);
         assertThat(send("POST", "/api/services/job/api/v1/auth/login", null).statusCode()).isEqualTo(200);
