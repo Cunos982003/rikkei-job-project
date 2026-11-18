@@ -6,6 +6,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -29,9 +30,12 @@ abstract class RateLimitFilter extends OncePerRequestFilter {
             return 1
             """, Long.class);
 
+    private static final long FAIL_OPEN_RETRY_COOLDOWN_MS = 30_000L;
+
     private final StringRedisTemplate redis;
     private final int limit;
     private final boolean failOpen;
+    private final AtomicLong nextRedisRetryAtMs = new AtomicLong(0L);
 
     RateLimitFilter(StringRedisTemplate redis, int limit) {
         this(redis, limit, false);
@@ -60,11 +64,18 @@ abstract class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
+        if (failOpen && System.currentTimeMillis() < nextRedisRetryAtMs.get()) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         try {
             Long allowed = redis.execute(SCRIPT, List.of("gateway:rate:" + identity), Integer.toString(limit));
             if (allowed == null) {
                 if (failOpen) {
-                    log.warn("Redis returned no result for gateway rate limit; allowing request because fail-open is enabled");
+                    nextRedisRetryAtMs.set(System.currentTimeMillis() + FAIL_OPEN_RETRY_COOLDOWN_MS);
+                    log.warn("Redis returned no result for gateway rate limit; allowing requests for {}s because fail-open is enabled",
+                            FAIL_OPEN_RETRY_COOLDOWN_MS / 1000);
                     chain.doFilter(request, response);
                     return;
                 }
@@ -73,14 +84,16 @@ abstract class RateLimitFilter extends OncePerRequestFilter {
                         "Dịch vụ giới hạn tần suất không khả dụng");
                 return;
             }
+            nextRedisRetryAtMs.set(0L);
             if (allowed != 1L) {
                 GatewayError.write(response, 429, "Bạn đã gửi quá nhiều yêu cầu, vui lòng thử lại sau");
                 return;
             }
         } catch (DataAccessException ex) {
             if (failOpen) {
-                log.warn("Gateway rate limiting Redis unavailable; allowing request because fail-open is enabled: {}",
-                        ex.getMessage());
+                nextRedisRetryAtMs.set(System.currentTimeMillis() + FAIL_OPEN_RETRY_COOLDOWN_MS);
+                log.warn("Gateway rate limiting Redis unavailable; allowing requests for {}s because fail-open is enabled: {}",
+                        FAIL_OPEN_RETRY_COOLDOWN_MS / 1000, ex.getMessage());
                 chain.doFilter(request, response);
                 return;
             }
