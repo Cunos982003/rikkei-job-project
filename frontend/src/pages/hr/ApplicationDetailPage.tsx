@@ -14,6 +14,10 @@ import {
   AlertCircle,
   ChevronRight,
   ExternalLink,
+  CalendarPlus,
+  RefreshCw,
+  Video,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/common/Card";
@@ -31,6 +35,11 @@ import {
   type CreateInterviewRoundRequest,
   type UpdateInterviewRoundRequest,
 } from "@/api/endpoints/recruitment.api";
+import {
+  interviewsApi,
+  type InterviewSlotInput,
+  type InterviewSlotStatus,
+} from "@/api/endpoints/interviews.api";
 
 // Mapping status badge variant & label
 const STATUS_CONFIG: Record<
@@ -74,6 +83,24 @@ const ROUND_RESULT_CONFIG: Record<
   FAIL: { label: "Không đạt (FAIL)", variant: "danger" },
 };
 
+const SLOT_STATUS_CONFIG: Record<
+  InterviewSlotStatus,
+  { label: string; variant: "primary" | "verified" | "danger" }
+> = {
+  OPEN: { label: "Đang mở", variant: "primary" },
+  PICKED: { label: "Đã chọn", variant: "verified" },
+  CANCELLED: { label: "Đã hủy", variant: "danger" },
+};
+
+function defaultSlotDraft(): { startAt: string; endAt: string } {
+  const start = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  start.setMinutes(0, 0, 0);
+  const end = new Date(start.getTime() + 60 * 60 * 1000);
+  const toLocal = (d: Date) =>
+    new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  return { startAt: toLocal(start), endAt: toLocal(end) };
+}
+
 export function ApplicationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -97,6 +124,13 @@ export function ApplicationDetailPage() {
   const [editRoundScore, setEditRoundScore] = useState<string>("");
   const [editRoundNote, setEditRoundNote] = useState<string>("");
   const [editRoundDate, setEditRoundDate] = useState<string>("");
+
+  // UT-06: Propose slots / Reschedule modal
+  const [slotModalRound, setSlotModalRound] = useState<InterviewRoundSummary | null>(null);
+  const [slotModalMode, setSlotModalMode] = useState<"propose" | "reschedule">("propose");
+  const [slotDrafts, setSlotDrafts] = useState<{ startAt: string; endAt: string }[]>([
+    defaultSlotDraft(),
+  ]);
 
   const {
     data: response,
@@ -154,6 +188,76 @@ export function ApplicationDetailPage() {
       toast.error(err.response?.data?.message || "Không thể cập nhật vòng phỏng vấn");
     },
   });
+
+  // UT-06 Mutation: Propose interview slots / Reschedule
+  const slotMutation = useMutation({
+    mutationFn: async (payload: {
+      roundId: string;
+      mode: "propose" | "reschedule";
+      slots: InterviewSlotInput[];
+    }): Promise<unknown> =>
+      payload.mode === "reschedule"
+        ? interviewsApi.reschedule(payload.roundId, payload.slots)
+        : interviewsApi.proposeSlots(payload.roundId, payload.slots),
+    onSuccess: (_, variables) => {
+      toast.success(
+        variables.mode === "reschedule"
+          ? "Đã hủy lịch cũ và đề xuất khung giờ mới thành công"
+          : "Đã gửi đề xuất khung giờ phỏng vấn cho ứng viên"
+      );
+      setSlotModalRound(null);
+      queryClient.invalidateQueries({ queryKey: ["recruitment", id] });
+      queryClient.invalidateQueries({ queryKey: ["companyInterviews"] });
+    },
+    onError: (err: any) => {
+      toast.error(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Không thể lưu khung giờ phỏng vấn"
+      );
+    },
+  });
+
+  const handleOpenSlotModal = (round: InterviewRoundSummary, mode: "propose" | "reschedule") => {
+    setSlotModalRound(round);
+    setSlotModalMode(mode);
+    setSlotDrafts([defaultSlotDraft()]);
+  };
+
+  const handleSubmitSlots = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!slotModalRound) return;
+    if (slotDrafts.length < 1 || slotDrafts.length > 5) {
+      toast.error("Vui lòng đề xuất từ 1 đến 5 khung giờ");
+      return;
+    }
+    const nowMs = Date.now();
+    const payload: InterviewSlotInput[] = [];
+    for (let i = 0; i < slotDrafts.length; i++) {
+      const { startAt, endAt } = slotDrafts[i];
+      if (!startAt || !endAt) {
+        toast.error(`Khung giờ #${i + 1}: Vui lòng nhập đầy đủ thời gian bắt đầu và kết thúc`);
+        return;
+      }
+      const s = new Date(startAt);
+      const en = new Date(endAt);
+      if (s.getTime() <= nowMs) {
+        toast.error(`Khung giờ #${i + 1}: Thời gian bắt đầu phải ở trong tương lai`);
+        return;
+      }
+      const diffMinutes = (en.getTime() - s.getTime()) / 60000;
+      if (diffMinutes < 30) {
+        toast.error(`Khung giờ #${i + 1}: Thời lượng mỗi khung phải từ 30 phút trở lên`);
+        return;
+      }
+      payload.push({ startAt: s.toISOString(), endAt: en.toISOString() });
+    }
+    slotMutation.mutate({
+      roundId: slotModalRound.id,
+      mode: slotModalMode,
+      slots: payload,
+    });
+  };
 
   const handleOpenEditRound = (round: InterviewRoundSummary) => {
     setEditingRound(round);
@@ -435,17 +539,108 @@ export function ApplicationDetailPage() {
                           Ghi chú: {round.note}
                         </p>
                       )}
+
+                      {/* UT-06: Confirmed Rikkei Meet Schedule & Proposed Slots */}
+                      {round.schedule && round.schedule.status === "SCHEDULED" && (
+                        <div className="mt-2.5 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+                          <div className="space-y-0.5">
+                            <div className="font-semibold text-emerald-800 flex items-center gap-1.5">
+                              <Video className="h-3.5 w-3.5" />
+                              Đã chốt lịch:{" "}
+                              {new Date(round.schedule.startAt).toLocaleString("vi-VN")} -{" "}
+                              {new Date(round.schedule.endAt).toLocaleTimeString("vi-VN", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </div>
+                          </div>
+                          <a
+                            href={round.schedule.meetUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-primary text-white text-[11px] font-semibold hover:bg-primary/90"
+                          >
+                            <Video className="h-3 w-3" />
+                            Vào phòng họp
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
+                      )}
+
+                      {round.slots && round.slots.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {round.slots.map((slot) => {
+                            const slotCfg = SLOT_STATUS_CONFIG[slot.status] || {
+                              label: slot.status,
+                              variant: "primary" as const,
+                            };
+                            return (
+                              <span
+                                key={slot.id}
+                                className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-[11px] ${
+                                  slot.status === "CANCELLED"
+                                    ? "bg-slate-50 border-border-subtle text-muted line-through"
+                                    : slot.status === "PICKED"
+                                    ? "bg-emerald-50 border-emerald-200 text-emerald-800 font-medium"
+                                    : "bg-primary-light/40 border-primary/20 text-foreground"
+                                }`}
+                              >
+                                <Clock className="h-3 w-3" />
+                                {new Date(slot.startAt).toLocaleDateString("vi-VN", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                })}{" "}
+                                {new Date(slot.startAt).toLocaleTimeString("vi-VN", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                                -
+                                {new Date(slot.endAt).toLocaleTimeString("vi-VN", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                                <Badge variant={slotCfg.variant} size="sm">
+                                  {slotCfg.label}
+                                </Badge>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
 
                     {isHr && currentStatus === "INTERVIEW" && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        leftIcon={<Edit2 className="h-3.5 w-3.5" />}
-                        onClick={() => handleOpenEditRound(round)}
-                      >
-                        Nhập kết quả
-                      </Button>
+                      <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                        {(!round.schedule || round.schedule.status !== "SCHEDULED") && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            leftIcon={<CalendarPlus className="h-3.5 w-3.5" />}
+                            onClick={() => handleOpenSlotModal(round, "propose")}
+                          >
+                            Đề xuất khung giờ
+                          </Button>
+                        )}
+                        {((round.slots && round.slots.length > 0) ||
+                          (round.schedule && round.schedule.status === "SCHEDULED")) && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            leftIcon={<RefreshCw className="h-3.5 w-3.5" />}
+                            onClick={() => handleOpenSlotModal(round, "reschedule")}
+                          >
+                            Đổi lịch
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          leftIcon={<Edit2 className="h-3.5 w-3.5" />}
+                          onClick={() => handleOpenEditRound(round)}
+                        >
+                          Nhập kết quả
+                        </Button>
+                      </div>
                     )}
                   </div>
                 );
@@ -650,6 +845,112 @@ export function ApplicationDetailPage() {
               className="w-full rounded-lg border border-border p-2.5 text-xs text-foreground outline-none focus:border-primary"
             />
           </div>
+        </form>
+      </Modal>
+
+      {/* UT-06 Modal: Đề xuất khung giờ / Đổi lịch phỏng vấn */}
+      <Modal
+        isOpen={!!slotModalRound}
+        onClose={() => setSlotModalRound(null)}
+        title={
+          slotModalMode === "reschedule"
+            ? `Đổi lịch phỏng vấn — Vòng ${slotModalRound?.roundNo}: ${slotModalRound?.name}`
+            : `Đề xuất khung giờ — Vòng ${slotModalRound?.roundNo}: ${slotModalRound?.name}`
+        }
+        size="lg"
+        footer={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setSlotModalRound(null)}>
+              Hủy
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              type="submit"
+              form="ut06-slots-form"
+              isLoading={slotMutation.isPending}
+            >
+              {slotModalMode === "reschedule"
+                ? "Hủy lịch cũ & Gửi khung mới"
+                : "Gửi đề xuất khung giờ"}
+            </Button>
+          </>
+        }
+      >
+        <form id="ut06-slots-form" onSubmit={handleSubmitSlots} className="space-y-4">
+          <p className="text-xs text-muted">
+            {slotModalMode === "reschedule"
+              ? "Lịch phỏng vấn và các khung giờ hiện tại sẽ bị hủy (CANCELLED). Vui lòng đề xuất 1–5 khung giờ mới trong tương lai (mỗi khung tối thiểu 30 phút)."
+              : "Đề xuất từ 1 đến 5 khung giờ trong tương lai (mỗi khung tối thiểu 30 phút) để ứng viên tự chọn và hệ thống tạo phòng Rikkei Meet."}
+          </p>
+
+          <div className="space-y-3">
+            {slotDrafts.map((slot, index) => (
+              <div
+                key={index}
+                className="p-3 rounded-xl border border-border bg-slate-50/70 grid grid-cols-1 sm:grid-cols-12 gap-3 items-end"
+              >
+                <div className="sm:col-span-5">
+                  <Input
+                    label={`Khung #${index + 1} — Bắt đầu *`}
+                    type="datetime-local"
+                    value={slot.startAt}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSlotDrafts((prev) =>
+                        prev.map((item, idx) =>
+                          idx === index ? { ...item, startAt: val } : item
+                        )
+                      );
+                    }}
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-5">
+                  <Input
+                    label="Kết thúc *"
+                    type="datetime-local"
+                    value={slot.endAt}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSlotDrafts((prev) =>
+                        prev.map((item, idx) =>
+                          idx === index ? { ...item, endAt: val } : item
+                        )
+                      );
+                    }}
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-2 flex justify-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={slotDrafts.length <= 1}
+                    onClick={() =>
+                      setSlotDrafts((prev) => prev.filter((_, idx) => idx !== index))
+                    }
+                    leftIcon={<Trash2 className="h-3.5 w-3.5 text-danger" />}
+                  >
+                    Xóa
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {slotDrafts.length < 5 && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              leftIcon={<Plus className="h-3.5 w-3.5" />}
+              onClick={() => setSlotDrafts((prev) => [...prev, defaultSlotDraft()])}
+            >
+              Thêm khung giờ ({slotDrafts.length}/5)
+            </Button>
+          )}
         </form>
       </Modal>
     </div>

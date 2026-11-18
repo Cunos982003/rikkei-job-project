@@ -1,5 +1,6 @@
 import { api } from "../client";
 import type { ApiResponse } from "../types/api";
+import type { InterviewScheduleItem, InterviewSlotItem } from "./interviews.api";
 
 export type RecruitmentStatus =
   | "SUBMITTED"
@@ -21,6 +22,8 @@ export interface InterviewRoundSummary {
   result: InterviewRoundResult;
   score: number | null;
   note: string | null;
+  slots?: InterviewSlotItem[];
+  schedule?: InterviewScheduleItem | null;
 }
 
 export interface RecruitmentHistoryItem {

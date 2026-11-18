@@ -60,6 +60,10 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => env.VITE_JOB_SERVICE_URL?.includes('9000') ? path : path.replace(/^\/api\/v1/, '')
         },
+        '/api/v1/companies/me/interviews': {
+          target: env.VITE_GATEWAY_URL || 'http://localhost:8080',
+          changeOrigin: true
+        },
         '/api/v1/companies': {
           target: env.VITE_JOB_SERVICE_URL || env.VITE_GATEWAY_URL || 'http://localhost:8085',
           changeOrigin: true,

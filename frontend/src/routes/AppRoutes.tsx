@@ -27,7 +27,9 @@ import MentorEvaluationFormPage from "../features/profile/MentorEvaluationFormPa
 import { CandidateProfilePage } from "../pages/candidate/CandidateProfilePage";
 import CandidateJobsPage from "../pages/candidate/CandidateJobsPage";
 import CandidateLearningPage from "../pages/candidate/CandidateLearningPage";
+import { CandidateInterviewsPage } from "../pages/candidate/CandidateInterviewsPage";
 import { HrCompanyPage } from "../pages/hr/HrCompanyPage";
+import { HrInterviewSchedulePage } from "../pages/hr/HrInterviewSchedulePage";
 import { MentorStudentsPage } from "../pages/mentor/MentorStudentsPage";
 import { StaffJobsPage } from "../pages/staff/StaffJobsPage";
 import { StaffCandidatesPage } from "../pages/staff/StaffCandidatesPage";
@@ -67,6 +69,7 @@ export function AppRoutes() {
                         <Route path="/candidate/profile" element={<CandidateProfilePage />} />
                         <Route path="/candidate/jobs" element={<CandidateJobsPage />} />
                         <Route path="/candidate/applications" element={<CandidateProfilePage />} />
+                        <Route path="/candidate/interviews" element={<CandidateInterviewsPage />} />
                         <Route path="/candidate/learning" element={<CandidateLearningPage />} />
                         <Route path="/candidate/evaluations" element={<EvaluationsPage />} />
                         <Route path="/profile/evaluations" element={<EvaluationsPage />} />
@@ -81,7 +84,7 @@ export function AppRoutes() {
                         <Route path="/hr/company" element={<HrCompanyPage />} />
                         <Route path="/hr/jobs" element={<HrCompanyPage />} />
                         <Route path="/hr/candidates" element={<HrCompanyPage />} />
-                        <Route path="/hr/interviews" element={<HrCompanyPage />} />
+                        <Route path="/hr/interviews" element={<HrInterviewSchedulePage />} />
                         <Route path="/hr/applications/:id" element={<ApplicationDetailPage />} />
                         <Route path="/hr/ioc" element={<HrCompanyPage />} />
                     </Route>

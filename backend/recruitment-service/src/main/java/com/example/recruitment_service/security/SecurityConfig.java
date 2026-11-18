@@ -29,12 +29,14 @@ public class SecurityConfig {
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/v1/jobs/*/recruit",
-                                "/api/v1/me/recruitments/*/withdraw")
+                                "/api/v1/me/recruitments/*/withdraw",
+                                "/api/v1/me/interviews/*/pick")
                         .hasRole("CANDIDATE")
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/v1/me/recruitments",
-                                "/api/v1/me/recruitments/**")
+                                "/api/v1/me/recruitments/**",
+                                "/api/v1/me/interviews")
                         .hasRole("CANDIDATE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/staff/recruitments")
                         .hasRole("STAFF")
@@ -42,12 +44,19 @@ public class SecurityConfig {
                                 HttpMethod.GET,
                                 "/api/v1/recruitments/*/cv-snapshot")
                         .hasAnyRole("CANDIDATE", "HR")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/recruitments/*")
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/v1/recruitments/*",
+                                "/api/v1/rounds/*/slots")
                         .hasAnyRole("HR", "STAFF")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/companies/me/interviews")
+                        .hasRole("HR")
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/v1/recruitments/*/transition",
-                                "/api/v1/recruitments/*/rounds")
+                                "/api/v1/recruitments/*/rounds",
+                                "/api/v1/rounds/*/slots",
+                                "/api/v1/rounds/*/reschedule")
                         .hasRole("HR")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/recruitments/*/rounds/*")
                         .hasRole("HR")

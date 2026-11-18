@@ -92,6 +92,11 @@ spring:
               predicates:
                 - Path=/api/v1/profiles/**,/api/v1/files/**,/api/v1/staff/profile-reviews,/api/v1/staff/profiles/**
               filters: *cors-response-filters
+            - id: recruitment
+              uri: ${GATEWAY_RECRUITMENT_URL:http://localhost:8086}
+              predicates:
+                - Path=/api/v1/jobs/*/recruit,/api/v1/me/recruitments,/api/v1/me/recruitments/**,/api/v1/recruitments/**,/api/v1/staff/recruitments/**,/api/v1/rounds/**,/api/v1/me/interviews,/api/v1/me/interviews/**,/api/v1/companies/me/interviews
+              filters: *cors-response-filters
             - id: job
               uri: ${GATEWAY_JOB_URL:http://localhost:8085}
               predicates:
@@ -104,11 +109,6 @@ spring:
                 - RemoveResponseHeader=Access-Control-Allow-Methods
                 - RemoveResponseHeader=Access-Control-Allow-Headers
                 - RemoveResponseHeader=Access-Control-Max-Age
-            - id: recruitment
-              uri: ${GATEWAY_RECRUITMENT_URL:http://localhost:8086}
-              predicates:
-                - Path=/api/v1/jobs/*/recruit,/api/v1/me/recruitments,/api/v1/me/recruitments/**,/api/v1/recruitments/**,/api/v1/staff/recruitments/**
-              filters: *cors-response-filters
             - id: recruitment-snapshot
               uri: ${GATEWAY_RECRUITMENT_URL:http://localhost:8086}
               predicates:
