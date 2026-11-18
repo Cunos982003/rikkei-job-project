@@ -6,6 +6,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -29,15 +30,24 @@ abstract class RateLimitFilter extends OncePerRequestFilter {
             return 1
             """, Long.class);
 
+    private static final long FAIL_OPEN_RETRY_COOLDOWN_MS = 30_000L;
+
     private final StringRedisTemplate redis;
     private final int limit;
+    private final boolean failOpen;
+    private final AtomicLong nextRedisRetryAtMs = new AtomicLong(0L);
 
     RateLimitFilter(StringRedisTemplate redis, int limit) {
+        this(redis, limit, false);
+    }
+
+    RateLimitFilter(StringRedisTemplate redis, int limit, boolean failOpen) {
         if (limit < 1) {
             throw new IllegalArgumentException("Rate limit must be at least one request per minute");
         }
         this.redis = redis;
         this.limit = limit;
+        this.failOpen = failOpen;
     }
 
     @Override
@@ -54,19 +64,39 @@ abstract class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
+        if (failOpen && System.currentTimeMillis() < nextRedisRetryAtMs.get()) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         try {
             Long allowed = redis.execute(SCRIPT, List.of("gateway:rate:" + identity), Integer.toString(limit));
             if (allowed == null) {
+                if (failOpen) {
+                    nextRedisRetryAtMs.set(System.currentTimeMillis() + FAIL_OPEN_RETRY_COOLDOWN_MS);
+                    log.warn("Redis returned no result for gateway rate limit; allowing requests for {}s because fail-open is enabled",
+                            FAIL_OPEN_RETRY_COOLDOWN_MS / 1000);
+                    chain.doFilter(request, response);
+                    return;
+                }
                 log.error("Redis returned no result for the gateway rate limit");
                 GatewayError.write(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                         "Dịch vụ giới hạn tần suất không khả dụng");
                 return;
             }
+            nextRedisRetryAtMs.set(0L);
             if (allowed != 1L) {
                 GatewayError.write(response, 429, "Bạn đã gửi quá nhiều yêu cầu, vui lòng thử lại sau");
                 return;
             }
         } catch (DataAccessException ex) {
+            if (failOpen) {
+                nextRedisRetryAtMs.set(System.currentTimeMillis() + FAIL_OPEN_RETRY_COOLDOWN_MS);
+                log.warn("Gateway rate limiting Redis unavailable; allowing requests for {}s because fail-open is enabled: {}",
+                        FAIL_OPEN_RETRY_COOLDOWN_MS / 1000, ex.getMessage());
+                chain.doFilter(request, response);
+                return;
+            }
             log.error("Gateway rate limiting is unavailable", ex);
             GatewayError.write(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                     "Dịch vụ giới hạn tần suất không khả dụng");
@@ -88,7 +118,11 @@ abstract class RateLimitFilter extends OncePerRequestFilter {
 
     static final class IpRateLimitFilter extends RateLimitFilter {
         IpRateLimitFilter(StringRedisTemplate redis, int limit) {
-            super(redis, limit);
+            super(redis, limit, false);
+        }
+
+        IpRateLimitFilter(StringRedisTemplate redis, int limit, boolean failOpen) {
+            super(redis, limit, failOpen);
         }
 
         @Override
@@ -99,7 +133,11 @@ abstract class RateLimitFilter extends OncePerRequestFilter {
 
     static final class UserRateLimitFilter extends RateLimitFilter {
         UserRateLimitFilter(StringRedisTemplate redis, int limit) {
-            super(redis, limit);
+            super(redis, limit, false);
+        }
+
+        UserRateLimitFilter(StringRedisTemplate redis, int limit, boolean failOpen) {
+            super(redis, limit, failOpen);
         }
 
         @Override

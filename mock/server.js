@@ -45,6 +45,10 @@ const skillsData = loadData('skills.json') || [];
 const jobsData = loadData('jobs.json') || [];
 const evaluationsData = loadData('evaluations.json') || [];
 const companies = loadData('companies.json') || [];
+const offerStore = loadData('offers.json') || { applications: [], offers: [] };
+const mockApplications = offerStore.applications || [];
+const mockOffers = offerStore.offers || [];
+const mockEmploymentRecords = loadData('employment_records.json') || [];
 
 // Lịch sử duyệt hồ sơ (HS-05), chỉ tồn tại trong bộ nhớ của tiến trình mock
 const profileReviews = [];
@@ -1387,6 +1391,256 @@ async function requestHandler(req, res) {
   // 12. POST /files — mock upload, trả URL tương đối như backend
   if (method === 'POST' && profilePath === '/files') {
     return sendJson(res, 200, { url: '/files/mock-' + Date.now() + '.pdf' });
+  }
+
+  // =============================================================
+  // H. UT-07 OFFER MANAGEMENT & EMPLOYMENT RECORD MOCK ENDPOINTS
+  // =============================================================
+  const ut07Path = pathname.replace(/^\/api\/v1/, '');
+
+  function resolveMockActor(req) {
+    const userId = req.headers['x-user-id'];
+    if (userId) {
+      const found = users.find(u => u.id === userId || u.lmsUserId === userId);
+      if (found) return found;
+    }
+    const roleHeader = (req.headers['x-user-role'] || '').toUpperCase().replace('ROLE_', '');
+    if (roleHeader === 'HR') return users.find(u => u.role === 'HR') || users[0];
+    if (roleHeader === 'STAFF') return users.find(u => u.role === 'STAFF') || users[0];
+    return resolveUserFromRequest(req);
+  }
+
+  // GET /hr/applications & /applications (HR)
+  if (method === 'GET' && (ut07Path === '/hr/applications' || ut07Path === '/applications')) {
+    const actor = resolveMockActor(req);
+    const statusFilter = query.status ? query.status.toUpperCase() : null;
+    let items = mockApplications.filter(a => !actor.companyId || a.companyId === actor.companyId);
+    if (statusFilter) {
+      items = items.filter(a => a.status === statusFilter);
+    }
+    const page = parseInt(query.page) || 0;
+    const size = 20;
+    const slice = items.slice(page * size, page * size + size).map(a => ({
+      id: a.id,
+      jobId: a.jobId,
+      candidateId: a.candidateId,
+      candidateEmail: a.candidateEmail,
+      status: a.status,
+      createdAt: a.createdAt,
+      updatedAt: a.updatedAt
+    }));
+    return sendJson(res, 200, {
+      content: slice,
+      totalElements: items.length,
+      totalPages: Math.max(1, Math.ceil(items.length / size)),
+      size,
+      number: page,
+      first: page === 0,
+      last: (page + 1) * size >= items.length,
+      empty: slice.length === 0
+    });
+  }
+
+  // GET /applications/:id & /recruitments/:id (HR/STAFF detail with offer & employmentRecord)
+  const appDetailMatch = ut07Path.match(/^\/(?:applications|recruitments)\/([^\/]+)$/);
+  if (method === 'GET' && appDetailMatch) {
+    const appId = appDetailMatch[1];
+    const app = mockApplications.find(a => a.id === appId);
+    if (!app) return sendError(res, 404, 'Không tìm thấy đơn ứng tuyển');
+    const offer = mockOffers.find(o => o.applicationId === appId) || null;
+    const employmentRecord = mockEmploymentRecords.find(e => e.applicationId === appId) || null;
+    return sendJson(res, 200, {
+      recruitment: {
+        id: app.id,
+        jobId: app.jobId,
+        cvId: null,
+        cvSnapshotUrl: app.cvSnapshotUrl,
+        coverLetter: app.coverLetter,
+        status: app.status,
+        createdAt: app.createdAt,
+        updatedAt: app.updatedAt
+      },
+      candidateId: app.candidateId,
+      candidateEmail: app.candidateEmail,
+      coverLetter: app.coverLetter,
+      cvSnapshotUrl: app.cvSnapshotUrl,
+      score: app.score,
+      rounds: app.rounds || [],
+      history: app.history || [],
+      offer: offer ? { ...offer, confirmedAt: employmentRecord ? employmentRecord.confirmedAt : null } : null,
+      employmentRecord
+    });
+  }
+
+  // POST /applications/:id/offer & /recruitments/:id/offer (HR)
+  const sendOfferMatch = ut07Path.match(/^\/(?:applications|recruitments)\/([^\/]+)\/offer$/);
+  if (method === 'POST' && sendOfferMatch) {
+    const appId = sendOfferMatch[1];
+    const app = mockApplications.find(a => a.id === appId);
+    if (!app) return sendError(res, 404, 'Không tìm thấy đơn ứng tuyển');
+    if (app.status !== 'INTERVIEW') {
+      return sendError(res, 409, 'Chỉ có thể gửi offer khi đơn đang ở trạng thái INTERVIEW');
+    }
+    const rounds = app.rounds || [];
+    const hasPending = rounds.some(r => !r.result || r.result === 'PENDING');
+    const lastRound = rounds[rounds.length - 1];
+    if (rounds.length === 0 || hasPending || !lastRound || lastRound.result !== 'PASS') {
+      return sendError(res, 409, 'Vòng phỏng vấn cuối cùng chưa PASS, không thể gửi offer');
+    }
+    if (mockOffers.some(o => o.applicationId === appId)) {
+      return sendError(res, 409, 'Đơn ứng tuyển này đã có offer trước đó');
+    }
+    const body = await parseBody(req);
+    if (!body.position || !body.salary || Number(body.salary) <= 0 || !body.startDate || !body.workLocation || !body.responseDeadline) {
+      return sendError(res, 400, 'Thiếu thông tin bắt buộc khi gửi offer');
+    }
+    if (new Date(body.responseDeadline).getTime() <= Date.now()) {
+      return sendError(res, 400, 'Hạn trả lời offer phải ở trong tương lai');
+    }
+    const nowIso = new Date().toISOString();
+    app.status = 'OFFER';
+    app.updatedAt = nowIso;
+    const newOffer = {
+      id: 'offer-mock-' + Date.now(),
+      applicationId: app.id,
+      jobId: app.jobId,
+      companyId: app.companyId,
+      companyName: body.companyName || app.companyName || 'Công ty Cổ phần Rikkeisoft',
+      candidateId: app.candidateId,
+      candidateEmail: app.candidateEmail,
+      position: String(body.position).trim(),
+      salary: Number(body.salary),
+      startDate: body.startDate,
+      workLocation: String(body.workLocation).trim(),
+      note: body.note ? String(body.note).trim() : null,
+      responseDeadline: body.responseDeadline,
+      status: 'SENT',
+      applicationStatus: 'OFFER',
+      respondedAt: null,
+      declineReason: null,
+      confirmedAt: null,
+      createdAt: nowIso,
+      updatedAt: nowIso
+    };
+    mockOffers.unshift(newOffer);
+    return sendJson(res, 201, newOffer);
+  }
+
+  // POST /applications/:id/offer/confirm-onboard (HR)
+  const confirmOnboardMatch = ut07Path.match(/^\/(?:applications|recruitments)\/([^\/]+)\/offer\/confirm-onboard$/);
+  if (method === 'POST' && confirmOnboardMatch) {
+    const appId = confirmOnboardMatch[1];
+    const app = mockApplications.find(a => a.id === appId);
+    if (!app) return sendError(res, 404, 'Không tìm thấy đơn ứng tuyển');
+    const offer = mockOffers.find(o => o.applicationId === appId);
+    if (!offer || offer.status !== 'ACCEPTED' || app.status !== 'HIRED') {
+      return sendError(res, 409, 'Chỉ có thể xác nhận đi làm khi ứng viên đã chấp nhận offer');
+    }
+    const emp = mockEmploymentRecords.find(e => e.applicationId === appId);
+    if (!emp) return sendError(res, 404, 'Không tìm thấy bản ghi nhận việc');
+    if (emp.confirmedAt) return sendError(res, 409, 'Đã xác nhận ứng viên đi làm trước đó');
+    emp.confirmedAt = new Date().toISOString();
+    offer.confirmedAt = emp.confirmedAt;
+    return sendJson(res, 200, emp);
+  }
+
+  // GET /me/offers (CANDIDATE)
+  if (method === 'GET' && ut07Path === '/me/offers') {
+    const candidate = resolveMockActor(req);
+    const list = mockOffers
+      .filter(o => o.candidateId === candidate.id || o.candidateEmail === candidate.email)
+      .map(o => {
+        const emp = mockEmploymentRecords.find(e => e.applicationId === o.applicationId);
+        return { ...o, confirmedAt: emp ? emp.confirmedAt : null };
+      });
+    return sendJson(res, 200, list);
+  }
+
+  // GET /me/offers/:id (CANDIDATE — 404 if belongs to another candidate)
+  const myOfferDetailMatch = ut07Path.match(/^\/me\/offers\/([^\/]+)$/);
+  if (method === 'GET' && myOfferDetailMatch) {
+    const candidate = resolveMockActor(req);
+    const offer = mockOffers.find(o => o.id === myOfferDetailMatch[1] && (o.candidateId === candidate.id || o.candidateEmail === candidate.email));
+    if (!offer) return sendError(res, 404, 'Không tìm thấy offer');
+    return sendJson(res, 200, offer);
+  }
+
+  // POST /me/offers/:id/accept (CANDIDATE)
+  const acceptOfferMatch = ut07Path.match(/^\/me\/offers\/([^\/]+)\/accept$/);
+  if (method === 'POST' && acceptOfferMatch) {
+    const candidate = resolveMockActor(req);
+    const offer = mockOffers.find(o => o.id === acceptOfferMatch[1] && (o.candidateId === candidate.id || o.candidateEmail === candidate.email));
+    if (!offer) return sendError(res, 404, 'Không tìm thấy offer');
+    if (offer.status === 'EXPIRED' || new Date(offer.responseDeadline).getTime() <= Date.now()) {
+      offer.status = 'EXPIRED';
+      return sendError(res, 409, 'Offer đã quá hạn phản hồi và không thể chấp nhận');
+    }
+    if (offer.status !== 'SENT') {
+      return sendError(res, 409, 'Offer không còn ở trạng thái chờ phản hồi');
+    }
+    const nowIso = new Date().toISOString();
+    offer.status = 'ACCEPTED';
+    offer.applicationStatus = 'HIRED';
+    offer.respondedAt = nowIso;
+    offer.updatedAt = nowIso;
+    const app = mockApplications.find(a => a.id === offer.applicationId);
+    if (app) {
+      app.status = 'HIRED';
+      app.updatedAt = nowIso;
+    }
+    if (!mockEmploymentRecords.some(e => e.applicationId === offer.applicationId)) {
+      mockEmploymentRecords.unshift({
+        id: 'emp-mock-' + Date.now(),
+        userId: candidate.id,
+        companyId: offer.companyId,
+        companyName: offer.companyName,
+        jobId: offer.jobId,
+        applicationId: offer.applicationId,
+        position: offer.position,
+        startDate: offer.startDate,
+        confirmedAt: null,
+        createdAt: nowIso
+      });
+    }
+    return sendJson(res, 200, offer);
+  }
+
+  // POST /me/offers/:id/decline (CANDIDATE — reason required)
+  const declineOfferMatch = ut07Path.match(/^\/me\/offers\/([^\/]+)\/decline$/);
+  if (method === 'POST' && declineOfferMatch) {
+    const body = await parseBody(req);
+    if (!body.reason || !String(body.reason).trim()) {
+      return sendError(res, 400, 'Lý do từ chối offer là bắt buộc');
+    }
+    const candidate = resolveMockActor(req);
+    const offer = mockOffers.find(o => o.id === declineOfferMatch[1] && (o.candidateId === candidate.id || o.candidateEmail === candidate.email));
+    if (!offer) return sendError(res, 404, 'Không tìm thấy offer');
+    if (offer.status === 'EXPIRED' || new Date(offer.responseDeadline).getTime() <= Date.now()) {
+      offer.status = 'EXPIRED';
+      return sendError(res, 409, 'Offer đã quá hạn phản hồi');
+    }
+    if (offer.status !== 'SENT') {
+      return sendError(res, 409, 'Offer không còn ở trạng thái chờ phản hồi');
+    }
+    const nowIso = new Date().toISOString();
+    offer.status = 'DECLINED';
+    offer.applicationStatus = 'REJECTED';
+    offer.respondedAt = nowIso;
+    offer.declineReason = String(body.reason).trim();
+    offer.updatedAt = nowIso;
+    const app = mockApplications.find(a => a.id === offer.applicationId);
+    if (app) {
+      app.status = 'REJECTED';
+      app.updatedAt = nowIso;
+    }
+    return sendJson(res, 200, offer);
+  }
+
+  // GET /me/employment-records (CANDIDATE)
+  if (method === 'GET' && ut07Path === '/me/employment-records') {
+    const candidate = resolveMockActor(req);
+    const records = mockEmploymentRecords.filter(e => e.userId === candidate.id);
+    return sendJson(res, 200, records);
   }
 
   // Health check endpoint

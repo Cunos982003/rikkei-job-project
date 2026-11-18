@@ -54,6 +54,13 @@ public class SecurityConfig {
                                                                 "/error")
                                                 .permitAll()
 
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                                                "/jobs",
+                                                                "/jobs/**",
+                                                                "/api/v1/jobs",
+                                                                "/api/v1/jobs/**")
+                                                .permitAll()
+
                                                 .requestMatchers("/staff/**")
                                                 .hasAnyRole("STAFF", "ADMIN")
 

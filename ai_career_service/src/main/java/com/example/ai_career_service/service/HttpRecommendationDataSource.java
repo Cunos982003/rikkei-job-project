@@ -1,0 +1,149 @@
+package com.example.ai_career_service.service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Profile;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.server.ResponseStatusException;
+
+@Component
+@Primary
+@Profile("!test")
+@Slf4j
+public class HttpRecommendationDataSource implements RecommendationDataSource {
+
+    private final RestClient profileClient;
+    private final RestClient jobClient;
+
+    public HttpRecommendationDataSource(
+            @Value("${app.integrations.profile-service-url:http://localhost:8082}") String profileServiceUrl,
+            @Value("${app.integrations.job-service-url:http://localhost:8085}") String jobServiceUrl) {
+        this.profileClient = RestClient.builder().baseUrl(profileServiceUrl).build();
+        this.jobClient = RestClient.builder().baseUrl(jobServiceUrl).build();
+    }
+
+    @Override
+    public RecommendationSnapshot loadSnapshot(UUID userId) {
+        List<RecommendationSnapshot.VerifiedSkill> verifiedSkills = fetchVerifiedSkills(userId);
+        List<RecommendationSnapshot.EligibleJob> eligibleJobs = fetchEligibleJobs();
+        String profileRevision = "profile-" + userId + "-" + verifiedSkills.hashCode();
+        return new RecommendationSnapshot(profileRevision, verifiedSkills, eligibleJobs);
+    }
+
+    private List<RecommendationSnapshot.VerifiedSkill> fetchVerifiedSkills(UUID userId) {
+        try {
+            List<Map<String, Object>> rawSkills = profileClient.get()
+                    .uri("/api/v1/profiles/me/skills")
+                    .header("X-User-Id", userId.toString())
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+            if (rawSkills == null) {
+                return List.of();
+            }
+            List<RecommendationSnapshot.VerifiedSkill> result = new ArrayList<>();
+            for (Map<String, Object> skill : rawSkills) {
+                Object scoreObj = skill.get("verifiedScore");
+                if (scoreObj == null) {
+                    continue;
+                }
+                String name = stringOrNull(skill.get("skillName"));
+                if (name == null || name.isBlank()) {
+                    name = stringOrNull(skill.get("skillCode"));
+                }
+                if (name == null || name.isBlank()) {
+                    continue;
+                }
+                int index = clampScore(((Number) scoreObj).intValue());
+                result.add(new RecommendationSnapshot.VerifiedSkill(name, index));
+            }
+            return result;
+        } catch (Exception ex) {
+            log.error("Failed to fetch candidate skills from profile-service for user {}", userId, ex);
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Unable to load candidate skills from profile-service",
+                    ex);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<RecommendationSnapshot.EligibleJob> fetchEligibleJobs() {
+        try {
+            Map<String, Object> response = jobClient.get()
+                    .uri("/jobs?status=APPROVED&size=200")
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+            if (response == null || !(response.get("items") instanceof List<?> rawItems)) {
+                return List.of();
+            }
+            List<RecommendationSnapshot.EligibleJob> jobs = new ArrayList<>();
+            for (Object itemObj : rawItems) {
+                if (!(itemObj instanceof Map<?, ?> item)) {
+                    continue;
+                }
+                String idStr = stringOrNull(item.get("id"));
+                if (idStr == null) {
+                    continue;
+                }
+                UUID jobId;
+                try {
+                    jobId = UUID.fromString(idStr);
+                } catch (IllegalArgumentException ignored) {
+                    continue;
+                }
+                String revision = "job-" + idStr + "-" + stringOrDefault(item.get("createdAt"), "v1");
+                List<RecommendationSnapshot.SkillRequirement> requirements = new ArrayList<>();
+                if (item.get("jobSkills") instanceof List<?> rawJobSkills) {
+                    for (Object jsObj : rawJobSkills) {
+                        if (!(jsObj instanceof Map<?, ?> js)) {
+                            continue;
+                        }
+                        String skillName = stringOrNull(js.get("skillName"));
+                        if (skillName == null || skillName.isBlank()) {
+                            skillName = stringOrNull(js.get("skillId"));
+                        }
+                        if (skillName == null || skillName.isBlank()) {
+                            continue;
+                        }
+                        int minScore = js.get("minScore") instanceof Number n ? clampScore(n.intValue()) : 60;
+                        boolean mandatory = !(js.get("isMandatory") instanceof Boolean b) || b;
+                        requirements.add(new RecommendationSnapshot.SkillRequirement(
+                                skillName,
+                                minScore,
+                                mandatory
+                                        ? RecommendationSnapshot.RequirementType.REQUIRED
+                                        : RecommendationSnapshot.RequirementType.PREFERRED));
+                    }
+                }
+                jobs.add(new RecommendationSnapshot.EligibleJob(jobId, revision, requirements));
+            }
+            return jobs;
+        } catch (Exception ex) {
+            log.error("Failed to fetch approved jobs from job-service", ex);
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Unable to load approved jobs from job-service",
+                    ex);
+        }
+    }
+
+    private static int clampScore(int score) {
+        return Math.max(0, Math.min(100, score));
+    }
+
+    private static String stringOrNull(Object value) {
+        return value != null ? value.toString() : null;
+    }
+
+    private static String stringOrDefault(Object value, String fallback) {
+        return value != null ? value.toString() : fallback;
+    }
+}

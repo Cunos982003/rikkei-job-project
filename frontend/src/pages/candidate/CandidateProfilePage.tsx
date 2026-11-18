@@ -26,7 +26,10 @@ import {
   AlertCircle,
   Lock,
   Paperclip,
+  CheckCircle2,
+  Gift,
 } from "lucide-react";
+import { offersApi } from "../../api/endpoints/offers.api";
 import {
   profileApi,
   type CandidateProfile,
@@ -90,28 +93,38 @@ export function CandidateProfilePage() {
   const [uploading, setUploading] = useState(false);
 
   const { data: profileData, isLoading: profileLoading, error: profileError } = useQuery({
-    queryKey: ["myProfile"],
+    queryKey: ["myProfile", user?.id],
     queryFn: () => profileApi.getMyProfile(),
+    enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: educationsData, isLoading: educationsLoading } = useQuery({
-    queryKey: ["myEducations"],
+    queryKey: ["myEducations", user?.id],
     queryFn: () => profileApi.getEducations(),
+    enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: certificatesData, isLoading: certificatesLoading } = useQuery({
-    queryKey: ["myCertificates"],
+    queryKey: ["myCertificates", user?.id],
     queryFn: () => profileApi.getCertificates(),
+    enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: skillsData, isLoading: skillsLoading } = useQuery({
-    queryKey: ["mySkills"],
+    queryKey: ["mySkills", user?.id],
     queryFn: () => profileApi.getMySkills(),
     staleTime: 5 * 60 * 1000,
   });
+
+  const { data: employmentRecordsData } = useQuery({
+    queryKey: ["myEmploymentRecords", user?.id],
+    queryFn: () => offersApi.listMyEmploymentRecords(),
+    staleTime: 60 * 1000,
+  });
+  const employmentRecords = employmentRecordsData?.data ?? [];
 
   useEffect(() => {
     const p = profileData?.data;
@@ -484,6 +497,65 @@ export function CandidateProfilePage() {
                 <Input label="Chương trình đào tạo" value={profile?.program ?? ""} disabled leftIcon={<BookOpen className="h-4 w-4" />} hint="Đồng bộ từ LMS" />
                 <Input label="Mã lớp" value={profile?.classCode ?? ""} disabled leftIcon={<GraduationCap className="h-4 w-4" />} hint="Đồng bộ từ LMS" />
                 <Input label="Tên khóa học" value={profile?.courseName ?? ""} disabled leftIcon={<BookOpen className="h-4 w-4" />} hint="Đồng bộ từ LMS" />
+              </CardContent>
+            </Card>
+
+            {/* [UT-07] Kinh nghiệm nhận việc từ Offer */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <CardTitle className="flex items-center gap-2">
+                    <Briefcase className="h-5 w-5 text-emerald-600" />
+                    <span>Kinh nghiệm làm việc (Nhận việc qua Rikkei Jobs)</span>
+                  </CardTitle>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    leftIcon={<Gift className="h-3.5 w-3.5" />}
+                    onClick={() => navigate("/candidate/offers")}
+                  >
+                    Xem thư mời Offer
+                  </Button>
+                </div>
+                <CardDescription>
+                  Tự động ghi nhận khi bạn chấp nhận thư mời nhận việc (Offer) từ doanh nghiệp đối tác.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {employmentRecords.length === 0 ? (
+                  <p className="text-sm text-muted">
+                    Chưa có lịch sử nhận việc nào được ghi nhận từ Offer.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {employmentRecords.map((rec) => (
+                      <div
+                        key={rec.id}
+                        className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      >
+                        <div className="space-y-1">
+                          <p className="text-sm font-bold text-foreground">
+                            Kinh nghiệm: {rec.position} tại {rec.companyName || "Doanh nghiệp tuyển dụng"}
+                          </p>
+                          <p className="text-xs text-muted">
+                            Ngày bắt đầu: {formatDate(rec.startDate)}
+                          </p>
+                        </div>
+                        {rec.confirmedAt ? (
+                          <Badge variant="verified" size="sm">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Đã xác nhận đi làm ({formatDate(rec.confirmedAt)})
+                          </Badge>
+                        ) : (
+                          <Badge variant="warning" size="sm">
+                            Chờ HR xác nhận đi làm
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
