@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { setAccessToken, setCurrentUserId, clearAuthSession, registerUnauthorizedHandler } from "../api/client";
 import { authApi, type Role, type UserProfile, type AuthResponseData } from "../api/endpoints/auth.api";
+import { queryClient } from "../lib/queryClient";
 
 const AUTH_STORAGE_KEY = "rikkei_auth_storage";
 
@@ -54,8 +55,9 @@ export const useAuthStore = create<AuthState>()(
       login: async (email, password) => {
         set({ isLoading: true });
         try {
-          // Xóa sạch session và token cũ trước khi thiết lập session mới
+          // Xóa sạch session, token và cache query cũ trước khi thiết lập session mới
           clearAuthSession();
+          queryClient.clear();
           const res = await authApi.login({ email, password });
           const data = res.data;
           const token = data.accessToken;
@@ -80,8 +82,9 @@ export const useAuthStore = create<AuthState>()(
       ssoLogin: async (ticket) => {
         set({ isLoading: true });
         try {
-          // Xóa sạch session và token cũ trước khi thiết lập session mới
+          // Xóa sạch session, token và cache query cũ trước khi thiết lập session mới
           clearAuthSession();
+          queryClient.clear();
           const res = await authApi.ssoLogin({ ticket });
           const data = res.data;
           const token = data.accessToken;
@@ -115,8 +118,9 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        // Xóa sạch toàn bộ token, session, user ID, cached headers
+        // Xóa sạch toàn bộ token, session, user ID, cached headers và TanStack Query cache
         clearAuthSession();
+        queryClient.clear();
         set({
           user: null,
           accessToken: null,

@@ -53,7 +53,7 @@ public class CourseSuggestionServiceImpl implements CourseSuggestionService {
     private final LmsClient lmsClient;
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public List<SkillCourseSuggestionResponse> getSuggestionsForCandidate(UUID userId, String authHeader) {
         log.info("Lấy danh sách khóa học gợi ý theo kỹ năng thiếu cho userId: {}", userId);
 
@@ -83,7 +83,11 @@ public class CourseSuggestionServiceImpl implements CourseSuggestionService {
                 TargetPosition defaultPos = positions.get(0); // Java Backend Fresher
                 List<ProfileSkillResponse> userSkills = profileServiceClient.getCandidateSkills(userId, authHeader);
                 Map<String, Integer> userScoreMap = userSkills.stream()
-                        .collect(Collectors.toMap(ProfileSkillResponse::getSkillCode, ProfileSkillResponse::getVerifiedScore, (a, b) -> a));
+                        .filter(s -> s != null && s.getSkillCode() != null)
+                        .collect(Collectors.toMap(
+                                ProfileSkillResponse::getSkillCode,
+                                s -> s.getVerifiedScore() != null ? s.getVerifiedScore() : 0,
+                                (a, b) -> a));
 
                 if (defaultPos.getSkills() != null) {
                     missingSkills = defaultPos.getSkills().stream()
@@ -123,6 +127,7 @@ public class CourseSuggestionServiceImpl implements CourseSuggestionService {
         // 3. Lấy thông tin bổ sung từ Mock LMS (nếu khả dụng)
         List<LmsCourseDto> mockCourses = lmsClient.getCourses();
         Map<String, LmsCourseDto> mockCourseMap = mockCourses.stream()
+                .filter(c -> c != null && c.getCourseId() != null)
                 .collect(Collectors.toMap(LmsCourseDto::getCourseId, Function.identity(), (a, b) -> a));
 
         // 4. Lấy các khóa học ứng viên hiện tại đã ghi danh

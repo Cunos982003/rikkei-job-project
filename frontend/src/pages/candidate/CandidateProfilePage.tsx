@@ -93,20 +93,23 @@ export function CandidateProfilePage() {
   const [uploading, setUploading] = useState(false);
 
   const { data: profileData, isLoading: profileLoading, error: profileError } = useQuery({
-    queryKey: ["myProfile"],
+    queryKey: ["myProfile", user?.id],
     queryFn: () => profileApi.getMyProfile(),
+    enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: educationsData, isLoading: educationsLoading } = useQuery({
-    queryKey: ["myEducations"],
+    queryKey: ["myEducations", user?.id],
     queryFn: () => profileApi.getEducations(),
+    enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: certificatesData, isLoading: certificatesLoading } = useQuery({
-    queryKey: ["myCertificates"],
+    queryKey: ["myCertificates", user?.id],
     queryFn: () => profileApi.getCertificates(),
+    enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
   });
 
