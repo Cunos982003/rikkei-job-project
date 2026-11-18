@@ -1,0 +1,224 @@
+{
+  "applications": [
+    {
+      "id": "77070000-0000-4000-8000-000000000001",
+      "jobId": "d0000000-0000-4000-8000-000000000001",
+      "companyId": "11111111-1111-4111-8111-111111111111",
+      "companyName": "Công ty Cổ phần Rikkeisoft",
+      "candidateId": "ed854c07-f3eb-48f1-a186-4e7135f54645",
+      "candidateEmail": "candidate1@rikkeijobs.test",
+      "coverLetter": "Ứng tuyển vị trí Java Backend Developer tại Rikkeisoft",
+      "cvSnapshotUrl": "/recruitments/77070000-0000-4000-8000-000000000001/cv-snapshot",
+      "score": 88.5,
+      "status": "INTERVIEW",
+      "createdAt": "2026-11-10T08:00:00Z",
+      "updatedAt": "2026-11-17T10:00:00Z",
+      "rounds": [
+        {
+          "id": "77072000-0000-4000-8000-000000000001",
+          "roundNo": 1,
+          "name": "Phỏng vấn Kỹ thuật Java & Spring Boot",
+          "interviewerEmail": "mentor1@rikkeijobs.test",
+          "scheduledAt": "2026-11-15T09:00:00",
+          "result": "PASS",
+          "score": 88,
+          "note": "Nắm chắc OOP, JPA và tư duy thiết kế API sạch."
+        }
+      ],
+      "history": [
+        {
+          "id": "h-ut07-1",
+          "fromStatus": "SUBMITTED",
+          "toStatus": "SCREENING",
+          "actorId": "f4c530f6-3b46-4e5d-b4db-ce699cd3db25",
+          "note": "Hồ sơ phù hợp",
+          "createdAt": "2026-11-11T09:00:00Z"
+        },
+        {
+          "id": "h-ut07-2",
+          "fromStatus": "SCREENING",
+          "toStatus": "INTERVIEW",
+          "actorId": "f4c530f6-3b46-4e5d-b4db-ce699cd3db25",
+          "note": "Mời phỏng vấn kỹ thuật",
+          "createdAt": "2026-11-13T09:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": "77070000-0000-4000-8000-000000000002",
+      "jobId": "d0000000-0000-4000-8000-000000000001",
+      "companyId": "11111111-1111-4111-8111-111111111111",
+      "companyName": "Công ty Cổ phần Rikkeisoft",
+      "candidateId": "797c5663-386b-4e96-9112-6d3e414b4449",
+      "candidateEmail": "candidate2@rikkeijobs.test",
+      "coverLetter": "Ứng tuyển Frontend React Developer",
+      "cvSnapshotUrl": "/recruitments/77070000-0000-4000-8000-000000000002/cv-snapshot",
+      "score": 81.0,
+      "status": "INTERVIEW",
+      "createdAt": "2026-11-12T08:00:00Z",
+      "updatedAt": "2026-11-17T10:00:00Z",
+      "rounds": [
+        {
+          "id": "77072000-0000-4000-8000-000000000002",
+          "roundNo": 1,
+          "name": "Phỏng vấn Frontend React",
+          "interviewerEmail": "mentor2@rikkeijobs.test",
+          "scheduledAt": "2026-11-20T14:00:00",
+          "result": "PENDING",
+          "score": null,
+          "note": "Chưa có kết quả phỏng vấn"
+        }
+      ],
+      "history": []
+    },
+    {
+      "id": "77070000-0000-4000-8000-000000000003",
+      "jobId": "d0000000-0000-4000-8000-000000000011",
+      "companyId": "11111111-1111-4111-8111-111111111111",
+      "companyName": "Công ty Cổ phần Rikkeisoft",
+      "candidateId": "ed854c07-f3eb-48f1-a186-4e7135f54645",
+      "candidateEmail": "candidate1@rikkeijobs.test",
+      "coverLetter": "Ứng tuyển Java Spring Boot Microservices",
+      "cvSnapshotUrl": "/recruitments/77070000-0000-4000-8000-000000000003/cv-snapshot",
+      "score": 92.0,
+      "status": "OFFER",
+      "createdAt": "2026-11-08T08:00:00Z",
+      "updatedAt": "2026-11-17T10:00:00Z",
+      "rounds": [
+        {
+          "id": "77072000-0000-4000-8000-000000000003",
+          "roundNo": 1,
+          "name": "Phỏng vấn Chuyên sâu Microservices",
+          "interviewerEmail": "mentor1@rikkeijobs.test",
+          "scheduledAt": "2026-11-14T10:00:00",
+          "result": "PASS",
+          "score": 92,
+          "note": "Xuất sắc, đề nghị gửi Offer ngay."
+        }
+      ],
+      "history": []
+    },
+    {
+      "id": "77070000-0000-4000-8000-000000000004",
+      "jobId": "d0000000-0000-4000-8000-000000000021",
+      "companyId": "11111111-1111-4111-8111-111111111111",
+      "companyName": "Công ty Cổ phần Rikkeisoft",
+      "candidateId": "4a09b051-d7ab-40a5-8322-963ec9ebdbd7",
+      "candidateEmail": "candidate3@rikkeijobs.test",
+      "coverLetter": "Ứng tuyển Fullstack Software Engineer",
+      "cvSnapshotUrl": "/recruitments/77070000-0000-4000-8000-000000000004/cv-snapshot",
+      "score": 86.0,
+      "status": "REJECTED",
+      "createdAt": "2026-11-05T08:00:00Z",
+      "updatedAt": "2026-11-16T10:00:00Z",
+      "rounds": [
+        {
+          "id": "77072000-0000-4000-8000-000000000004",
+          "roundNo": 1,
+          "name": "Phỏng vấn Fullstack",
+          "interviewerEmail": "mentor1@rikkeijobs.test",
+          "scheduledAt": "2026-11-10T10:00:00",
+          "result": "PASS",
+          "score": 86,
+          "note": "Đạt yêu cầu"
+        }
+      ],
+      "history": []
+    },
+    {
+      "id": "77070000-0000-4000-8000-000000000005",
+      "jobId": "d0000000-0000-4000-8000-000000000031",
+      "companyId": "11111111-1111-4111-8111-111111111111",
+      "companyName": "Công ty Cổ phần Rikkeisoft",
+      "candidateId": "ed854c07-f3eb-48f1-a186-4e7135f54645",
+      "candidateEmail": "candidate1@rikkeijobs.test",
+      "coverLetter": "Ứng tuyển DevOps Fresher",
+      "cvSnapshotUrl": "/recruitments/77070000-0000-4000-8000-000000000005/cv-snapshot",
+      "score": 84.0,
+      "status": "REJECTED",
+      "createdAt": "2026-11-04T08:00:00Z",
+      "updatedAt": "2026-11-17T06:00:00Z",
+      "rounds": [
+        {
+          "id": "77072000-0000-4000-8000-000000000005",
+          "roundNo": 1,
+          "name": "Phỏng vấn DevOps",
+          "interviewerEmail": "mentor2@rikkeijobs.test",
+          "scheduledAt": "2026-11-09T10:00:00",
+          "result": "PASS",
+          "score": 84,
+          "note": "Đạt yêu cầu"
+        }
+      ],
+      "history": []
+    }
+  ],
+  "offers": [
+    {
+      "id": "77073000-0000-4000-8000-000000000003",
+      "applicationId": "77070000-0000-4000-8000-000000000003",
+      "jobId": "d0000000-0000-4000-8000-000000000011",
+      "companyId": "11111111-1111-4111-8111-111111111111",
+      "companyName": "Công ty Cổ phần Rikkeisoft",
+      "candidateId": "ed854c07-f3eb-48f1-a186-4e7135f54645",
+      "candidateEmail": "candidate1@rikkeijobs.test",
+      "position": "Java Spring Boot Microservices (Junior)",
+      "salary": 20000000,
+      "startDate": "2026-12-15",
+      "workLocation": "Tầng 21, Tòa nhà Handico, Nam Từ Liêm, Hà Nội",
+      "note": "Gói đãi ngộ gồm thưởng tháng 13, bảo hiểm sức khỏe và phụ cấp ăn trưa.",
+      "responseDeadline": "2026-11-25T10:00:00Z",
+      "status": "SENT",
+      "applicationStatus": "OFFER",
+      "respondedAt": null,
+      "declineReason": null,
+      "confirmedAt": null,
+      "createdAt": "2026-11-17T10:00:00Z",
+      "updatedAt": "2026-11-17T10:00:00Z"
+    },
+    {
+      "id": "77073000-0000-4000-8000-000000000004",
+      "applicationId": "77070000-0000-4000-8000-000000000004",
+      "jobId": "d0000000-0000-4000-8000-000000000021",
+      "companyId": "11111111-1111-4111-8111-111111111111",
+      "companyName": "Công ty Cổ phần Rikkeisoft",
+      "candidateId": "4a09b051-d7ab-40a5-8322-963ec9ebdbd7",
+      "candidateEmail": "candidate3@rikkeijobs.test",
+      "position": "Fullstack Software Engineer",
+      "salary": 22000000,
+      "startDate": "2026-12-01",
+      "workLocation": "Hà Nội",
+      "note": "Chào mừng gia nhập đội ngũ sản phẩm",
+      "responseDeadline": "2026-11-22T10:00:00Z",
+      "status": "DECLINED",
+      "applicationStatus": "REJECTED",
+      "respondedAt": "2026-11-16T08:30:00Z",
+      "declineReason": "Đã nhận offer gần nhà hơn và phù hợp định hướng hiện tại",
+      "confirmedAt": null,
+      "createdAt": "2026-11-13T10:00:00Z",
+      "updatedAt": "2026-11-16T08:30:00Z"
+    },
+    {
+      "id": "77073000-0000-4000-8000-000000000005",
+      "applicationId": "77070000-0000-4000-8000-000000000005",
+      "jobId": "d0000000-0000-4000-8000-000000000031",
+      "companyId": "11111111-1111-4111-8111-111111111111",
+      "companyName": "Công ty Cổ phần Rikkeisoft",
+      "candidateId": "ed854c07-f3eb-48f1-a186-4e7135f54645",
+      "candidateEmail": "candidate1@rikkeijobs.test",
+      "position": "DevOps Fresher Engineer",
+      "salary": 15000000,
+      "startDate": "2026-12-01",
+      "workLocation": "Đà Nẵng",
+      "note": "Cơ hội làm việc trực tiếp với Kubernetes & AWS",
+      "responseDeadline": "2026-11-16T10:00:00Z",
+      "status": "EXPIRED",
+      "applicationStatus": "REJECTED",
+      "respondedAt": null,
+      "declineReason": null,
+      "confirmedAt": null,
+      "createdAt": "2026-11-11T10:00:00Z",
+      "updatedAt": "2026-11-16T10:00:00Z"
+    }
+  ]
+}

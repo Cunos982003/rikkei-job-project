@@ -29,27 +29,40 @@ public class SecurityConfig {
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/v1/jobs/*/recruit",
-                                "/api/v1/me/recruitments/*/withdraw")
+                                "/api/v1/me/recruitments/*/withdraw",
+                                "/api/v1/me/offers/*/accept",
+                                "/api/v1/me/offers/*/decline")
                         .hasRole("CANDIDATE")
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/v1/me/recruitments",
-                                "/api/v1/me/recruitments/**")
+                                "/api/v1/me/recruitments/**",
+                                "/api/v1/me/offers",
+                                "/api/v1/me/offers/**",
+                                "/api/v1/me/employment-records")
                         .hasRole("CANDIDATE")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/staff/recruitments")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/staff/recruitments", "/api/v1/staff/applications")
                         .hasRole("STAFF")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/hr/applications", "/api/v1/applications")
+                        .hasRole("HR")
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/v1/recruitments/*/cv-snapshot")
                         .hasAnyRole("CANDIDATE", "HR")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/recruitments/*")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/recruitments/*", "/api/v1/applications/*")
                         .hasAnyRole("HR", "STAFF")
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/v1/recruitments/*/transition",
-                                "/api/v1/recruitments/*/rounds")
+                                "/api/v1/applications/*/transition",
+                                "/api/v1/recruitments/*/rounds",
+                                "/api/v1/applications/*/rounds",
+                                "/api/v1/applications/*/offer",
+                                "/api/v1/recruitments/*/offer",
+                                "/api/v1/applications/*/offer/confirm-onboard",
+                                "/api/v1/recruitments/*/offer/confirm-onboard")
                         .hasRole("HR")
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/recruitments/*/rounds/*")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/recruitments/*/rounds/*", "/api/v1/applications/*/rounds/*")
                         .hasRole("HR")
                         .anyRequest().denyAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

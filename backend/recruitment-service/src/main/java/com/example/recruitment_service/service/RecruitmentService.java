@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -14,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.example.recruitment_service.dto.CreateInterviewRoundRequest;
+import com.example.recruitment_service.dto.EmploymentRecordResponse;
 import com.example.recruitment_service.dto.InterviewRoundSummary;
+import com.example.recruitment_service.dto.OfferResponse;
 import com.example.recruitment_service.dto.RecruitmentReviewDetails;
 import com.example.recruitment_service.dto.RecruitmentStaffSummary;
 import com.example.recruitment_service.dto.RecruitmentDetails;
@@ -32,7 +35,9 @@ import com.example.recruitment_service.exception.ApiException;
 import com.example.recruitment_service.integration.AiCareerServiceClient;
 import com.example.recruitment_service.integration.CvServiceClient;
 import com.example.recruitment_service.integration.JobServiceClient;
+import com.example.recruitment_service.repository.EmploymentRecordRepository;
 import com.example.recruitment_service.repository.InterviewRoundRepository;
+import com.example.recruitment_service.repository.OfferRepository;
 import com.example.recruitment_service.repository.RecruitmentRepository;
 import com.example.recruitment_service.repository.RecruitmentStatusHistoryRepository;
 import com.example.recruitment_service.security.UserPrincipal;
@@ -43,12 +48,40 @@ public class RecruitmentService {
     private final RecruitmentRepository recruitmentRepository;
     private final RecruitmentStatusHistoryRepository historyRepository;
     private final InterviewRoundRepository interviewRoundRepository;
+    private final OfferRepository offerRepository;
+    private final EmploymentRecordRepository employmentRecordRepository;
     private final RecruitmentTransitionPolicy transitionPolicy;
     private final JobServiceClient jobServiceClient;
     private final AiCareerServiceClient aiCareerServiceClient;
     private final CvServiceClient cvServiceClient;
     private final CvSnapshotStorage snapshotStorage;
     private final ApplicationEventPublisher eventPublisher;
+
+    @Autowired
+    public RecruitmentService(
+            RecruitmentRepository recruitmentRepository,
+            RecruitmentStatusHistoryRepository historyRepository,
+            InterviewRoundRepository interviewRoundRepository,
+            OfferRepository offerRepository,
+            EmploymentRecordRepository employmentRecordRepository,
+            RecruitmentTransitionPolicy transitionPolicy,
+            JobServiceClient jobServiceClient,
+            AiCareerServiceClient aiCareerServiceClient,
+            CvServiceClient cvServiceClient,
+            CvSnapshotStorage snapshotStorage,
+            ApplicationEventPublisher eventPublisher) {
+        this.recruitmentRepository = recruitmentRepository;
+        this.historyRepository = historyRepository;
+        this.interviewRoundRepository = interviewRoundRepository;
+        this.offerRepository = offerRepository;
+        this.employmentRecordRepository = employmentRecordRepository;
+        this.transitionPolicy = transitionPolicy;
+        this.jobServiceClient = jobServiceClient;
+        this.aiCareerServiceClient = aiCareerServiceClient;
+        this.cvServiceClient = cvServiceClient;
+        this.snapshotStorage = snapshotStorage;
+        this.eventPublisher = eventPublisher;
+    }
 
     public RecruitmentService(
             RecruitmentRepository recruitmentRepository,
@@ -60,15 +93,9 @@ public class RecruitmentService {
             CvServiceClient cvServiceClient,
             CvSnapshotStorage snapshotStorage,
             ApplicationEventPublisher eventPublisher) {
-        this.recruitmentRepository = recruitmentRepository;
-        this.historyRepository = historyRepository;
-        this.interviewRoundRepository = interviewRoundRepository;
-        this.transitionPolicy = transitionPolicy;
-        this.jobServiceClient = jobServiceClient;
-        this.aiCareerServiceClient = aiCareerServiceClient;
-        this.cvServiceClient = cvServiceClient;
-        this.snapshotStorage = snapshotStorage;
-        this.eventPublisher = eventPublisher;
+        this(recruitmentRepository, historyRepository, interviewRoundRepository, null, null,
+                transitionPolicy, jobServiceClient, aiCareerServiceClient, cvServiceClient,
+                snapshotStorage, eventPublisher);
     }
 
     @Transactional
@@ -161,6 +188,16 @@ public class RecruitmentService {
                 .stream().map(InterviewRoundSummary::from).toList();
         List<RecruitmentHistoryItem> history = historyRepository.findHistory(recruitmentId)
                 .stream().map(RecruitmentHistoryItem::from).toList();
+        EmploymentRecordResponse employmentRecord = employmentRecordRepository == null
+                ? null
+                : employmentRecordRepository.findByApplicationId(recruitmentId)
+                        .map(EmploymentRecordResponse::from)
+                        .orElse(null);
+        OfferResponse offer = offerRepository == null
+                ? null
+                : offerRepository.findByRecruitment_Id(recruitmentId)
+                        .map(o -> OfferResponse.from(o, employmentRecord != null ? employmentRecord.confirmedAt() : null))
+                        .orElse(null);
         return new RecruitmentReviewDetails(
                 RecruitmentSummary.from(recruitment),
                 recruitment.getUser_id(),
@@ -169,7 +206,26 @@ public class RecruitmentService {
                 recruitment.getCv_snapshot_url(),
                 matchScore.score(),
                 rounds,
-                history);
+                history,
+                offer,
+                employmentRecord);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<RecruitmentStaffSummary> listForHr(
+            UserPrincipal actor,
+            UUID jobId,
+            RecruitmentStatus status,
+            int page) {
+        if (!"HR".equals(actor.role()) || actor.companyId() == null) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Only HR with a valid company can list applications");
+        }
+        if (page < 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Page must be zero or greater", "INVALID_PAGE");
+        }
+        PageRequest pageable = PageRequest.of(page, 20, Sort.by(Sort.Direction.DESC, "created_at"));
+        return recruitmentRepository.findForStaff(actor.companyId(), jobId, status, pageable)
+                .map(RecruitmentStaffSummary::from);
     }
 
     @Transactional(readOnly = true)

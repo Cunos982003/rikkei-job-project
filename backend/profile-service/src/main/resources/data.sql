@@ -42,23 +42,3 @@ INSERT INTO skill_mappings (source, source_code, skill_id, weight) VALUES
 ('PM', 'JAVA', (SELECT id FROM skills WHERE code='SPRING_BOOT'), 0.25),
 ('PM', 'JAVA', (SELECT id FROM skills WHERE code='SQL'), 0.25)
 ON CONFLICT (source, source_code, skill_id) DO NOTHING;
-
--- Seed skill evidences for demo user (550e8400-e29b-41d4-a716-446655440000)
-INSERT INTO skill_evidences (user_id, skill_id, source, source_ref, title, score, recorded_at, verified) VALUES
-('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='JAVA_CORE'), 'LMS', 'JAVA01', 'Java Core Course', 85, now() - interval '30 days', true),
-('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='JAVA_CORE'), 'EXAM', 'JAVA_MID', 'Java Midterm Exam', 90, now() - interval '50 days', true),
-('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='SPRING_BOOT'), 'LMS', 'SPRING01', 'Spring Boot Course', 80, now() - interval '20 days', true),
-('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='SQL'), 'EXAM', 'SQL_FINAL', 'SQL Final Exam', 75, now() - interval '45 days', true),
-('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='REACT'), 'SELF', 'SELF_REACT', 'Self-reported React', 88, now() - interval '10 days', false),
-('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='JAVASCRIPT'), 'LMS', 'WEB01', 'JavaScript Basics', 65, now() - interval '60 days', true),
-('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='JAVASCRIPT'), 'SELF', 'SELF_JS', 'Self-reported JavaScript', 70, now() - interval '10 days', false)
-ON CONFLICT (user_id, skill_id, source, source_ref) DO NOTHING;
-
--- Seed skill scores for demo user
-INSERT INTO skill_scores (user_id, skill_id, verified_score, self_score, level, updated_at) VALUES
-('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='JAVA_CORE'), 85, NULL, 'Nâng cao', now()),
-('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='SPRING_BOOT'), 78, NULL, 'Vững', now()),
-('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='SQL'), 72, NULL, 'Vững', now()),
-('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='REACT'), NULL, 88, 'Nâng cao', now()),
-('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM skills WHERE code='JAVASCRIPT'), 65, 70, 'Khá', now())
-ON CONFLICT (user_id, skill_id) DO NOTHING;
