@@ -14,6 +14,11 @@ import {
   AlertCircle,
   ChevronRight,
   ExternalLink,
+  Gift,
+  Send,
+  CheckCircle2,
+  MapPin,
+  DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/common/Card";
@@ -31,6 +36,17 @@ import {
   type CreateInterviewRoundRequest,
   type UpdateInterviewRoundRequest,
 } from "@/api/endpoints/recruitment.api";
+import { offersApi, type OfferStatus, type SendOfferPayload } from "@/api/endpoints/offers.api";
+
+const OFFER_STATUS_BADGE: Record<
+  OfferStatus,
+  { label: string; variant: "primary" | "verified" | "danger" | "warning" }
+> = {
+  SENT: { label: "Đã gửi (Chờ ứng viên phản hồi)", variant: "primary" },
+  ACCEPTED: { label: "Ứng viên đã chấp nhận (ACCEPTED)", variant: "verified" },
+  DECLINED: { label: "Ứng viên đã từ chối (DECLINED)", variant: "danger" },
+  EXPIRED: { label: "Quá hạn phản hồi (EXPIRED)", variant: "warning" },
+};
 
 // Mapping status badge variant & label
 const STATUS_CONFIG: Record<
@@ -98,6 +114,14 @@ export function ApplicationDetailPage() {
   const [editRoundNote, setEditRoundNote] = useState<string>("");
   const [editRoundDate, setEditRoundDate] = useState<string>("");
 
+  // UT-07: Send Offer form state
+  const [offerPosition, setOfferPosition] = useState("");
+  const [offerSalary, setOfferSalary] = useState("");
+  const [offerStartDate, setOfferStartDate] = useState("");
+  const [offerWorkLocation, setOfferWorkLocation] = useState("");
+  const [offerDeadline, setOfferDeadline] = useState("");
+  const [offerNote, setOfferNote] = useState("");
+
   const {
     data: response,
     isLoading,
@@ -154,6 +178,55 @@ export function ApplicationDetailPage() {
       toast.error(err.response?.data?.message || "Không thể cập nhật vòng phỏng vấn");
     },
   });
+
+  // Mutation: Send Offer (UT-07)
+  const sendOfferMutation = useMutation({
+    mutationFn: (payload: SendOfferPayload) => offersApi.sendOffer(id!, payload),
+    onSuccess: () => {
+      toast.success("Gửi thư mời nhận việc (Offer) tới ứng viên thành công!");
+      setOfferPosition("");
+      setOfferSalary("");
+      setOfferStartDate("");
+      setOfferWorkLocation("");
+      setOfferDeadline("");
+      setOfferNote("");
+      queryClient.invalidateQueries({ queryKey: ["recruitment", id] });
+      queryClient.invalidateQueries({ queryKey: ["hrApplications"] });
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || "Không thể gửi Offer (kiểm tra vòng phỏng vấn cuối phải PASS)");
+    },
+  });
+
+  // Mutation: Confirm Onboard (UT-07)
+  const confirmOnboardMutation = useMutation({
+    mutationFn: () => offersApi.confirmOnboard(id!),
+    onSuccess: () => {
+      toast.success("Đã xác nhận ứng viên đi làm thành công!");
+      queryClient.invalidateQueries({ queryKey: ["recruitment", id] });
+      queryClient.invalidateQueries({ queryKey: ["hrApplications"] });
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || "Không thể xác nhận đi làm");
+    },
+  });
+
+  const handleSendOfferSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const salaryNum = Number(offerSalary);
+    if (!offerPosition.trim() || !offerWorkLocation.trim() || !offerStartDate || !offerDeadline || Number.isNaN(salaryNum) || salaryNum <= 0) {
+      toast.error("Vui lòng nhập đầy đủ vị trí, mức lương (> 0), ngày bắt đầu, địa điểm và hạn trả lời.");
+      return;
+    }
+    sendOfferMutation.mutate({
+      position: offerPosition.trim(),
+      salary: salaryNum,
+      startDate: offerStartDate,
+      workLocation: offerWorkLocation.trim(),
+      responseDeadline: new Date(offerDeadline).toISOString(),
+      note: offerNote.trim() || undefined,
+    });
+  };
 
   const handleOpenEditRound = (round: InterviewRoundSummary) => {
     setEditingRound(round);
@@ -454,6 +527,203 @@ export function ApplicationDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Block [UT-07]: Quản lý Offer & Xác nhận đi làm */}
+      {(detail.offer || (isHr && currentStatus === "INTERVIEW")) && (() => {
+        const rounds = detail.rounds || [];
+        const hasPendingRound = rounds.some((r) => r.result === "PENDING");
+        const lastRound = rounds.length > 0 ? rounds[rounds.length - 1] : null;
+        const isEligibleForOffer = currentStatus === "INTERVIEW" && rounds.length > 0 && !hasPendingRound && lastRound?.result === "PASS";
+        const offer = detail.offer;
+        const emp = detail.employmentRecord;
+        const confirmedAt = emp?.confirmedAt || offer?.confirmedAt || null;
+
+        return (
+          <Card className="border-primary/30">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Gift className="h-4 w-4 text-primary" />
+                  Thư mời nhận việc (Offer) &amp; Xác nhận đi làm
+                </CardTitle>
+                {offer && (
+                  <Badge variant={OFFER_STATUS_BADGE[offer.status].variant} size="sm">
+                    {OFFER_STATUS_BADGE[offer.status].label}
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {offer ? (
+                <div className="space-y-4">
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                    <div className="rounded-xl bg-slate-50 border border-border p-3">
+                      <span className="text-xs text-muted">Vị trí Offer</span>
+                      <p className="font-semibold text-foreground mt-1">{offer.position}</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 border border-border p-3">
+                      <span className="text-xs text-muted flex items-center gap-1">
+                        <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                        Mức lương đề nghị
+                      </span>
+                      <p className="font-bold text-foreground mt-1">
+                        {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(offer.salary)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 border border-border p-3">
+                      <span className="text-xs text-muted">Ngày bắt đầu dự kiến</span>
+                      <p className="font-semibold text-foreground mt-1">
+                        {new Date(offer.startDate).toLocaleDateString("vi-VN")}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 border border-border p-3">
+                      <span className="text-xs text-muted">Hạn trả lời</span>
+                      <p className="font-semibold text-foreground mt-1">
+                        {new Date(offer.responseDeadline).toLocaleString("vi-VN")}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-foreground flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5 text-muted" />
+                    <span className="text-muted">Địa điểm làm việc:</span>
+                    <span className="font-medium">{offer.workLocation}</span>
+                  </div>
+
+                  {offer.note && (
+                    <p className="text-xs text-muted italic">Ghi chú Offer: {offer.note}</p>
+                  )}
+
+                  {offer.status === "DECLINED" && (
+                    <div className="rounded-xl bg-rose-50 border border-rose-200 p-3.5 text-xs text-rose-900 space-y-1">
+                      <p className="font-bold flex items-center gap-1.5">
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        Lý do ứng viên từ chối Offer:
+                      </p>
+                      <p>{offer.declineReason || "Không có lý do chi tiết."}</p>
+                      {offer.respondedAt && (
+                        <p className="text-[11px] text-rose-700">
+                          Thời điểm phản hồi: {new Date(offer.respondedAt).toLocaleString("vi-VN")}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {offer.status === "ACCEPTED" && (
+                    <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="space-y-1 text-xs text-emerald-900">
+                        <p className="font-bold flex items-center gap-1.5">
+                          <CheckCircle2 className="h-4 w-4 shrink-0" />
+                          Ứng viên đã chấp nhận Offer (Đơn: HIRED)
+                        </p>
+                        {confirmedAt ? (
+                          <p>
+                            Đã xác nhận đi làm lúc:{" "}
+                            <strong>{new Date(confirmedAt).toLocaleString("vi-VN")}</strong>
+                          </p>
+                        ) : (
+                          <p>Chưa xác nhận ngày ứng viên đến nhận việc (onboard).</p>
+                        )}
+                      </div>
+
+                      {isHr && !confirmedAt && (
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          leftIcon={<CheckCircle2 className="h-4 w-4" />}
+                          isLoading={confirmOnboardMutation.isPending}
+                          onClick={() => confirmOnboardMutation.mutate()}
+                        >
+                          Xác nhận đã đi làm
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <form onSubmit={handleSendOfferSubmit} className="space-y-4">
+                  {!isEligibleForOffer && (
+                    <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900 flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      <span>
+                        Lưu ý: Đơn ứng tuyển cần có ít nhất 1 vòng phỏng vấn đã hoàn tất và vòng cuối cùng đạt{" "}
+                        <strong>PASS</strong> mới được gửi Offer (nếu chưa đạt, hệ thống sẽ trả về lỗi 409).
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <Input
+                      label="Vị trí tuyển dụng *"
+                      placeholder="Ví dụ: Java Backend Developer (Junior)"
+                      value={offerPosition}
+                      onChange={(e) => setOfferPosition(e.target.value)}
+                      required
+                    />
+                    <Input
+                      label="Mức lương đề nghị (VND) *"
+                      type="number"
+                      min={1}
+                      placeholder="18000000"
+                      value={offerSalary}
+                      onChange={(e) => setOfferSalary(e.target.value)}
+                      required
+                    />
+                    <Input
+                      label="Ngày bắt đầu làm việc *"
+                      type="date"
+                      value={offerStartDate}
+                      onChange={(e) => setOfferStartDate(e.target.value)}
+                      required
+                    />
+                    <Input
+                      label="Hạn ứng viên trả lời *"
+                      type="datetime-local"
+                      value={offerDeadline}
+                      onChange={(e) => setOfferDeadline(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <Input
+                    label="Địa điểm làm việc *"
+                    placeholder="Ví dụ: Tầng 21, Tòa nhà Handico, Nam Từ Liêm, Hà Nội"
+                    value={offerWorkLocation}
+                    onChange={(e) => setOfferWorkLocation(e.target.value)}
+                    required
+                  />
+
+                  <div className="space-y-1.5">
+                    <label htmlFor="offerNote" className="block text-sm font-medium text-foreground">
+                      Ghi chú / Phúc lợi kèm theo
+                    </label>
+                    <textarea
+                      id="offerNote"
+                      rows={3}
+                      value={offerNote}
+                      onChange={(e) => setOfferNote(e.target.value)}
+                      placeholder="Mô tả ngắn về gói đãi ngộ, thời gian thử việc hoặc lời nhắn chào mừng..."
+                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="sm"
+                      leftIcon={<Send className="h-4 w-4" />}
+                      isLoading={sendOfferMutation.isPending}
+                    >
+                      Gửi thư mời nhận việc (Offer)
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Block: Dòng thời gian trạng thái (Status History Timeline) */}
       <Card>

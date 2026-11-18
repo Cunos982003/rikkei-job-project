@@ -234,6 +234,83 @@ async function runTests() {
     '21. Giao diện LMS Portal hiển thị đầy đủ Tab Đăng Nhập Email, Datalist Seed và Dropdown 40 sinh viên'
   );
 
+  // TEST 22 [UT-07]: Gửi offer khi vòng phỏng vấn cuối chưa PASS -> 409
+  const res22 = await simulateRequest({
+    method: 'POST',
+    url: '/api/v1/applications/77070000-0000-4000-8000-000000000002/offer',
+    headers: { 'x-user-id': 'f4c530f6-3b46-4e5d-b4db-ce699cd3db25', 'x-user-role': 'HR' }
+  }, {
+    position: 'Frontend Developer',
+    salary: 18000000,
+    startDate: '2026-12-15',
+    workLocation: 'Hà Nội',
+    responseDeadline: new Date(Date.now() + 3 * 86400000).toISOString()
+  });
+  assert(res22.statusCode === 409, '22. [UT-07] Gửi offer khi chưa có vòng PASS trả về HTTP 409');
+
+  // TEST 23 [UT-07]: Gửi offer hợp lệ (INTERVIEW + vòng cuối PASS) -> 201 + SENT
+  const res23 = await simulateRequest({
+    method: 'POST',
+    url: '/api/v1/applications/77070000-0000-4000-8000-000000000001/offer',
+    headers: { 'x-user-id': 'f4c530f6-3b46-4e5d-b4db-ce699cd3db25', 'x-user-role': 'HR' }
+  }, {
+    position: 'Java Backend Developer (Junior)',
+    salary: 19500000,
+    startDate: '2026-12-10',
+    workLocation: 'Tầng 21 Handico, Hà Nội',
+    responseDeadline: new Date(Date.now() + 3 * 86400000).toISOString(),
+    note: 'Chào mừng gia nhập!'
+  });
+  assert(res23.statusCode === 201 && res23.body.status === 'SENT',
+    '23. [UT-07] HR gửi offer hợp lệ trả về HTTP 201 và trạng thái SENT');
+
+  // TEST 24 [UT-07]: Ứng viên khác mở offer này -> 404
+  const res24 = await simulateRequest({
+    method: 'GET',
+    url: `/api/v1/me/offers/${res23.body.id}`,
+    headers: { 'x-user-id': '797c5663-386b-4e96-9112-6d3e414b4449', 'x-user-role': 'CANDIDATE' }
+  });
+  assert(res24.statusCode === 404, '24. [UT-07] Ứng viên khác mở offer trả về HTTP 404');
+
+  // TEST 25 [UT-07]: Từ chối offer không nhập lý do -> 400
+  const res25 = await simulateRequest({
+    method: 'POST',
+    url: '/api/v1/me/offers/77073000-0000-4000-8000-000000000003/decline',
+    headers: { 'x-user-id': 'ed854c07-f3eb-48f1-a186-4e7135f54645', 'x-user-role': 'CANDIDATE' }
+  }, { reason: '   ' });
+  assert(res25.statusCode === 400, '25. [UT-07] Từ chối offer thiếu lý do trả về HTTP 400');
+
+  // TEST 26 [UT-07]: Quá hạn trả lời (EXPIRED) không bấm Nhận được -> 409
+  const res26 = await simulateRequest({
+    method: 'POST',
+    url: '/api/v1/me/offers/77073000-0000-4000-8000-000000000005/accept',
+    headers: { 'x-user-id': 'ed854c07-f3eb-48f1-a186-4e7135f54645', 'x-user-role': 'CANDIDATE' }
+  });
+  assert(res26.statusCode === 409, '26. [UT-07] Offer quá hạn trả lời (EXPIRED) không thể chấp nhận (HTTP 409)');
+
+  // TEST 27 [UT-07]: Ứng viên chấp nhận offer -> HIRED + tạo employment_records + HR xác nhận onboard
+  const res27Accept = await simulateRequest({
+    method: 'POST',
+    url: `/api/v1/me/offers/${res23.body.id}/accept`,
+    headers: { 'x-user-id': 'ed854c07-f3eb-48f1-a186-4e7135f54645', 'x-user-role': 'CANDIDATE' }
+  });
+  const res27Emp = await simulateRequest({
+    method: 'GET',
+    url: '/api/v1/me/employment-records',
+    headers: { 'x-user-id': 'ed854c07-f3eb-48f1-a186-4e7135f54645', 'x-user-role': 'CANDIDATE' }
+  });
+  const res27Onboard = await simulateRequest({
+    method: 'POST',
+    url: '/api/v1/applications/77070000-0000-4000-8000-000000000001/offer/confirm-onboard',
+    headers: { 'x-user-id': 'f4c530f6-3b46-4e5d-b4db-ce699cd3db25', 'x-user-role': 'HR' }
+  });
+  assert(
+    res27Accept.statusCode === 200 && res27Accept.body.status === 'ACCEPTED' && res27Accept.body.applicationStatus === 'HIRED' &&
+    res27Emp.statusCode === 200 && res27Emp.body.some(e => e.position === 'Java Backend Developer (Junior)') &&
+    res27Onboard.statusCode === 200 && Boolean(res27Onboard.body.confirmedAt),
+    '27. [UT-07] Ứng viên nhận offer -> HIRED, hồ sơ hiện kinh nghiệm mới, HR xác nhận onboard ghi confirmedAt'
+  );
+
   console.log('\n====================================================');
   console.log(`📊 KẾT QUẢ KIỂM THỬ: ${passed} PASS, ${failed} FAIL`);
   console.log('====================================================');

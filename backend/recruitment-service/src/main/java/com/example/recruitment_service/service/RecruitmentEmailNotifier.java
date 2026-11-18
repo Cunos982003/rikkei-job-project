@@ -95,4 +95,40 @@ public class RecruitmentEmailNotifier {
             log.error("Failed to notify candidate for recruitment {}", event.recruitmentId(), exception);
         }
     }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void notifyOfferSent(OfferSentEvent event) {
+        if (!StringUtils.hasText(event.candidateEmail())) {
+            log.error("No candidate email is recorded for offer {}", event.offerId());
+            return;
+        }
+        if (!StringUtils.hasText(smtpHost)) {
+            log.error("SMTP is not configured; cannot send offer email for offer {}", event.offerId());
+            return;
+        }
+
+        JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
+        if (mailSender == null) {
+            log.error("JavaMailSender is unavailable; cannot send offer email for offer {}", event.offerId());
+            return;
+        }
+        SimpleMailMessage message = new SimpleMailMessage();
+        if (StringUtils.hasText(senderAddress)) {
+            message.setFrom(senderAddress);
+        }
+        message.setTo(event.candidateEmail());
+        message.setSubject("Thư mời nhận việc (Offer): " + event.position());
+        message.setText("Chúc mừng bạn đã nhận được đề nghị tuyển dụng cho vị trí " + event.position()
+                + " tại " + event.companyName()
+                + ".\nMức lương đề nghị: " + event.salary() + " VND"
+                + "\nNgày bắt đầu dự kiến: " + event.startDate()
+                + "\nĐịa điểm làm việc: " + event.workLocation()
+                + "\nHạn phản hồi: " + event.responseDeadline()
+                + "\nVui lòng đăng nhập Rikkei Jobs để Chấp nhận hoặc Từ chối offer trước thời hạn.");
+        try {
+            mailSender.send(message);
+        } catch (MailException exception) {
+            log.error("Failed to send offer email for offer {}", event.offerId(), exception);
+        }
+    }
 }
