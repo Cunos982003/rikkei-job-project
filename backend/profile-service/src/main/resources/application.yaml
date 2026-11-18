@@ -24,3 +24,20 @@ spring:
   sql:
     init:
       mode: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    db:
+      enabled: true
+  info:
+    env:
+      enabled: true

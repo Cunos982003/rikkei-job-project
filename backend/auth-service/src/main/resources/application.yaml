@@ -55,6 +55,25 @@ app:
     from: ${MAIL_FROM:haikhac23122004@gmail.com}
     reset-url: ${RESET_PASSWORD_URL:http://localhost:5173/reset-password}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    db:
+      enabled: true
+    redis:
+      enabled: false
+  info:
+    env:
+      enabled: true
+
 ---
 # =============================================================
 # Local development profile (H2 in-memory, không cần PostgreSQL)

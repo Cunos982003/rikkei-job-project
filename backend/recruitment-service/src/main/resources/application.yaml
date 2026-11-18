@@ -43,3 +43,20 @@ app:
     snapshot-directory: ${CV_SNAPSHOT_DIRECTORY:uploads/recruitments}
     max-pdf-bytes: ${CV_MAX_PDF_BYTES:10485760}
   public-base-url: ${PUBLIC_BASE_URL:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    db:
+      enabled: true
+  info:
+    env:
+      enabled: true
