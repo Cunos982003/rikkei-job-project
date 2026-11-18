@@ -35,7 +35,7 @@ const STATUS_CONFIG: Record<
   WITHDRAWN: { label: "Rút đơn", variant: "danger" },
 };
 
-export function StaffApplicationsPage() {
+export function StaffRecruitmentsPage() {
   const navigate = useNavigate();
 
   // Filters state
@@ -228,7 +228,7 @@ export function StaffApplicationsPage() {
                           size="sm"
                           variant="ghost"
                           leftIcon={<Eye className="h-3.5 w-3.5" />}
-                          onClick={() => navigate(`/staff/applications/${item.id}`)}
+                          onClick={() => navigate(`/staff/recruitments/${item.id}`)}
                         >
                           Chi tiết
                         </Button>

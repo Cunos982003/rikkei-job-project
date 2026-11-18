@@ -90,10 +90,10 @@ class SkillProfileIntegrationTest {
                         .header("X-User-Id", userId.toString())
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(4))))
-                .andExpect(jsonPath("$[*].evidences[*].source", everyItem(not(empty()))))
-                .andExpect(jsonPath("$[*].evidences[*].title", everyItem(not(empty()))))
-                .andExpect(jsonPath("$[*].evidences[*].recordedAt", everyItem(not(empty()))));
+                .andExpect(jsonPath("$.data", hasSize(greaterThanOrEqualTo(4))))
+                .andExpect(jsonPath("$.data[*].evidences[*].source", everyItem(not(empty()))))
+                .andExpect(jsonPath("$.data[*].evidences[*].title", everyItem(not(empty()))))
+                .andExpect(jsonPath("$.data[*].evidences[*].recordedAt", everyItem(not(empty()))));
     }
 
     @Test
@@ -135,7 +135,7 @@ class SkillProfileIntegrationTest {
                         .header("X-User-Id", userId.toString())
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.skillCode=='JAVA_CORE')].verifiedScore", hasItem(90)));
+                .andExpect(jsonPath("$.data[?(@.skillCode=='JAVA_CORE')].verifiedScore", hasItem(90)));
     }
 
     @Test
@@ -164,9 +164,9 @@ class SkillProfileIntegrationTest {
                         .header("X-User-Id", userId.toString())
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.skillCode=='JAVA_CORE')].selfScore", hasItem(90)))
-                .andExpect(jsonPath("$[?(@.skillCode=='JAVA_CORE')].verifiedScore", hasItem(nullValue())))
-                .andExpect(jsonPath("$[?(@.skillCode=='JAVA_CORE')].level", hasItem("Nâng cao")));
+                .andExpect(jsonPath("$.data[?(@.skillCode=='JAVA_CORE')].selfScore", hasItem(90)))
+                .andExpect(jsonPath("$.data[?(@.skillCode=='JAVA_CORE')].verifiedScore", hasItem(nullValue())))
+                .andExpect(jsonPath("$.data[?(@.skillCode=='JAVA_CORE')].level", hasItem("Nâng cao")));
     }
 
     @Test
@@ -184,7 +184,7 @@ class SkillProfileIntegrationTest {
                         .header("X-User-Id", userId.toString())
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.skillCode=='JAVA_CORE')].verifiedScore", hasItem(80)));
+                .andExpect(jsonPath("$.data[?(@.skillCode=='JAVA_CORE')].verifiedScore", hasItem(80)));
     }
 
     @Test

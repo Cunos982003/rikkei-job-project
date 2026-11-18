@@ -117,7 +117,7 @@ function defaultSlotDraft(): { startAt: string; endAt: string } {
   return { startAt: toLocal(start), endAt: toLocal(end) };
 }
 
-export function ApplicationDetailPage() {
+export function RecruitmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
