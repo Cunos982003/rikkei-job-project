@@ -201,7 +201,7 @@ export const recruitmentApi = {
    * Danh sách đơn ứng tuyển dành cho STAFF
    */
   listForStaff: (params: StaffRecruitmentFilterParams): Promise<ApiResponse<SpringPage<RecruitmentStaffSummary>>> => {
-    return api.get<SpringPage<RecruitmentStaffSummary>>("/api/v1/staff/recruitments", { params });
+    return api.get<SpringPage<RecruitmentStaffSummary>>("/staff/recruitments", { params });
   },
 
   /**
