@@ -10,6 +10,34 @@ export type RecruitmentStatus =
   | "REJECTED"
   | "WITHDRAWN";
 
+// ===== CANDIDATE: Ứng tuyển =====
+
+export interface ApplyRequest {
+  cvId?: string;
+  coverLetter?: string;
+}
+
+export interface WithdrawRequest {
+  reason?: string;
+}
+
+export interface CandidateRecruitmentSummary {
+  id: string;
+  jobId: string;
+  jobTitle?: string;
+  companyName?: string;
+  cvId: string | null;
+  cvSnapshotUrl: string | null;
+  coverLetter: string | null;
+  status: RecruitmentStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CandidateRecruitmentDetails extends CandidateRecruitmentSummary {
+  history: RecruitmentHistoryItem[];
+}
+
 export type InterviewRoundResult = "PENDING" | "PASS" | "FAIL";
 
 export interface InterviewRoundSummary {
@@ -101,6 +129,42 @@ export interface StaffRecruitmentFilterParams {
 }
 
 export const recruitmentApi = {
+  // =============================================
+  // CANDIDATE endpoints
+  // =============================================
+
+  /**
+   * Nộp đơn ứng tuyển vào một JD
+   */
+  applyJob: (jobId: string, data: ApplyRequest): Promise<ApiResponse<CandidateRecruitmentSummary>> => {
+    return api.post<CandidateRecruitmentSummary>(`/api/v1/jobs/${jobId}/apply`, data);
+  },
+
+  /**
+   * Danh sách đơn ứng tuyển của ứng viên hiện tại
+   */
+  getMyRecruitments: (status?: RecruitmentStatus): Promise<ApiResponse<CandidateRecruitmentSummary[]>> => {
+    return api.get<CandidateRecruitmentSummary[]>("/api/v1/me/recruitments", { params: status ? { status } : {} });
+  },
+
+  /**
+   * Chi tiết đơn ứng tuyển của ứng viên hiện tại (kèm lịch sử)
+   */
+  getMyRecruitmentDetail: (id: string): Promise<ApiResponse<CandidateRecruitmentDetails>> => {
+    return api.get<CandidateRecruitmentDetails>(`/api/v1/me/recruitments/${id}`);
+  },
+
+  /**
+   * Rút đơn ứng tuyển (chỉ trước OFFER)
+   */
+  withdrawRecruitment: (id: string, data: WithdrawRequest): Promise<ApiResponse<CandidateRecruitmentSummary>> => {
+    return api.post<CandidateRecruitmentSummary>(`/api/v1/me/recruitments/${id}/withdraw`, data);
+  },
+
+  // =============================================
+  // HR / STAFF endpoints
+  // =============================================
+
   /**
    * Lấy chi tiết đơn ứng tuyển cho HR hoặc STAFF
    */

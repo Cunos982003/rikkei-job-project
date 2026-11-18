@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Briefcase,
   Building2,
@@ -8,8 +8,13 @@ import {
   DollarSign,
   Target,
   Search,
+  Send,
+  FileText,
+  CheckCircle2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { jobsApi, type JobPostingItem } from "../../api/endpoints/jobs.api";
+import { recruitmentApi } from "../../api/endpoints/recruitment.api";
 import { Card, CardContent } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
@@ -63,8 +68,28 @@ const FALLBACK_JOBS: JobPostingItem[] = [
 
 export const CandidateJobsPage: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedJob, setSelectedJob] = useState<JobPostingItem | null>(null);
+  // Apply modal state
+  const [applyJob, setApplyJob] = useState<JobPostingItem | null>(null);
+  const [coverLetter, setCoverLetter] = useState("");
+  const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
+
+  const applyMutation = useMutation({
+    mutationFn: ({ jobId, coverLetter }: { jobId: string; coverLetter: string }) =>
+      recruitmentApi.applyJob(jobId, { coverLetter: coverLetter || undefined }),
+    onSuccess: (_res, variables) => {
+      toast.success("Nộp đơn ứng tuyển thành công! HR công ty sẽ liên hệ với bạn.");
+      setAppliedJobIds((prev) => new Set(prev).add(variables.jobId));
+      setApplyJob(null);
+      setCoverLetter("");
+      queryClient.invalidateQueries({ queryKey: ["my-recruitments"] });
+    },
+    onError: () => {
+      // Error toast handled by axios interceptor
+    },
+  });
 
   const { data: jobsRes, isLoading } = useQuery({
     queryKey: ["candidateJobs"],
@@ -212,16 +237,31 @@ export const CandidateJobsPage: React.FC = () => {
 
                 {/* Actions */}
                 <div className="flex lg:flex-col items-center sm:items-end justify-between lg:justify-center gap-2 pt-3 lg:pt-0 border-t lg:border-t-0 border-border/60 shrink-0">
+                  {appliedJobIds.has(job.id) ? (
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Đã nộp đơn
+                    </div>
+                  ) : (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => { setApplyJob(job); setCoverLetter(""); }}
+                      leftIcon={<Send className="h-4 w-4" />}
+                      className="w-full sm:w-auto"
+                    >
+                      Ứng tuyển
+                    </Button>
+                  )}
                   <Button
-                    variant="primary"
+                    variant="outline"
                     size="sm"
                     onClick={() => handleAnalyzeJob(job.id)}
                     leftIcon={<Target className="h-4 w-4" />}
-                    className="w-full sm:w-auto"
+                    className="w-full sm:w-auto text-xs"
                   >
-                    Phân tích so với JD này
+                    Phân tích
                   </Button>
-
                   <Button
                     variant="outline"
                     size="sm"
@@ -255,16 +295,31 @@ export const CandidateJobsPage: React.FC = () => {
                 Đóng
               </Button>
               {selectedJob && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => {
-                    handleAnalyzeJob(selectedJob.id);
-                  }}
-                  leftIcon={<Target className="h-4 w-4" />}
-                >
-                  Phân tích so với JD này
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { handleAnalyzeJob(selectedJob.id); }}
+                    leftIcon={<Target className="h-4 w-4" />}
+                  >
+                    Phân tích
+                  </Button>
+                  {appliedJobIds.has(selectedJob.id) ? (
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Đã nộp đơn
+                    </div>
+                  ) : (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => { setApplyJob(selectedJob); setSelectedJob(null); setCoverLetter(""); }}
+                      leftIcon={<Send className="h-4 w-4" />}
+                    >
+                      Ứng tuyển
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -306,6 +361,80 @@ export const CandidateJobsPage: React.FC = () => {
                   </span>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal Ứng tuyển */}
+      <Modal
+        isOpen={!!applyJob}
+        onClose={() => { setApplyJob(null); setCoverLetter(""); }}
+        title="Nộp đơn ứng tuyển"
+        description={applyJob ? `${applyJob.title} · ${applyJob.companyName}` : ""}
+        size="md"
+        footer={
+          <div className="flex items-center justify-end gap-2 w-full">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setApplyJob(null); setCoverLetter(""); }}
+              disabled={applyMutation.isPending}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              isLoading={applyMutation.isPending}
+              onClick={() => applyJob && applyMutation.mutate({ jobId: applyJob.id, coverLetter })}
+              leftIcon={<Send className="h-4 w-4" />}
+            >
+              Nộp đơn
+            </Button>
+          </div>
+        }
+      >
+        {applyJob && (
+          <div className="space-y-4">
+            {/* Job info summary */}
+            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-1">
+              <p className="font-semibold text-foreground flex items-center gap-1.5">
+                <Briefcase className="h-3.5 w-3.5 text-primary" />
+                {applyJob.title}
+              </p>
+              <p className="text-muted flex items-center gap-1.5">
+                <Building2 className="h-3 w-3" />
+                {applyJob.companyName} · {applyJob.location}
+              </p>
+            </div>
+
+            {/* CV note */}
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-800">
+              <FileText className="h-4 w-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold mb-0.5">CV của bạn sẽ được đính kèm tự động</p>
+                <p className="text-blue-700 opacity-80">
+                  Hệ thống sẽ lưu bản snapshot CV hiện tại của bạn tại thời điểm nộp để HR xem đúng bản đã gửi.
+                </p>
+              </div>
+            </div>
+
+            {/* Cover letter */}
+            <div>
+              <label className="block text-xs font-medium text-foreground mb-1.5">
+                Thư giới thiệu <span className="text-muted font-normal">(tuỳ chọn)</span>
+              </label>
+              <textarea
+                className="w-full border border-border rounded-lg px-3 py-2.5 text-sm text-foreground bg-surface resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                rows={5}
+                placeholder="Giới thiệu bản thân và lý do bạn phù hợp với vị trí này..."
+                value={coverLetter}
+                onChange={(e) => setCoverLetter(e.target.value)}
+              />
+              <p className="text-[11px] text-muted mt-1">
+                {coverLetter.length}/1000 ký tự
+              </p>
             </div>
           </div>
         )}
