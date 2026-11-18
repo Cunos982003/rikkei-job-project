@@ -35,12 +35,9 @@ import { OverviewPage } from "../pages/career/OverviewPage";
 import { RecommendationsPage } from "../pages/career/RecommendationsPage";
 import { SkillsPage } from "../pages/career/SkillsPage";
 import { HrCompanyPage } from "../pages/hr/HrCompanyPage";
-<<<<<<< HEAD
 import { HrJobsPage } from "../pages/hr/HrJobsPage";
 import { HrJobFormPage } from "../pages/hr/HrJobFormPage";
-=======
 import { HrInterviewSchedulePage } from "../pages/hr/HrInterviewSchedulePage";
->>>>>>> 56fd545f13801af2a80e6e75cc9226b2f301b5e4
 import { MentorStudentsPage } from "../pages/mentor/MentorStudentsPage";
 import { StaffJobsPage } from "../pages/staff/StaffJobsPage";
 import { StaffCompaniesPage } from "../pages/staff/StaffCompaniesPage";
@@ -122,14 +119,11 @@ export function AppRoutes() {
                     {/* STAFF & ADMIN */}
                     <Route element={<RoleGuard allowedRoles={["STAFF", "ADMIN"]} />}>
                         <Route path="/staff/jobs" element={<StaffJobsPage />} />
-<<<<<<< HEAD
                         <Route path="/staff/companies" element={<StaffCompaniesPage />} />
                         <Route path="/staff/companies/:id" element={<StaffCompanyDetailPage />} />
-=======
                         <Route path="/staff/companies" element={<StaffJobsPage />} />
                         <Route path="/staff/recruitments" element={<StaffRecruitmentsPage />} />
                         <Route path="/staff/recruitments/:id" element={<RecruitmentDetailPage />} />
->>>>>>> 56fd545f13801af2a80e6e75cc9226b2f301b5e4
                         <Route path="/staff/ioc" element={<StaffJobsPage />} />
                         <Route path="/staff/unlock-contacts" element={<StaffJobsPage />} />
                         <Route path="/staff/candidates" element={<StaffCandidatesPage />} />
