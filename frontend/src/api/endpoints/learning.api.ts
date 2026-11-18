@@ -119,6 +119,48 @@ export interface RefreshEnrollmentsResponse {
   enrollments: EnrollmentResponse[];
 }
 
+// ==============================================================================
+// DT-03: TYPESCRIPT INTERFACES CHO LỘ TRÌNH HỌC TẬP BỔ SUNG & MỨC SẴN SÀNG
+// ==============================================================================
+
+export type StepStatus = "TODO" | "DOING" | "DONE";
+export type LearningPathStatus = "ACTIVE" | "ARCHIVED";
+
+export interface LearningPathStep {
+  id: string;
+  stepOrder: number;
+  skillId: string;
+  skillName: string;
+  requiredScore: number;
+  currentScore: number;
+  gap: number;
+  isMandatory: boolean;
+  lmsCourseId: string;
+  courseName: string;
+  lessonHint?: string;
+  status: StepStatus;
+  doneAt?: string | null;
+  progress?: number | null;
+  score?: number | null;
+}
+
+export interface LearningPathResponse {
+  id: string;
+  userId: string;
+  targetType: TargetType;
+  targetId: string;
+  targetName: string;
+  readinessAtStart: number;
+  currentReadiness: number;
+  readinessGrowth: number;
+  completionPercentage: number;
+  totalSteps: number;
+  completedSteps: number;
+  status: LearningPathStatus;
+  createdAt: string;
+  steps: LearningPathStep[];
+}
+
 /**
  * Endpoints phân tích khoảng thiếu hụt năng lực và mục tiêu nghề nghiệp (learning-service qua API Gateway :8080)
  */
@@ -186,6 +228,20 @@ export const learningApi = {
    */
   refreshEnrollments(): Promise<ApiResponse<RefreshEnrollmentsResponse>> {
     return api.post<RefreshEnrollmentsResponse>("/learning/me/enrollments/refresh");
+  },
+
+  /**
+   * DT-03: Lấy lộ trình học tập đang ACTIVE và tiến độ hiện tại của ứng viên
+   */
+  getMyLearningPath(): Promise<ApiResponse<LearningPathResponse | null>> {
+    return api.get<LearningPathResponse | null>("/learning/me/learning-path");
+  },
+
+  /**
+   * DT-03: Kích hoạt sinh lộ trình học tập tối ưu từ kết quả Gap Analysis & Gợi ý LMS
+   */
+  generateLearningPath(): Promise<ApiResponse<LearningPathResponse>> {
+    return api.post<LearningPathResponse>("/learning/me/learning-path");
   },
 };
 
