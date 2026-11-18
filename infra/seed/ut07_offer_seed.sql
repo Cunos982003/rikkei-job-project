@@ -4,7 +4,12 @@
 -- Khớp UUID users từ clean_and_sync_users.sql & JPA ordinal status (0..6)
 -- =============================================================================
 
--- 1. Đảm bảo các bảng tồn tại
+-- 1. Đảm bảo các cột mới của interview_rounds (PR #63) và bảng UT-07 tồn tại
+ALTER TABLE IF EXISTS interview_rounds ADD COLUMN IF NOT EXISTS name VARCHAR(255) NOT NULL DEFAULT 'Phỏng vấn Kỹ thuật';
+ALTER TABLE IF EXISTS interview_rounds ADD COLUMN IF NOT EXISTS interviewer_email VARCHAR(255);
+ALTER TABLE IF EXISTS interview_rounds ADD COLUMN IF NOT EXISTS note TEXT;
+ALTER TABLE IF EXISTS interview_rounds ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW();
+
 CREATE TABLE IF NOT EXISTS offers (
     id UUID PRIMARY KEY,
     application_id UUID NOT NULL UNIQUE REFERENCES recruitments(id) ON DELETE CASCADE,
@@ -51,13 +56,13 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- 3. Các vòng phỏng vấn tương ứng
-INSERT INTO interview_rounds (id, recruitment_id, round_no, scheduled_at, result, score)
+INSERT INTO interview_rounds (id, recruitment_id, round_no, name, interviewer_email, scheduled_at, result, score, note, created_at)
 VALUES
-    ('77072000-0000-4000-8000-000000000001', '77070000-0000-4000-8000-000000000001', 1, NOW() - interval '3 days', 'PASS', 88),
-    ('77072000-0000-4000-8000-000000000002', '77070000-0000-4000-8000-000000000002', 1, NOW() + interval '1 day', 'PENDING', NULL),
-    ('77072000-0000-4000-8000-000000000003', '77070000-0000-4000-8000-000000000003', 1, NOW() - interval '5 days', 'PASS', 92),
-    ('77072000-0000-4000-8000-000000000004', '77070000-0000-4000-8000-000000000004', 1, NOW() - interval '7 days', 'PASS', 86),
-    ('77072000-0000-4000-8000-000000000005', '77070000-0000-4000-8000-000000000005', 1, NOW() - interval '8 days', 'PASS', 84)
+    ('77072000-0000-4000-8000-000000000001', '77070000-0000-4000-8000-000000000001', 1, 'Phỏng vấn Kỹ thuật Java & Spring Boot', 'mentor1@rikkeijobs.test', NOW() - interval '3 days', 'PASS', 88, 'Nắm chắc OOP, JPA và REST API', NOW() - interval '5 days'),
+    ('77072000-0000-4000-8000-000000000002', '77070000-0000-4000-8000-000000000002', 1, 'Phỏng vấn Frontend React', 'mentor2@rikkeijobs.test', NOW() + interval '1 day', 'PENDING', NULL, 'Đang chờ lịch phỏng vấn', NOW() - interval '2 days'),
+    ('77072000-0000-4000-8000-000000000003', '77070000-0000-4000-8000-000000000003', 1, 'Phỏng vấn Chuyên sâu Microservices', 'mentor1@rikkeijobs.test', NOW() - interval '5 days', 'PASS', 92, 'Xuất sắc, đề nghị gửi Offer ngay', NOW() - interval '7 days'),
+    ('77072000-0000-4000-8000-000000000004', '77070000-0000-4000-8000-000000000004', 1, 'Phỏng vấn Fullstack', 'mentor1@rikkeijobs.test', NOW() - interval '7 days', 'PASS', 86, 'Đạt yêu cầu tuyển dụng', NOW() - interval '9 days'),
+    ('77072000-0000-4000-8000-000000000005', '77070000-0000-4000-8000-000000000005', 1, 'Phỏng vấn DevOps', 'mentor2@rikkeijobs.test', NOW() - interval '8 days', 'PASS', 84, 'Đạt yêu cầu tuyển dụng', NOW() - interval '10 days')
 ON CONFLICT (recruitment_id, round_no) DO NOTHING;
 
 -- 4. 3 Offers mẫu (SENT, DECLINED, EXPIRED)
