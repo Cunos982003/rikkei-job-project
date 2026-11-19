@@ -9,7 +9,6 @@ import com.example.profileservice.profile.domain.CandidateProfile;
 import com.example.profileservice.profile.infrastructure.LmsClient;
 import com.example.profileservice.profile.service.InvalidTransitionException;
 import com.example.profileservice.profile.service.ProfileCommandService;
-import com.example.profileservice.profile.service.ProfileService;
 import com.example.profileservice.profile.service.SkillProfileService;
 import com.example.profileservice.profile.service.VisibilityService;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +26,6 @@ import java.util.UUID;
 public class ProfileController {
 
     private final ProfileCommandService profileCommandService;
-    private final ProfileService profileService;
     private final SkillProfileService skillProfileService;
     private final VisibilityService visibilityService;
 
