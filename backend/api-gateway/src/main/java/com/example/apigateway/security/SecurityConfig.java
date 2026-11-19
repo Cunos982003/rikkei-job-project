@@ -39,6 +39,10 @@ class SecurityConfig {
                                 (request, response, ex) -> GatewayError.write(response, 403, "Truy cập bị từ chối")))
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .requestMatchers(
+                                        "/actuator/health",
+                                        "/actuator/health/**")
+                        .permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/profiles/me/internships",
                                 "/api/services/profile/api/v1/profiles/me/internships").denyAll()
