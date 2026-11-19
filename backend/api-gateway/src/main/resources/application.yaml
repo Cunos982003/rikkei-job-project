@@ -150,21 +150,23 @@ app:
   gateway:
     allowed-origins: ${GATEWAY_ALLOWED_ORIGINS:http://localhost:5173}
     rate-limit-per-minute: ${GATEWAY_RATE_LIMIT_PER_MINUTE:60}
-    rate-limit-fail-open: ${GATEWAY_RATE_LIMIT_FAIL_OPEN:true}
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info,prometheus
+
   endpoint:
     health:
       show-details: when-authorized
       probes:
         enabled: true
+
+    info:
+      env:
+        enabled: false
+
   health:
-    redis:
-      enabled: true
-  info:
-    env:
+    db:
       enabled: true
