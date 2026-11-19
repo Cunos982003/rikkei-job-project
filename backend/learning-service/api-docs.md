@@ -1,7 +1,7 @@
-# Tài Liệu Đặc Tả API - Module Đào Tạo Bổ Sung (DT-01 & DT-02)
+# Tài Liệu Đặc Tả API - Module Đào Tạo Bổ Sung (DT-01, DT-02 & DT-03)
 
 > **Dự án**: Rikkei Jobs  
-> **Module**: Đào tạo bổ sung · DT-01 (Phân tích khoảng thiếu hụt năng lực) & DT-02 (Gợi ý khóa học LMS, ghi danh, theo dõi)  
+> **Module**: Đào tạo bổ sung · DT-01 (Phân tích khoảng thiếu hụt năng lực), DT-02 (Gợi ý khóa học LMS, ghi danh, theo dõi) & DT-03 (Màn khoảng thiếu hụt và lộ trình bổ sung)  
 > **Cổng API Gateway chính thức**: `http://localhost:8080`  
 > **Cổng Learning Service nội bộ**: `http://localhost:8089`  
 > **Cổng Mock Server dịch vụ ngoài**: `http://localhost:9000`  
@@ -47,13 +47,15 @@ Mọi phản hồi từ hệ thống (kể cả thành công 2xx, lỗi nghiệp
 | :-: | :---------: | :---------------------------------------- | :------------: | :--------------------------------------- | :----------------------------------------------------------------------------------- |
 |  1  |    `GET`    | `/api/v1/learning/target-positions`       |   **Public**   | Tất cả (Khách chưa đăng nhập & mọi Role) | Xem danh mục 4 vị trí mục tiêu chuẩn và bộ kỹ năng tham khảo.                        |
 |  2  |    `GET`    | `/api/v1/learning/target-positions/{id}`  |   **Public**   | Tất cả (Khách chưa đăng nhập & mọi Role) | Xem chi tiết yêu cầu điểm sàn của một vị trí mục tiêu.                               |
-|  3  |    `PUT`    | `/api/v1/learning/me/target`              |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Thiết lập hoặc thay đổi vị trí / JD mục tiêu cá nhân.                                |
+|  3  |    `PUT`    | `/api/v1/learning/me/target`              |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Thiết lập hoặc thay đổi vị trí / JD mục tiêu cá nhân; tự động archive lộ trình cũ.    |
 |  4  |    `GET`    | `/api/v1/learning/me/target`              |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Lấy mục tiêu nghề nghiệp hiện tại của chính ứng viên đang đăng nhập.                 |
 |  5  |    `GET`    | `/api/v1/learning/me/gap-analysis`        |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Phân tích khoảng thiếu hụt năng lực của chính ứng viên theo mục tiêu hoặc `?jobId=`. |
 |  6  |    `GET`    | `/api/v1/learning/me/course-suggestions`  |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Gợi ý danh sách khóa học LMS theo từng kỹ năng thiếu và cấp độ hiện tại (DT-02).     |
 |  7  |   `POST`    | `/api/v1/learning/me/enrollments`         |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Ghi danh khóa học bổ sung trên LMS; chặn trùng lặp 409; LMS lỗi thì không lưu.       |
 |  8  |    `GET`    | `/api/v1/learning/me/enrollments`         |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Xem danh sách các khóa học ứng viên đã ghi danh kèm tiến độ và điểm số.              |
-|  9  |   `POST`    | `/api/v1/learning/me/enrollments/refresh` |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Làm mới tiến độ và điểm số từ LMS; tự động cập nhật tăng chỉ số hồ sơ khi COMPLETED. |
+|  9  |   `POST`    | `/api/v1/learning/me/enrollments/refresh` |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Làm mới tiến độ và điểm số từ LMS; tự động cập nhật tăng chỉ số và chuyển DONE step. |
+| 10  |   `POST`    | `/api/v1/learning/me/learning-path`       |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Sinh lộ trình học tập tối ưu từ phân tích Gap (DT-01) và khóa học gợi ý (DT-02). Kỹ năng bắt buộc trước, gap lớn trước. Lộ trình cũ ACTIVE chuyển ARCHIVED. (DT-03) |
+| 11  |    `GET`    | `/api/v1/learning/me/learning-path`       |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Lấy thông tin lộ trình ACTIVE, danh sách bước học, % hoàn thành và mức tăng trưởng sẵn sàng. Tự động chuyển DONE khi môn học COMPLETED. (DT-03) |
 
 #### Phản hồi lỗi bảo mật chuẩn (HTTP 401 & HTTP 403):
 
@@ -630,6 +632,229 @@ Khi truyền cả 2 tham số hoặc không truyền:
 
 ---
 
+### API 10: Sinh lộ trình học tập tối ưu theo mục tiêu (DT-03)
+
+- **Mục đích**: Ứng viên bấm nút **"Tạo lộ trình học tập tối ưu"** trên giao diện để hệ thống phân tích Gap và tổng hợp các khóa học LMS thành một lộ trình có thứ tự logic.
+- **Phương thức HTTP**: `POST`
+- **Đường dẫn qua Gateway**: `http://localhost:8080/api/v1/learning/me/learning-path` (hoặc `/me/learning-path`)
+- **Đường dẫn trực tiếp nội bộ**: `http://localhost:8089/api/v1/learning/me/learning-path` (hỗ trợ cả `/me/learning-path`, `/learning/me/learning-path`)
+- **Quyền hạn**: **Bảo mật (Authenticated)** — Chỉ vai trò **`CANDIDATE`**.
+- **Request Headers**: `X-User-Id: cand-001`, `Authorization: Bearer <token>`.
+- **Request Body**: Trống (hệ thống tự lấy theo mục tiêu đã thiết lập).
+
+#### Quy tắc nghiệp vụ cốt lõi (DT-03 Rules):
+1. **Ưu tiên kỹ năng**: Kỹ năng bắt buộc (`isMandatory = true`) đứng trước; Kỹ năng có độ lệch năng lực (`gap`) lớn hơn đứng trước.
+2. **Khóa học đề xuất**: Mỗi kỹ năng thiếu được chọn **1–2 khóa học phù hợp nhất** từ bảng ánh xạ `skill_course_mappings`.
+3. **Trạng thái ban đầu**:
+   - Nếu ứng viên đã có khóa học tương ứng ở trạng thái `COMPLETED` $\to$ bước có trạng thái **`DONE`** (kèm `doneAt`).
+   - Nếu đang học (`ENROLLED` hoặc `IN_PROGRESS`) $\to$ bước có trạng thái **`DOING`**.
+   - Chưa ghi danh $\to$ bước có trạng thái **`TODO`**.
+4. **Quản lý vòng đời**: Nếu ứng viên đã có lộ trình `ACTIVE` trước đó, hệ thống tự động chuyển lộ trình cũ sang **`ARCHIVED`** và cấp phát lộ trình mới.
+5. **Điểm mốc ban đầu**: Lưu mức sẵn sàng tại thời điểm tạo lộ trình vào `readinessAtStart`.
+
+#### Response Mẫu (HTTP 201 Created):
+
+```json
+{
+  "success": true,
+  "statusCode": 201,
+  "message": "Sinh lộ trình học tập tối ưu thành công",
+  "data": {
+    "id": "e2c7f53a-9694-4b5b-91bb-b0014a6e3012",
+    "userId": "11111111-1111-1111-1111-111111111111",
+    "targetType": "POSITION",
+    "targetId": "11111111-1111-1111-1111-111111111101",
+    "targetName": "Java Backend Fresher",
+    "readinessAtStart": 55.0,
+    "currentReadiness": 55.0,
+    "readinessGrowth": 0.0,
+    "completionPercentage": 0.0,
+    "totalSteps": 3,
+    "completedSteps": 0,
+    "status": "ACTIVE",
+    "createdAt": "2026-11-18T15:20:00Z",
+    "steps": [
+      {
+        "id": "a1111111-1111-1111-1111-111111111101",
+        "stepOrder": 1,
+        "skillId": "SPRING_BOOT",
+        "skillName": "Spring Boot",
+        "requiredScore": 70,
+        "currentScore": 45,
+        "gap": 25,
+        "isMandatory": true,
+        "lmsCourseId": "CRS-01",
+        "courseName": "Lập trình Spring Boot nâng cao & Microservices",
+        "lessonHint": "Bài 4-8: Spring Data JPA, Security và Microservices Architecture",
+        "status": "TODO",
+        "doneAt": null,
+        "progress": null,
+        "score": null
+      },
+      {
+        "id": "a2222222-2222-2222-2222-222222222202",
+        "stepOrder": 2,
+        "skillId": "JAVA_CORE",
+        "skillName": "Java Core",
+        "requiredScore": 75,
+        "currentScore": 60,
+        "gap": 15,
+        "isMandatory": true,
+        "lmsCourseId": "CRS-01",
+        "courseName": "Lập trình Spring Boot nâng cao & Microservices",
+        "lessonHint": "Bài 1-3: Ôn tập OOP, Concurrency & Stream API nâng cao",
+        "status": "TODO",
+        "doneAt": null,
+        "progress": null,
+        "score": null
+      },
+      {
+        "id": "a3333333-3333-3333-3333-333333333303",
+        "stepOrder": 3,
+        "skillId": "SQL",
+        "skillName": "SQL",
+        "requiredScore": 70,
+        "currentScore": 40,
+        "gap": 30,
+        "isMandatory": false,
+        "lmsCourseId": "CRS-03",
+        "courseName": "Tối ưu hóa CSDL quan hệ PostgreSQL",
+        "lessonHint": "Bài 1-5: Thiết kế Index, tối ưu câu truy vấn phức tạp và Transaction Isolation",
+        "status": "TODO",
+        "doneAt": null,
+        "progress": null,
+        "score": null
+      }
+    ]
+  },
+  "timestamp": "2026-11-18T15:20:00.1234567"
+}
+```
+
+#### Phản hồi lỗi khi chưa chọn mục tiêu (HTTP 400 Bad Request):
+
+```json
+{
+  "success": false,
+  "statusCode": 400,
+  "message": "Vui lòng thiết lập mục tiêu nghề nghiệp trước khi sinh lộ trình học tập.",
+  "data": null,
+  "timestamp": "2026-11-18T15:20:05.1234567"
+}
+```
+
+---
+
+### API 11: Lấy lộ trình học tập và tiến độ hiện tại (DT-03)
+
+- **Mục đích**: Lấy thông tin lộ trình `ACTIVE` của ứng viên, hiển thị trên giao diện "Lộ trình của tôi" (vòng tròn %, biểu đồ radar, dòng thời gian các bước).
+- **Phương thức HTTP**: `GET`
+- **Đường dẫn qua Gateway**: `http://localhost:8080/api/v1/learning/me/learning-path` (hoặc `/me/learning-path`)
+- **Đường dẫn trực tiếp nội bộ**: `http://localhost:8089/api/v1/learning/me/learning-path` (hỗ trợ cả `/me/learning-path`, `/learning/me/learning-path`)
+- **Quyền hạn**: **Bảo mật (Authenticated)** — Chỉ vai trò **`CANDIDATE`**.
+- **Request Headers**: `X-User-Id: cand-001`, `Authorization: Bearer <token>`.
+
+#### Quy tắc vận hành & Tự động đồng bộ:
+1. Tự động kiểm tra trạng thái các khóa học trong `enrollments`:
+   - Khóa học đã chuyển `COMPLETED` $\to$ bước chuyển sang **`DONE`** kèm `doneAt`.
+   - Khóa học đang học $\to$ bước chuyển sang **`DOING`**.
+2. Tính toán tỷ lệ phần trăm hoàn thành lộ trình:
+   $$\text{completionPercentage} = \frac{\text{Số bước có status DONE}}{\text{Tổng số bước}} \times 100\%$$
+3. Tự động đối chiếu điểm sẵn sàng hiện tại `currentReadiness` với mốc ban đầu `readinessAtStart` và tính mức tăng trưởng `readinessGrowth`.
+
+#### Response Mẫu (HTTP 200 OK - Khi đã có lộ trình):
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Lấy lộ trình học tập thành công",
+  "data": {
+    "id": "e2c7f53a-9694-4b5b-91bb-b0014a6e3012",
+    "userId": "11111111-1111-1111-1111-111111111111",
+    "targetType": "POSITION",
+    "targetId": "11111111-1111-1111-1111-111111111101",
+    "targetName": "Java Backend Fresher",
+    "readinessAtStart": 55.0,
+    "currentReadiness": 75.0,
+    "readinessGrowth": 20.0,
+    "completionPercentage": 33.3,
+    "totalSteps": 3,
+    "completedSteps": 1,
+    "status": "ACTIVE",
+    "createdAt": "2026-11-18T15:20:00Z",
+    "steps": [
+      {
+        "id": "a1111111-1111-1111-1111-111111111101",
+        "stepOrder": 1,
+        "skillId": "SPRING_BOOT",
+        "skillName": "Spring Boot",
+        "requiredScore": 70,
+        "currentScore": 75,
+        "gap": 0,
+        "isMandatory": true,
+        "lmsCourseId": "CRS-01",
+        "courseName": "Lập trình Spring Boot nâng cao & Microservices",
+        "lessonHint": "Bài 4-8: Spring Data JPA, Security và Microservices Architecture",
+        "status": "DONE",
+        "doneAt": "2026-11-18T15:35:00Z",
+        "progress": 100.0,
+        "score": 88.0
+      },
+      {
+        "id": "a2222222-2222-2222-2222-222222222202",
+        "stepOrder": 2,
+        "skillId": "JAVA_CORE",
+        "skillName": "Java Core",
+        "requiredScore": 75,
+        "currentScore": 60,
+        "gap": 15,
+        "isMandatory": true,
+        "lmsCourseId": "CRS-01",
+        "courseName": "Lập trình Spring Boot nâng cao & Microservices",
+        "lessonHint": "Bài 1-3: Ôn tập OOP, Concurrency & Stream API nâng cao",
+        "status": "DOING",
+        "doneAt": null,
+        "progress": 40.0,
+        "score": null
+      },
+      {
+        "id": "a3333333-3333-3333-3333-333333333303",
+        "stepOrder": 3,
+        "skillId": "SQL",
+        "skillName": "SQL",
+        "requiredScore": 70,
+        "currentScore": 40,
+        "gap": 30,
+        "isMandatory": false,
+        "lmsCourseId": "CRS-03",
+        "courseName": "Tối ưu hóa CSDL quan hệ PostgreSQL",
+        "lessonHint": "Bài 1-5: Thiết kế Index, tối ưu câu truy vấn phức tạp và Transaction Isolation",
+        "status": "TODO",
+        "doneAt": null,
+        "progress": null,
+        "score": null
+      }
+    ]
+  },
+  "timestamp": "2026-11-18T15:38:00.1234567"
+}
+```
+
+#### Response Mẫu (HTTP 200 OK - Khi chưa tạo lộ trình):
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Chưa có lộ trình học tập nào được tạo",
+  "data": null,
+  "timestamp": "2026-11-18T15:38:10.1234567"
+}
+```
+
+---
+
 ### 3.1. Cấu hình Axios / API Client trong Frontend:
 
 ```typescript
@@ -746,6 +971,45 @@ export interface EnrollmentResponse {
   score?: number | null;
   enrolledAt: string;
   completedAt?: string | null;
+}
+
+// Module DT-03: Lộ trình học tập bổ sung & Mức sẵn sàng
+export type StepStatus = "TODO" | "DOING" | "DONE";
+export type LearningPathStatus = "ACTIVE" | "ARCHIVED";
+
+export interface LearningPathStep {
+  id: string;
+  stepOrder: number;
+  skillId: string;
+  skillName: string;
+  requiredScore: number;
+  currentScore: number;
+  gap: number;
+  isMandatory: boolean;
+  lmsCourseId: string;
+  courseName: string;
+  lessonHint?: string;
+  status: StepStatus;
+  doneAt?: string | null;
+  progress?: number | null;
+  score?: number | null;
+}
+
+export interface LearningPathResponse {
+  id: string;
+  userId: string;
+  targetType: "POSITION" | "JOB";
+  targetId: string;
+  targetName: string;
+  readinessAtStart: number;
+  currentReadiness: number;
+  readinessGrowth: number;
+  completionPercentage: number;
+  totalSteps: number;
+  completedSteps: number;
+  status: LearningPathStatus;
+  createdAt: string;
+  steps: LearningPathStep[];
 }
 ```
 
@@ -874,6 +1138,24 @@ curl -X GET "http://localhost:8080/api/v1/learning/me/enrollments" \
 
 ```bash
 curl -X POST "http://localhost:8080/api/v1/learning/me/enrollments/refresh" \
+  -H "X-User-Id: cand-001" \
+  -H "X-User-Role: CANDIDATE"
+```
+
+---
+
+### 13. Sinh lộ trình học tập tối ưu theo mục tiêu (DT-03):
+
+```bash
+curl -X POST "http://localhost:8080/api/v1/learning/me/learning-path" \
+  -H "X-User-Id: cand-001" \
+  -H "X-User-Role: CANDIDATE"
+```
+
+### 14. Lấy lộ trình học tập và tiến độ hiện tại (DT-03):
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/learning/me/learning-path" \
   -H "X-User-Id: cand-001" \
   -H "X-User-Role: CANDIDATE"
 ```

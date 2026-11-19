@@ -141,7 +141,7 @@ spring:
             - id: learning
               uri: ${GATEWAY_LEARNING_URL:http://localhost:8089}
               predicates:
-                - Path=/api/v1/learning/**,/api/v1/me/target,/api/v1/me/gap-analysis,/api/v1/me/course-suggestions,/api/v1/me/enrollments/**,/me/target,/me/gap-analysis,/me/course-suggestions,/me/enrollments/**
+                - Path=/api/v1/learning/**,/api/v1/me/target,/api/v1/me/gap-analysis,/api/v1/me/course-suggestions,/api/v1/me/enrollments/**,/api/v1/me/learning-path,/api/v1/me/learning-path/**,/me/target,/me/gap-analysis,/me/course-suggestions,/me/enrollments/**,/me/learning-path,/me/learning-path/**
               filters: *cors-response-filters
 
 app:
