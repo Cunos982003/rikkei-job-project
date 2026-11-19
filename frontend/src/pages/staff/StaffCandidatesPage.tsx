@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   ChevronLeft,
@@ -7,6 +7,7 @@ import {
   RefreshCw,
   AlertCircle,
   Users,
+  Home,
 } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { Card, CardContent } from "@/components/common/Card";
@@ -115,6 +116,17 @@ export function StaffCandidatesPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
+      {/* Breadcrumbs */}
+      <nav className="flex items-center gap-2 text-sm text-muted" aria-label="Breadcrumb">
+        <Link
+          to="/staff/candidates"
+          className="flex items-center gap-1.5 hover:text-foreground transition-colors font-medium"
+        >
+          <Home className="h-3.5 w-3.5" />
+          <span>Duyệt hồ sơ ứng viên</span>
+        </Link>
+      </nav>
+
       {/* Page Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
         <div>

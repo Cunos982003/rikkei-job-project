@@ -18,6 +18,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
+      strictPort: true,
       proxy: {
         // 1. Mock LMS / hệ thống bên ngoài (chỉ dùng cho cổng LMS & xác thực vé SSO)
         '/lms': {

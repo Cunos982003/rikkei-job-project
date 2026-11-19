@@ -278,4 +278,3 @@ volumes:
   job-uploads:
   recruitment-uploads:
   # miniodata:
-

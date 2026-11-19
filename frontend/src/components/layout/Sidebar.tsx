@@ -62,6 +62,7 @@ const ROLE_NAV_ITEMS: Record<Role, { groupTitle: string; items: NavItem[] }> = {
   STAFF: {
     groupTitle: "Cán Bộ Vận Hành",
     items: [
+      { title: "Duyệt hồ sơ ứng viên", path: "/staff/candidates", icon: ClipboardCheck },
       { title: "Duyệt tin tuyển dụng", path: "/staff/jobs", icon: CheckSquare },
       { title: "Doanh nghiệp & HR", path: "/staff/companies", icon: Building2 },
       { title: "Quản lý đơn tuyển dụng", path: "/staff/recruitments", icon: FileText },

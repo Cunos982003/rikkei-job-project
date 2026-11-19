@@ -141,7 +141,19 @@ export function StaffCandidateTable({
                 "cursor-pointer hover:bg-slate-50/60 transition-colors",
                 index % 2 === 0 ? "bg-white" : "bg-slate-50/50"
               )}
-              onClick={() => onRowClick(candidate)}
+              onClick={(e) => {
+                // Prevent navigation if clicking on interactive elements
+                if (
+                  e.target instanceof HTMLElement &&
+                  (e.target.tagName === 'BUTTON' ||
+                    e.target.tagName === 'A' ||
+                    e.target.closest('button') ||
+                    e.target.closest('a'))
+                ) {
+                  return;
+                }
+                onRowClick(candidate);
+              }}
             >
               <td className="px-6 py-4 text-center text-muted text-xs">
                 <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 font-medium">

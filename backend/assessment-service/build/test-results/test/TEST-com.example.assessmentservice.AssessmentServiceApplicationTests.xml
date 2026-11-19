@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.example.assessmentservice.AssessmentServiceApplicationTests" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-10T10:12:18.745Z" hostname="ADMIN-PC" time="1.885">
+<testsuite name="com.example.assessmentservice.AssessmentServiceApplicationTests" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-19T00:32:04.905Z" hostname="CUNOS" time="2.8">
   <properties/>
-  <testcase name="contextLoads()" classname="com.example.assessmentservice.AssessmentServiceApplicationTests" time="0.631"/>
-  <system-out><![CDATA[17:12:18.963 [Test worker] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.example.assessmentservice.AssessmentServiceApplicationTests]: AssessmentServiceApplicationTests does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
-17:12:19.061 [Test worker] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.example.assessmentservice.AssessmentServiceApplication for test class com.example.assessmentservice.AssessmentServiceApplicationTests
-17:12:19.154 [Test worker] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.example.assessmentservice.AssessmentServiceApplicationTests]: AssessmentServiceApplicationTests does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
-17:12:19.155 [Test worker] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.example.assessmentservice.AssessmentServiceApplication for test class com.example.assessmentservice.AssessmentServiceApplicationTests
+  <testcase name="contextLoads()" classname="com.example.assessmentservice.AssessmentServiceApplicationTests" time="0.721"/>
+  <system-out><![CDATA[07:32:05.148 [Test worker] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.example.assessmentservice.AssessmentServiceApplicationTests]: AssessmentServiceApplicationTests does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+07:32:05.271 [Test worker] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.example.assessmentservice.AssessmentServiceApplication for test class com.example.assessmentservice.AssessmentServiceApplicationTests
+07:32:05.388 [Test worker] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.example.assessmentservice.AssessmentServiceApplicationTests]: AssessmentServiceApplicationTests does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+07:32:05.389 [Test worker] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.example.assessmentservice.AssessmentServiceApplication for test class com.example.assessmentservice.AssessmentServiceApplicationTests
 
   .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
@@ -16,9 +16,9 @@
 
  :: Spring Boot ::                (v4.1.2)
 
-2026-11-10T17:12:19.517+07:00  INFO 3868 --- [assessment-service] [    Test worker] c.e.a.AssessmentServiceApplicationTests  : Starting AssessmentServiceApplicationTests using Java 17.0.20 with PID 3868 (started by Admin in D:\Project\rikkei-job-project\backend\assessment-service)
-2026-11-10T17:12:19.519+07:00  INFO 3868 --- [assessment-service] [    Test worker] c.e.a.AssessmentServiceApplicationTests  : No active profile set, falling back to 1 default profile: "default"
-2026-11-10T17:12:19.988+07:00  INFO 3868 --- [assessment-service] [    Test worker] c.e.a.AssessmentServiceApplicationTests  : Started AssessmentServiceApplicationTests in 0.776 seconds (process running for 2.218)
+2026-11-19T07:32:05.896+07:00  INFO 26536 --- [assessment-service] [    Test worker] c.e.a.AssessmentServiceApplicationTests  : Starting AssessmentServiceApplicationTests using Java 17.0.20.1 with PID 26536 (started by admin in C:\Users\admin\IdeaProjects\rikkei-job-project\backend\assessment-service)
+2026-11-19T07:32:05.898+07:00  INFO 26536 --- [assessment-service] [    Test worker] c.e.a.AssessmentServiceApplicationTests  : No active profile set, falling back to 1 default profile: "default"
+2026-11-19T07:32:06.974+07:00  INFO 26536 --- [assessment-service] [    Test worker] c.e.a.AssessmentServiceApplicationTests  : Started AssessmentServiceApplicationTests in 1.5 seconds (process running for 3.283)
 ]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>
