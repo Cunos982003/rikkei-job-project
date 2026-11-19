@@ -11,6 +11,7 @@ import com.example.profileservice.profile.domain.ProfileReview;
 import com.example.profileservice.profile.infrastructure.CandidateProfileRepository;
 import com.example.profileservice.profile.infrastructure.ProfileEditRepository;
 import com.example.profileservice.profile.infrastructure.ProfileReviewRepository;
+import com.example.profileservice.profile.service.SkillProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,6 +32,7 @@ public class VisibilityService {
     private final ProfileReviewRepository reviewRepo;
     private final ProfileEditRepository profileEditRepo;
     private final ProfileService profileService;
+    private final SkillProfileService skillProfileService;
 
     @Transactional
     public void submitForReview(UUID userId, boolean consent) {
@@ -151,9 +153,9 @@ public class VisibilityService {
             }
             case SELF_SKILLS -> {
                 // For self_skills, value should be JSON array of {skillId, selfScore}
-                // Delegate to ProfileService.upsertSelfSkills
+                // Delegate to SkillProfileService.upsertSelfSkillsFromJson
                 oldValue = "[]"; // placeholder, actual old skills fetched from DB
-                profileService.upsertSelfSkillsFromJson(userId, newValue);
+                skillProfileService.upsertSelfSkillsFromJson(userId, newValue);
                 profileRepo.save(profile);
                 return StaffEditSelfDeclaredResponse.builder()
                         .userId(userId)
