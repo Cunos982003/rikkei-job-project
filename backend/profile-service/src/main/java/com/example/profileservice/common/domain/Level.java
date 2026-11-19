@@ -29,7 +29,7 @@ public enum Level {
         return CO_BAN;
     }
 
-    public String name() {
+    public String label() {
         return vietnameseName;
     }
 

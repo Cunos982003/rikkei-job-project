@@ -78,10 +78,10 @@ class LevelTest {
     }
 
     @Test
-    void name_returnsVietnameseLabel() {
-        assertThat(Level.CO_BAN.name()).isEqualTo("Cơ bản");
-        assertThat(Level.KHA.name()).isEqualTo("Khá");
-        assertThat(Level.VUNG.name()).isEqualTo("Vững");
-        assertThat(Level.NANG_CAO.name()).isEqualTo("Nâng cao");
+    void label_returnsVietnameseLabel() {
+        assertThat(Level.CO_BAN.label()).isEqualTo("Cơ bản");
+        assertThat(Level.KHA.label()).isEqualTo("Khá");
+        assertThat(Level.VUNG.label()).isEqualTo("Vững");
+        assertThat(Level.NANG_CAO.label()).isEqualTo("Nâng cao");
     }
 }

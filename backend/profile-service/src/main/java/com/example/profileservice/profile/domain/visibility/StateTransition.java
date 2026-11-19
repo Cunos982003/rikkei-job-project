@@ -1,6 +1,6 @@
 package com.example.profileservice.profile.domain.visibility;
 
-import com.example.profileservice.profile.domain.CandidateProfile.Visibility;
+import com.example.profileservice.common.domain.Visibility;
 import com.example.profileservice.profile.domain.ProfileReview;
 
 import java.time.OffsetDateTime;

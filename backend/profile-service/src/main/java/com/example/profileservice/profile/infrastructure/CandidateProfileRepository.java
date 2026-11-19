@@ -1,5 +1,6 @@
 package com.example.profileservice.profile.infrastructure;
 
+import com.example.profileservice.common.domain.Visibility;
 import com.example.profileservice.profile.domain.CandidateProfile;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
@@ -16,8 +17,8 @@ import java.util.UUID;
 @Repository
 public interface CandidateProfileRepository extends JpaRepository<CandidateProfile, UUID> {
     Optional<CandidateProfile> findByUserId(UUID userId);
-    List<CandidateProfile> findByVisibility(CandidateProfile.Visibility visibility);
-    Page<CandidateProfile> findByVisibility(CandidateProfile.Visibility visibility, Pageable pageable);
+    List<CandidateProfile> findByVisibility(Visibility visibility);
+    Page<CandidateProfile> findByVisibility(Visibility visibility, Pageable pageable);
 
     @Query("SELECT p FROM CandidateProfile p WHERE p.visibility = :visibility " +
            "AND (:q IS NULL OR :q = '' OR LOWER(p.fullName) LIKE LOWER(CONCAT('%', :q, '%')) " +
@@ -25,7 +26,7 @@ public interface CandidateProfileRepository extends JpaRepository<CandidateProfi
            "AND (:classCode IS NULL OR :classCode = '' OR p.classCode = :classCode) " +
            "ORDER BY p.updatedAt ASC")
     Page<CandidateProfile> findByVisibilityAndFilters(
-            @Param("visibility") CandidateProfile.Visibility visibility,
+            @Param("visibility") Visibility visibility,
             @Param("q") String q,
             @Param("classCode") String classCode,
             Pageable pageable);

@@ -1,11 +1,11 @@
 package com.example.profileservice.profile.service;
 
+import com.example.profileservice.common.domain.Visibility;
 import com.example.profileservice.profile.api.dto.PendingReviewDto;
 import com.example.profileservice.profile.api.dto.StaffEditSelfDeclaredRequest;
 import com.example.profileservice.profile.api.dto.StaffEditSelfDeclaredResponse;
 import com.example.profileservice.profile.api.dto.StaffPreviewProfileDto;
 import com.example.profileservice.profile.domain.CandidateProfile;
-import com.example.profileservice.profile.domain.CandidateProfile.Visibility;
 import com.example.profileservice.profile.domain.ProfileEdit;
 import com.example.profileservice.profile.domain.ProfileReview;
 import com.example.profileservice.profile.infrastructure.CandidateProfileRepository;

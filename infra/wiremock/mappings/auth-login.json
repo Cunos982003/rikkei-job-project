@@ -1,0 +1,30 @@
+{
+  "priority": 5,
+  "request": {
+    "method": "POST",
+    "urlPath": "/api/v1/auth/login",
+    "headers": {
+      "Content-Type": {
+        "contains": "application/json"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8"
+    },
+    "jsonBody": {
+      "accessToken": "mock-jwt-token-for-testing",
+      "tokenType": "Bearer",
+      "expiresIn": 28800,
+      "user": {
+        "id": "a0d45de8-d868-418e-9454-7040f55fd2f9",
+        "email": "candidate1@rikkeijobs.test",
+        "fullName": "Nguyễn Văn An",
+        "role": "CANDIDATE",
+        "avatarUrl": null
+      }
+    }
+  }
+}

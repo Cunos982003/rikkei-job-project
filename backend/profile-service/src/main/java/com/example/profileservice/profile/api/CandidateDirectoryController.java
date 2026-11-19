@@ -1,6 +1,7 @@
 package com.example.profileservice.profile.api;
 
 import com.example.profileservice.common.LevelConstants;
+import com.example.profileservice.common.domain.Visibility;
 import com.example.profileservice.profile.domain.CandidateProfile;
 import com.example.profileservice.profile.infrastructure.CandidateProfileRepository;
 import com.example.profileservice.skill.domain.Skill;
@@ -64,8 +65,8 @@ public class CandidateDirectoryController {
                 .collect(Collectors.toMap(Skill::getId, Function.identity(), (a, b) -> a));
 
         List<CandidateProfile> allProfiles = profileRepository.findAll().stream()
-                .filter(p -> p.getVisibility() == CandidateProfile.Visibility.PUBLIC
-                        || p.getVisibility() == CandidateProfile.Visibility.RECRUITER)
+                .filter(p -> p.getVisibility() == Visibility.PUBLIC
+                        || p.getVisibility() == Visibility.RECRUITER)
                 .filter(p -> matchesKeyword(p, keyword))
                 .sorted(Comparator.comparing(
                         CandidateProfile::getCreatedAt,
@@ -153,7 +154,7 @@ public class CandidateDirectoryController {
         item.put("overallScore", overallScore);
         item.put("level", resolveLevel(overallScore));
         item.put("skills", skills);
-        item.put("isPublic", profile.getVisibility() == CandidateProfile.Visibility.PUBLIC);
+        item.put("isPublic", profile.getVisibility() == Visibility.PUBLIC);
         item.put("createdAt", profile.getCreatedAt());
         return item;
     }

@@ -1,15 +1,12 @@
 package com.example.profileservice.profile.service;
 
 import com.example.profileservice.common.LevelConstants;
-import com.example.profileservice.profile.api.dto.LmsStudentDto;
 import com.example.profileservice.profile.api.dto.SelfSkillDto;
 import com.example.profileservice.profile.api.dto.StaffPreviewProfileDto;
-import com.example.profileservice.profile.api.dto.UpdateProfileRequest;
 import com.example.profileservice.profile.domain.CandidateProfile;
 import com.example.profileservice.profile.infrastructure.CandidateProfileRepository;
 import com.example.profileservice.profile.infrastructure.EducationRepository;
 import com.example.profileservice.profile.infrastructure.CertificateRepository;
-import com.example.profileservice.profile.infrastructure.LmsClient;
 import com.example.profileservice.profile.infrastructure.ProfileReviewRepository;
 import com.example.profileservice.skill.domain.Skill;
 import com.example.profileservice.skill.domain.SkillEvidence;
@@ -22,7 +19,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -35,83 +31,10 @@ public class ProfileService {
     private final EducationRepository educationRepo;
     private final CertificateRepository certificateRepo;
     private final ProfileReviewRepository reviewRepo;
-    private final LmsClient lmsClient;
     private final SkillEvidenceRepository evidenceRepo;
     private final SkillScoreRepository scoreRepo;
     private final SkillRepository skillRepo;
     private final ObjectMapper objectMapper;
-
-    @Transactional
-    public CandidateProfile getOrCreateProfile(UUID userId) {
-        return profileRepo.findByUserId(userId)
-                .orElseGet(() -> createProfileWithFallback(userId));
-    }
-
-    /**
-     * Create profile with fallback to minimal profile if LMS is unavailable or returns 404.
-     * LMS call is outside transaction to avoid holding DB connections during external calls.
-     */
-    private CandidateProfile createProfileWithFallback(UUID userId) {
-        // Try to fetch from LMS first (outside transaction)
-        LmsStudentDto lmsStudent = fetchStudentFromLms(userId);
-
-        CandidateProfile profile;
-        if (lmsStudent != null) {
-            profile = CandidateProfile.builder()
-                    .userId(userId)
-                    .fullName(lmsStudent.getFullName())
-                    .email(lmsStudent.getEmail())
-                    .program(lmsStudent.getProgram())
-                    .classCode(lmsStudent.getClassCode())
-                    .courseName(lmsStudent.getCourseName())
-                    .build();
-        } else {
-            // Fallback: create minimal profile with just userId
-            // This allows candidate to proceed even if LMS is down or user not in LMS yet
-            profile = CandidateProfile.builder()
-                    .userId(userId)
-                    .build();
-        }
-
-        return profileRepo.save(profile);
-    }
-
-    /**
-     * Fetch student from LMS, returning null for 404 or any error.
-     * This method runs outside transaction boundary.
-     */
-    private LmsStudentDto fetchStudentFromLms(UUID userId) {
-        try {
-            return lmsClient.getStudent(userId).block();
-        } catch (LmsClient.LmsClientException e) {
-            // Log the error but don't propagate - we'll create minimal profile as fallback
-            // TODO: Add proper logging (e.g., logger.warn("LMS call failed for userId: {}", userId, e));
-            return null;
-        } catch (Exception e) {
-            // Catch any other unexpected errors (network, timeout, etc.)
-            // TODO: Add proper logging
-            return null;
-        }
-    }
-
-    @Transactional
-    public CandidateProfile updateProfile(UUID userId, UpdateProfileRequest update) {
-        CandidateProfile existing = profileRepo.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Profile not found for userId: " + userId));
-
-        // Only candidate-owned fields are writable here, and a null field means "leave as is".
-        // fullName, email, program, classCode and courseName are LMS-sourced and stay immutable.
-        // visibility is deliberately absent: it only changes through the review workflow.
-        if (update.getDob() != null) existing.setDob(update.getDob());
-        if (update.getGender() != null) existing.setGender(update.getGender());
-        if (update.getPhone() != null) existing.setPhone(update.getPhone());
-        if (update.getAddress() != null) existing.setAddress(update.getAddress());
-        if (update.getAvatarUrl() != null) existing.setAvatarUrl(update.getAvatarUrl());
-        if (update.getHeadline() != null) existing.setHeadline(update.getHeadline());
-        if (update.getSummary() != null) existing.setSummary(update.getSummary());
-
-        return profileRepo.save(existing);
-    }
 
     @Transactional
     public void upsertSelfSkills(UUID userId, List<SelfSkillDto> skills) {
@@ -278,7 +201,7 @@ public class ProfileService {
                 .group(skill.getGroup())
                 .verifiedScore(score.getVerifiedScore() != null ? score.getVerifiedScore().intValue() : null)
                 .selfScore(score.getSelfScore() != null ? score.getSelfScore().intValue() : null)
-                .level(score.getLevel())
+                .level(score.getLevel().label())
                 .evidences(evidenceDtos)
                 .build();
     }

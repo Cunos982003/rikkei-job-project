@@ -71,7 +71,7 @@ public class SkillScore {
         // Determine effective score and level
         Short effectiveScore = this.verifiedScore != null ? this.verifiedScore : this.selfScore;
         Level level = Level.fromScore(effectiveScore);
-        this.level = level.name();
+        this.level = level.label();
         this.updatedAt = OffsetDateTime.now();
     }
 
