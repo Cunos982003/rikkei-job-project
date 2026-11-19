@@ -11,6 +11,7 @@ import com.example.profileservice.profile.domain.ProfileReview;
 import com.example.profileservice.profile.infrastructure.CandidateProfileRepository;
 import com.example.profileservice.profile.infrastructure.ProfileEditRepository;
 import com.example.profileservice.profile.infrastructure.ProfileReviewRepository;
+import com.example.profileservice.profile.service.ProfileQueryService;
 import com.example.profileservice.profile.service.SkillProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -33,6 +34,7 @@ public class VisibilityService {
     private final ProfileEditRepository profileEditRepo;
     private final ProfileService profileService;
     private final SkillProfileService skillProfileService;
+    private final ProfileQueryService profileQueryService;
 
     @Transactional
     public void submitForReview(UUID userId, boolean consent) {
@@ -107,8 +109,6 @@ public class VisibilityService {
      */
     @Transactional(readOnly = true)
     public StaffPreviewProfileDto getPreviewProfile(UUID userId) {
-        CandidateProfile profile = requireProfile(userId);
-
         // Count rejections
         long rejectionCount = reviewRepo.countByUserIdAndAction(userId, ProfileReview.Action.REJECT);
 
@@ -125,9 +125,8 @@ public class VisibilityService {
                         .build())
                 .toList();
 
-        // Get skills from ProfileService (reuse existing logic)
-        // We'll delegate to ProfileService.getProfileForPreview
-        return profileService.getProfileForPreview(userId, rejectionCount, reviewHistory);
+        // Delegate to ProfileQueryService
+        return profileQueryService.getProfileForPreview(userId, rejectionCount, reviewHistory);
     }
 
     /**
