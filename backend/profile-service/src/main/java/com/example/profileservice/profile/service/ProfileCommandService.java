@@ -5,7 +5,6 @@ import com.example.profileservice.profile.api.dto.LmsStudentDto;
 import com.example.profileservice.profile.api.dto.UpdateProfileRequest;
 import com.example.profileservice.profile.domain.CandidateProfile;
 import com.example.profileservice.profile.infrastructure.CandidateProfileRepository;
-import com.example.profileservice.profile.infrastructure.LmsClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,7 +20,7 @@ import java.util.UUID;
 public class ProfileCommandService {
 
     private final CandidateProfileRepository profileRepo;
-    private final LmsClient lmsClient;
+    private final LmsProfileService lmsProfileService;
 
     @Transactional
     public CandidateProfile getOrCreateProfile(UUID userId) {
@@ -40,7 +39,7 @@ public class ProfileCommandService {
      */
     private CandidateProfile createProfileWithFallback(UUID userId) {
         // Try to fetch from LMS first (outside transaction)
-        LmsStudentDto lmsStudent = fetchStudentFromLms(userId);
+        LmsStudentDto lmsStudent = lmsProfileService.fetchStudent(userId);
 
         CandidateProfile profile;
         if (lmsStudent != null) {
@@ -55,30 +54,10 @@ public class ProfileCommandService {
         } else {
             // Fallback: create minimal profile with just userId
             // This allows candidate to proceed even if LMS is down or user not in LMS yet
-            profile = CandidateProfile.builder()
-                    .userId(userId)
-                    .build();
+            profile = lmsProfileService.createMinimalProfile(UserId.of(userId));
         }
 
         return profileRepo.save(profile);
-    }
-
-    /**
-     * Fetch student from LMS, returning null for 404 or any error.
-     * This method runs outside transaction boundary.
-     */
-    private LmsStudentDto fetchStudentFromLms(UUID userId) {
-        try {
-            return lmsClient.getStudent(userId).block();
-        } catch (LmsClient.LmsClientException e) {
-            // Log the error but don't propagate - we'll create minimal profile as fallback
-            // TODO: Add proper logging (e.g., logger.warn("LMS call failed for userId: {}", userId, e));
-            return null;
-        } catch (Exception e) {
-            // Catch any other unexpected errors (network, timeout, etc.)
-            // TODO: Add proper logging
-            return null;
-        }
     }
 
     @Transactional
