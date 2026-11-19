@@ -1,7 +1,9 @@
 package com.example.profileservice.skill.domain;
 
+import com.example.profileservice.common.domain.Score;
 import jakarta.persistence.*;
 import lombok.*;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -13,6 +15,9 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class SkillEvidence {
+
+    public static final int DECAY_THRESHOLD_DAYS = 365;
+    public static final BigDecimal DECAY_FACTOR = BigDecimal.valueOf(0.5);
 
     @Id
     @GeneratedValue
@@ -43,4 +48,21 @@ public class SkillEvidence {
 
     @Column(nullable = false)
     private boolean verified;
+
+    public void updateScore(Score newScore) {
+        this.score = newScore.value();
+        this.recordedAt = OffsetDateTime.now();
+    }
+
+    public BigDecimal getDecayedScore() {
+        if (score == null) return BigDecimal.ZERO;
+        long daysDiff = java.time.temporal.ChronoUnit.DAYS.between(recordedAt.toLocalDate(), OffsetDateTime.now().toLocalDate());
+        BigDecimal decay = daysDiff <= DECAY_THRESHOLD_DAYS ? BigDecimal.ONE : DECAY_FACTOR;
+        return BigDecimal.valueOf(score).multiply(decay);
+    }
+
+    public boolean isRecent() {
+        long daysDiff = java.time.temporal.ChronoUnit.DAYS.between(recordedAt.toLocalDate(), OffsetDateTime.now().toLocalDate());
+        return daysDiff <= DECAY_THRESHOLD_DAYS;
+    }
 }
