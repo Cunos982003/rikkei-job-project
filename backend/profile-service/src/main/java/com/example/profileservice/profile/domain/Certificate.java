@@ -39,4 +39,12 @@ public class Certificate {
 
     @Column(name = "file_type", length = 50)
     private String fileType;
+
+    public boolean isExpired() {
+        return expiresAt != null && expiresAt.isBefore(LocalDate.now());
+    }
+
+    public boolean isValid() {
+        return !isExpired();
+    }
 }

@@ -39,4 +39,8 @@ public class Education {
 
     @Column(columnDefinition = "TEXT")
     private String note;
+
+    public boolean isCurrent() {
+        return toDate == null || !toDate.isBefore(LocalDate.now());
+    }
 }
