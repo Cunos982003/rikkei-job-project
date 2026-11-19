@@ -9,8 +9,18 @@ spring:
       - optional:file:.env[.properties]
   application:
     name: assessment-service
-  datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/postgres}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:Manhcuong281207@}
-    driver-class-name: org.postgresql.Driver
+  # datasource:
+  #   url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/postgres}
+  #   username: ${SPRING_DATASOURCE_USERNAME:postgres}
+  #   password: ${SPRING_DATASOURCE_PASSWORD:Manhcuong281207@}
+  #   driver-class-name: org.postgresql.Driver
+
+  # jpa:
+  #   hibernate:
+  #     ddl-auto: update
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env,beans,loggers,httptrace   

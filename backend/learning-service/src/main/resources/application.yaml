@@ -70,3 +70,9 @@ spring:
       ddl-auto: create-drop
   flyway:
     enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env,beans,loggers,httptrace

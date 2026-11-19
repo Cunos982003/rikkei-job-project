@@ -24,3 +24,9 @@ spring:
   sql:
     init:
       mode: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env,beans,loggers,httptrace

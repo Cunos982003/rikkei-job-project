@@ -34,3 +34,9 @@ server:
 internal:
   service:
     token: ${INTERNAL_SERVICE_TOKEN:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env,beans,loggers,httptrace
