@@ -60,7 +60,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
-      start_period: 30s
+      start_period: 60s
       interval: 10s
       timeout: 5s
       retries: 5
@@ -91,7 +91,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1"]
-      start_period: 30s
+      start_period: 60s
       interval: 10s
       timeout: 5s
       retries: 5
@@ -114,7 +114,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1"]
-      start_period: 30s
+      start_period: 60s
       interval: 10s
       timeout: 5s
       retries: 5
@@ -142,7 +142,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8085/actuator/health || exit 1"]
-      start_period: 30s
+      start_period: 60s
       interval: 10s
       timeout: 5s
       retries: 5
@@ -180,7 +180,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8086/actuator/health || exit 1"]
-      start_period: 30s
+      start_period: 60s
       interval: 10s
       timeout: 5s
       retries: 5
@@ -206,7 +206,7 @@ services:
         condition: service_healthy
     healthcheck:
         test: ["CMD-SHELL", "curl -f http://localhost:8089/actuator/health || exit 1"]
-        start_period: 30s
+        start_period: 60s
         interval: 10s
         timeout: 5s
         retries: 5
@@ -234,7 +234,7 @@ services:
         condition: service_healthy
     healthcheck:
         test: ["CMD-SHELL", "curl -f http://localhost:8090/actuator/health || exit 1"]
-        start_period: 30s
+        start_period: 60s
         interval: 10s
         timeout: 5s
         retries: 5
