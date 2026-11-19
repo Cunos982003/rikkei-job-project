@@ -7,6 +7,7 @@ import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
@@ -19,7 +20,8 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
-class SecurityConfig {
+@EnableWebSecurity
+public class SecurityConfig {
     @Bean
     SecurityFilterChain gatewaySecurity(HttpSecurity http, StringRedisTemplate redis,
             @Value("${app.jwt.secret}") String secret,
