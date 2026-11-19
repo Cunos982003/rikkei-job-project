@@ -36,7 +36,8 @@ export interface CandidateRecruitmentSummary {
   updatedAt: string;
 }
 
-export interface CandidateRecruitmentDetails extends CandidateRecruitmentSummary {
+export interface CandidateRecruitmentDetails extends Partial<CandidateRecruitmentSummary> {
+  recruitment?: CandidateRecruitmentSummary;
   history: RecruitmentHistoryItem[];
 }
 
@@ -201,6 +202,13 @@ export const recruitmentApi = {
     data: UpdateInterviewRoundRequest
   ): Promise<ApiResponse<InterviewRoundSummary>> => {
     return api.put<InterviewRoundSummary>(`/recruitments/${id}/rounds/${roundId}`, data);
+  },
+
+  /**
+   * Xóa vòng phỏng vấn (chỉ HR)
+   */
+  deleteRound: (id: string, roundId: string): Promise<ApiResponse<void>> => {
+    return api.delete<void>(`/recruitments/${id}/rounds/${roundId}`);
   },
 
   /**

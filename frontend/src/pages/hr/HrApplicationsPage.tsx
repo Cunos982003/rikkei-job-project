@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarCheck, ChevronRight, FileText, Mail, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/common/Card";
@@ -33,8 +32,50 @@ const FILTER_OPTIONS: { value: "" | RecruitmentStatus; label: string }[] = [
 
 export function HrApplicationsPage() {
   const navigate = useNavigate();
-  const [statusFilter, setStatusFilter] = useState<"" | RecruitmentStatus>("");
-  const [page, setPage] = useState(0);
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const rawStatus = searchParams.get("status");
+  const rawPage = searchParams.get("page");
+
+  const statusFilter: "" | RecruitmentStatus =
+    rawStatus && FILTER_OPTIONS.some((o) => o.value === rawStatus)
+      ? (rawStatus as RecruitmentStatus)
+      : "";
+
+  const page = rawPage && !isNaN(Number(rawPage)) ? Math.max(0, parseInt(rawPage, 10)) : 0;
+
+  const setStatusFilter = (newStatus: "" | RecruitmentStatus) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (!newStatus) {
+          next.delete("status");
+        } else {
+          next.set("status", newStatus);
+        }
+        next.delete("page");
+        return next;
+      },
+      { replace: true }
+    );
+  };
+
+  const setPage = (newPage: number | ((prevPage: number) => number)) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        const resolvedPage = typeof newPage === "function" ? newPage(page) : newPage;
+        if (resolvedPage === 0) {
+          next.delete("page");
+        } else {
+          next.set("page", String(resolvedPage));
+        }
+        return next;
+      },
+      { replace: true }
+    );
+  };
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["hrApplications", statusFilter, page],
@@ -145,7 +186,11 @@ export function HrApplicationsPage() {
                       size="sm"
                       variant="primary"
                       rightIcon={<ChevronRight className="h-4 w-4" />}
-                      onClick={() => navigate(`/hr/applications/${app.id}`)}
+                      onClick={() =>
+                        navigate(`/hr/applications/${app.id}`, {
+                          state: { from: location.pathname + location.search },
+                        })
+                      }
                     >
                       Chi tiết &amp; Offer
                     </Button>

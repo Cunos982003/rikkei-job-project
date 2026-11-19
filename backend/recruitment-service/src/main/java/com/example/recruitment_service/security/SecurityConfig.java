@@ -33,6 +33,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/v1/jobs/*/recruit",
+                                "/api/v1/jobs/*/apply",
                                 "/api/v1/me/recruitments/*/withdraw",
                                 "/api/v1/me/interviews/*/pick",
                                 "/api/v1/me/offers/*/accept",
@@ -80,6 +81,11 @@ public class SecurityConfig {
                         .hasRole("HR")
                         .requestMatchers(
                                 HttpMethod.PUT,
+                                "/api/v1/recruitments/*/rounds/*",
+                                "/api/v1/applications/*/rounds/*")
+                        .hasRole("HR")
+                        .requestMatchers(
+                                HttpMethod.DELETE,
                                 "/api/v1/recruitments/*/rounds/*",
                                 "/api/v1/applications/*/rounds/*")
                         .hasRole("HR")
