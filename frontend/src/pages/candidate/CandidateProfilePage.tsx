@@ -434,7 +434,12 @@ export function CandidateProfilePage() {
             Hồ sơ kỹ năng của bạn được đồng bộ tự động từ điểm thi Khảo thí, kết quả học tập Rikkei LMS và nghiệm thu thực tập IOC.
           </p>
           <div className="pt-2 flex flex-wrap gap-2.5">
-            <Button variant="primary" size="sm" leftIcon={<Briefcase className="h-4 w-4" />}>
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<Briefcase className="h-4 w-4" />}
+              onClick={() => navigate("/candidate/jobs")}
+            >
               Xem việc làm phù hợp
             </Button>
             <Button
@@ -442,6 +447,7 @@ export function CandidateProfilePage() {
               size="sm"
               className="bg-white/10 text-white border-white/20 hover:bg-white/20"
               leftIcon={<BookOpen className="h-4 w-4" />}
+              onClick={() => navigate("/candidate/learning")}
             >
               Lộ trình học bổ sung
             </Button>
@@ -1099,4 +1105,4 @@ export function CandidateProfilePage() {
       </Modal>
     </div>
   );
-}
+}

@@ -1,5 +1,6 @@
 package com.example.recruitment_service.service;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -146,7 +147,9 @@ public class RecruitmentService {
             throw new ApiException(HttpStatus.CONFLICT, "You have already applied for this job");
         }
 
-        byte[] pdf = cvServiceClient.downloadPdf(request.cvId(), authorization);
+        byte[] pdf = request.cvId() != null
+                ? cvServiceClient.downloadPdf(request.cvId(), authorization)
+                : buildFallbackCvSnapshotPdf(candidate.email(), jobId, request.coverLetter());
         Recruitment recruitment = new Recruitment();
         recruitment.setJob_id(jobId);
         recruitment.setCompany_id(job.companyId());
@@ -340,6 +343,12 @@ public class RecruitmentService {
         round.setResult(InterviewRoundResult.PENDING);
         round.setName(request.name());
         round.setInterviewerEmail(request.interviewerEmail());
+        if (request.scheduledAt() != null && request.scheduledAt().isBefore(java.time.LocalDateTime.now().minusMinutes(2))) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "Thời gian phỏng vấn không được ở trong quá khứ",
+                    "INVALID_SCHEDULE_TIME");
+        }
         round.setScheduledAt(request.scheduledAt());
         return interviewRoundRepository.save(round);
     }
@@ -399,6 +408,47 @@ public class RecruitmentService {
         }
 
         return saved;
+    }
+
+    @Transactional
+    public void deleteRound(
+            UUID recruitmentId,
+            UUID roundId,
+            UserPrincipal actor,
+            String authorization) {
+        Recruitment recruitment = getHrOwnedRecruitment(recruitmentId, actor, authorization);
+        requireInterviewStatus(recruitment);
+
+        InterviewRound round = interviewRoundRepository.findById(roundId)
+                .filter(existing -> existing.getRecruitment() != null
+                        && recruitmentId.equals(existing.getRecruitment().getId()))
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Interview round not found"));
+
+        if (interviewScheduleRepository != null) {
+            var schedules = interviewScheduleRepository.findAllWithDetailsByRoundIds(List.of(roundId));
+            if (!schedules.isEmpty()) {
+                interviewScheduleRepository.deleteAll(schedules);
+            }
+        }
+
+        if (interviewSlotRepository != null) {
+            var slots = interviewSlotRepository.findByRound_IdOrderByStartAtAsc(roundId);
+            if (!slots.isEmpty()) {
+                interviewSlotRepository.deleteAll(slots);
+            }
+        }
+
+        interviewRoundRepository.delete(round);
+        interviewRoundRepository.flush();
+
+        List<InterviewRound> remaining = interviewRoundRepository.findByRecruitment_IdOrderByRoundNoAsc(recruitmentId);
+        for (int i = 0; i < remaining.size(); i++) {
+            InterviewRound r = remaining.get(i);
+            if (r.getRoundNo() == null || r.getRoundNo() != i + 1) {
+                r.setRoundNo(i + 1);
+                interviewRoundRepository.save(r);
+            }
+        }
     }
 
     @Transactional(readOnly = true)
@@ -506,5 +556,58 @@ public class RecruitmentService {
                         slotsByRound.getOrDefault(r.getId(), List.of()),
                         scheduleByRound.get(r.getId())))
                 .toList();
+    }
+
+    private byte[] buildFallbackCvSnapshotPdf(String candidateEmail, UUID jobId, String coverLetter) {
+        String safeEmail = sanitizePdfAscii(candidateEmail != null ? candidateEmail : "candidate");
+        String safeJob = sanitizePdfAscii(jobId != null ? jobId.toString() : "N/A");
+        String safeNote = sanitizePdfAscii(StringUtils.hasText(coverLetter)
+                ? (coverLetter.length() > 140 ? coverLetter.substring(0, 140) + "..." : coverLetter)
+                : "Submitted via Rikkei Jobs profile snapshot");
+        String stream = "BT /F1 14 Tf 50 750 Td (Rikkei Jobs - Candidate CV Snapshot) Tj "
+                + "0 -26 Td /F1 11 Tf (Candidate: " + safeEmail + ") Tj "
+                + "0 -18 Td (Job ID: " + safeJob + ") Tj "
+                + "0 -18 Td (Cover letter: " + safeNote + ") Tj ET";
+        byte[] streamBytes = stream.getBytes(StandardCharsets.US_ASCII);
+        StringBuilder pdf = new StringBuilder();
+        pdf.append("%PDF-1.4\n");
+        int obj1 = pdf.length();
+        pdf.append("1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n");
+        int obj2 = pdf.length();
+        pdf.append("2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n");
+        int obj3 = pdf.length();
+        pdf.append("3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj\n");
+        int obj4 = pdf.length();
+        pdf.append("4 0 obj << /Length ").append(streamBytes.length).append(" >> stream\n")
+                .append(stream).append("\nendstream endobj\n");
+        int obj5 = pdf.length();
+        pdf.append("5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n");
+        int xref = pdf.length();
+        pdf.append("xref\n0 6\n0000000000 65535 f \n")
+                .append(String.format("%010d 00000 n \n", obj1))
+                .append(String.format("%010d 00000 n \n", obj2))
+                .append(String.format("%010d 00000 n \n", obj3))
+                .append(String.format("%010d 00000 n \n", obj4))
+                .append(String.format("%010d 00000 n \n", obj5))
+                .append("trailer << /Size 6 /Root 1 0 R >>\nstartxref\n")
+                .append(xref).append("\n%%EOF\n");
+        return pdf.toString().getBytes(StandardCharsets.US_ASCII);
+    }
+
+    private String sanitizePdfAscii(String text) {
+        StringBuilder out = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '(' || c == ')' || c == '\\') {
+                out.append('\\').append(c);
+            } else if (c >= 32 && c <= 126) {
+                out.append(c);
+            } else if (c == '\n' || c == '\r' || c == '\t') {
+                out.append(' ');
+            } else {
+                out.append('?');
+            }
+        }
+        return out.toString();
     }
 }

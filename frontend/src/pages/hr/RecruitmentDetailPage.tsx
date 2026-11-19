@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -120,9 +120,18 @@ function defaultSlotDraft(): { startAt: string; endAt: string } {
 export function RecruitmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const isHr = user?.role === "HR";
+
+  const handleBack = () => {
+    if (location.state && (location.state as any).from) {
+      navigate((location.state as any).from);
+    } else {
+      navigate(-1);
+    }
+  };
 
   // Transition state modal
   const [transitionTarget, setTransitionTarget] = useState<RecruitmentStatus | null>(null);
@@ -133,6 +142,9 @@ export function RecruitmentDetailPage() {
   const [newRoundName, setNewRoundName] = useState("");
   const [newRoundEmail, setNewRoundEmail] = useState("");
   const [newRoundDate, setNewRoundDate] = useState("");
+
+  // Delete round state
+  const [deletingRound, setDeletingRound] = useState<InterviewRoundSummary | null>(null);
 
   // Update round modal
   const [editingRound, setEditingRound] = useState<InterviewRoundSummary | null>(null);
@@ -210,6 +222,25 @@ export function RecruitmentDetailPage() {
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.message || "Không thể cập nhật vòng phỏng vấn");
+    },
+  });
+
+  // Mutation: Delete interview round
+  const deleteRoundMutation = useMutation({
+    mutationFn: (roundId: string) => recruitmentApi.deleteRound(id!, roundId),
+    onSuccess: () => {
+      toast.success("Đã xóa vòng phỏng vấn thành công");
+      setDeletingRound(null);
+      queryClient.invalidateQueries({ queryKey: ["recruitment", id] });
+      queryClient.invalidateQueries({ queryKey: ["companyInterviews"] });
+      queryClient.invalidateQueries({ queryKey: ["hrApplications"] });
+    },
+    onError: (err: any) => {
+      toast.error(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Không thể xóa vòng phỏng vấn"
+      );
     },
   });
 
@@ -397,7 +428,7 @@ export function RecruitmentDetailPage() {
         <AlertCircle className="h-12 w-12 text-danger mx-auto" />
         <h2 className="text-lg font-semibold text-foreground">Không tìm thấy đơn ứng tuyển</h2>
         <p className="text-xs text-muted">Đơn không tồn tại hoặc bạn không có quyền xem thông tin này.</p>
-        <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
+        <Button variant="outline" size="sm" onClick={handleBack}>
           Quay lại
         </Button>
       </div>
@@ -416,7 +447,7 @@ export function RecruitmentDetailPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             leftIcon={<ArrowLeft className="h-4 w-4" />}
           >
             Quay lại
@@ -723,6 +754,15 @@ export function RecruitmentDetailPage() {
                           onClick={() => handleOpenEditRound(round)}
                         >
                           Nhập kết quả
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-danger hover:bg-rose-50 hover:text-danger text-xs"
+                          leftIcon={<Trash2 className="h-3.5 w-3.5" />}
+                          onClick={() => setDeletingRound(round)}
+                        >
+                          Xóa
                         </Button>
                       </div>
                     )}
@@ -1246,6 +1286,38 @@ export function RecruitmentDetailPage() {
             </Button>
           )}
         </form>
+      </Modal>
+
+      {/* Modal: Xác nhận xóa vòng phỏng vấn */}
+      <Modal
+        isOpen={!!deletingRound}
+        onClose={() => setDeletingRound(null)}
+        title="Xóa vòng phỏng vấn"
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setDeletingRound(null)}>
+              Hủy
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              isLoading={deleteRoundMutation.isPending}
+              onClick={() => deletingRound && deleteRoundMutation.mutate(deletingRound.id)}
+            >
+              Xác nhận xóa
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3 py-1">
+          <p className="text-xs text-foreground leading-relaxed">
+            Bạn có chắc chắn muốn xóa <strong>Vòng {deletingRound?.roundNo}: {deletingRound?.name}</strong> không?
+          </p>
+          <p className="text-[11px] text-muted leading-relaxed">
+            Hành động này sẽ xóa vĩnh viễn vòng phỏng vấn, các khung giờ đề xuất và phòng họp Rikkei Meet liên quan (nếu có).
+          </p>
+        </div>
       </Modal>
     </div>
   );

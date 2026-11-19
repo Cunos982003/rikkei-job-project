@@ -83,6 +83,13 @@ export const authApi = {
   },
 
   /**
+   * Đặt lại mật khẩu với token từ email
+   */
+  resetPassword(payload: { token: string; newPassword: string }): Promise<ApiResponse<null>> {
+    return api.post<null>("/auth/reset-password", payload);
+  },
+
+  /**
    * Đổi mật khẩu
    */
   changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<null>> {
