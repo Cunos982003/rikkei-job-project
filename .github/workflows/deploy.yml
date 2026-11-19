@@ -26,6 +26,23 @@ jobs:
           port: ${{ secrets.VPS_PORT }}
           source: "docker-compose.prod.yml"
           target: "/home/ubuntu/rikkei-job-project"
+          overwrite: true
+
+      - name: Verify uploaded Docker Compose
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            cd /home/ubuntu/rikkei-job-project
+
+            echo "=== Uploaded file ==="
+            ls -l docker-compose.prod.yml
+
+            echo "=== File checksum ==="
+            sha256sum docker-compose.prod.yml
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.2.2
