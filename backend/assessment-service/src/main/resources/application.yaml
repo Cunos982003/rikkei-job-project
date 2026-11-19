@@ -1,9 +1,6 @@
 server:
   port: ${SERVER_PORT:8084}
 
-server:
-  port: ${SERVER_PORT:8084}
-
 spring:
   config:
     import:
