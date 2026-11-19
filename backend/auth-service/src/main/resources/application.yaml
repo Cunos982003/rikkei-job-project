@@ -60,20 +60,20 @@ management:
     web:
       exposure:
         include: health,info,prometheus
+
   endpoint:
     health:
       show-details: when-authorized
       probes:
         enabled: true
+
+  info:
+    env:
+      enabled: false
+
   health:
     db:
       enabled: true
-    redis:
-      enabled: false
-  info:
-    env:
-      enabled: true
-
 ---
 # =============================================================
 # Local development profile (H2 in-memory, không cần PostgreSQL)
