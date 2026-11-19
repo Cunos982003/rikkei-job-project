@@ -48,6 +48,10 @@ public class JobServiceClient {
             String status,
             Instant expiresAt,
             UUID companyId,
-            List<String> hrEmails) {
+            List<String> hrEmails,
+            String companyName) {
+        public JobDetails(String status, Instant expiresAt, UUID companyId, List<String> hrEmails) {
+            this(status, expiresAt, companyId, hrEmails, null);
+        }
     }
 }

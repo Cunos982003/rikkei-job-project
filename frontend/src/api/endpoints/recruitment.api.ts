@@ -1,5 +1,7 @@
 import { api } from "../client";
 import type { ApiResponse } from "../types/api";
+import type { InterviewScheduleItem, InterviewSlotItem } from "./interviews.api";
+import type { EmploymentRecordItem, OfferItem } from "./offers.api";
 
 export type RecruitmentStatus =
   | "SUBMITTED"
@@ -9,6 +11,34 @@ export type RecruitmentStatus =
   | "HIRED"
   | "REJECTED"
   | "WITHDRAWN";
+
+// ===== CANDIDATE: Ứng tuyển =====
+
+export interface ApplyRequest {
+  cvId?: string;
+  coverLetter?: string;
+}
+
+export interface WithdrawRequest {
+  reason?: string;
+}
+
+export interface CandidateRecruitmentSummary {
+  id: string;
+  jobId: string;
+  jobTitle?: string;
+  companyName?: string;
+  cvId: string | null;
+  cvSnapshotUrl: string | null;
+  coverLetter: string | null;
+  status: RecruitmentStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CandidateRecruitmentDetails extends CandidateRecruitmentSummary {
+  history: RecruitmentHistoryItem[];
+}
 
 export type InterviewRoundResult = "PENDING" | "PASS" | "FAIL";
 
@@ -21,6 +51,8 @@ export interface InterviewRoundSummary {
   result: InterviewRoundResult;
   score: number | null;
   note: string | null;
+  slots?: InterviewSlotItem[];
+  schedule?: InterviewScheduleItem | null;
 }
 
 export interface RecruitmentHistoryItem {
@@ -52,6 +84,8 @@ export interface RecruitmentReviewDetails {
   score: number;
   rounds: InterviewRoundSummary[];
   history: RecruitmentHistoryItem[];
+  offer?: OfferItem | null;
+  employmentRecord?: EmploymentRecordItem | null;
 }
 
 export interface RecruitmentStaffSummary {
@@ -101,25 +135,61 @@ export interface StaffRecruitmentFilterParams {
 }
 
 export const recruitmentApi = {
+  // =============================================
+  // CANDIDATE endpoints
+  // =============================================
+
+  /**
+   * Nộp đơn ứng tuyển vào một JD
+   */
+  applyJob: (jobId: string, data: ApplyRequest): Promise<ApiResponse<CandidateRecruitmentSummary>> => {
+    return api.post<CandidateRecruitmentSummary>(`/jobs/${jobId}/apply`, data);
+  },
+
+  /**
+   * Danh sách đơn ứng tuyển của ứng viên hiện tại
+   */
+  getMyRecruitments: (status?: RecruitmentStatus): Promise<ApiResponse<CandidateRecruitmentSummary[]>> => {
+    return api.get<CandidateRecruitmentSummary[]>("/me/recruitments", { params: status ? { status } : {} });
+  },
+
+  /**
+   * Chi tiết đơn ứng tuyển của ứng viên hiện tại (kèm lịch sử)
+   */
+  getMyRecruitmentDetail: (id: string): Promise<ApiResponse<CandidateRecruitmentDetails>> => {
+    return api.get<CandidateRecruitmentDetails>(`/me/recruitments/${id}`);
+  },
+
+  /**
+   * Rút đơn ứng tuyển (chỉ trước OFFER)
+   */
+  withdrawRecruitment: (id: string, data: WithdrawRequest): Promise<ApiResponse<CandidateRecruitmentSummary>> => {
+    return api.post<CandidateRecruitmentSummary>(`/me/recruitments/${id}/withdraw`, data);
+  },
+
+  // =============================================
+  // HR / STAFF endpoints
+  // =============================================
+
   /**
    * Lấy chi tiết đơn ứng tuyển cho HR hoặc STAFF
    */
   getReviewDetails: (id: string): Promise<ApiResponse<RecruitmentReviewDetails>> => {
-    return api.get<RecruitmentReviewDetails>(`/api/v1/recruitments/${id}`);
+    return api.get<RecruitmentReviewDetails>(`/recruitments/${id}`);
   },
 
   /**
    * Chuyển trạng thái đơn ứng tuyển (chỉ HR)
    */
   transitionStatus: (id: string, data: TransitionRequest): Promise<ApiResponse<RecruitmentSummary>> => {
-    return api.post<RecruitmentSummary>(`/api/v1/recruitments/${id}/transition`, data);
+    return api.post<RecruitmentSummary>(`/recruitments/${id}/transition`, data);
   },
 
   /**
    * Tạo vòng phỏng vấn mới (chỉ HR khi đang INTERVIEW)
    */
   createRound: (id: string, data: CreateInterviewRoundRequest): Promise<ApiResponse<InterviewRoundSummary>> => {
-    return api.post<InterviewRoundSummary>(`/api/v1/recruitments/${id}/rounds`, data);
+    return api.post<InterviewRoundSummary>(`/recruitments/${id}/rounds`, data);
   },
 
   /**
@@ -130,14 +200,25 @@ export const recruitmentApi = {
     roundId: string,
     data: UpdateInterviewRoundRequest
   ): Promise<ApiResponse<InterviewRoundSummary>> => {
-    return api.put<InterviewRoundSummary>(`/api/v1/recruitments/${id}/rounds/${roundId}`, data);
+    return api.put<InterviewRoundSummary>(`/recruitments/${id}/rounds/${roundId}`, data);
+  },
+
+  /**
+   * Danh sách đơn ứng tuyển dành cho HR của doanh nghiệp
+   */
+  listForHr: (params?: {
+    jobId?: string;
+    status?: RecruitmentStatus;
+    page?: number;
+  }): Promise<ApiResponse<SpringPage<RecruitmentStaffSummary>>> => {
+    return api.get<SpringPage<RecruitmentStaffSummary>>("/hr/applications", { params });
   },
 
   /**
    * Danh sách đơn ứng tuyển dành cho STAFF
    */
   listForStaff: (params: StaffRecruitmentFilterParams): Promise<ApiResponse<SpringPage<RecruitmentStaffSummary>>> => {
-    return api.get<SpringPage<RecruitmentStaffSummary>>("/api/v1/staff/recruitments", { params });
+    return api.get<SpringPage<RecruitmentStaffSummary>>("/staff/recruitments", { params });
   },
 
   /**

@@ -16,9 +16,14 @@ import com.example.learningservice.model.dto.response.SuggestedCourseItemRespons
 import com.example.learningservice.model.entity.Enrollment;
 import com.example.learningservice.model.entity.EnrollmentStatus;
 import com.example.learningservice.model.entity.GapPriority;
+import com.example.learningservice.model.entity.LearningPathStatus;
+import com.example.learningservice.model.entity.LearningPathStep;
 import com.example.learningservice.model.entity.SkillCourseMapping;
+import com.example.learningservice.model.entity.StepStatus;
 import com.example.learningservice.model.entity.TargetPosition;
 import com.example.learningservice.repository.EnrollmentRepository;
+import com.example.learningservice.repository.LearningPathRepository;
+import com.example.learningservice.repository.LearningPathStepRepository;
 import com.example.learningservice.repository.SkillCourseMappingRepository;
 import com.example.learningservice.repository.TargetPositionRepository;
 import com.example.learningservice.service.CourseSuggestionService;
@@ -51,9 +56,11 @@ public class CourseSuggestionServiceImpl implements CourseSuggestionService {
     private final TargetPositionRepository targetPositionRepository;
     private final ProfileServiceClient profileServiceClient;
     private final LmsClient lmsClient;
+    private final LearningPathRepository learningPathRepository;
+    private final LearningPathStepRepository learningPathStepRepository;
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public List<SkillCourseSuggestionResponse> getSuggestionsForCandidate(UUID userId, String authHeader) {
         log.info("Lấy danh sách khóa học gợi ý theo kỹ năng thiếu cho userId: {}", userId);
 
@@ -83,7 +90,11 @@ public class CourseSuggestionServiceImpl implements CourseSuggestionService {
                 TargetPosition defaultPos = positions.get(0); // Java Backend Fresher
                 List<ProfileSkillResponse> userSkills = profileServiceClient.getCandidateSkills(userId, authHeader);
                 Map<String, Integer> userScoreMap = userSkills.stream()
-                        .collect(Collectors.toMap(ProfileSkillResponse::getSkillCode, ProfileSkillResponse::getVerifiedScore, (a, b) -> a));
+                        .filter(s -> s != null && s.getSkillCode() != null)
+                        .collect(Collectors.toMap(
+                                ProfileSkillResponse::getSkillCode,
+                                s -> s.getVerifiedScore() != null ? s.getVerifiedScore() : 0,
+                                (a, b) -> a));
 
                 if (defaultPos.getSkills() != null) {
                     missingSkills = defaultPos.getSkills().stream()
@@ -123,6 +134,7 @@ public class CourseSuggestionServiceImpl implements CourseSuggestionService {
         // 3. Lấy thông tin bổ sung từ Mock LMS (nếu khả dụng)
         List<LmsCourseDto> mockCourses = lmsClient.getCourses();
         Map<String, LmsCourseDto> mockCourseMap = mockCourses.stream()
+                .filter(c -> c != null && c.getCourseId() != null)
                 .collect(Collectors.toMap(LmsCourseDto::getCourseId, Function.identity(), (a, b) -> a));
 
         // 4. Lấy các khóa học ứng viên hiện tại đã ghi danh
@@ -310,6 +322,9 @@ public class CourseSuggestionServiceImpl implements CourseSuggestionService {
                                 .orElse(enr.getLmsCourseId());
 
                         profileServiceClient.syncLmsSkillEvidence(userId, enr.getSkillId(), enr.getLmsCourseId(), courseName, scoreVal);
+
+                        // DT-03: Tự động chuyển bước tương ứng trong active learning path sang DONE
+                        updateLearningPathStepToDone(userId, enr.getLmsCourseId(), enr.getSkillId(), enr.getCompletedAt());
                     }
                 }
 
@@ -328,6 +343,24 @@ public class CourseSuggestionServiceImpl implements CourseSuggestionService {
                 .completedCoursesCount(completedCount)
                 .enrollments(myEnrs)
                 .build();
+    }
+
+    private void updateLearningPathStepToDone(UUID userId, String lmsCourseId, String skillId, Instant completedAt) {
+        try {
+            learningPathRepository.findByUserIdAndStatus(userId, LearningPathStatus.ACTIVE).ifPresent(path -> {
+                learningPathStepRepository.findByLearningPathIdAndLmsCourseIdAndSkillId(path.getId(), lmsCourseId, skillId)
+                        .ifPresent(step -> {
+                            if (step.getStatus() != StepStatus.DONE) {
+                                step.setStatus(StepStatus.DONE);
+                                step.setDoneAt(completedAt != null ? completedAt : Instant.now());
+                                learningPathStepRepository.save(step);
+                                log.info("DT-03: Đã cập nhật bước học trong lộ trình (order={}) sang DONE cho userId: {}", step.getStepOrder(), userId);
+                            }
+                        });
+            });
+        } catch (Exception ex) {
+            log.warn("Không thể cập nhật trạng thái bước học sang DONE cho userId={}: {}", userId, ex.getMessage());
+        }
     }
 
     private EnrollmentResponse toEnrollmentResponse(Enrollment enr, String courseName) {

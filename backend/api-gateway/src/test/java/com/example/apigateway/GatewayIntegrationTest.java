@@ -36,7 +36,10 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "app.jwt.secret=test-only-signing-key-not-for-production")
+        properties = {
+                "app.jwt.secret=test-only-signing-key-not-for-production",
+                "app.gateway.rate-limit-fail-open=false"
+        })
 class GatewayIntegrationTest {
     private static final String SECRET = "test-only-signing-key-not-for-production";
     private static final Map<String, HttpServer> UPSTREAMS = startUpstreams();
@@ -100,6 +103,25 @@ class GatewayIntegrationTest {
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).isEqualTo("/api/v1/staff/recruitments|Bearer " + token);
         assertThat(response.headers().firstValue("X-Test-Upstream")).contains("recruitment");
+    }
+
+    @Test
+    void routesUt07OfferAndEmploymentEndpointsToRecruitmentService() throws Exception {
+        String token = token(Instant.now().plusSeconds(60));
+        for (String path : List.of(
+                "/api/v1/hr/applications",
+                "/api/v1/applications/123",
+                "/api/v1/me/offers",
+                "/api/v1/me/offers/456",
+                "/api/v1/me/employment-records")) {
+            HttpResponse<String> response = send("GET", path, token);
+            assertThat(response.statusCode()).as(path).isEqualTo(200);
+            assertThat(response.body()).isEqualTo(path + "|Bearer " + token);
+            assertThat(response.headers().firstValue("X-Test-Upstream")).contains("recruitment");
+        }
+        HttpResponse<String> offerPost = send("POST", "/api/v1/applications/123/offer", token);
+        assertThat(offerPost.statusCode()).isEqualTo(200);
+        assertThat(offerPost.headers().firstValue("X-Test-Upstream")).contains("recruitment");
     }
 
     @Test

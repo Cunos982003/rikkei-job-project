@@ -15,6 +15,7 @@ import {
   AlertOctagon,
   ShieldCheck,
   Sparkles,
+  Gift,
   X,
 } from "lucide-react";
 import { useAuthStore } from "../../store/useAuthStore";
@@ -35,7 +36,9 @@ const ROLE_NAV_ITEMS: Record<Role, { groupTitle: string; items: NavItem[] }> = {
       { title: "Hồ sơ kỹ năng", path: "/candidate/profile", icon: Award },
       { title: "Cơ hội việc làm", path: "/candidate/jobs", icon: Briefcase },
       { title: "AI Career", path: "/candidate/career", icon: Sparkles },
-      { title: "Đơn đã ứng tuyển", path: "/candidate/applications", icon: FileText },
+      { title: "Đơn ứng tuyển của tôi", path: "/candidate/recruitments", icon: FileText },
+      { title: "Lịch phỏng vấn", path: "/candidate/interviews", icon: CalendarCheck },
+      { title: "Thư mời nhận việc", path: "/candidate/offers", icon: Gift },
       { title: "Học bổ sung LMS", path: "/candidate/learning", icon: GraduationCap },
     ],
   },
@@ -59,9 +62,10 @@ const ROLE_NAV_ITEMS: Record<Role, { groupTitle: string; items: NavItem[] }> = {
   STAFF: {
     groupTitle: "Cán Bộ Vận Hành",
     items: [
+      { title: "Duyệt hồ sơ ứng viên", path: "/staff/candidates", icon: ClipboardCheck },
       { title: "Duyệt tin tuyển dụng", path: "/staff/jobs", icon: CheckSquare },
       { title: "Doanh nghiệp & HR", path: "/staff/companies", icon: Building2 },
-      { title: "Đơn ứng tuyển", path: "/staff/applications", icon: FileText },
+      { title: "Quản lý đơn tuyển dụng", path: "/staff/recruitments", icon: FileText },
       { title: "Ghép đợt IOC", path: "/staff/ioc", icon: Layers },
       { title: "Mở khóa liên hệ PII", path: "/staff/unlock-contacts", icon: KeyRound },
     ],

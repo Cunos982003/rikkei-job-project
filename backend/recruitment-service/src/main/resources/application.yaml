@@ -1,12 +1,12 @@
 spring:
   config:
-    import: optional:file:../../.env[.properties],optional:file:.env[.properties]
+    import: optional:file:../../.env[.properties],optional:file:../.env[.properties],optional:file:.env[.properties]
   application:
     name: recruitment-service
   datasource:
-    url: ${RECRUITMENT_DATABASE_URL}
-    username: ${RECRUITMENT_DATABASE_USERNAME}
-    password: ${RECRUITMENT_DATABASE_PASSWORD}
+    url: ${RECRUITMENT_DATABASE_URL:jdbc:postgresql://localhost:5432/recruitment_db}
+    username: ${RECRUITMENT_DATABASE_USERNAME:postgres}
+    password: ${RECRUITMENT_DATABASE_PASSWORD:123}
   jpa:
     hibernate:
       ddl-auto: update
@@ -35,6 +35,10 @@ app:
     cv-pdf-path: ${CV_PDF_PATH:/api/v1/cvs/{cvId}/pdf}
     ai-career-service-url: ${AI_CAREER_SERVICE_URL:http://localhost:8090}
     internal-service-token: ${INTERNAL_SERVICE_TOKEN:}
+    meet-service-url: ${MEET_SERVICE_URL:http://localhost:9000}
+    meet-service-key: ${LMS_SERVICE_KEY:}
+  interview:
+    reminder-cron: ${INTERVIEW_REMINDER_CRON:0 */15 * * * *}
   cv:
     snapshot-directory: ${CV_SNAPSHOT_DIRECTORY:uploads/recruitments}
     max-pdf-bytes: ${CV_MAX_PDF_BYTES:10485760}
@@ -44,4 +48,15 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,env,beans,loggers,httptrace
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    db:
+      enabled: true
+  info:
+    env:
+      enabled: true
