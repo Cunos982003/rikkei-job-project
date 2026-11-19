@@ -55,6 +55,39 @@ implementation 'org.flywaydb:flyway-core'
 
 tasks.named('test') {
     useJUnitPlatform()
+    // Exclude integration tests that require Testcontainers/Docker
+    exclude '**/integration/**'
+    exclude '**/*IntegrationTest*.class'
+    exclude '**/SchemaMigrationTest*.class'
+    exclude '**/SchemaUpgradeTest*.class'
+    // Exclude repository tests that need database
+    exclude '**/*RepositoryTest*.class'
+    // Exclude controller tests that need full context
+    exclude '**/*ControllerTest*.class'
+    // Exclude service tests that need database
+    exclude '**/SkillRecomputeServiceTest*.class'
+    exclude '**/PublicProfileQueryTest*.class'
+    exclude '**/SkillProfileServiceTest*.class'
+    // Exclude file tests that need storage
+    exclude '**/File*Test*.class'
+    exclude '**/MagicBytesValidatorTest*.class'
+}
+
+task integrationTest(type: Test) {
+    useJUnitPlatform()
+    include '**/integration/**'
+    include '**/*IntegrationTest*.class'
+    include '**/SchemaMigrationTest*.class'
+    include '**/SchemaUpgradeTest*.class'
+    include '**/*RepositoryTest*.class'
+    include '**/*ControllerTest*.class'
+    include '**/SkillRecomputeServiceTest*.class'
+    include '**/PublicProfileQueryTest*.class'
+    include '**/SkillProfileServiceTest*.class'
+    include '**/File*Test*.class'
+    include '**/MagicBytesValidatorTest*.class'
+    // Only run if Docker is available (can be controlled via env var)
+    onlyIf { System.getenv('RUN_INTEGRATION_TESTS') != null }
 }
 
 tasks.withType(JavaCompile) {
