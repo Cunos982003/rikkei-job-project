@@ -14,6 +14,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.example.ai_career_service.dto.ApiResponse;
+import com.example.ai_career_service.dto.ProfileSkillResponse;
+
 @Component
 @Primary
 @Profile("!test")
@@ -38,41 +41,59 @@ public class HttpRecommendationDataSource implements RecommendationDataSource {
         return new RecommendationSnapshot(profileRevision, verifiedSkills, eligibleJobs);
     }
 
-    private List<RecommendationSnapshot.VerifiedSkill> fetchVerifiedSkills(UUID userId) {
-        try {
-            List<Map<String, Object>> rawSkills = profileClient.get()
-                    .uri("/api/v1/profiles/me/skills")
-                    .header("X-User-Id", userId.toString())
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
-            if (rawSkills == null) {
-                return List.of();
-            }
-            List<RecommendationSnapshot.VerifiedSkill> result = new ArrayList<>();
-            for (Map<String, Object> skill : rawSkills) {
-                Object scoreObj = skill.get("verifiedScore");
-                if (scoreObj == null) {
-                    continue;
-                }
-                String name = stringOrNull(skill.get("skillName"));
-                if (name == null || name.isBlank()) {
-                    name = stringOrNull(skill.get("skillCode"));
-                }
-                if (name == null || name.isBlank()) {
-                    continue;
-                }
-                int index = clampScore(((Number) scoreObj).intValue());
-                result.add(new RecommendationSnapshot.VerifiedSkill(name, index));
-            }
-            return result;
-        } catch (Exception ex) {
-            log.error("Failed to fetch candidate skills from profile-service for user {}", userId, ex);
-            throw new ResponseStatusException(
-                    HttpStatus.SERVICE_UNAVAILABLE,
-                    "Unable to load candidate skills from profile-service",
-                    ex);
+
+private List<RecommendationSnapshot.VerifiedSkill> fetchVerifiedSkills(UUID userId) {
+    try {
+        ApiResponse<List<ProfileSkillResponse>> response = profileClient.get()
+                .uri("/api/v1/profiles/me/skills")
+                .header("X-User-Id", userId.toString())
+                .retrieve()
+                .body(new ParameterizedTypeReference<
+                        ApiResponse<List<ProfileSkillResponse>>
+                >() {});
+
+        if (response == null || !response.success() || response.data() == null) {
+            return List.of();
         }
+
+        List<RecommendationSnapshot.VerifiedSkill> result = new ArrayList<>();
+
+        for (ProfileSkillResponse skill : response.data()) {
+            if (skill.verifiedScore() == null) {
+                continue;
+            }
+
+            String name = skill.skillName();
+
+            if (name == null || name.isBlank()) {
+                name = skill.skillCode();
+            }
+
+            if (name == null || name.isBlank()) {
+                continue;
+            }
+
+            int index = clampScore(skill.verifiedScore().intValue());
+
+            result.add(new RecommendationSnapshot.VerifiedSkill(name, index));
+        }
+
+        return result;
+
+    } catch (Exception ex) {
+        log.error(
+                "Failed to fetch candidate skills from profile-service for user {}",
+                userId,
+                ex
+        );
+
+        throw new ResponseStatusException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Unable to load candidate skills from profile-service",
+                ex
+        );
     }
+}
 
     @SuppressWarnings("unchecked")
     private List<RecommendationSnapshot.EligibleJob> fetchEligibleJobs() {
