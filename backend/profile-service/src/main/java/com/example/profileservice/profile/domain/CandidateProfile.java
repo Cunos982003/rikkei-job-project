@@ -1,9 +1,16 @@
 package com.example.profileservice.profile.domain;
 
+import com.example.profileservice.common.domain.UserId;
+import com.example.profileservice.common.domain.Visibility;
+import com.example.profileservice.profile.domain.event.DomainEvent;
+import com.example.profileservice.profile.domain.event.ProfileCreatedEvent;
+import com.example.profileservice.profile.domain.event.ProfileUpdatedEvent;
+import com.example.profileservice.profile.domain.event.ProfileVisibilityChangedEvent;
 import com.example.profileservice.profile.domain.visibility.StateTransition;
 import com.example.profileservice.profile.domain.visibility.VisibilityState;
 import com.example.profileservice.profile.domain.visibility.VisibilityStateFactory;
 import jakarta.persistence.*;
+import jakarta.persistence.Transient;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -90,9 +97,9 @@ public class CandidateProfile {
     @Builder.Default
     private List<ProfileReview> reviews = new ArrayList<>();
 
-    public enum Visibility {
-        PRIVATE, PENDING, PUBLIC, REJECTED, RECRUITER
-    }
+    @Transient
+    @Builder.Default
+    private List<DomainEvent> domainEvents = new ArrayList<>();
 
     /**
      * Get the current state object for the profile's visibility.
@@ -109,7 +116,11 @@ public class CandidateProfile {
      * Candidate must provide consent.
      */
     public void submitForReview(boolean consent, UUID actorId) {
+        Visibility oldVisibility = this.visibility;
         applyTransition(getCurrentState().submitForReview(this, consent, actorId));
+        if (this.visibility != oldVisibility) {
+            emitVisibilityChanged(oldVisibility, this.visibility);
+        }
     }
 
     /**
@@ -117,7 +128,11 @@ public class CandidateProfile {
      * Staff only.
      */
     public void approve(UUID actorId) {
+        Visibility oldVisibility = this.visibility;
         applyTransition(getCurrentState().approve(this, actorId));
+        if (this.visibility != oldVisibility) {
+            emitVisibilityChanged(oldVisibility, this.visibility);
+        }
     }
 
     /**
@@ -125,7 +140,11 @@ public class CandidateProfile {
      * Staff only. Requires reason.
      */
     public void reject(UUID actorId, String reason) {
+        Visibility oldVisibility = this.visibility;
         applyTransition(getCurrentState().reject(this, actorId, reason));
+        if (this.visibility != oldVisibility) {
+            emitVisibilityChanged(oldVisibility, this.visibility);
+        }
     }
 
     /**
@@ -133,7 +152,11 @@ public class CandidateProfile {
      * Candidate only.
      */
     public void withdraw(UUID actorId) {
+        Visibility oldVisibility = this.visibility;
         applyTransition(getCurrentState().withdraw(this, actorId));
+        if (this.visibility != oldVisibility) {
+            emitVisibilityChanged(oldVisibility, this.visibility);
+        }
     }
 
     /**
@@ -151,6 +174,11 @@ public class CandidateProfile {
             this.consentWithdrawnAt = null;
         }
         transition.reviewToAdd().ifPresent(this::addReview);
+    }
+
+    private void emitVisibilityChanged(Visibility oldVisibility, Visibility newVisibility) {
+        UserId userId = UserId.of(this.userId);
+        domainEvents.add(ProfileVisibilityChangedEvent.of(userId, oldVisibility, newVisibility));
     }
 
     // ==================== Internal Methods for State Classes ====================
@@ -182,5 +210,21 @@ public class CandidateProfile {
                 .max((r1, r2) -> r1.getCreatedAt().compareTo(r2.getCreatedAt()))
                 .map(ProfileReview::getCreatedAt)
                 .orElse(null);
+    }
+
+    // ==================== Domain Events ====================
+
+    /**
+     * Get all domain events emitted by this aggregate.
+     */
+    public List<DomainEvent> getDomainEvents() {
+        return new ArrayList<>(domainEvents);
+    }
+
+    /**
+     * Clear domain events after they have been published.
+     */
+    public void clearDomainEvents() {
+        domainEvents.clear();
     }
 }
