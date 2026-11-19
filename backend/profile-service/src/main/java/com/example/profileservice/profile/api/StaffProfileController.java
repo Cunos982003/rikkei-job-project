@@ -1,12 +1,12 @@
 package com.example.profileservice.profile.api;
 
 import com.example.profileservice.common.ApiResponse;
+import com.example.profileservice.common.domain.Visibility;
 import com.example.profileservice.profile.api.dto.PendingReviewDto;
 import com.example.profileservice.profile.api.dto.StaffEditSelfDeclaredRequest;
 import com.example.profileservice.profile.api.dto.StaffEditSelfDeclaredResponse;
 import com.example.profileservice.profile.api.dto.StaffPreviewProfileDto;
 import com.example.profileservice.profile.api.dto.StaffRejectRequest;
-import com.example.profileservice.profile.domain.CandidateProfile.Visibility;
 import com.example.profileservice.profile.service.InvalidTransitionException;
 import com.example.profileservice.profile.service.VisibilityService;
 import lombok.RequiredArgsConstructor;

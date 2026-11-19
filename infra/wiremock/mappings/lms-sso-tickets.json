@@ -1,0 +1,22 @@
+{
+  "priority": 5,
+  "request": {
+    "method": "GET",
+    "urlPath": "/lms/sso/tickets",
+    "headers": {
+      "X-Service-Key": {
+        "equalTo": "dev-key"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8"
+    },
+    "jsonBody": {
+      "ticket": "mock-sso-ticket-for-testing",
+      "expiresIn": 300
+    }
+  }
+}

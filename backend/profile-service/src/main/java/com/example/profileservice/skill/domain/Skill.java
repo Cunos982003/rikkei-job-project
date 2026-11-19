@@ -1,5 +1,6 @@
 package com.example.profileservice.skill.domain;
 
+import com.example.profileservice.common.domain.SkillId;
 import jakarta.persistence.*;
 import java.util.UUID;
 import lombok.*;
@@ -26,4 +27,8 @@ public class Skill {
 
     @Column(name = "\"group\"", nullable = false, length = 50)
     private String group;
+
+    public SkillId getSkillId() {
+        return SkillId.of(id);
+    }
 }

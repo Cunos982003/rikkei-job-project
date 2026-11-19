@@ -8,7 +8,8 @@ import com.example.profileservice.profile.api.dto.UpdateProfileRequest;
 import com.example.profileservice.profile.domain.CandidateProfile;
 import com.example.profileservice.profile.infrastructure.LmsClient;
 import com.example.profileservice.profile.service.InvalidTransitionException;
-import com.example.profileservice.profile.service.ProfileService;
+import com.example.profileservice.profile.service.ProfileCommandService;
+import com.example.profileservice.profile.service.SkillProfileService;
 import com.example.profileservice.profile.service.VisibilityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,7 +25,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ProfileController {
 
-    private final ProfileService profileService;
+    private final ProfileCommandService profileCommandService;
+    private final SkillProfileService skillProfileService;
     private final VisibilityService visibilityService;
 
     @GetMapping("/me")
@@ -34,7 +36,7 @@ public class ProfileController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
         }
-        CandidateProfile profile = profileService.getOrCreateProfile(userId);
+        CandidateProfile profile = profileCommandService.getOrCreateProfile(userId);
         return ResponseEntity.ok(ApiResponse.success("Profile retrieved successfully", profile));
     }
 
@@ -46,7 +48,7 @@ public class ProfileController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
         }
-        CandidateProfile updated = profileService.updateProfile(userId, update);
+        CandidateProfile updated = profileCommandService.updateProfile(userId, update);
         return ResponseEntity.ok(ApiResponse.success("Profile updated successfully", updated));
     }
 
@@ -58,7 +60,7 @@ public class ProfileController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
         }
-        profileService.upsertSelfSkills(userId, skills);
+        skillProfileService.upsertSelfSkills(userId, skills);
         return ResponseEntity.ok(ApiResponse.success("Self skills updated successfully", null));
     }
 
@@ -72,7 +74,7 @@ public class ProfileController {
         }
         boolean consent = request != null && Boolean.TRUE.equals(request.getConsent());
         visibilityService.submitForReview(userId, consent);
-        CandidateProfile profile = profileService.getOrCreateProfile(userId);
+        CandidateProfile profile = profileCommandService.getOrCreateProfile(userId);
         return ResponseEntity.ok(ApiResponse.success("Profile submitted for review", profile));
     }
 
@@ -84,7 +86,7 @@ public class ProfileController {
                     .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
         }
         visibilityService.withdraw(userId);
-        CandidateProfile profile = profileService.getOrCreateProfile(userId);
+        CandidateProfile profile = profileCommandService.getOrCreateProfile(userId);
         return ResponseEntity.ok(ApiResponse.success("Profile withdrawn successfully", profile));
     }
 

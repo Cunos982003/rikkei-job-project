@@ -1,7 +1,7 @@
 package com.example.profileservice.profile.service;
 
+import com.example.profileservice.common.domain.Visibility;
 import com.example.profileservice.profile.domain.CandidateProfile;
-import com.example.profileservice.profile.domain.CandidateProfile.Visibility;
 import com.example.profileservice.profile.infrastructure.CandidateProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
