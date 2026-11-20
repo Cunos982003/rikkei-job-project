@@ -31,6 +31,8 @@ import CandidateLearningPage from "../pages/candidate/CandidateLearningPage";
 import { CandidateInterviewsPage } from "../pages/candidate/CandidateInterviewsPage";
 import { CandidateOffersPage } from "../pages/candidate/CandidateOffersPage";
 import { CandidateRecruitmentsPage } from "../pages/candidate/CandidateRecruitmentsPage";
+import { InterviewPracticeListPage } from "../pages/candidate/InterviewPracticeListPage";
+import { InterviewPracticePage } from "../pages/candidate/InterviewPracticePage";
 import { CareerLayout } from "../features/career/CareerLayout";
 import { OverviewPage } from "../pages/career/OverviewPage";
 import { RecommendationsPage } from "../pages/career/RecommendationsPage";
@@ -80,6 +82,8 @@ export function AppRoutes() {
                     <Route element={<RoleGuard allowedRoles={["CANDIDATE"]} />}>
                         <Route path="/candidate/profile" element={<CandidateProfilePage />} />
                         <Route path="/candidate/jobs" element={<CandidateJobsPage />} />
+                        <Route path="/candidate/interview-practice" element={<InterviewPracticeListPage />} />
+                        <Route path="/candidate/interview-practice/:id" element={<InterviewPracticePage />} />
                         <Route path="/candidate/career" element={<CareerLayout />}>
                             <Route index element={<OverviewPage />} />
                             <Route path="recommendations" element={<RecommendationsPage />} />
