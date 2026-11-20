@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.recruitment_service.dto.ApiResponse;
 import com.example.recruitment_service.dto.CreateInterviewRoundRequest;
 import com.example.recruitment_service.dto.InterviewRoundSummary;
+import com.example.recruitment_service.dto.PageResult;
 import com.example.recruitment_service.dto.RecruitmentDetails;
 import com.example.recruitment_service.dto.RecruitmentReviewDetails;
 import com.example.recruitment_service.dto.RecruitmentStaffSummary;
@@ -128,13 +129,13 @@ public class RecruitmentController {
     }
 
     @GetMapping({"/staff/recruitments", "/staff/applications"})
-    public ResponseEntity<ApiResponse<Page<RecruitmentStaffSummary>>> listForStaff(
+    public ResponseEntity<ApiResponse<PageResult<RecruitmentStaffSummary>>> listForStaff(
             @RequestParam(required = false) UUID companyId,
             @RequestParam(required = false) UUID jobId,
             @RequestParam(required = false) RecruitmentStatus status,
             @RequestParam(defaultValue = "0") @Min(0) int page) {
         Page<RecruitmentStaffSummary> result = recruitmentService.listForStaff(companyId, jobId, status, page);
-        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách đơn ứng tuyển cho cán bộ thành công", result));
+        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách đơn ứng tuyển cho cán bộ thành công", PageResult.from(result)));
     }
 
     @PostMapping("/me/recruitments/{id}/withdraw")

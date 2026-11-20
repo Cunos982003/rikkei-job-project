@@ -155,6 +155,11 @@ spring:
               predicates:
                 - Path=/me/job-recommendations,/me/job-recommendations/**
               filters: *cors-response-filters
+            - id: ai-interview-practice
+              uri: ${GATEWAY_AI_URL:http://localhost:8090}
+              predicates:
+                - Path=/me/interview-practices,/me/interview-practices/**
+              filters: *cors-response-filters
             - id: learning
               uri: ${GATEWAY_LEARNING_URL:http://localhost:8089}
               predicates:
