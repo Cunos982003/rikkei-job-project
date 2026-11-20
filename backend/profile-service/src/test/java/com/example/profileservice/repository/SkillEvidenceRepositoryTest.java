@@ -1,12 +1,10 @@
-package com.example.profileservice.entity;
+package com.example.profileservice.repository;
 
-import com.example.profileservice.repository.SkillEvidenceRepository;
-import com.example.profileservice.repository.SkillRepository;
+import com.example.profileservice.entity.Skill;
+import com.example.profileservice.entity.SkillEvidence;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
