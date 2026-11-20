@@ -88,7 +88,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/v1/, '')
         },
-        '^/api/v1/jobs(?!/[^/?]+/recruit)(/|\\?|$)': {
+        '^/api/v1/jobs(?!/[^/?]+/(?:recruit|apply))(/|\\?|$)': {
           target: env.VITE_JOB_SERVICE_URL || 'http://localhost:8085',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/v1/, '')

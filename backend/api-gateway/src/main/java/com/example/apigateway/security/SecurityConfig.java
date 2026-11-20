@@ -36,18 +36,20 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint(
-                                (request, response, ex) -> GatewayError.write(response, 401, "Yêu cầu xác thực"))
+                                (request, response, ex) -> GatewayError.write(response, 401, "Yêu cầu xác thực tài khoản"))
                         .accessDeniedHandler(
-                                (request, response, ex) -> GatewayError.write(response, 403, "Truy cập bị từ chối")))
+                                (request, response, ex) -> GatewayError.write(response, 403, "Bạn không có quyền truy cập tài nguyên này")))
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(
-                                        "/actuator/health",
-                                        "/actuator/health/**")
+                                "/actuator/health",
+                                "/actuator/health/**",
+                                "/error")
                         .permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/profiles/me/internships",
                                 "/api/services/profile/api/v1/profiles/me/internships").denyAll()
+                        // Public Auth APIs
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/sso", "/api/v1/auth/login",
                                 "/api/v1/auth/hr/login", "/api/v1/auth/forgot-password",
                                 "/api/v1/auth/reset-password",
@@ -61,6 +63,14 @@ public class SecurityConfig {
                                 "/api/services/auth/auth/hr/login", "/api/services/auth/auth/forgot-password",
                                 "/api/services/auth/auth/reset-password",
                                 "/api/services/job/api/v1/auth/login").permitAll()
+                        // Public GET APIs cho khách chưa đăng nhập tra cứu thông tin
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/jobs", "/api/v1/jobs/**", "/jobs", "/jobs/**",
+                                "/api/v1/skills", "/api/v1/skills/**",
+                                "/api/v1/candidates", "/api/v1/candidates/**",
+                                "/api/v1/learning/target-positions", "/api/v1/learning/target-positions/**",
+                                "/api/v1/files/**",
+                                "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwt, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(ipRateLimit, JwtAuthenticationFilter.class)
@@ -74,7 +84,11 @@ public class SecurityConfig {
         CorsConfiguration cors = new CorsConfiguration();
         cors.setAllowedOrigins(Arrays.stream(origins.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList());
         cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-User-Id"));
+        cors.setAllowedHeaders(List.of(
+                "Authorization", "Content-Type", "Accept",
+                "X-User-Id", "X-User-Role", "X-PM-Student-Id",
+                "X-Service-Key", "X-Internal-Service-Token"
+        ));
         cors.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cors);
