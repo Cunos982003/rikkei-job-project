@@ -1,6 +1,6 @@
 package com.example.profileservice.skill.api;
 
-import com.example.profileservice.skill.api.dto.SkillCatalogResponse;
+import com.example.profileservice.dto.SkillCatalogResponse;
 import com.example.profileservice.skill.application.SkillCatalogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
