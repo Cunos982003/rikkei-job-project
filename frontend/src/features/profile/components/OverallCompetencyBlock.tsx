@@ -10,6 +10,7 @@ export function OverallCompetencyBlock() {
 
     return (
         <div className="space-y-6">
+            {/* 1. Chỉ số năng lực chung */}
             <Card className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-lg border-0">
                 <CardContent className="p-8 flex items-center justify-between">
                     <div>
@@ -25,6 +26,7 @@ export function OverallCompetencyBlock() {
                 </CardContent>
             </Card>
 
+            {/* 2. Dải huy hiệu */}
             <Card>
                 <CardHeader><CardTitle className="text-lg">Huy hiệu đã xác thực</CardTitle></CardHeader>
                 <CardContent>
@@ -40,6 +42,7 @@ export function OverallCompetencyBlock() {
                 </CardContent>
             </Card>
 
+            {/* 3. Chi tiết kỹ năng & đóng góp nguồn */}
             <Card>
                 <CardHeader><CardTitle className="text-lg">Chi tiết năng lực</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
@@ -65,6 +68,7 @@ export function OverallCompetencyBlock() {
                 </CardContent>
             </Card>
 
+            {/* Dialog xem điều kiện huy hiệu */}
             <Dialog open={!!selectedBadge} onOpenChange={() => setSelectedBadge(null)}>
                 <DialogContent>
                     <DialogHeader>

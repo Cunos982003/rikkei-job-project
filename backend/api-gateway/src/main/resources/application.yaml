@@ -97,10 +97,15 @@ spring:
               predicates:
                 - Path=/api/v1/jobs/*/recruit,/api/v1/me/recruitments,/api/v1/me/recruitments/**,/api/v1/recruitments/**,/api/v1/staff/recruitments/**,/api/v1/staff/applications/**,/api/v1/applications,/api/v1/applications/**,/api/v1/rounds/**,/api/v1/me/interviews,/api/v1/me/interviews/**,/api/v1/companies/me/interviews,/api/v1/hr/applications,/api/v1/hr/applications/**,/api/v1/me/offers,/api/v1/me/offers/**,/api/v1/me/employment-records
               filters: *cors-response-filters
+            - id: profile-skills
+              uri: ${GATEWAY_PROFILE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/v1/skills,/api/v1/skills/**
+              filters: *cors-response-filters
             - id: job
               uri: ${GATEWAY_JOB_URL:http://localhost:8085}
               predicates:
-                - Path=/api/v1/companies/**,/api/v1/staff/companies/**,/api/v1/staff/hr-accounts/**,/api/v1/jobs,/api/v1/jobs/**,/companies/**,/staff/companies/**,/staff/hr-accounts/**,/jobs,/jobs/**
+                - Path=/api/v1/companies/**,/api/v1/staff/companies/**,/api/v1/staff/hr-accounts/**,/api/v1/jobs,/api/v1/jobs/**,/companies/**,/staff/companies/**,/staff/hr-accounts/**,/jobs,/jobs/**,/api/v1/staff/jobs,/api/v1/staff/jobs/**,/staff/jobs,/staff/jobs/**
               filters:
                 - RewritePath=/api/v1/(?<segment>.*), /${segment}
                 - RemoveResponseHeader=Access-Control-Allow-Origin
@@ -115,6 +120,18 @@ spring:
                 - Path=/recruitments/*/cv-snapshot
               filters:
                 - PrefixPath=/api/v1
+                - RemoveResponseHeader=Access-Control-Allow-Origin
+                - RemoveResponseHeader=Access-Control-Allow-Credentials
+                - RemoveResponseHeader=Access-Control-Expose-Headers
+                - RemoveResponseHeader=Access-Control-Allow-Methods
+                - RemoveResponseHeader=Access-Control-Allow-Headers
+                - RemoveResponseHeader=Access-Control-Max-Age
+            - id: job-jobs
+              uri: ${GATEWAY_JOB_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/v1/jobs/**,/jobs/**
+              filters:
+                - RewritePath=/api/v1/(?<segment>.*), /${segment}
                 - RemoveResponseHeader=Access-Control-Allow-Origin
                 - RemoveResponseHeader=Access-Control-Allow-Credentials
                 - RemoveResponseHeader=Access-Control-Expose-Headers
@@ -150,6 +167,7 @@ app:
   gateway:
     allowed-origins: ${GATEWAY_ALLOWED_ORIGINS:http://localhost:5173}
     rate-limit-per-minute: ${GATEWAY_RATE_LIMIT_PER_MINUTE:60}
+    rate-limit-fail-open: ${GATEWAY_RATE_LIMIT_FAIL_OPEN:true}
 
 management:
   endpoints:

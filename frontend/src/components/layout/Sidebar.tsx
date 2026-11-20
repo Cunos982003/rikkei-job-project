@@ -1,3 +1,4 @@
+
 import { NavLink } from "react-router-dom";
 import {
   Award,
@@ -17,8 +18,8 @@ import {
   Sparkles,
   Gift,
   X,
-  Star,       // <-- THÊM IMPORT ICON NÀY
-  FileEdit,   // <-- THÊM IMPORT ICON NÀY
+  Star,
+  FileEdit,
 } from "lucide-react";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useUiStore } from "../../store/useUiStore";
@@ -42,10 +43,19 @@ const ROLE_NAV_ITEMS: Record<Role, { groupTitle: string; items: NavItem[] }> = {
       { title: "Lịch phỏng vấn", path: "/candidate/interviews", icon: CalendarCheck },
       { title: "Thư mời nhận việc", path: "/candidate/offers", icon: Gift },
       { title: "Học bổ sung LMS", path: "/candidate/learning", icon: GraduationCap },
-      // THÊM NÚT ĐÁNH GIÁ NĂNG LỰC (DG-01) CHO ỨNG VIÊN
+
+      // DG-01: Đánh giá năng lực
       { title: "Đánh giá năng lực", path: "/profile/evaluations", icon: Star },
+
+      // DG-02: Tự đánh giá
+      {
+        title: "Tự đánh giá",
+        path: "/profile/self-assessment",
+        icon: ClipboardCheck,
+      },
     ],
   },
+
   HR: {
     groupTitle: "Nhà Tuyển Dụng",
     items: [
@@ -56,15 +66,18 @@ const ROLE_NAV_ITEMS: Record<Role, { groupTitle: string; items: NavItem[] }> = {
       { title: "Thực tập IOC", path: "/hr/ioc", icon: Layers },
     ],
   },
+
   MENTOR: {
     groupTitle: "Giảng Viên / Mentor",
     items: [
       { title: "Thực tập sinh IOC", path: "/mentor/students", icon: Users },
       { title: "Phiếu đánh giá", path: "/mentor/evaluations", icon: ClipboardCheck },
-      // THÊM NÚT TẠO ĐÁNH GIÁ (DG-04) CHO MENTOR
+
+      // DG-04: Tạo đánh giá
       { title: "Tạo đánh giá", path: "/mentor/evaluations/create", icon: FileEdit },
     ],
   },
+
   STAFF: {
     groupTitle: "Cán Bộ Vận Hành",
     items: [
@@ -76,6 +89,7 @@ const ROLE_NAV_ITEMS: Record<Role, { groupTitle: string; items: NavItem[] }> = {
       { title: "Mở khóa liên hệ PII", path: "/staff/unlock-contacts", icon: KeyRound },
     ],
   },
+
   ADMIN: {
     groupTitle: "Quản Trị Hệ Thống",
     items: [

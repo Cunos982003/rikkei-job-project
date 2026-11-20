@@ -77,7 +77,7 @@ export function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-surface border-b border-border shadow-xs flex items-center justify-between px-4 sm:px-6">
+    <header className="sticky top-0 z-30 h-16 shrink-0 bg-surface border-b border-border shadow-xs flex items-center justify-between px-4 sm:px-6">
       {/* Left: Hamburger & Brand */}
       <div className="flex items-center gap-3">
         <button

@@ -32,7 +32,6 @@ public class VisibilityService {
     private final CandidateProfileRepository profileRepo;
     private final ProfileReviewRepository reviewRepo;
     private final ProfileEditRepository profileEditRepo;
-    private final ProfileService profileService;
     private final SkillProfileService skillProfileService;
     private final ProfileQueryService profileQueryService;
 

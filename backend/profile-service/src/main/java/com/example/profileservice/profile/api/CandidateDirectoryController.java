@@ -1,6 +1,6 @@
 package com.example.profileservice.profile.api;
 
-import com.example.profileservice.common.LevelConstants;
+import com.example.profileservice.common.domain.Level;
 import com.example.profileservice.common.domain.Visibility;
 import com.example.profileservice.profile.domain.CandidateProfile;
 import com.example.profileservice.profile.infrastructure.CandidateProfileRepository;
@@ -160,9 +160,6 @@ public class CandidateDirectoryController {
     }
 
     private String resolveLevel(int score) {
-        if (score >= 85) return LevelConstants.LEVEL_NANG_CAO;
-        if (score >= 70) return LevelConstants.LEVEL_VUNG;
-        if (score >= 50) return LevelConstants.LEVEL_KHA;
-        return LevelConstants.LEVEL_CO_BAN;
+        return Level.fromScore((short) score).name();
     }
 }

@@ -20,7 +20,7 @@ class SkillScoreTest {
         );
         s.recalculate(evidences);
         assertThat(s.getVerifiedScore()).isEqualTo((short) 85); // avg of 80 and 90
-        assertThat(s.getLevel()).isEqualTo(Level.VUNG); // 85 -> VUNG
+        assertThat(s.getLevel()).isEqualTo(Level.NANG_CAO); // 85 -> NANG_CAO (boundary: >=85)
     }
 
     @Test
@@ -39,7 +39,7 @@ class SkillScoreTest {
     void recalculate_withMixed_usesVerifiedForLevel() {
         SkillScore s = SkillScore.builder().build();
         List<SkillEvidence> evidences = List.of(
-            SkillEvidence.builder().score((short) 60).verified(true).build(),  // verified 60 -> KHA
+            SkillEvidence.builder().score((short) 60).verified(true).recordedAt(OffsetDateTime.now().minusDays(10)).build(),  // verified 60 -> KHA
             SkillEvidence.builder().score((short) 90).verified(false).build() // self 90
         );
         s.recalculate(evidences);

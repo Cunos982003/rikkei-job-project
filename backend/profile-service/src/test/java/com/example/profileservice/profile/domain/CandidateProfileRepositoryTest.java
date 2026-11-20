@@ -19,7 +19,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.example.profileservice.profile.domain.CandidateProfile.Visibility;
+import com.example.profileservice.common.domain.Visibility;
 
 @SpringBootTest
 @Testcontainers

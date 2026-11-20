@@ -215,10 +215,17 @@ function DetailModal({
     enabled: !!applicationId,
   });
 
-  const detail = res?.data;
+  const rawData = res?.data as any;
+  const detail = rawData?.recruitment
+    ? {
+        ...rawData.recruitment,
+        history: rawData.history || [],
+      }
+    : rawData;
 
   const canWithdraw =
     detail &&
+    detail.status &&
     !["OFFER", "HIRED", "REJECTED", "WITHDRAWN"].includes(detail.status);
 
   return (
@@ -226,7 +233,7 @@ function DetailModal({
       isOpen={!!applicationId}
       onClose={onClose}
       title="Chi tiết đơn ứng tuyển"
-      description={detail ? `Nộp ngày ${new Date(detail.createdAt).toLocaleDateString("vi-VN")}` : ""}
+      description={detail?.createdAt ? `Nộp ngày ${new Date(detail.createdAt).toLocaleDateString("vi-VN")}` : ""}
       size="lg"
       footer={
         <div className="flex items-center justify-between w-full gap-2">
@@ -262,18 +269,18 @@ function DetailModal({
             <p className="text-xs font-semibold uppercase tracking-wider text-muted mb-3">
               Tiến trình hồ sơ
             </p>
-            <ProgressBar status={detail.status} />
+            <ProgressBar status={detail.status || "SUBMITTED"} />
           </div>
 
           {/* Info grid */}
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
               <span className="text-muted block mb-0.5">Mã đơn</span>
-              <span className="font-mono font-semibold text-slate-700">{detail.id.slice(0, 8)}…</span>
+              <span className="font-mono font-semibold text-slate-700">{detail.id ? `${detail.id.slice(0, 8)}…` : "—"}</span>
             </div>
             <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
               <span className="text-muted block mb-0.5">Cập nhật lần cuối</span>
-              <span className="font-semibold">{new Date(detail.updatedAt).toLocaleString("vi-VN")}</span>
+              <span className="font-semibold">{detail.updatedAt ? new Date(detail.updatedAt).toLocaleString("vi-VN") : "—"}</span>
             </div>
           </div>
 
@@ -409,7 +416,7 @@ function ApplicationCard({
                 {meta.label}
               </Badge>
               <span className="text-[10px] text-muted font-mono">
-                #{app.id.slice(0, 8)}
+                #{app.id ? app.id.slice(0, 8) : "—"}
               </span>
             </div>
 
@@ -417,7 +424,7 @@ function ApplicationCard({
             <div>
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                 <Briefcase className="h-4 w-4 text-primary shrink-0" />
-                {app.jobTitle ?? <span className="text-muted italic">Mã JD: {app.jobId.slice(0, 8)}…</span>}
+                {app.jobTitle ?? <span className="text-muted italic">Mã JD: {app.jobId ? `${app.jobId.slice(0, 8)}…` : "—"}</span>}
               </h3>
               {app.companyName && (
                 <p className="text-xs text-muted flex items-center gap-1 mt-0.5">

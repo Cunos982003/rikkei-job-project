@@ -1,0 +1,579 @@
+openapi: 3.0.3
+info:
+  title: Rikkei Jobs - Job Service & JD Management API (DN-02)
+  description: >
+    API quản lý tin tuyển dụng (JD) theo vị trí và kỹ năng yêu cầu cho Rikkei Jobs (Task DN-02).
+    Hỗ trợ HR tạo, cập nhật JD, quản lý kỹ năng yêu cầu, gửi duyệt và đóng tin; hỗ trợ ứng viên và cán bộ tra cứu JD.
+  version: 1.0.0
+  contact:
+    name: Rikkei Jobs Team
+    email: dev@rikkei.vn
+
+servers:
+  - url: http://localhost:8085
+    description: Local Job Service
+  - url: http://localhost:8080/api/v1
+    description: API Gateway
+
+paths:
+  /jobs:
+    post:
+      tags:
+        - Jobs
+      summary: Tạo mới bản nháp tin tuyển dụng (HR)
+      description: HR tạo tin tuyển dụng ở trạng thái DRAFT. Hạn nộp phải từ hôm nay trở đi, lương tối thiểu không vượt quá lương tối đa.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateJobRequest'
+      responses:
+        '201':
+          description: Tạo tin tuyển dụng thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '400':
+          description: Dữ liệu không hợp lệ (hạn nộp quá khứ, lương âm, lương min > max)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Chưa đăng nhập hoặc token không hợp lệ
+        '403':
+          description: Không có quyền HR hoặc tài khoản chưa liên kết doanh nghiệp
+
+  /jobs/{id}:
+    get:
+      tags:
+        - Jobs
+      summary: Xem chi tiết tin tuyển dụng
+      description: HR chỉ xem được JD của công ty mình; STAFF/ADMIN xem được mọi JD; Ứng viên chỉ xem được JD ở trạng thái APPROVED.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Lấy thông tin tin tuyển dụng thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '401':
+          description: Chưa đăng nhập
+        '404':
+          description: Không tìm thấy tin tuyển dụng hoặc không có quyền xem
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+    put:
+      tags:
+        - Jobs
+      summary: Chỉnh sửa tin tuyển dụng (HR)
+      description: HR chỉnh sửa nội dung tin tuyển dụng. Nếu tin đang APPROVED sẽ chuyển về PENDING; nếu đang PENDING hoặc CLOSED sẽ trả về lỗi 409 Conflict.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateJobRequest'
+      responses:
+        '200':
+          description: Cập nhật tin tuyển dụng thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '400':
+          description: Dữ liệu không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Không tìm thấy tin tuyển dụng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Tin đang chờ duyệt hoặc đã đóng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /jobs/{id}/skills:
+    put:
+      tags:
+        - Jobs
+      summary: Cập nhật danh sách kỹ năng yêu cầu cho JD (HR)
+      description: Thay thế toàn bộ kỹ năng của JD. Tối đa 30 kỹ năng, không được trùng lặp mã kỹ năng, mọi kỹ năng phải tồn tại trong danh mục chuẩn.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/JobSkillItem'
+      responses:
+        '200':
+          description: Cập nhật danh sách kỹ năng thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '400':
+          description: Kỹ năng không tồn tại, trùng lặp hoặc vượt quá số lượng tối đa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Không tìm thấy tin tuyển dụng
+        '409':
+          description: Tin đang chờ duyệt hoặc đã đóng
+
+  /jobs/{id}/submit:
+    post:
+      tags:
+        - Jobs
+      summary: Gửi duyệt tin tuyển dụng (HR)
+      description: Gửi duyệt JD để Cán bộ (STAFF) phê duyệt. Chỉ gửi được từ DRAFT hoặc REJECTED. Yêu cầu ít nhất 1 kỹ năng bắt buộc (required=true) và hạn nộp >= hôm nay.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Gửi duyệt thành công, trạng thái chuyển sang PENDING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '400':
+          description: Thiếu kỹ năng bắt buộc hoặc hạn nộp đã qua
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Không tìm thấy tin tuyển dụng
+        '409':
+          description: Tin không ở trạng thái có thể gửi duyệt
+
+  /jobs/{id}/close:
+    post:
+      tags:
+        - Jobs
+      summary: Đóng tin tuyển dụng (HR)
+      description: Đóng tin tuyển dụng. Áp dụng cho mọi trạng thái trừ CLOSED.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Đóng tin thành công, trạng thái chuyển sang CLOSED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '404':
+          description: Không tìm thấy tin tuyển dụng
+        '409':
+          description: Tin đã được đóng trước đó
+
+  /companies/me/jobs:
+    get:
+      tags:
+        - Jobs
+      summary: Lấy danh sách tin tuyển dụng của công ty tôi (HR)
+      description: HR tra cứu danh sách JD của công ty mình có phân trang và lọc theo trạng thái (DRAFT, PENDING, APPROVED, REJECTED, CLOSED).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [DRAFT, PENDING, APPROVED, REJECTED, CLOSED]
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Lấy danh sách tin tuyển dụng thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobPageResponse'
+        '400':
+          description: Trạng thái lọc không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Không có quyền HR
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    CreateJobRequest:
+      type: object
+      required:
+        - title
+        - position
+        - level
+        - type
+        - quantity
+        - workMode
+        - deadline
+      properties:
+        title:
+          type: string
+          maxLength: 255
+          example: "Lập trình viên Java Backend (Fresher / Junior)"
+        position:
+          type: string
+          maxLength: 255
+          example: "Backend Developer"
+        level:
+          type: string
+          enum: [INTERN, FRESHER, JUNIOR, MIDDLE, SENIOR]
+          example: JUNIOR
+        type:
+          type: string
+          enum: [FULLTIME, PARTTIME, INTERNSHIP]
+          example: FULLTIME
+        quantity:
+          type: integer
+          minimum: 1
+          example: 3
+        city:
+          type: string
+          example: "Hà Nội"
+        address:
+          type: string
+          example: "Tòa nhà HPC Landmark 105, Tố Hữu, Hà Đông"
+        workMode:
+          type: string
+          enum: [ONSITE, REMOTE, HYBRID]
+          example: ONSITE
+        salaryMin:
+          type: number
+          example: 12000000
+        salaryMax:
+          type: number
+          example: 18000000
+        description:
+          type: string
+          example: "Tham gia phát triển dự án quy mô lớn với Spring Boot."
+        requirements:
+          type: string
+          example: "Nắm vững Java Core, OOP, RESTful API."
+        benefits:
+          type: string
+          example: "Lương thưởng cạnh tranh, cơ hội thăng tiến."
+        deadline:
+          type: string
+          format: date
+          example: "2026-12-31"
+
+    UpdateJobRequest:
+      type: object
+      required:
+        - title
+        - position
+        - level
+        - type
+        - quantity
+        - workMode
+        - deadline
+      properties:
+        title:
+          type: string
+        position:
+          type: string
+        level:
+          type: string
+          enum: [INTERN, FRESHER, JUNIOR, MIDDLE, SENIOR]
+        type:
+          type: string
+          enum: [FULLTIME, PARTTIME, INTERNSHIP]
+        quantity:
+          type: integer
+          minimum: 1
+        city:
+          type: string
+        address:
+          type: string
+        workMode:
+          type: string
+          enum: [ONSITE, REMOTE, HYBRID]
+        salaryMin:
+          type: number
+        salaryMax:
+          type: number
+        description:
+          type: string
+        requirements:
+          type: string
+        benefits:
+          type: string
+        deadline:
+          type: string
+          format: date
+
+    JobSkillItem:
+      type: object
+      required:
+        - skillId
+        - required
+        - minScore
+      properties:
+        skillId:
+          type: string
+          example: "JAVA_CORE"
+        required:
+          type: boolean
+          example: true
+        minScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 70
+
+    JobSkillResponse:
+      type: object
+      properties:
+        skillId:
+          type: string
+        skillCode:
+          type: string
+        skillName:
+          type: string
+        required:
+          type: boolean
+        isMandatory:
+          type: boolean
+        minScore:
+          type: integer
+
+    JobResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        companyId:
+          type: string
+          format: uuid
+        companyName:
+          type: string
+        title:
+          type: string
+        position:
+          type: string
+        level:
+          type: string
+        type:
+          type: string
+        quantity:
+          type: integer
+        city:
+          type: string
+        address:
+          type: string
+        workMode:
+          type: string
+        salaryMin:
+          type: number
+        salaryMax:
+          type: number
+        description:
+          type: string
+        requirements:
+          type: string
+        benefits:
+          type: string
+        deadline:
+          type: string
+          format: date
+        expiresAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [DRAFT, PENDING, APPROVED, REJECTED, CLOSED]
+        rejectedReason:
+          type: string
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobSkillResponse'
+        jobSkills:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobSkillResponse'
+        requiredSkills:
+          type: array
+          items:
+            type: string
+        hrEmails:
+          type: array
+          items:
+            type: string
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    JobListItemResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        position:
+          type: string
+        level:
+          type: string
+        type:
+          type: string
+        quantity:
+          type: integer
+        city:
+          type: string
+        deadline:
+          type: string
+          format: date
+        status:
+          type: string
+        rejectedReason:
+          type: string
+        requiredSkillCount:
+          type: integer
+        updatedAt:
+          type: string
+          format: date-time
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        isFirst:
+          type: boolean
+        isLast:
+          type: boolean
+        hasNext:
+          type: boolean
+        hasPrevious:
+          type: boolean
+
+    JobPageResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobListItemResponse'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+
+    ProblemDetail:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
