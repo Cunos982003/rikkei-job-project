@@ -100,6 +100,20 @@ services:
       LMS_BASE_URL: http://mock-api:9000
       SPRING_MAIL_HOST: mailpit
       SPRING_MAIL_PORT: 1025
+      SPRING_MAIL_USERNAME: postgres
+      SPRING_MAIL_PASSWORD: postgres
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      MAIL_USERNAME: postgres
+      MAIL_PASSWORD: postgres
+      MAIL_FROM: no-reply@rikkei-jobs.vn
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_USERNAME: postgres
+      SMTP_PASSWORD: postgres
+      SMTP_AUTH: "true"
+      SMTP_STARTTLS: "true"
+      EMAIL_ENABLED: "true"
     depends_on:
       postgres:
         condition: service_healthy
