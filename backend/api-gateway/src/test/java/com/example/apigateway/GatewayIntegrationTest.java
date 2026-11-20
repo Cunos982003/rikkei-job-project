@@ -206,6 +206,83 @@ class GatewayIntegrationTest {
     }
 
     @Test
+    void permitsPublicAccessToJobAndSkillAndLearningEndpointsWithoutToken() throws Exception {
+        // Public GET endpoints must be accessible without token
+        assertThat(send("GET", "/api/v1/jobs", null).statusCode()).isEqualTo(200);
+        assertThat(send("GET", "/api/v1/jobs/10", null).statusCode()).isEqualTo(200);
+        assertThat(send("GET", "/api/v1/skills", null).statusCode()).isEqualTo(200);
+        assertThat(send("GET", "/api/v1/candidates", null).statusCode()).isEqualTo(200);
+        assertThat(send("GET", "/api/v1/learning/target-positions", null).statusCode()).isEqualTo(200);
+
+        // Mutating methods on public paths still require authentication
+        assertThat(send("POST", "/api/v1/jobs", null).statusCode()).isEqualTo(401);
+    }
+
+    @Test
+    void forwardsUserRoleAndUserIdDownstreamAndStripsClientSpoofing() throws Exception {
+        String token = tokenWithRole("candidate-007", "STUDENT", Instant.now().plusSeconds(60));
+        HttpRequest request = HttpRequest.newBuilder(
+                        URI.create("http://localhost:" + port + "/api/v1/profiles/identity-full-test"))
+                .header("Authorization", "Bearer " + token)
+                .header("X-User-Id", "spoofed-user")
+                .header("X-User-Role", "ADMIN")
+                .GET().build();
+        HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(200);
+        // Upstream must receive authenticated JWT values, not client spoofed values
+        assertThat(response.body()).isEqualTo("candidate-007|STUDENT");
+    }
+
+    @Test
+    void stripsClientIdentityHeadersOnUnauthenticatedPublicRequests() throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(
+                        URI.create("http://localhost:" + port + "/api/v1/jobs/identity-full-test"))
+                .header("X-User-Id", "spoofed-user")
+                .header("X-User-Role", "ADMIN")
+                .GET().build();
+        HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).isEqualTo("null|null");
+    }
+
+    @Test
+    void standardEnvelopeFormatOnSecurityErrors() throws Exception {
+        // 401 Unauthorized
+        HttpResponse<String> unauth = send("GET", "/api/v1/profiles/me", null);
+        assertThat(unauth.statusCode()).isEqualTo(401);
+        assertThat(unauth.body())
+                .contains("\"success\":false")
+                .contains("\"statusCode\":401")
+                .contains("\"message\":")
+                .contains("\"data\":null")
+                .contains("\"timestamp\":");
+
+        // 403 Forbidden
+        String token = token(Instant.now().plusSeconds(60));
+        HttpResponse<String> forbidden = send("GET", "/api/v1/profiles/me/internships", token);
+        assertThat(forbidden.statusCode()).isEqualTo(403);
+        assertThat(forbidden.body())
+                .contains("\"success\":false")
+                .contains("\"statusCode\":403")
+                .contains("\"message\":")
+                .contains("\"data\":null")
+                .contains("\"timestamp\":");
+    }
+
+    @Test
+    void allowsCorsHeadersForCustomRoleAndServiceKeys() throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/profiles/me"))
+                .header("Origin", "http://localhost:5173")
+                .header("Access-Control-Request-Method", "GET")
+                .header("Access-Control-Request-Headers", "X-User-Id, X-User-Role, X-PM-Student-Id, Authorization")
+                .method("OPTIONS", HttpRequest.BodyPublishers.noBody()).build();
+        HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.headers().firstValue("Access-Control-Allow-Origin"))
+                .contains("http://localhost:5173");
+    }
+
+    @Test
     void allowsCorsResponseFromGatewayAndUpstream() throws Exception {
         HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/profiles/me"))
                 .header("Origin", "http://localhost:5173")
@@ -231,6 +308,11 @@ class GatewayIntegrationTest {
                 .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8))).compact();
     }
 
+    private static String tokenWithRole(String subject, String role, Instant expiry) {
+        return Jwts.builder().subject(subject).claim("role", role).expiration(Date.from(expiry))
+                .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8))).compact();
+    }
+
     private static Map<String, HttpServer> startUpstreams() {
         Map<String, HttpServer> servers = new LinkedHashMap<>();
         for (String service : List.of("auth", "profile", "evidence", "assessment", "job",
@@ -252,9 +334,14 @@ class GatewayIntegrationTest {
                 if (exchange.getRequestHeaders().getFirst("Origin") != null) {
                     exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "http://localhost:5173");
                 }
-                String body = exchange.getRequestURI().getPath().endsWith("/identity-test")
-                        ? String.valueOf(exchange.getRequestHeaders().getFirst("X-User-Id"))
-                        : exchange.getRequestURI() + "|" + exchange.getRequestHeaders().getFirst("Authorization");
+                String body;
+                if (exchange.getRequestURI().getPath().endsWith("/identity-full-test")) {
+                    body = exchange.getRequestHeaders().getFirst("X-User-Id") + "|" + exchange.getRequestHeaders().getFirst("X-User-Role");
+                } else if (exchange.getRequestURI().getPath().endsWith("/identity-test")) {
+                    body = String.valueOf(exchange.getRequestHeaders().getFirst("X-User-Id"));
+                } else {
+                    body = exchange.getRequestURI() + "|" + exchange.getRequestHeaders().getFirst("Authorization");
+                }
                 byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
                 exchange.sendResponseHeaders(200, bytes.length);
                 try (var output = exchange.getResponseBody()) {

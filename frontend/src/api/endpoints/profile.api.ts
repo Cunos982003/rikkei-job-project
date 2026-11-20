@@ -225,7 +225,7 @@ export const profileApi = {
    * Lấy danh sách kỹ năng của chính mình (Candidate)
    */
   getMySkills(): Promise<ApiResponse<SkillProfileItem[]>> {
-    return api.get<SkillProfileItem[]>("/profiles/me/skills");
+    return api.get<SkillProfileItem[]>("/profiles/me/skills", { silentError: true });
   },
 
   /**
@@ -250,7 +250,7 @@ export const profileApi = {
    * Lấy chi tiết hồ sơ cá nhân (tự tạo từ LMS nếu chưa có)
    */
   getMyProfile(): Promise<ApiResponse<CandidateProfile>> {
-    return api.get<CandidateProfile>("/profiles/me");
+    return api.get<CandidateProfile>("/profiles/me", { silentError: true });
   },
 
   /**
@@ -297,7 +297,7 @@ export const profileApi = {
   // ===== Học vấn =====
 
   getEducations(): Promise<ApiResponse<EducationItem[]>> {
-    return api.get<EducationItem[]>("/profiles/me/educations");
+    return api.get<EducationItem[]>("/profiles/me/educations", { silentError: true });
   },
 
   createEducation(data: EducationItem): Promise<ApiResponse<EducationItem>> {
@@ -315,7 +315,7 @@ export const profileApi = {
   // ===== Chứng chỉ =====
 
   getCertificates(): Promise<ApiResponse<CertificateItem[]>> {
-    return api.get<CertificateItem[]>("/profiles/me/certificates");
+    return api.get<CertificateItem[]>("/profiles/me/certificates", { silentError: true });
   },
 
   createCertificate(data: CertificateItem): Promise<ApiResponse<CertificateItem>> {

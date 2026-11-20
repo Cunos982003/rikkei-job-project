@@ -1,4 +1,4 @@
-package com.example.profileservice;
+package com.example.profileservice.integration;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

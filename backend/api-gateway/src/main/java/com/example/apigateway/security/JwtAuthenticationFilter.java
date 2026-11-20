@@ -14,6 +14,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -46,8 +47,19 @@ final class JwtAuthenticationFilter extends OncePerRequestFilter {
                 if (userId == null || userId.isBlank()) {
                     throw new IllegalArgumentException("JWT user ID is missing");
                 }
+
+                String role = claims.get("role", String.class);
+                if (role == null || role.isBlank()) {
+                    role = claims.get("roles", String.class);
+                }
+
+                List<SimpleGrantedAuthority> authorities = (role != null && !role.isBlank())
+                        ? List.of(new SimpleGrantedAuthority("ROLE_" + role.replace("ROLE_", "")))
+                        : List.of();
+
+                GatewayPrincipal principal = new GatewayPrincipal(userId, role);
                 SecurityContextHolder.getContext().setAuthentication(
-                        new UsernamePasswordAuthenticationToken(userId, null, List.of()));
+                        new UsernamePasswordAuthenticationToken(principal, null, authorities));
             } catch (JwtException | IllegalArgumentException ex) {
                 SecurityContextHolder.clearContext();
                 GatewayError.write(response, HttpServletResponse.SC_UNAUTHORIZED, "Token không hợp lệ");

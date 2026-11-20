@@ -28,6 +28,7 @@ import {
   Paperclip,
   CheckCircle2,
   Gift,
+  RefreshCw,
 } from "lucide-react";
 import { offersApi } from "../../api/endpoints/offers.api";
 import {
@@ -94,11 +95,17 @@ export function CandidateProfilePage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
 
-  const { data: profileData, isLoading: profileLoading, error: profileError } = useQuery({
+  const {
+    data: profileData,
+    isLoading: profileLoading,
+    error: profileError,
+    refetch: refetchProfile,
+  } = useQuery({
     queryKey: ["myProfile", user?.id],
     queryFn: () => profileApi.getMyProfile(),
     enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 
   const { data: educationsData, isLoading: educationsLoading } = useQuery({
@@ -398,13 +405,33 @@ export function CandidateProfilePage() {
     );
   }
 
-  if (profileError) {
+  if (profileError && !profileData?.data) {
     return (
-        <div className="text-center py-12">
-          <AlertCircle className="h-12 w-12 text-danger mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-foreground">Không thể tải hồ sơ</h3>
-          <p className="text-muted text-sm mt-1">Vui lòng thử lại sau hoặc liên hệ hỗ trợ</p>
+      <div className="text-center py-12 p-6 rounded-2xl border border-dashed border-border bg-surface max-w-md mx-auto my-12 shadow-xs">
+        <AlertCircle className="h-12 w-12 text-rose-500 mx-auto mb-3" />
+        <h3 className="text-base font-bold text-foreground">Không thể kết nối đến máy chủ hồ sơ</h3>
+        <p className="text-muted text-xs mt-1 leading-relaxed">
+          Dịch vụ hồ sơ tạm thời chưa phản hồi hoặc đang trong quá trình khởi động. Vui lòng thử lại sau ít giây.
+        </p>
+        <div className="pt-4 flex justify-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetchProfile()}
+            leftIcon={<RefreshCw className="h-4 w-4" />}
+          >
+            Thử tải lại
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => navigate("/candidate/jobs")}
+            leftIcon={<Briefcase className="h-4 w-4" />}
+          >
+            Xem việc làm
+          </Button>
         </div>
+      </div>
     );
   }
 
