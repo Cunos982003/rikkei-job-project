@@ -37,8 +37,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         log.warn("Database constraint violation", ex);
+        String cause = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
-                "Dữ liệu đã tồn tại hoặc vi phạm ràng buộc trong hệ thống");
+                "Dữ liệu đã tồn tại hoặc vi phạm ràng buộc trong hệ thống" + (cause != null ? ": " + cause : ""));
         problem.setTitle("Conflict");
         problem.setProperty("timestamp", Instant.now());
         return problem;

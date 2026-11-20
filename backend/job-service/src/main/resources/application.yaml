@@ -46,6 +46,11 @@ auth:
   client:
     stub: ${AUTH_CLIENT_STUB:false}
 
+skill:
+  catalog:
+    base-url: ${PROFILE_SERVICE_URL:http://localhost:8082}
+    stub: ${SKILL_CATALOG_STUB:false}
+
 springdoc:
   api-docs:
     path: /v3/api-docs
@@ -100,6 +105,10 @@ spring:
 auth:
   client:
     stub: ${AUTH_CLIENT_STUB:false}
+
+skill:
+  catalog:
+    stub: ${SKILL_CATALOG_STUB:true}
 
 app:
   jwt:

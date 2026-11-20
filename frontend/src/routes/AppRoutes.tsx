@@ -36,9 +36,13 @@ import { OverviewPage } from "../pages/career/OverviewPage";
 import { RecommendationsPage } from "../pages/career/RecommendationsPage";
 import { SkillsPage } from "../pages/career/SkillsPage";
 import { HrCompanyPage } from "../pages/hr/HrCompanyPage";
+import { HrJobsPage } from "../pages/hr/HrJobsPage";
+import { HrJobFormPage } from "../pages/hr/HrJobFormPage";
 import { HrInterviewSchedulePage } from "../pages/hr/HrInterviewSchedulePage";
 import { MentorStudentsPage } from "../pages/mentor/MentorStudentsPage";
 import { StaffJobsPage } from "../pages/staff/StaffJobsPage";
+import { StaffCompaniesPage } from "../pages/staff/StaffCompaniesPage";
+import { StaffCompanyDetailPage } from "../pages/staff/StaffCompanyDetailPage";
 import { StaffCandidatesPage } from "../pages/staff/StaffCandidatesPage";
 import { StaffCandidateDetailPage } from "../pages/staff/StaffCandidateDetailPage";
 import { StaffRecruitmentsPage } from "../pages/staff/StaffRecruitmentsPage";
@@ -51,7 +55,7 @@ function RootRedirect() {
     switch (normalizeRole(user.role)) {
         case "HR": return <Navigate to="/hr/company" replace />;
         case "MENTOR": return <Navigate to="/mentor/students" replace />;
-        case "STAFF": return <Navigate to="/staff/candidates" replace />;
+        case "STAFF": return <Navigate to="/staff/companies" replace />;
         case "ADMIN": return <Navigate to="/admin/skills" replace />;
         case "CANDIDATE":
         default: return <Navigate to="/candidate/profile" replace />;
@@ -97,7 +101,9 @@ export function AppRoutes() {
                     {/* HR */}
                     <Route element={<RoleGuard allowedRoles={["HR"]} />}>
                         <Route path="/hr/company" element={<HrCompanyPage />} />
-                        <Route path="/hr/jobs" element={<HrCompanyPage />} />
+                        <Route path="/hr/jobs" element={<HrJobsPage />} />
+                        <Route path="/hr/jobs/new" element={<HrJobFormPage />} />
+                        <Route path="/hr/jobs/:id/edit" element={<HrJobFormPage />} />
                         <Route path="/hr/candidates" element={<HrCompanyPage />} />
                         <Route path="/hr/interviews" element={<HrInterviewSchedulePage />} />
                         <Route path="/hr/applications/:id" element={<RecruitmentDetailPage />} />
@@ -115,6 +121,8 @@ export function AppRoutes() {
                     {/* STAFF & ADMIN */}
                     <Route element={<RoleGuard allowedRoles={["STAFF", "ADMIN"]} />}>
                         <Route path="/staff/jobs" element={<StaffJobsPage />} />
+                        <Route path="/staff/companies" element={<StaffCompaniesPage />} />
+                        <Route path="/staff/companies/:id" element={<StaffCompanyDetailPage />} />
                         <Route path="/staff/companies" element={<StaffJobsPage />} />
                         <Route path="/staff/recruitments" element={<StaffRecruitmentsPage />} />
                         <Route path="/staff/recruitments/:id" element={<RecruitmentDetailPage />} />

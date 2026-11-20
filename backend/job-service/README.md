@@ -54,6 +54,29 @@ OpenAPI JSON: http://localhost:8085/v3/api-docs
 - HR: `GET /companies/me`, `PUT /companies/me`, `POST /companies/me/logo`.
 - `PUT /companies/{id}` được giữ: STAFF/ADMIN cập nhật theo ID; HR chỉ cập nhật công ty của mình, công ty khác trả 404.
 
+## Quản lý Tin Tuyển Dụng & Kỹ Năng Yêu Cầu (DN-02)
+
+### 1. Kiến trúc & Tích hợp danh mục kỹ năng
+- `job-service` quản lý bảng `jobs` và `job_skills`.
+- Kỹ năng yêu cầu cho JD được tra cứu và chuẩn hóa từ `profile-service` thông qua `SkillCatalogClient` (`GET /api/v1/skills`).
+- `RestSkillCatalogClient`: kết nối `profile-service` (cổng 8082), cache in-memory 5 phút, timeout kết nối 3s, timeout đọc 5s. Nếu dịch vụ gián đoạn trả lỗi 502 Bad Gateway.
+- `StubSkillCatalogClient`: kích hoạt với `skill.catalog.stub=true` (mặc định profile `local` và `test`), cung cấp sẵn 20 kỹ năng mẫu từ `data.sql`.
+
+### 2. Biến cấu hình mới:
+| Tên biến môi trường | Giá trị mặc định | Mô tả |
+|---------------------|------------------|-------|
+| `PROFILE_SERVICE_URL` | `http://localhost:8082` | URL gốc của `profile-service` để lấy danh mục kỹ năng chuẩn |
+| `SKILL_CATALOG_STUB` | `false` (prod), `true` (local/test) | `true`: dùng `StubSkillCatalogClient` in-memory; `false`: kết nối REST tới `profile-service` |
+
+### 3. API theo DN-02:
+- `POST /jobs`: HR tạo bản nháp tin tuyển dụng (`DRAFT`).
+- `PUT /jobs/{id}`: HR cập nhật thông tin JD. Nếu đang `APPROVED` sẽ chuyển sang `PENDING`; đang `PENDING` hoặc `CLOSED` trả về `409 Conflict`.
+- `PUT /jobs/{id}/skills`: HR cập nhật danh sách kỹ năng yêu cầu (tối đa 30 kỹ năng, không trùng lặp, mã kỹ năng phải tồn tại trong catalog).
+- `POST /jobs/{id}/submit`: HR gửi duyệt tin tuyển dụng (chỉ gửi từ `DRAFT` hoặc `REJECTED`, yêu cầu ít nhất 1 kỹ năng bắt buộc và `deadline` $\ge$ hôm nay).
+- `POST /jobs/{id}/close`: HR đóng tin tuyển dụng (không áp dụng cho tin đã `CLOSED`).
+- `GET /companies/me/jobs`: HR xem danh sách JD của công ty mình có phân trang và lọc `status`.
+- `GET /jobs/{id}`: Xem chi tiết JD (HR chỉ xem tin công ty mình, STAFF/ADMIN xem mọi tin, Ứng viên chỉ xem tin `APPROVED`).
+
 ## Chạy kiểm thử
 
 ```powershell
