@@ -29,14 +29,28 @@ public class ProfileController {
     private final SkillProfileService skillProfileService;
     private final VisibilityService visibilityService;
 
+    private UUID resolveUserId(UUID headerUserId) {
+        if (headerUserId != null) {
+            return headerUserId;
+        }
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getName() != null) {
+            try {
+                return UUID.fromString(auth.getName());
+            } catch (Exception ignored) {}
+        }
+        return null;
+    }
+
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<CandidateProfile>> getMyProfile(
             @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
-        if (userId == null) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
         }
-        CandidateProfile profile = profileCommandService.getOrCreateProfile(userId);
+        CandidateProfile profile = profileCommandService.getOrCreateProfile(effectiveUserId);
         return ResponseEntity.ok(ApiResponse.success("Profile retrieved successfully", profile));
     }
 
@@ -44,11 +58,12 @@ public class ProfileController {
     public ResponseEntity<ApiResponse<CandidateProfile>> updateMyProfile(
             @RequestHeader(value = "X-User-Id", required = false) UUID userId,
             @RequestBody UpdateProfileRequest update) {
-        if (userId == null) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
         }
-        CandidateProfile updated = profileCommandService.updateProfile(userId, update);
+        CandidateProfile updated = profileCommandService.updateProfile(effectiveUserId, update);
         return ResponseEntity.ok(ApiResponse.success("Profile updated successfully", updated));
     }
 
@@ -56,11 +71,12 @@ public class ProfileController {
     public ResponseEntity<ApiResponse<Void>> upsertSelfSkills(
             @RequestHeader(value = "X-User-Id", required = false) UUID userId,
             @RequestBody List<SelfSkillDto> skills) {
-        if (userId == null) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
         }
-        skillProfileService.upsertSelfSkills(userId, skills);
+        skillProfileService.upsertSelfSkills(effectiveUserId, skills);
         return ResponseEntity.ok(ApiResponse.success("Self skills updated successfully", null));
     }
 
@@ -68,36 +84,39 @@ public class ProfileController {
     public ResponseEntity<ApiResponse<CandidateProfile>> publish(
             @RequestHeader(value = "X-User-Id", required = false) UUID userId,
             @RequestBody(required = false) PublishRequest request) {
-        if (userId == null) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
         }
         boolean consent = request != null && Boolean.TRUE.equals(request.getConsent());
-        visibilityService.submitForReview(userId, consent);
-        CandidateProfile profile = profileCommandService.getOrCreateProfile(userId);
+        visibilityService.submitForReview(effectiveUserId, consent);
+        CandidateProfile profile = profileCommandService.getOrCreateProfile(effectiveUserId);
         return ResponseEntity.ok(ApiResponse.success("Profile submitted for review", profile));
     }
 
     @PostMapping("/me/withdraw")
     public ResponseEntity<ApiResponse<CandidateProfile>> withdraw(
             @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
-        if (userId == null) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
         }
-        visibilityService.withdraw(userId);
-        CandidateProfile profile = profileCommandService.getOrCreateProfile(userId);
+        visibilityService.withdraw(effectiveUserId);
+        CandidateProfile profile = profileCommandService.getOrCreateProfile(effectiveUserId);
         return ResponseEntity.ok(ApiResponse.success("Profile withdrawn successfully", profile));
     }
 
     @GetMapping("/me/review-history")
     public ResponseEntity<ApiResponse<List<ReviewHistoryItemDto>>> reviewHistory(
             @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
-        if (userId == null) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
         }
-        List<ReviewHistoryItemDto> history = visibilityService.getReviewHistory(userId).stream()
+        List<ReviewHistoryItemDto> history = visibilityService.getReviewHistory(effectiveUserId).stream()
                 .map(ReviewHistoryItemDto::from)
                 .toList();
         return ResponseEntity.ok(ApiResponse.success("Review history retrieved successfully", history));

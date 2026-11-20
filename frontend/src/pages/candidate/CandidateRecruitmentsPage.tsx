@@ -262,7 +262,7 @@ function DetailModal({
           <div className="h-20 bg-slate-100 rounded-lg" />
           <div className="h-32 bg-slate-100 rounded-lg" />
         </div>
-      ) : detail ? (
+      ) : detail && detail.id ? (
         <div className="space-y-5">
           {/* Progress */}
           <div>
@@ -276,7 +276,7 @@ function DetailModal({
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
               <span className="text-muted block mb-0.5">Mã đơn</span>
-              <span className="font-mono font-semibold text-slate-700">{detail.id ? `${detail.id.slice(0, 8)}…` : "—"}</span>
+              <span className="font-mono font-semibold text-slate-700">{detail.id ? `${String(detail.id).slice(0, 8)}…` : "—"}</span>
             </div>
             <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
               <span className="text-muted block mb-0.5">Cập nhật lần cuối</span>

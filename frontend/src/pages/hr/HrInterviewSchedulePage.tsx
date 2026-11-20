@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -112,6 +112,40 @@ export function HrInterviewSchedulePage() {
 
   const rawStatus = searchParams.get("status");
   const rawPage = searchParams.get("page");
+
+  // Restore filter state from sessionStorage on initial load if not in URL
+  useEffect(() => {
+    const savedStatus = sessionStorage.getItem("hr_interview_status");
+    const savedPage = sessionStorage.getItem("hr_interview_page");
+    if (!rawStatus && savedStatus && FILTER_TABS.some((t) => t.value === savedStatus)) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("status", savedStatus);
+          if (savedPage && savedPage !== "0") next.set("page", savedPage);
+          return next;
+        },
+        { replace: true }
+      );
+    }
+  }, []);
+
+  // Save current filter state to sessionStorage
+  useEffect(() => {
+    if (rawStatus) {
+      sessionStorage.setItem("hr_interview_status", rawStatus);
+    } else {
+      sessionStorage.removeItem("hr_interview_status");
+    }
+  }, [rawStatus]);
+
+  useEffect(() => {
+    if (rawPage) {
+      sessionStorage.setItem("hr_interview_page", rawPage);
+    } else {
+      sessionStorage.removeItem("hr_interview_page");
+    }
+  }, [rawPage]);
 
   const statusFilter: RecruitmentStatus | "ALL" =
     rawStatus && FILTER_TABS.some((t) => t.value === rawStatus)

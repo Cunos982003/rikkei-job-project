@@ -37,22 +37,6 @@ public class CandidateDirectoryController {
     private final SkillScoreRepository skillScoreRepository;
     private final SkillRepository skillRepository;
 
-    @GetMapping("/skills")
-    public ResponseEntity<List<Map<String, Object>>> listSkills() {
-        List<Map<String, Object>> result = skillRepository.findAll().stream()
-                .sorted(Comparator.comparing(Skill::getName, String.CASE_INSENSITIVE_ORDER))
-                .map(skill -> {
-                    Map<String, Object> item = new LinkedHashMap<>();
-                    item.put("id", skill.getId());
-                    item.put("code", skill.getCode());
-                    item.put("name", skill.getName());
-                    item.put("group", skill.getGroup());
-                    return item;
-                })
-                .toList();
-        return ResponseEntity.ok(result);
-    }
-
     @GetMapping("/candidates")
     public ResponseEntity<Map<String, Object>> listCandidates(
             @RequestParam(required = false) String keyword,

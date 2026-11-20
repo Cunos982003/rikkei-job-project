@@ -28,9 +28,6 @@ export function StaffCandidatesPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 10;
 
-  // Get class codes from URL or use empty array initially
-  const [classCodes, setClassCodes] = useState<string[]>([]);
-
   // Debounce search input (350ms)
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -69,10 +66,10 @@ export function StaffCandidatesPage() {
   const totalPages = response?.totalPages ?? 0;
 
   // Extract unique class codes from candidates for filter dropdown
-  useEffect(() => {
-    const codes = candidates.map(c => c.classCode).filter(Boolean) as string[];
-    setClassCodes([...new Set(codes)].sort());
-  }, [candidates]);
+  const classCodes = useMemo(() => {
+    const codes = (response?.content ?? []).map(c => c.classCode).filter(Boolean) as string[];
+    return [...new Set(codes)].sort();
+  }, [response?.content]);
 
   // Update URL params for shareable links
   const updateUrlParams = () => {
