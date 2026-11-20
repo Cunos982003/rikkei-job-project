@@ -1,5 +1,6 @@
 package com.example.authservice.security;
 
+import com.example.authservice.dto.ApiResponse;
 import com.example.authservice.dto.ErrorResponse;
 import com.example.authservice.entity.UserStatus;
 import com.example.authservice.repository.UserRepository;
@@ -9,6 +10,7 @@ import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -104,20 +106,20 @@ public class SecurityConfig {
                 .authenticationEntryPoint((request, response, authException) -> {
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                    ErrorResponse error = new ErrorResponse(
-                        HttpServletResponse.SC_UNAUTHORIZED,
+                    ApiResponse<Void> error = ApiResponse.error(
+                        HttpStatus.UNAUTHORIZED,
                         "UNAUTHORIZED",
-                        "Authentication required: Full authentication is required to access this resource"
+                        "Phiên đăng nhập đã hết hạn hoặc bạn chưa được xác thực"
                     );
                     objectMapper.writeValue(response.getOutputStream(), error);
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                    ErrorResponse error = new ErrorResponse(
-                        HttpServletResponse.SC_FORBIDDEN,
+                    ApiResponse<Void> error = ApiResponse.error(
+                        HttpStatus.FORBIDDEN,
                         "MUST_CHANGE_PASSWORD",
-                        "Access denied: You must change your password before continuing"
+                        "Bạn cần đổi mật khẩu lần đầu trước khi tiếp tục truy cập"
                     );
                     objectMapper.writeValue(response.getOutputStream(), error);
                 })

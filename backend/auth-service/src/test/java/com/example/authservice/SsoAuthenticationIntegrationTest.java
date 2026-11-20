@@ -230,12 +230,13 @@ class SsoAuthenticationIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new SsoRequest(ticket))))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.accessToken", notNullValue()))
-            .andExpect(jsonPath("$.tokenType", is("Bearer")))
-            .andExpect(jsonPath("$.user.lmsUserId", is("lms-student-1001")))
-            .andExpect(jsonPath("$.user.email", is("student1001@rikkei.edu.vn")))
-            .andExpect(jsonPath("$.user.fullName", is("Nguyen Van Student")))
-            .andExpect(jsonPath("$.user.role", is("ROLE_CANDIDATE")));
+            .andExpect(jsonPath("$.success", is(true)))
+            .andExpect(jsonPath("$.data.accessToken", notNullValue()))
+            .andExpect(jsonPath("$.data.tokenType", is("Bearer")))
+            .andExpect(jsonPath("$.data.user.lmsUserId", is("lms-student-1001")))
+            .andExpect(jsonPath("$.data.user.email", is("student1001@rikkei.edu.vn")))
+            .andExpect(jsonPath("$.data.user.fullName", is("Nguyen Van Student")))
+            .andExpect(jsonPath("$.data.user.role", is("ROLE_CANDIDATE")));
 
         // Verify user exists in database
         assertThat(userRepository.findByLmsUserId("lms-student-1001")).isPresent();
@@ -261,8 +262,8 @@ class SsoAuthenticationIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new SsoRequest(ticket))))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.user.fullName", is("Updated Mentor Name")))
-            .andExpect(jsonPath("$.user.role", is("ROLE_MENTOR")));
+            .andExpect(jsonPath("$.data.user.fullName", is("Updated Mentor Name")))
+            .andExpect(jsonPath("$.data.user.role", is("ROLE_MENTOR")));
 
         User updated = userRepository.findByLmsUserId("lms-mentor-2001").orElseThrow();
         assertThat(updated.getFullName()).isEqualTo("Updated Mentor Name");
@@ -386,9 +387,9 @@ class SsoAuthenticationIntegrationTest {
         mockMvc.perform(get("/api/v1/auth/me")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.id", is(user.getId().toString())))
-            .andExpect(jsonPath("$.email", is("admin9001@rikkei.edu.vn")))
-            .andExpect(jsonPath("$.role", is("ROLE_ADMIN")));
+            .andExpect(jsonPath("$.data.id", is(user.getId().toString())))
+            .andExpect(jsonPath("$.data.email", is("admin9001@rikkei.edu.vn")))
+            .andExpect(jsonPath("$.data.role", is("ROLE_ADMIN")));
     }
 
     @Test
@@ -419,7 +420,7 @@ class SsoAuthenticationIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new SsoRequest(ticket))))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.user.role", is("ROLE_STAFF")));
+            .andExpect(jsonPath("$.data.user.role", is("ROLE_STAFF")));
     }
 
     @Test
