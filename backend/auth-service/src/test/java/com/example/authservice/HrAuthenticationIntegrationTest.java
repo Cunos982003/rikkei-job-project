@@ -103,11 +103,12 @@ class HrAuthenticationIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest("hr1@rikkei.vn", "Password123@"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken", notNullValue()))
-                .andExpect(jsonPath("$.tokenType", is("Bearer")))
-                .andExpect(jsonPath("$.user.email", is("hr1@rikkei.vn")))
-                .andExpect(jsonPath("$.user.fullName", is("HR Manager")))
-                .andExpect(jsonPath("$.user.role", is("ROLE_HR")));
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.accessToken", notNullValue()))
+                .andExpect(jsonPath("$.data.tokenType", is("Bearer")))
+                .andExpect(jsonPath("$.data.user.email", is("hr1@rikkei.vn")))
+                .andExpect(jsonPath("$.data.user.fullName", is("HR Manager")))
+                .andExpect(jsonPath("$.data.user.role", is("ROLE_HR")));
     }
 
     @Test
@@ -142,7 +143,7 @@ class HrAuthenticationIntegrationTest {
                 .content(objectMapper.writeValueAsString(new LoginRequest("nonexistent@rikkei.vn", "Password123@"))))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code", is("INVALID_CREDENTIALS")))
-                .andExpect(jsonPath("$.accessToken").doesNotExist());
+                .andExpect(jsonPath("$.data").value(org.hamcrest.Matchers.nullValue()));
     }
 
     @Test
@@ -221,7 +222,7 @@ class HrAuthenticationIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest("hr5@rikkei.vn", "RealPassword"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken", notNullValue()));
+                .andExpect(jsonPath("$.data.accessToken", notNullValue()));
 
         User resetUser = userRepository.findByEmail("hr5@rikkei.vn").orElseThrow();
         assertThat(resetUser.getFailedLoginCount()).isZero();
@@ -316,7 +317,7 @@ class HrAuthenticationIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest("hr7@rikkei.vn", "NewBrandPassword2026@"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken", notNullValue()));
+                .andExpect(jsonPath("$.data.accessToken", notNullValue()));
 
         // Second reset attempt with same token fails immediately
         mockMvc.perform(post("/api/v1/auth/reset-password")
@@ -404,14 +405,15 @@ class HrAuthenticationIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
-        String token = objectMapper.readTree(responseStr).get("accessToken").asText();
+        com.fasterxml.jackson.databind.JsonNode rootNode = objectMapper.readTree(responseStr);
+        String token = rootNode.has("data") ? rootNode.path("data").path("accessToken").asText() : rootNode.path("accessToken").asText();
 
         // Access /api/v1/auth/me with Bearer token
         mockMvc.perform(get("/api/v1/auth/me")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email", is("hr10@rikkei.vn")))
-                .andExpect(jsonPath("$.role", is("ROLE_HR")));
+                .andExpect(jsonPath("$.data.email", is("hr10@rikkei.vn")))
+                .andExpect(jsonPath("$.data.role", is("ROLE_HR")));
     }
 
     @Test
@@ -600,7 +602,7 @@ class HrAuthenticationIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new ChangePasswordRequest("CurrentPassword123@", "NewPassword456@"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message", is("Password changed successfully.")));
+                .andExpect(jsonPath("$.message", is("Đổi mật khẩu thành công")));
 
         User updatedUser = userRepository.findById(savedUser.getId()).orElseThrow();
         assertThat(passwordEncoder.matches("NewPassword456@", updatedUser.getPasswordHash())).isTrue();

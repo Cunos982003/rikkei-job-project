@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -47,13 +48,14 @@ public class RecruitmentController {
         this.recruitmentService = recruitmentService;
     }
 
-    @PostMapping("/jobs/{id}/recruit")
+    @PostMapping({"/jobs/{id}/recruit", "/jobs/{id}/apply"})
     public ResponseEntity<ApiResponse<RecruitmentSummary>> recruit(
             @PathVariable UUID id,
-            @Valid @RequestBody ApplyRequest request,
+            @Valid @RequestBody(required = false) ApplyRequest request,
             @AuthenticationPrincipal UserPrincipal candidate,
             @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
-        RecruitmentSummary summary = recruitmentService.recruit(id, request, candidate, authorization);
+        ApplyRequest safeRequest = request != null ? request : new ApplyRequest(null, null);
+        RecruitmentSummary summary = recruitmentService.recruit(id, safeRequest, candidate, authorization);
         return ResponseEntity.status(201).body(ApiResponse.created("Nộp đơn ứng tuyển thành công", summary));
     }
 
@@ -113,6 +115,16 @@ public class RecruitmentController {
         InterviewRoundSummary round = InterviewRoundSummary.from(
                 recruitmentService.updateRound(id, roundId, request, actor, authorization));
         return ResponseEntity.ok(ApiResponse.success("Cập nhật vòng phỏng vấn thành công", round));
+    }
+
+    @DeleteMapping({"/recruitments/{id}/rounds/{roundId}", "/applications/{id}/rounds/{roundId}"})
+    public ResponseEntity<ApiResponse<Void>> deleteRound(
+            @PathVariable UUID id,
+            @PathVariable UUID roundId,
+            @AuthenticationPrincipal UserPrincipal actor,
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
+        recruitmentService.deleteRound(id, roundId, actor, authorization);
+        return ResponseEntity.ok(ApiResponse.success("Xóa vòng phỏng vấn thành công", null));
     }
 
     @GetMapping({"/staff/recruitments", "/staff/applications"})

@@ -26,7 +26,7 @@ public class SecurityConfig {
     SecurityFilterChain gatewaySecurity(HttpSecurity http, StringRedisTemplate redis,
             @Value("${app.jwt.secret}") String secret,
             @Value("${app.gateway.rate-limit-per-minute}") int limit,
-            @Value("${app.gateway.rate-limit-fail-open:false}") boolean rateLimitFailOpen) throws Exception {
+            @Value("${app.gateway.rate-limit-fail-open:true}") boolean rateLimitFailOpen) throws Exception {
         JwtAuthenticationFilter jwt = new JwtAuthenticationFilter(secret);
         RateLimitFilter.IpRateLimitFilter ipRateLimit = new RateLimitFilter.IpRateLimitFilter(redis, limit, rateLimitFailOpen);
         RateLimitFilter.UserRateLimitFilter userRateLimit = new RateLimitFilter.UserRateLimitFilter(redis, limit, rateLimitFailOpen);

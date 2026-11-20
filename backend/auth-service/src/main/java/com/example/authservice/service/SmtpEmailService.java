@@ -18,20 +18,38 @@ public class SmtpEmailService implements EmailService {
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final String fromEmail;
     private final String resetUrl;
+    private final boolean simulateLocal;
+    private final boolean emailEnabled;
 
     public SmtpEmailService(
         ObjectProvider<JavaMailSender> mailSenderProvider,
         @Value("${app.mail.from:no-reply@rikkei-jobs.vn}") String fromEmail,
-        @Value("${app.mail.reset-url:http://localhost:5173/reset-password}") String resetUrl
+        @Value("${app.mail.reset-url:http://localhost:5173/reset-password}") String resetUrl,
+        @Value("${app.mail.simulate-local:true}") boolean simulateLocal,
+        @Value("${app.mail.enabled:true}") boolean emailEnabled
     ) {
         this.mailSenderProvider = mailSenderProvider;
         this.fromEmail = fromEmail;
         this.resetUrl = resetUrl;
+        this.simulateLocal = simulateLocal;
+        this.emailEnabled = emailEnabled;
     }
 
     @Override
     public void sendPasswordResetEmail(String toEmail, String resetToken) {
         String resetLink = resetUrl + "?token=" + resetToken;
+        log.info("================================================================================");
+        log.info("[PASSWORD RESET] Recipient : {}", toEmail);
+        log.info("[PASSWORD RESET] Reset Link: {}", resetLink);
+        log.info("[PASSWORD RESET] Raw Token : {}", resetToken);
+        log.info("================================================================================");
+
+        if (simulateLocal || !emailEnabled) {
+            log.info("[DEV MOCK] Bypassing SMTP mail delivery (simulate-local={}, email-enabled={}).", simulateLocal, emailEnabled);
+            log.info("[DEV MOCK] Open the reset link above in your browser to proceed with password reset.");
+            return;
+        }
+
         String content = "Hello,\n\n"
             + "We received a request to reset your Rikkei Jobs HR account password.\n"
             + "Please click the link below or use the token to set a new password:\n\n"

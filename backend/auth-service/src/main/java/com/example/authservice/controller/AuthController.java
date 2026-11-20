@@ -1,5 +1,6 @@
 package com.example.authservice.controller;
 
+import com.example.authservice.dto.ApiResponse;
 import com.example.authservice.dto.AuthResponse;
 import com.example.authservice.dto.ChangePasswordRequest;
 import com.example.authservice.dto.FirstTimePasswordRequest;
@@ -17,6 +18,7 @@ import com.example.authservice.service.HrAuthService;
 import com.example.authservice.service.SsoService;
 import jakarta.validation.Valid;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,50 +46,48 @@ public class AuthController {
     }
 
     @PostMapping("/sso")
-    public ResponseEntity<AuthResponse> ssoLogin(@Valid @RequestBody SsoRequest request) {
+    public ResponseEntity<ApiResponse<AuthResponse>> ssoLogin(@Valid @RequestBody SsoRequest request) {
         String ticket = request.ticket() == null ? null : request.ticket().trim();
         AuthResponse response = ssoService.authenticateWithTicket(ticket);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Đăng nhập SSO thành công", response));
     }
 
     @PostMapping({"/login", "/hr/login"})
-    public ResponseEntity<AuthResponse> hrLogin(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<AuthResponse>> hrLogin(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = hrAuthService.login(request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Đăng nhập thành công", response));
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<MessageResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+    public ResponseEntity<ApiResponse<MessageResponse>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         MessageResponse response = hrAuthService.forgotPassword(request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Yêu cầu đặt lại mật khẩu đã được xử lý", response));
     }
 
     @PostMapping("/change-password")
-    public ResponseEntity<MessageResponse> changePassword(@Valid @RequestBody ChangePasswordRequest request, Authentication authentication) {
+    public ResponseEntity<ApiResponse<MessageResponse>> changePassword(@Valid @RequestBody ChangePasswordRequest request, Authentication authentication) {
         User user = resolveAuthenticatedUser(authentication);
-        return ResponseEntity.ok(hrAuthService.changePassword(user.getEmail(), request.currentPassword(), request.newPassword()));
+        MessageResponse response = hrAuthService.changePassword(user.getEmail(), request.currentPassword(), request.newPassword());
+        return ResponseEntity.ok(ApiResponse.success("Đổi mật khẩu thành công", response));
     }
 
     @PostMapping("/first-time-password")
-    public ResponseEntity<MessageResponse> firstTimePassword(@Valid @RequestBody FirstTimePasswordRequest request, Authentication authentication) {
+    public ResponseEntity<ApiResponse<MessageResponse>> firstTimePassword(@Valid @RequestBody FirstTimePasswordRequest request, Authentication authentication) {
         User user = resolveAuthenticatedUser(authentication);
-        return ResponseEntity.ok(hrAuthService.firstTimePassword(user.getId(), request.newPassword()));
+        MessageResponse response = hrAuthService.firstTimePassword(user.getId(), request.newPassword());
+        return ResponseEntity.ok(ApiResponse.success("Đặt mật khẩu lần đầu thành công", response));
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<MessageResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+    public ResponseEntity<ApiResponse<MessageResponse>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         MessageResponse response = hrAuthService.resetPassword(request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Đặt lại mật khẩu thành công", response));
     }
 
     @GetMapping("/me")
-    public ResponseEntity<UserDto> getCurrentUser(Authentication authentication) {
-        try {
-            User user = resolveAuthenticatedUser(authentication);
-            return ResponseEntity.ok(UserDto.from(user));
-        } catch (Exception e) {
-            return ResponseEntity.status(401).build();
-        }
+    public ResponseEntity<ApiResponse<UserDto>> getCurrentUser(Authentication authentication) {
+        User user = resolveAuthenticatedUser(authentication);
+        return ResponseEntity.ok(ApiResponse.success("Lấy thông tin tài khoản thành công", UserDto.from(user)));
     }
 
     private User resolveAuthenticatedUser(Authentication authentication) {

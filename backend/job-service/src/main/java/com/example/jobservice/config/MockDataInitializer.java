@@ -5,11 +5,15 @@ import com.example.jobservice.auth.client.StubAuthClient;
 import com.example.jobservice.company.domain.Company;
 import com.example.jobservice.company.domain.CompanyRepository;
 import com.example.jobservice.company.domain.CompanyStatus;
+import com.example.jobservice.job.catalog.CatalogSkill;
+import com.example.jobservice.job.catalog.SkillCatalogClient;
+import com.example.jobservice.job.domain.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -19,11 +23,12 @@ import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.util.*;
 
 @Component
 @Profile({ "local", "test" })
@@ -33,6 +38,10 @@ public class MockDataInitializer implements ApplicationRunner {
 
     private final CompanyRepository companyRepository;
     private final ObjectProvider<AuthClient> authClientProvider;
+    private final ObjectProvider<JobRepository> jobRepositoryProvider;
+    private final ObjectProvider<JobSkillRepository> jobSkillRepositoryProvider;
+    private final ObjectProvider<SkillCatalogClient> skillCatalogClientProvider;
+    private final ObjectProvider<Clock> clockProvider;
     private final Environment environment;
     private final String mockDataDir;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -42,8 +51,25 @@ public class MockDataInitializer implements ApplicationRunner {
             ObjectProvider<AuthClient> authClientProvider,
             Environment environment,
             @Value("${mock.data.dir:../mock/data}") String mockDataDir) {
+        this(companyRepository, authClientProvider, null, null, null, null, environment, mockDataDir);
+    }
+
+    @Autowired
+    public MockDataInitializer(
+            CompanyRepository companyRepository,
+            ObjectProvider<AuthClient> authClientProvider,
+            ObjectProvider<JobRepository> jobRepositoryProvider,
+            ObjectProvider<JobSkillRepository> jobSkillRepositoryProvider,
+            ObjectProvider<SkillCatalogClient> skillCatalogClientProvider,
+            ObjectProvider<Clock> clockProvider,
+            Environment environment,
+            @Value("${mock.data.dir:../mock/data}") String mockDataDir) {
         this.companyRepository = companyRepository;
         this.authClientProvider = authClientProvider;
+        this.jobRepositoryProvider = jobRepositoryProvider;
+        this.jobSkillRepositoryProvider = jobSkillRepositoryProvider;
+        this.skillCatalogClientProvider = skillCatalogClientProvider;
+        this.clockProvider = clockProvider;
         this.environment = environment;
         this.mockDataDir = mockDataDir;
     }
@@ -76,12 +102,155 @@ public class MockDataInitializer implements ApplicationRunner {
             if (authClient instanceof StubAuthClient stub) {
                 stub.initDefaultAccounts(companyIds.get("comp-001"), companyIds.get("comp-002"));
             }
+
+            Path jobsFile = dataDirectory.resolve("jobs.json");
+            if (Files.isRegularFile(jobsFile)) {
+                loadJobs(jobsFile, companyIds);
+            }
+
             log.info("Successfully initialized mock data from {}", dataDirectory.toAbsolutePath());
         } catch (Exception e) {
             if (isTestProfile()) {
                 throw e;
             } else {
                 log.warn("Failed to load mock data from {}: {}", dataDirectory, e.getMessage(), e);
+            }
+        }
+    }
+
+    private void loadJobs(Path jobsFile, Map<String, UUID> companyIds) throws IOException {
+        JobRepository jobRepository = jobRepositoryProvider != null ? jobRepositoryProvider.getIfAvailable() : null;
+        JobSkillRepository jobSkillRepository = jobSkillRepositoryProvider != null ? jobSkillRepositoryProvider.getIfAvailable() : null;
+        SkillCatalogClient skillCatalogClient = skillCatalogClientProvider != null ? skillCatalogClientProvider.getIfAvailable() : null;
+        Clock clock = clockProvider != null ? clockProvider.getIfAvailable() : null;
+
+        if (jobRepository == null || jobSkillRepository == null) {
+            log.info("Job repositories not available, skipping job mock data loading");
+            return;
+        }
+
+        LocalDate today = clock != null ? LocalDate.now(clock) : LocalDate.now();
+        LocalDate defaultDeadline = today.plusDays(30);
+
+        JsonNode jobsArray = readArray(jobsFile);
+        JobStatus[] sequentialStatuses = { JobStatus.DRAFT, JobStatus.PENDING, JobStatus.APPROVED };
+
+        int index = 0;
+        for (JsonNode data : jobsArray) {
+            String mockCompanyId = optionalText(data, "companyId");
+            UUID companyId = mockCompanyId != null ? companyIds.get(mockCompanyId) : null;
+            if (companyId == null) {
+                log.warn("Company not found for mock companyId: {}", mockCompanyId);
+                continue;
+            }
+
+            String title = requiredText(data, "title", jobsFile);
+            String position = optionalText(data, "position");
+            if (position == null || position.isBlank()) {
+                position = title;
+            }
+
+            JobLevel level = JobLevel.JUNIOR;
+            String levelStr = optionalText(data, "level");
+            if (levelStr != null) {
+                try {
+                    level = JobLevel.valueOf(levelStr.trim().toUpperCase());
+                } catch (IllegalArgumentException ignored) {}
+            }
+
+            JobType type = JobType.FULLTIME;
+            String jobTypeStr = optionalText(data, "jobType");
+            if (jobTypeStr != null) {
+                String normalized = jobTypeStr.trim().toUpperCase().replace("_", "");
+                if ("INTERNSHIP".equals(normalized)) type = JobType.INTERNSHIP;
+                else if ("PARTTIME".equals(normalized)) type = JobType.PARTTIME;
+                else type = JobType.FULLTIME;
+            }
+
+            String city = optionalText(data, "city");
+            if (city == null) {
+                city = optionalText(data, "location");
+            }
+
+            WorkMode workMode = WorkMode.ONSITE;
+            String workModeStr = optionalText(data, "workMode");
+            if (workModeStr != null) {
+                try {
+                    workMode = WorkMode.valueOf(workModeStr.trim().toUpperCase());
+                } catch (IllegalArgumentException ignored) {}
+            }
+
+            BigDecimal salaryMin = null;
+            if (data.hasNonNull("salaryMin")) {
+                salaryMin = BigDecimal.valueOf(data.get("salaryMin").asDouble());
+            }
+
+            BigDecimal salaryMax = null;
+            if (data.hasNonNull("salaryMax")) {
+                salaryMax = BigDecimal.valueOf(data.get("salaryMax").asDouble());
+            }
+
+            JobStatus status = index < sequentialStatuses.length ? sequentialStatuses[index] : JobStatus.APPROVED;
+            index++;
+
+            Job job = new Job();
+            job.setCompanyId(companyId);
+            job.setTitle(title);
+            job.setPosition(position);
+            job.setLevel(level);
+            job.setType(type);
+            job.setQuantity(1);
+            job.setCity(city);
+            job.setAddress(optionalText(data, "address"));
+            job.setWorkMode(workMode);
+            job.setSalaryMin(salaryMin);
+            job.setSalaryMax(salaryMax);
+            job.setDescription(optionalText(data, "description"));
+            job.setRequirements(optionalText(data, "requirements"));
+            job.setBenefits(optionalText(data, "benefits"));
+            job.setDeadline(defaultDeadline);
+            job.setStatus(status);
+            job.setCreatedBy("system-mock");
+
+            Job savedJob = jobRepository.save(job);
+
+            JsonNode skillsNode = data.get("jobSkills");
+            if (skillsNode != null && skillsNode.isArray() && skillCatalogClient != null) {
+                List<JobSkill> jobSkills = new ArrayList<>();
+                for (JsonNode skillItem : skillsNode) {
+                    String skillCodeOrId = optionalText(skillItem, "skillId");
+                    if (skillCodeOrId == null || skillCodeOrId.isBlank()) {
+                        continue;
+                    }
+
+                    Optional<CatalogSkill> catalogSkillOpt = skillCatalogClient.findByIdOrCode(skillCodeOrId.trim());
+                    if (catalogSkillOpt.isEmpty()) {
+                        log.warn("Skill not found in catalog for code: {}", skillCodeOrId);
+                        continue;
+                    }
+
+                    CatalogSkill catalogSkill = catalogSkillOpt.get();
+                    boolean required = true;
+                    if (skillItem.has("isMandatory")) {
+                        required = skillItem.get("isMandatory").asBoolean(true);
+                    } else if (skillItem.has("required")) {
+                        required = skillItem.get("required").asBoolean(true);
+                    }
+                    int minScore = skillItem.hasNonNull("minScore") ? skillItem.get("minScore").asInt(0) : 0;
+
+                    jobSkills.add(new JobSkill(
+                            savedJob.getId(),
+                            catalogSkill.id(),
+                            catalogSkill.code(),
+                            catalogSkill.name(),
+                            required,
+                            minScore
+                    ));
+
+                }
+                if (!jobSkills.isEmpty()) {
+                    jobSkillRepository.saveAll(jobSkills);
+                }
             }
         }
     }
