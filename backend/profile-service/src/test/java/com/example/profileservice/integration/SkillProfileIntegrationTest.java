@@ -1,4 +1,4 @@
-package com.example.profileservice.skill.integration;
+package com.example.profileservice.integration;
 
 import com.example.profileservice.service.SkillRecomputeService;
 import com.example.profileservice.skill.application.dto.ExternalRecordDto;
