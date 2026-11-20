@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { useAuthStore } from "../store/useAuthStore";
+import { useAuthStore, normalizeRole } from "../store/useAuthStore";
 import { MainLayout } from "../layouts/MainLayout";
 import { AuthLayout } from "../layouts/AuthLayout";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
@@ -7,6 +7,7 @@ import { RoleGuard } from "../components/auth/RoleGuard";
 
 // Pages
 import { LoginPage } from "../pages/auth/LoginPage";
+import { ResetPasswordPage } from "../pages/auth/ResetPasswordPage";
 import { UnauthorizedPage } from "../pages/common/UnauthorizedPage";
 import { NotFoundPage } from "../pages/common/NotFoundPage";
 
@@ -51,7 +52,7 @@ import { AdminSkillsPage } from "../pages/admin/AdminSkillsPage";
 function RootRedirect() {
     const { user, isAuthenticated } = useAuthStore();
     if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
-    switch (user.role) {
+    switch (normalizeRole(user.role)) {
         case "HR": return <Navigate to="/hr/company" replace />;
         case "MENTOR": return <Navigate to="/mentor/students" replace />;
         case "STAFF": return <Navigate to="/staff/companies" replace />;
@@ -66,6 +67,7 @@ export function AppRoutes() {
         <Routes>
             <Route element={<AuthLayout />}>
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
             </Route>
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
 

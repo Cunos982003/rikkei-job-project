@@ -102,6 +102,29 @@ class RecruitmentControllerTest {
                 .andExpect(jsonPath("$.code").value("INVALID_TRANSITION"));
     }
 
+    @Test
+    void allowsCandidateApplyAliasWithoutCvId() throws Exception {
+        UUID jobId = UUID.randomUUID();
+        when(recruitmentService.recruit(eq(jobId), any(), any(UserPrincipal.class), anyString()))
+                .thenReturn(new RecruitmentSummary(
+                        RECRUITMENT_ID,
+                        jobId,
+                        null,
+                        "/recruitments/" + RECRUITMENT_ID + "/cv-snapshot",
+                        null,
+                        RecruitmentStatus.SUBMITTED,
+                        LocalDateTime.now(),
+                        LocalDateTime.now()));
+
+        mockMvc.perform(post("/api/v1/jobs/{id}/apply", jobId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer("CANDIDATE"))
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.status").value("SUBMITTED"));
+    }
+
     private RecruitmentReviewDetails reviewDetails() {
         return new RecruitmentReviewDetails(
                 new RecruitmentSummary(

@@ -57,6 +57,25 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+
+  info:
+    env:
+      enabled: false
+
+  health:
+    db:
+      enabled: true
 ---
 # Local development profile (H2 in-memory)
 spring:
@@ -94,3 +113,9 @@ skill:
 app:
   jwt:
     secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env,beans,loggers,httptrace

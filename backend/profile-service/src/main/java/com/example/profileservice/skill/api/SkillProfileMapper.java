@@ -1,5 +1,6 @@
 package com.example.profileservice.skill.api;
 
+import com.example.profileservice.common.domain.SkillId;
 import com.example.profileservice.skill.api.dto.SkillEvidenceResponse;
 import com.example.profileservice.skill.api.dto.SkillProfileResponse;
 import com.example.profileservice.skill.domain.Skill;
@@ -10,6 +11,7 @@ import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
 
 import java.util.List;
+import java.util.UUID;
 
 @Mapper(componentModel = "spring")
 public interface SkillProfileMapper {
@@ -20,6 +22,7 @@ public interface SkillProfileMapper {
 
     List<SkillEvidenceResponse> toDto(List<SkillEvidence> list);
 
+    @Mapping(target = "skillId", source = "skill.skillId")
     @Mapping(target = "skillCode", source = "skill.code")
     @Mapping(target = "skillName", source = "skill.name")
     @Mapping(target = "group", source = "skill.group")
@@ -27,4 +30,8 @@ public interface SkillProfileMapper {
     @Mapping(target = "selfScore", source = "skillScore.selfScore")
     @Mapping(target = "level", source = "skillScore.level")
     SkillProfileResponse toDto(Skill skill, SkillScore skillScore, List<SkillEvidence> evidences);
+
+    default UUID map(SkillId skillId) {
+        return skillId != null ? skillId.value() : null;
+    }
 }

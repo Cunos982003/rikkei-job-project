@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronLeft,
@@ -14,6 +14,8 @@ import {
   RefreshCw,
   ArrowLeft,
   ArrowRight,
+  ChevronRight,
+  Home,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/common/Button";
@@ -163,6 +165,23 @@ export function StaffCandidateDetailPage() {
   if (isLoading) {
     return (
       <div className="mx-auto max-w-7xl space-y-6">
+        {/* Breadcrumbs */}
+        <nav className="flex items-center gap-2 text-sm text-muted" aria-label="Breadcrumb">
+          <Link
+            to="/staff/candidates"
+            className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate("/staff/candidates");
+            }}
+          >
+            <Home className="h-3.5 w-3.5" />
+            <span>Duyệt hồ sơ</span>
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5 text-muted/40" />
+          <Skeleton className="h-4 w-48" />
+        </nav>
+
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
@@ -188,6 +207,23 @@ export function StaffCandidateDetailPage() {
   if (isError || !profile) {
     return (
       <div className="mx-auto max-w-7xl space-y-6">
+        {/* Breadcrumbs */}
+        <nav className="flex items-center gap-2 text-sm text-muted" aria-label="Breadcrumb">
+          <Link
+            to="/staff/candidates"
+            className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate("/staff/candidates");
+            }}
+          >
+            <Home className="h-3.5 w-3.5" />
+            <span>Duyệt hồ sơ</span>
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5 text-muted/40" />
+          <span className="text-foreground font-medium">Không tìm thấy hồ sơ</span>
+        </nav>
+
         <Button
           variant="outline"
           size="sm"
@@ -239,6 +275,25 @@ export function StaffCandidateDetailPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
+      {/* Breadcrumbs */}
+      <nav className="flex items-center gap-2 text-sm text-muted" aria-label="Breadcrumb">
+        <Link
+          to="/staff/candidates"
+          className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+          onClick={(e) => {
+            e.preventDefault();
+            navigate("/staff/candidates");
+          }}
+        >
+          <Home className="h-3.5 w-3.5" />
+          <span>Duyệt hồ sơ</span>
+        </Link>
+        <ChevronRight className="h-3.5 w-3.5 text-muted/40" />
+        <span className="text-foreground font-medium truncate max-w-[300px]">
+          {profile?.fullName || "Ứng viên"}
+        </span>
+      </nav>
+
       {/* Header with back button and status */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-4">
         <div className="flex items-center gap-3">
@@ -247,6 +302,7 @@ export function StaffCandidateDetailPage() {
             size="sm"
             leftIcon={<ChevronLeft className="h-4 w-4" />}
             onClick={() => navigate("/staff/candidates")}
+            className="whitespace-nowrap"
           >
             Quay lại danh sách
           </Button>
@@ -277,41 +333,45 @@ export function StaffCandidateDetailPage() {
         <Card className="border-info/30">
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
-              <Button
-                variant="outline"
-                size="sm"
-                leftIcon={<ArrowLeft className="h-4 w-4" />}
-                disabled={!prevCandidate}
-                onClick={prevCandidate ? () => navigate(`/staff/candidates/${prevCandidate.userId}`) : undefined}
-              >
-                Hồ sơ trước
-              </Button>
-              <div className="flex items-center gap-4 text-sm text-muted">
+              {prevCandidate ? (
+                <Link
+                  to={`/staff/candidates/${prevCandidate.userId}`}
+                  className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Hồ sơ trước</span>
+                </Link>
+              ) : (
+                <div className="w-24" />
+              )}
+              <div className="flex items-center gap-4 text-sm text-muted flex-1 justify-center">
                 {prevCandidate && (
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1 text-muted/70">
                     <User className="h-3.5 w-3.5" />
                     {prevCandidate.fullName}
                   </span>
                 )}
-                <span className="font-medium text-foreground">
+                <span className="font-medium text-foreground px-4">
                   {profile.fullName || "Ứng viên"}
                 </span>
                 {nextCandidate && (
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1 text-muted/70">
                     <User className="h-3.5 w-3.5" />
                     {nextCandidate.fullName}
                   </span>
                 )}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                rightIcon={<ArrowRight className="h-4 w-4" />}
-                disabled={!nextCandidate}
-                onClick={nextCandidate ? () => navigate(`/staff/candidates/${nextCandidate.userId}`) : undefined}
-              >
-                Hồ sơ sau
-              </Button>
+              {nextCandidate ? (
+                <Link
+                  to={`/staff/candidates/${nextCandidate.userId}`}
+                  className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                >
+                  <span>Hồ sơ sau</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              ) : (
+                <div className="w-24" />
+              )}
             </div>
           </CardContent>
         </Card>

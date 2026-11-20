@@ -1,16 +1,18 @@
 package com.example.profileservice.profile.service;
 
+import com.example.profileservice.common.domain.Visibility;
 import com.example.profileservice.profile.api.dto.PendingReviewDto;
 import com.example.profileservice.profile.api.dto.StaffEditSelfDeclaredRequest;
 import com.example.profileservice.profile.api.dto.StaffEditSelfDeclaredResponse;
 import com.example.profileservice.profile.api.dto.StaffPreviewProfileDto;
 import com.example.profileservice.profile.domain.CandidateProfile;
-import com.example.profileservice.profile.domain.CandidateProfile.Visibility;
 import com.example.profileservice.profile.domain.ProfileEdit;
 import com.example.profileservice.profile.domain.ProfileReview;
 import com.example.profileservice.profile.infrastructure.CandidateProfileRepository;
 import com.example.profileservice.profile.infrastructure.ProfileEditRepository;
 import com.example.profileservice.profile.infrastructure.ProfileReviewRepository;
+import com.example.profileservice.profile.service.ProfileQueryService;
+import com.example.profileservice.profile.service.SkillProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,7 +32,8 @@ public class VisibilityService {
     private final CandidateProfileRepository profileRepo;
     private final ProfileReviewRepository reviewRepo;
     private final ProfileEditRepository profileEditRepo;
-    private final ProfileService profileService;
+    private final SkillProfileService skillProfileService;
+    private final ProfileQueryService profileQueryService;
 
     @Transactional
     public void submitForReview(UUID userId, boolean consent) {
@@ -105,8 +108,6 @@ public class VisibilityService {
      */
     @Transactional(readOnly = true)
     public StaffPreviewProfileDto getPreviewProfile(UUID userId) {
-        CandidateProfile profile = requireProfile(userId);
-
         // Count rejections
         long rejectionCount = reviewRepo.countByUserIdAndAction(userId, ProfileReview.Action.REJECT);
 
@@ -123,9 +124,8 @@ public class VisibilityService {
                         .build())
                 .toList();
 
-        // Get skills from ProfileService (reuse existing logic)
-        // We'll delegate to ProfileService.getProfileForPreview
-        return profileService.getProfileForPreview(userId, rejectionCount, reviewHistory);
+        // Delegate to ProfileQueryService
+        return profileQueryService.getProfileForPreview(userId, rejectionCount, reviewHistory);
     }
 
     /**
@@ -151,9 +151,9 @@ public class VisibilityService {
             }
             case SELF_SKILLS -> {
                 // For self_skills, value should be JSON array of {skillId, selfScore}
-                // Delegate to ProfileService.upsertSelfSkills
+                // Delegate to SkillProfileService.upsertSelfSkillsFromJson
                 oldValue = "[]"; // placeholder, actual old skills fetched from DB
-                profileService.upsertSelfSkillsFromJson(userId, newValue);
+                skillProfileService.upsertSelfSkillsFromJson(userId, newValue);
                 profileRepo.save(profile);
                 return StaffEditSelfDeclaredResponse.builder()
                         .userId(userId)

@@ -6,9 +6,11 @@ import com.example.learningservice.model.dto.request.TargetSelectionRequest;
 import com.example.learningservice.model.dto.response.CandidateTargetResponse;
 import com.example.learningservice.model.dto.response.JobDetailResponse;
 import com.example.learningservice.model.entity.CandidateTarget;
+import com.example.learningservice.model.entity.LearningPathStatus;
 import com.example.learningservice.model.entity.TargetPosition;
 import com.example.learningservice.model.entity.TargetType;
 import com.example.learningservice.repository.CandidateTargetRepository;
+import com.example.learningservice.repository.LearningPathRepository;
 import com.example.learningservice.repository.TargetPositionRepository;
 import com.example.learningservice.service.CandidateTargetService;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ public class CandidateTargetServiceImpl implements CandidateTargetService {
 
     private final CandidateTargetRepository candidateTargetRepository;
     private final TargetPositionRepository targetPositionRepository;
+    private final LearningPathRepository learningPathRepository;
     private final JobServiceClient jobServiceClient;
 
     @Override
@@ -66,6 +69,16 @@ public class CandidateTargetServiceImpl implements CandidateTargetService {
         target.setChosenAt(Instant.now());
 
         CandidateTarget saved = candidateTargetRepository.save(target);
+
+        // DT-03: Khi ứng viên thiết lập hoặc đổi mục tiêu, lộ trình cũ chuyển sang ARCHIVED
+        int archivedPaths = learningPathRepository.updateStatusByUserIdAndCurrentStatus(
+                userId,
+                LearningPathStatus.ACTIVE,
+                LearningPathStatus.ARCHIVED
+        );
+        if (archivedPaths > 0) {
+            log.info("Đã chuyển {} lộ trình cũ sang ARCHIVED cho userId: {} do thay đổi mục tiêu", archivedPaths, userId);
+        }
 
         return CandidateTargetResponse.builder()
                 .userId(saved.getUserId())

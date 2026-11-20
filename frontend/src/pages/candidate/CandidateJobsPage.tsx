@@ -11,6 +11,7 @@ import {
   Send,
   FileText,
   CheckCircle2,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import { jobsApi, type JobPostingItem } from "../../api/endpoints/jobs.api";
@@ -236,10 +237,10 @@ export const CandidateJobsPage: React.FC = () => {
                 </div>
 
                 {/* Actions */}
-                <div className="flex lg:flex-col items-center sm:items-end justify-between lg:justify-center gap-2 pt-3 lg:pt-0 border-t lg:border-t-0 border-border/60 shrink-0">
+                <div className="flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-end justify-center gap-2 pt-3 lg:pt-0 border-t lg:border-t-0 border-border/60 shrink-0 w-full sm:w-auto">
                   {appliedJobIds.has(job.id) ? (
-                    <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200">
-                      <CheckCircle2 className="h-4 w-4" />
+                    <div className="w-full sm:w-32 lg:w-32 h-8 inline-flex items-center justify-center gap-1.5 text-xs font-medium text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 rounded-lg select-none">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
                       Đã nộp đơn
                     </div>
                   ) : (
@@ -247,8 +248,8 @@ export const CandidateJobsPage: React.FC = () => {
                       variant="primary"
                       size="sm"
                       onClick={() => { setApplyJob(job); setCoverLetter(""); }}
-                      leftIcon={<Send className="h-4 w-4" />}
-                      className="w-full sm:w-auto"
+                      leftIcon={<Send className="h-3.5 w-3.5" />}
+                      className="w-full sm:w-32 lg:w-32 justify-center shadow-xs hover:shadow-sm active:scale-[0.98] transition-all"
                     >
                       Ứng tuyển
                     </Button>
@@ -257,8 +258,8 @@ export const CandidateJobsPage: React.FC = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => handleAnalyzeJob(job.id)}
-                    leftIcon={<Target className="h-4 w-4" />}
-                    className="w-full sm:w-auto text-xs"
+                    leftIcon={<Target className="h-3.5 w-3.5" />}
+                    className="w-full sm:w-32 lg:w-32 justify-center hover:border-primary/50 hover:text-primary active:scale-[0.98] transition-all"
                   >
                     Phân tích
                   </Button>
@@ -266,7 +267,8 @@ export const CandidateJobsPage: React.FC = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => setSelectedJob(job)}
-                    className="w-full sm:w-auto text-xs"
+                    leftIcon={<Eye className="h-3.5 w-3.5" />}
+                    className="w-full sm:w-32 lg:w-32 justify-center hover:border-primary/50 hover:text-primary active:scale-[0.98] transition-all"
                   >
                     Xem chi tiết
                   </Button>

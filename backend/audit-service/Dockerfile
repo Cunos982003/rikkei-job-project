@@ -11,8 +11,11 @@ RUN set -eux; \
 
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
-RUN groupadd --system app && useradd --system --gid app --create-home app \
-    && mkdir -p /app/uploads/logos /app/uploads/recruitments \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system app \
+    && useradd --system --gid app --create-home app \
     && chown -R app:app /app
 COPY --from=build --chown=app:app /workspace/app.jar ./app.jar
 USER app

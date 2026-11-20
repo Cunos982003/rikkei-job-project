@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Calendar,
@@ -105,9 +105,52 @@ function formatDayShort(date: Date): string {
 
 export function HrInterviewSchedulePage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [weekStart, setWeekStart] = useState<Date>(() => getMonday(new Date()));
-  const [statusFilter, setStatusFilter] = useState<RecruitmentStatus | "ALL">("ALL");
-  const [appPage, setAppPage] = useState(0);
+
+  const rawStatus = searchParams.get("status");
+  const rawPage = searchParams.get("page");
+
+  const statusFilter: RecruitmentStatus | "ALL" =
+    rawStatus && FILTER_TABS.some((t) => t.value === rawStatus)
+      ? (rawStatus as RecruitmentStatus)
+      : "ALL";
+
+  const appPage = rawPage && !isNaN(Number(rawPage)) ? Math.max(0, parseInt(rawPage, 10)) : 0;
+
+  const setStatusFilter = (newStatus: RecruitmentStatus | "ALL") => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (newStatus === "ALL") {
+          next.delete("status");
+        } else {
+          next.set("status", newStatus);
+        }
+        next.delete("page");
+        return next;
+      },
+      { replace: true }
+    );
+  };
+
+  const setAppPage = (newPage: number | ((prevPage: number) => number)) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        const resolvedPage = typeof newPage === "function" ? newPage(appPage) : newPage;
+        if (resolvedPage === 0) {
+          next.delete("page");
+        } else {
+          next.set("page", String(resolvedPage));
+        }
+        return next;
+      },
+      { replace: true }
+    );
+  };
 
   const weekEnd = useMemo(() => {
     const end = addDays(weekStart, 6);
@@ -367,7 +410,11 @@ export function HrInterviewSchedulePage() {
                               )}
                               <button
                                 type="button"
-                                onClick={() => navigate(`/hr/applications/${item.recruitmentId}`)}
+                                onClick={() =>
+                                  navigate(`/hr/applications/${item.recruitmentId}`, {
+                                    state: { from: location.pathname + location.search },
+                                  })
+                                }
                                 className="inline-flex items-center gap-1 text-[11px] text-muted hover:text-foreground ml-auto"
                               >
                                 <FileText className="h-3 w-3" />
@@ -492,7 +539,11 @@ export function HrInterviewSchedulePage() {
                           size="sm"
                           variant="outline"
                           rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
-                          onClick={() => navigate(`/hr/applications/${app.id}`)}
+                          onClick={() =>
+                            navigate(`/hr/applications/${app.id}`, {
+                              state: { from: location.pathname + location.search },
+                            })
+                          }
                         >
                           Xem chi tiết & Đặt lịch
                         </Button>

@@ -364,6 +364,23 @@ class RecruitmentServiceTest {
     }
 
     @Test
+    void deletesRoundAndRenumberRemainingRounds() {
+        Recruitment recruitment = recruitmentWithStatus(RecruitmentStatus.INTERVIEW);
+        InterviewRound r1 = round(recruitment, 1);
+        InterviewRound r2 = round(recruitment, 2);
+        when(recruitmentRepository.findById(RECRUITMENT_ID)).thenReturn(java.util.Optional.of(recruitment));
+        when(jobServiceClient.getJob(JOB_ID, "Bearer token")).thenReturn(jobDetails());
+        when(interviewRoundRepository.findById(ROUND_ID)).thenReturn(java.util.Optional.of(r1));
+        when(interviewRoundRepository.findByRecruitment_IdOrderByRoundNoAsc(RECRUITMENT_ID)).thenReturn(List.of(r2));
+
+        recruitmentService.deleteRound(RECRUITMENT_ID, ROUND_ID, hr, "Bearer token");
+
+        verify(interviewRoundRepository).delete(r1);
+        assertEquals(1, r2.getRoundNo());
+        verify(interviewRoundRepository).save(r2);
+    }
+
+    @Test
     void rejectsRoundWriteOutsideInterview() {
         Recruitment recruitment = recruitmentWithStatus(RecruitmentStatus.SCREENING);
         when(recruitmentRepository.findById(RECRUITMENT_ID)).thenReturn(java.util.Optional.of(recruitment));

@@ -7,6 +7,7 @@ import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
@@ -19,12 +20,13 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
-class SecurityConfig {
+@EnableWebSecurity
+public class SecurityConfig {
     @Bean
     SecurityFilterChain gatewaySecurity(HttpSecurity http, StringRedisTemplate redis,
             @Value("${app.jwt.secret}") String secret,
             @Value("${app.gateway.rate-limit-per-minute}") int limit,
-            @Value("${app.gateway.rate-limit-fail-open:false}") boolean rateLimitFailOpen) throws Exception {
+            @Value("${app.gateway.rate-limit-fail-open:true}") boolean rateLimitFailOpen) throws Exception {
         JwtAuthenticationFilter jwt = new JwtAuthenticationFilter(secret);
         RateLimitFilter.IpRateLimitFilter ipRateLimit = new RateLimitFilter.IpRateLimitFilter(redis, limit, rateLimitFailOpen);
         RateLimitFilter.UserRateLimitFilter userRateLimit = new RateLimitFilter.UserRateLimitFilter(redis, limit, rateLimitFailOpen);
@@ -39,6 +41,10 @@ class SecurityConfig {
                                 (request, response, ex) -> GatewayError.write(response, 403, "Truy cập bị từ chối")))
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .requestMatchers(
+                                        "/actuator/health",
+                                        "/actuator/health/**")
+                        .permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/profiles/me/internships",
                                 "/api/services/profile/api/v1/profiles/me/internships").denyAll()

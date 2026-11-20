@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useAuthStore } from "../../store/useAuthStore";
 import { Button } from "../../components/common/Button";
 import { Input } from "../../components/common/Input";
+import { ForgotPasswordModal } from "../../components/auth/ForgotPasswordModal";
 
 const loginSchema = z.object({
   email: z.string().min(1, "Vui lòng nhập địa chỉ email").email("Email không đúng định dạng"),
@@ -63,6 +64,7 @@ export function LoginPage() {
   const [loginMode, setLoginMode] = useState<"sso" | "password">("sso");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const [ssoTicket, setSsoTicket] = useState("");
   const [isSsoSubmitting, setIsSsoSubmitting] = useState(false);
   const [isFetchingMockTicket, setIsFetchingMockTicket] = useState(false);
@@ -71,6 +73,7 @@ export function LoginPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -79,6 +82,8 @@ export function LoginPage() {
       password: "",
     },
   });
+
+  const emailValue = watch("email");
 
   const handleRedirectAfterLogin = (role: string) => {
     // Đợi microtask để auth store cập nhật xong (token, userId, user role)
@@ -385,7 +390,7 @@ export function LoginPage() {
             <button
               type="button"
               className="text-primary hover:underline cursor-pointer font-medium"
-              onClick={() => toast.info("Vui lòng liên hệ Ban Đào tạo để đặt lại mật khẩu.")}
+              onClick={() => setIsForgotPasswordOpen(true)}
             >
               Quên mật khẩu?
             </button>
@@ -405,6 +410,13 @@ export function LoginPage() {
           </div>
         </form>
       )}
+
+      {/* Modal Quên mật khẩu */}
+      <ForgotPasswordModal
+        isOpen={isForgotPasswordOpen}
+        onClose={() => setIsForgotPasswordOpen(false)}
+        defaultEmail={emailValue}
+      />
     </div>
   );
 }

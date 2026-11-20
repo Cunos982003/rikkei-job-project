@@ -1,7 +1,7 @@
 package com.example.profileservice.profile.service;
 
+import com.example.profileservice.common.domain.Visibility;
 import com.example.profileservice.profile.domain.CandidateProfile;
-import com.example.profileservice.profile.domain.CandidateProfile.Visibility;
 import com.example.profileservice.profile.domain.ProfileReview;
 import com.example.profileservice.profile.infrastructure.CandidateProfileRepository;
 import com.example.profileservice.profile.infrastructure.ProfileEditRepository;
@@ -41,13 +41,16 @@ class VisibilityServiceTest {
     ProfileEditRepository profileEditRepo;
 
     @Mock
-    ProfileService profileService;
+    SkillProfileService skillProfileService;
+
+    @Mock
+    ProfileQueryService profileQueryService;
 
     VisibilityService service;
 
     @BeforeEach
     void setup() {
-        service = new VisibilityService(profileRepo, reviewRepo, profileEditRepo, profileService);
+        service = new VisibilityService(profileRepo, reviewRepo, profileEditRepo, skillProfileService, profileQueryService);
     }
 
     private CandidateProfile profileWith(Visibility visibility) {

@@ -14,3 +14,21 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:123}
     driver-class-name: org.postgresql.Driver
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+    
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  # health:
+  #   db:
+  #     enabled: true
+  info:
+    env:
+      enabled: true
