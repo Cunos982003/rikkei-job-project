@@ -1,8 +1,8 @@
 package com.example.profileservice.skill.application;
 
-import com.example.profileservice.skill.api.dto.SkillCatalogResponse;
-import com.example.profileservice.skill.domain.Skill;
-import com.example.profileservice.skill.infrastructure.SkillRepository;
+import com.example.profileservice.dto.SkillCatalogResponse;
+import com.example.profileservice.entity.Skill;
+import com.example.profileservice.repository.SkillRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
