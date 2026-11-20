@@ -198,9 +198,10 @@ class HrAccountAdminIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(loginReq)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.accessToken", notNullValue()))
-            .andExpect(jsonPath("$.user.email", is("loginhr@company.com")))
-            .andExpect(jsonPath("$.user.mustChangePassword", is(true)));
+            .andExpect(jsonPath("$.success", is(true)))
+            .andExpect(jsonPath("$.data.accessToken", notNullValue()))
+            .andExpect(jsonPath("$.data.user.email", is("loginhr@company.com")))
+            .andExpect(jsonPath("$.data.user.mustChangePassword", is(true)));
     }
 
     @Test
@@ -293,7 +294,8 @@ class HrAccountAdminIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(loginReq)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.accessToken", notNullValue()));
+            .andExpect(jsonPath("$.success", is(true)))
+            .andExpect(jsonPath("$.data.accessToken", notNullValue()));
     }
 
     @Test
@@ -493,13 +495,14 @@ class HrAccountAdminIntegrationTest {
             .andExpect(status().isOk())
             .andReturn();
 
-        String hrJwt = objectMapper.readTree(loginResult.getResponse().getContentAsString()).path("accessToken").asText();
+        com.fasterxml.jackson.databind.JsonNode loginNode = objectMapper.readTree(loginResult.getResponse().getContentAsString());
+        String hrJwt = loginNode.has("data") ? loginNode.path("data").path("accessToken").asText() : loginNode.path("accessToken").asText();
 
         // HR accesses /api/v1/auth/me successfully
         mockMvc.perform(get("/api/v1/auth/me")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + hrJwt))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.email", is("tokenrevoked@company.com")));
+            .andExpect(jsonPath("$.data.email", is("tokenrevoked@company.com")));
 
         // Staff locks HR
         LockHrAccountAdminRequest lockReq = new LockHrAccountAdminRequest("Kỷ luật đình chỉ");
@@ -529,13 +532,14 @@ class HrAccountAdminIntegrationTest {
             .andExpect(status().isOk())
             .andReturn();
 
-        String newHrJwt = objectMapper.readTree(reloginResult.getResponse().getContentAsString()).path("accessToken").asText();
+        com.fasterxml.jackson.databind.JsonNode reloginNode = objectMapper.readTree(reloginResult.getResponse().getContentAsString());
+        String newHrJwt = reloginNode.has("data") ? reloginNode.path("data").path("accessToken").asText() : reloginNode.path("accessToken").asText();
 
         // /api/v1/auth/me succeeds with new token
         mockMvc.perform(get("/api/v1/auth/me")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + newHrJwt))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.email", is("tokenrevoked@company.com")));
+            .andExpect(jsonPath("$.data.email", is("tokenrevoked@company.com")));
     }
 
     private String sha256(String input) throws Exception {
