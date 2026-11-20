@@ -81,7 +81,8 @@ export const CandidateLearningPage: React.FC = () => {
   } = useQuery({
     queryKey: ["gapAnalysis", jobIdOverride || "default"],
     queryFn: () => learningApi.getGapAnalysis(jobIdOverride),
-    retry: 1,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 
   // 4. Fetch course suggestions based on missing skills (DT-02)
@@ -135,7 +136,12 @@ export const CandidateLearningPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ["courseSuggestions"] });
       queryClient.invalidateQueries({ queryKey: ["myLearningPath"] });
       if (jobIdOverride) {
-        setSearchParams({});
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete("jobId");
+        if (activeTab) {
+          nextParams.set("tab", activeTab);
+        }
+        setSearchParams(nextParams);
       }
     },
     onError: (err: any) => {
@@ -459,7 +465,9 @@ export const CandidateLearningPage: React.FC = () => {
               )}
 
               {/* 1. Readiness Gauge & Summary Card */}
-              {gapAnalysis ? (
+              {gapLoading ? (
+                <div className="h-44 bg-slate-200/80 rounded-xl animate-pulse" />
+              ) : gapAnalysis ? (
                 <ReadinessGaugeCard
                   target={gapAnalysis.target}
                   readiness={gapAnalysis.readiness}
@@ -468,6 +476,22 @@ export const CandidateLearningPage: React.FC = () => {
                   missingSkillsCount={gapAnalysis.missingSkillsCount}
                   computedAt={gapAnalysis.computedAt}
                 />
+              ) : jobIdOverride ? (
+                <Card className="border-dashed border-amber-300 bg-amber-50/40 shadow-xs">
+                  <CardContent className="p-6 text-center space-y-3">
+                    <div className="mx-auto w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-700">
+                      <Compass className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">
+                        Chưa có dữ liệu phân tích cho tin tuyển dụng này
+                      </h3>
+                      <p className="text-xs text-slate-600 max-w-md mx-auto mt-1">
+                        Hệ thống không tìm thấy danh sách kỹ năng yêu cầu từ tin tuyển dụng. Bạn có thể chọn một trong các vị trí mục tiêu bên dưới để bắt đầu lộ trình học tập!
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
               ) : (
                 <Card className="border-dashed border-amber-300 bg-amber-50/40 shadow-xs">
                   <CardContent className="p-6 text-center space-y-3">

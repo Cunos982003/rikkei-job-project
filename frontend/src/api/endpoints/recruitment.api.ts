@@ -141,10 +141,10 @@ export const recruitmentApi = {
   // =============================================
 
   /**
-   * Nộp đơn ứng tuyển vào một JD
+   * Nộp đơn ứng tuyển vào một JD (gọi tới recruitment-service :8086 qua Gateway)
    */
   applyJob: (jobId: string, data: ApplyRequest): Promise<ApiResponse<CandidateRecruitmentSummary>> => {
-    return api.post<CandidateRecruitmentSummary>(`/jobs/${jobId}/apply`, data);
+    return api.post<CandidateRecruitmentSummary>(`/jobs/${jobId}/recruit`, data);
   },
 
   /**
