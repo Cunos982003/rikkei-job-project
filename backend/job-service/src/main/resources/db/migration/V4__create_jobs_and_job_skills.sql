@@ -1,4 +1,4 @@
-CREATE TABLE jobs (
+CREATE TABLE IF NOT EXISTS jobs (
     id UUID PRIMARY KEY,
     company_id UUID NOT NULL REFERENCES companies(id),
     title VARCHAR(255) NOT NULL,
@@ -22,9 +22,9 @@ CREATE TABLE jobs (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_jobs_company_status ON jobs(company_id, status);
+CREATE INDEX IF NOT EXISTS idx_jobs_company_status ON jobs(company_id, status);
 
-CREATE TABLE job_skills (
+CREATE TABLE IF NOT EXISTS job_skills (
     job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
     skill_id VARCHAR(64) NOT NULL,
     skill_code VARCHAR(64),
@@ -34,5 +34,5 @@ CREATE TABLE job_skills (
     PRIMARY KEY (job_id, skill_id)
 );
 
-CREATE INDEX idx_job_skills_job ON job_skills(job_id);
+CREATE INDEX IF NOT EXISTS idx_job_skills_job ON job_skills(job_id);
 
