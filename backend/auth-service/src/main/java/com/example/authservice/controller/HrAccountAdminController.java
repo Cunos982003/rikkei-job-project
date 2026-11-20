@@ -70,9 +70,10 @@ public class HrAccountAdminController {
     }
 
     @ExceptionHandler(ResponseStatusException.class)
-    public ResponseEntity<ErrorResponse> handleResponseStatus(ResponseStatusException ex) {
-        ErrorResponse err = new ErrorResponse(
-            ex.getStatusCode().value(),
+    public ResponseEntity<ApiResponse<Void>> handleResponseStatus(ResponseStatusException ex) {
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+        ApiResponse<Void> err = ApiResponse.error(
+            status,
             ex.getStatusCode().toString(),
             ex.getReason() != null ? ex.getReason() : ex.getMessage()
         );
