@@ -21,7 +21,7 @@ import java.util.Map;
  * Controller cung cấp danh mục kỹ năng chuẩn của hệ thống.
  */
 @RestController
-@RequestMapping("/api/v1/skills")
+@RequestMapping("/api/v1/skill-catalog")
 @RequiredArgsConstructor
 public class SkillCatalogController {
 
