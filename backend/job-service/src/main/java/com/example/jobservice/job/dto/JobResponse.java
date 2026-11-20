@@ -39,6 +39,9 @@ public record JobResponse(
         List<String> hrEmails,
         String createdBy,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        OffsetDateTime updatedAt,
+        String experienceLevel,
+        String jobType,
+        String location
 ) {}
 

@@ -105,7 +105,7 @@ spring:
             - id: job
               uri: ${GATEWAY_JOB_URL:http://localhost:8085}
               predicates:
-                - Path=/api/v1/companies/**,/api/v1/staff/companies/**,/api/v1/staff/hr-accounts/**,/api/v1/jobs,/api/v1/jobs/**,/companies/**,/staff/companies/**,/staff/hr-accounts/**,/jobs,/jobs/**
+                - Path=/api/v1/companies/**,/api/v1/staff/companies/**,/api/v1/staff/hr-accounts/**,/api/v1/jobs,/api/v1/jobs/**,/companies/**,/staff/companies/**,/staff/hr-accounts/**,/jobs,/jobs/**,/api/v1/staff/jobs,/api/v1/staff/jobs/**,/staff/jobs,/staff/jobs/**
               filters:
                 - RewritePath=/api/v1/(?<segment>.*), /${segment}
                 - RemoveResponseHeader=Access-Control-Allow-Origin

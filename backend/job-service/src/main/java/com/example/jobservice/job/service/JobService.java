@@ -515,6 +515,24 @@ public class JobService {
                 .map(JobSkillResponse::skillName)
                 .toList();
 
+        String experienceLevel = job.getLevel() != null ? job.getLevel().name() : null;
+
+        String jobType = null;
+        if (job.getType() != null) {
+            jobType = switch (job.getType()) {
+                case FULLTIME -> "FULL_TIME";
+                case PARTTIME -> "PART_TIME";
+                case INTERNSHIP -> "INTERNSHIP";
+            };
+        }
+
+        String location = job.getCity() != null ? job.getCity().trim() : null;
+        if (job.getAddress() != null && !job.getAddress().isBlank()) {
+            location = (location != null && !location.isBlank())
+                    ? job.getAddress().trim() + ", " + location
+                    : job.getAddress().trim();
+        }
+
         return new JobResponse(
                 job.getId(),
                 job.getCompanyId(),
@@ -542,7 +560,9 @@ public class JobService {
                 hrEmails,
                 job.getCreatedBy(),
                 job.getCreatedAt(),
-                job.getUpdatedAt()
-        );
+                job.getUpdatedAt(),
+                experienceLevel,
+                jobType,
+                location);
     }
 }

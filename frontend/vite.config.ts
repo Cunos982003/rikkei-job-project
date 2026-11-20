@@ -46,7 +46,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true
         },
         '/api/v1/skills': {
-          target: env.VITE_PROFILE_SERVICE_URL || 'http://localhost:8082',
+          target: env.VITE_SKILLS_SERVICE_URL || env.VITE_PROFILE_SERVICE_URL || env.VITE_MOCK_API_URL || 'http://localhost:9000',
           changeOrigin: true
         },
         '/api/v1/files': {
@@ -67,6 +67,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true
         },
         // 5. Quản lý Doanh nghiệp & HR -> job-service (:8085)
+        '/api/v1/staff/jobs': {
+          target: env.VITE_JOB_SERVICE_URL || 'http://localhost:8085',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/v1/, '')
+        },
         '/api/v1/staff/companies': {
           target: env.VITE_JOB_SERVICE_URL || 'http://localhost:8085',
           changeOrigin: true,
@@ -78,6 +83,11 @@ export default defineConfig(({ mode }) => {
           rewrite: (path) => path.replace(/^\/api\/v1/, '')
         },
         '/api/v1/companies': {
+          target: env.VITE_JOB_SERVICE_URL || 'http://localhost:8085',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/v1/, '')
+        },
+        '^/api/v1/jobs(?!/[^/?]+/recruit)(/|\\?|$)': {
           target: env.VITE_JOB_SERVICE_URL || 'http://localhost:8085',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/v1/, '')
