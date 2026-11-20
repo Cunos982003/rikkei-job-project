@@ -4,12 +4,14 @@ import com.example.profileservice.common.domain.Score;
 import com.example.profileservice.entity.SkillEvidence;
 import java.math.BigDecimal;
 import java.util.List;
+import org.springframework.stereotype.Service;
 
 /**
  * Domain service for calculating evidence decay averages.
  * Encapsulates the time-decay calculation logic for verified skill evidences.
  * Extracted from SkillRecomputeService as part of Phase 5 refactor (Task 5.1).
  */
+@Service
 public class EvidenceDecayCalculator {
 
     /**
