@@ -1,6 +1,6 @@
 package com.example.profileservice.dto;
 
-import com.example.profileservice.profile.domain.ProfileReview;
+import com.example.profileservice.entity.ProfileReview;
 import lombok.*;
 
 import java.time.OffsetDateTime;

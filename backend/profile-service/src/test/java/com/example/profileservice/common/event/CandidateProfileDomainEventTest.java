@@ -1,9 +1,10 @@
-package com.example.profileservice.profile.domain;
+package com.example.profileservice.common.event;
 
 import com.example.profileservice.common.domain.UserId;
 import com.example.profileservice.common.domain.Visibility;
-import com.example.profileservice.profile.domain.event.DomainEvent;
-import com.example.profileservice.profile.domain.event.ProfileVisibilityChangedEvent;
+import com.example.profileservice.common.event.DomainEvent;
+import com.example.profileservice.common.event.ProfileVisibilityChangedEvent;
+import com.example.profileservice.entity.CandidateProfile;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

@@ -1,7 +1,7 @@
 package com.example.profileservice.skill.api;
 
 import com.example.profileservice.service.SkillRecomputeService;
-import com.example.profileservice.service.dto.ExternalRecordDto;
+import com.example.profileservice.skill.application.dto.ExternalRecordDto;
 import com.example.profileservice.entity.Skill;
 import com.example.profileservice.entity.SkillEvidence;
 import com.example.profileservice.repository.SkillEvidenceRepository;

@@ -1,8 +1,8 @@
 package com.example.profileservice.service;
 
 import com.example.profileservice.common.domain.Visibility;
-import com.example.profileservice.profile.domain.CandidateProfile;
-import com.example.profileservice.profile.domain.ProfileReview;
+import com.example.profileservice.entity.CandidateProfile;
+import com.example.profileservice.entity.ProfileReview;
 import com.example.profileservice.repository.CandidateProfileRepository;
 import com.example.profileservice.repository.ProfileEditRepository;
 import com.example.profileservice.repository.ProfileReviewRepository;

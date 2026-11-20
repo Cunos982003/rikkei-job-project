@@ -1,7 +1,7 @@
 package com.example.profileservice.service;
 
 import com.example.profileservice.common.domain.Visibility;
-import com.example.profileservice.profile.domain.CandidateProfile;
+import com.example.profileservice.entity.CandidateProfile;
 import com.example.profileservice.repository.CandidateProfileRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

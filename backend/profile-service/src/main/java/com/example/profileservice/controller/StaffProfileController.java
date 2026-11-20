@@ -49,7 +49,7 @@ public class StaffProfileController {
         try {
             visibility = Visibility.valueOf(status.trim().toUpperCase());
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, "Trạng thái không hợp lệ: " + status));
+            return ResponseEntity.badRequest().body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Trạng thái không hợp lệ: " + status));
         }
 
         var pageResult = visibilityService.listByStatus(

@@ -1,7 +1,7 @@
 package com.example.profileservice.integration;
 
 import com.example.profileservice.dto.LmsStudentDto;
-import com.example.profileservice.repository.LmsClient;
+import com.example.profileservice.client.LmsClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

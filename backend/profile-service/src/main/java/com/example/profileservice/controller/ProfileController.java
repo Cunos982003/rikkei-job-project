@@ -10,6 +10,7 @@ import com.example.profileservice.service.ProfileCommandService;
 import com.example.profileservice.service.SkillProfileService;
 import com.example.profileservice.service.VisibilityService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 

@@ -1,5 +1,6 @@
-package com.example.profileservice.file;
+package com.example.profileservice.service;
 
+import com.example.profileservice.exception.InvalidFileException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.web.MockMultipartFile;

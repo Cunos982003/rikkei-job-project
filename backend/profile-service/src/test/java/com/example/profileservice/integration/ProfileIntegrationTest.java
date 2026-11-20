@@ -1,7 +1,7 @@
 package com.example.profileservice.integration;
 
 import com.example.profileservice.dto.LmsStudentDto;
-import com.example.profileservice.repository.LmsClient;
+import com.example.profileservice.client.LmsClient;
 import com.example.profileservice.entity.Skill;
 import com.example.profileservice.repository.SkillRepository;
 import org.junit.jupiter.api.BeforeEach;

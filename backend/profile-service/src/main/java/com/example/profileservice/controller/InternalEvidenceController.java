@@ -1,7 +1,7 @@
 package com.example.profileservice.controller;
 
 import com.example.profileservice.common.ApiResponse;
-import com.example.profileservice.dto.ExternalRecordDto;
+import com.example.profileservice.skill.application.dto.ExternalRecordDto;
 import com.example.profileservice.entity.Skill;
 import com.example.profileservice.entity.SkillMapping;
 import com.example.profileservice.repository.SkillMappingRepository;

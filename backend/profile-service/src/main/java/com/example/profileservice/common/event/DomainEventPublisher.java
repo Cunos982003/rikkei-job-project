@@ -1,6 +1,5 @@
 package com.example.profileservice.common.event;
 
-import com.example.profileservice.profile.domain.event.DomainEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 

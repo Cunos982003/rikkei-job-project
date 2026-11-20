@@ -1,5 +1,6 @@
 package com.example.profileservice.service;
 
+import com.example.profileservice.exception.InvalidFileException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -42,7 +43,7 @@ public class FileUploadService {
             throw new InvalidFileException("Không thể đọc nội dung tệp tải lên");
         }
 
-        MagicBytesValidator.FileType type = MagicBytesValidator.detect(content)
+        com.example.profileservice.service.MagicBytesValidator.FileType type = com.example.profileservice.service.MagicBytesValidator.detect(content)
                 .orElseThrow(() -> new InvalidFileException(
                         "Định dạng tệp không được hỗ trợ. Chỉ chấp nhận PDF, JPG, PNG"));
 

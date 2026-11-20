@@ -1,7 +1,7 @@
 package com.example.profileservice.service;
 
 import com.example.profileservice.common.domain.UserId;
-import com.example.profileservice.dto.ExternalRecordDto;
+import com.example.profileservice.skill.application.dto.ExternalRecordDto;
 import com.example.profileservice.entity.Skill;
 import com.example.profileservice.entity.SkillEvidence;
 import com.example.profileservice.entity.SkillMapping;

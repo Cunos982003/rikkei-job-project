@@ -1,8 +1,8 @@
-package com.example.profileservice.profile.domain;
+package com.example.profileservice.repository;
 
-import com.example.profileservice.repository.CandidateProfileRepository;
-import com.example.profileservice.repository.EducationRepository;
-import com.example.profileservice.repository.CertificateRepository;
+import com.example.profileservice.entity.CandidateProfile;
+import com.example.profileservice.entity.Education;
+import com.example.profileservice.entity.Certificate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

@@ -1,5 +1,6 @@
-package com.example.profileservice.file;
+package com.example.profileservice.service;
 
+import com.example.profileservice.service.MagicBytesValidator;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;

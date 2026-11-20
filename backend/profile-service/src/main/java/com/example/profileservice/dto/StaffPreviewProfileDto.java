@@ -1,7 +1,6 @@
 package com.example.profileservice.dto;
 
 import com.example.profileservice.common.domain.Visibility;
-import com.example.profileservice.skill.domain.SkillEvidence;
 import lombok.*;
 
 import java.time.OffsetDateTime;

@@ -2,6 +2,7 @@ package com.example.profileservice.controller;
 
 import com.example.profileservice.common.ApiResponse;
 import com.example.profileservice.exception.InvalidFileException;
+import com.example.profileservice.service.FileUploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
