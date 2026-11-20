@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.net.http.HttpRequest;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -25,6 +26,24 @@ public class OpenAIProvider extends AbstractHttpAIProvider {
                         Map.of("role", "user", "content", prompt)),
                 "max_tokens", 180);
         return requestBuilder(endpoint())
+                .header("Authorization", "Bearer " + apiKey())
+                .POST(HttpRequest.BodyPublishers.ofByteArray(json(body)))
+                .build();
+    }
+
+    @Override
+    protected HttpRequest createChatRequest(String systemPrompt, String userPrompt) throws IOException {
+        List<Map<String, String>> messages = new ArrayList<>();
+        if (systemPrompt != null && !systemPrompt.isBlank()) {
+            messages.add(Map.of("role", "system", "content", systemPrompt));
+        }
+        messages.add(Map.of("role", "user", "content", userPrompt));
+
+        Map<String, Object> body = Map.of(
+                "model", model,
+                "messages", messages,
+                "max_tokens", 1024);
+        return chatRequestBuilder(endpoint())
                 .header("Authorization", "Bearer " + apiKey())
                 .POST(HttpRequest.BodyPublishers.ofByteArray(json(body)))
                 .build();
