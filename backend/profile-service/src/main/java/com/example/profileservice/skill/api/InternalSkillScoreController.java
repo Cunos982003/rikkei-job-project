@@ -1,11 +1,11 @@
 package com.example.profileservice.skill.api;
 
 import com.example.profileservice.common.ApiResponse;
-import com.example.profileservice.skill.api.dto.SkillScoreInternalResponse;
-import com.example.profileservice.skill.domain.Skill;
-import com.example.profileservice.skill.domain.SkillScore;
-import com.example.profileservice.skill.infrastructure.SkillRepository;
-import com.example.profileservice.skill.infrastructure.SkillScoreRepository;
+import com.example.profileservice.dto.SkillScoreInternalResponse;
+import com.example.profileservice.entity.Skill;
+import com.example.profileservice.entity.SkillScore;
+import com.example.profileservice.repository.SkillRepository;
+import com.example.profileservice.repository.SkillScoreRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;

@@ -41,7 +41,7 @@ public class CandidateDirectoryController {
     private final SkillRepository skillRepository;
 
     @GetMapping("/candidate-directory/skills")
-    public ResponseEntity<List<Map<String, Object>>> listSkills() {
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listSkills() {
         List<Map<String, Object>> result = skillRepository.findAll().stream()
                 .sorted(Comparator.comparing(Skill::getName, String.CASE_INSENSITIVE_ORDER))
                 .map(skill -> {

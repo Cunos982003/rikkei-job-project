@@ -1,4 +1,4 @@
-package com.example.profileservice.skill.api.dto;
+package com.example.profileservice.dto;
 
 public record SkillScoreInternalResponse(
                 String skillId,

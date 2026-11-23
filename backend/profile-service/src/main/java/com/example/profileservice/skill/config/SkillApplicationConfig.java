@@ -1,6 +1,6 @@
 package com.example.profileservice.skill.config;
 
-import com.example.profileservice.skill.application.EvidenceDecayCalculator;
+import com.example.profileservice.service.EvidenceDecayCalculator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
