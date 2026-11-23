@@ -124,6 +124,8 @@ private List<RecommendationSnapshot.VerifiedSkill> fetchVerifiedSkills(UUID user
                     continue;
                 }
                 String idStr = stringOrNull(item.get("id"));
+                String title = stringOrNull(item.get("title"));
+                String companyName = stringOrNull(item.get("companyName"));
                 if (idStr == null) {
                     continue;
                 }
@@ -157,7 +159,7 @@ private List<RecommendationSnapshot.VerifiedSkill> fetchVerifiedSkills(UUID user
                                         : RecommendationSnapshot.RequirementType.PREFERRED));
                     }
                 }
-                jobs.add(new RecommendationSnapshot.EligibleJob(jobId, revision, requirements));
+                jobs.add(new RecommendationSnapshot.EligibleJob(jobId, title, companyName, revision, requirements));
             }
             return jobs;
         } catch (Exception ex) {

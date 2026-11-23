@@ -6,9 +6,21 @@ import java.util.UUID;
 
 public record JobRecommendationResponse(
         UUID jobId,
+        String jobTitle,
+        String companyName,
         double score,
         String explanation,
         Instant createdAt,
         List<String> missingRequiredSkills,
         List<SkillGapResponse> skillGaps) {
+
+    public JobRecommendationResponse(
+            UUID jobId,
+            double score,
+            String explanation,
+            Instant createdAt,
+            List<String> missingRequiredSkills,
+            List<SkillGapResponse> skillGaps) {
+        this(jobId, null, null, score, explanation, createdAt, missingRequiredSkills, skillGaps);
+    }
 }

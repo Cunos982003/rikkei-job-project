@@ -167,6 +167,8 @@ export function getSkillGaps(recommendations: JobRecommendation[]) {
 
 export function RecommendationCard({ item }: { item: JobRecommendation }) {
   const missing = item.missingRequiredSkills.length
+  const jobTitle = item.jobTitle || 'Cơ hội việc làm'
+
   return (
     <Card className="group transition-all hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-md hover:shadow-primary-100/60">
       <CardContent className="p-5 sm:p-6">
@@ -176,14 +178,19 @@ export function RecommendationCard({ item }: { item: JobRecommendation }) {
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-sm font-semibold text-slate-900">Cơ hội việc làm</h3>
+              <h3 className="text-sm font-semibold text-slate-900" title={jobTitle}>
+                {jobTitle}
+              </h3>
               {missing === 0 ? (
                 <Badge variant="verified"><CircleCheck size={12} /> Đủ kỹ năng bắt buộc</Badge>
               ) : (
                 <Badge variant="warning"><AlertCircle size={12} /> Thiếu {missing} kỹ năng bắt buộc</Badge>
               )}
             </div>
-            <p className="mt-1 text-xs text-slate-400">Mã vị trí: {item.jobId}</p>
+            <p className="mt-1 text-xs text-slate-400">
+              {item.companyName && <span className="font-medium text-slate-600">{item.companyName} • </span>}
+              Mã vị trí: {item.jobId}
+            </p>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{item.explanation}</p>
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-400">
               <span className="inline-flex items-center gap-1.5"><Clock3 size={13} /> Cập nhật {formatDate(item.createdAt)}</span>
