@@ -3,15 +3,26 @@ import type { JobRecommendation } from "../../api/endpoints/career.api";
 export function ScoreChart({ recommendations }: { recommendations: JobRecommendation[] }) {
   return (
     <div className="space-y-3" aria-label="Điểm phù hợp theo vị trí">
-      {recommendations.slice(0, 7).map((item) => (
-        <div key={item.jobId} className="flex items-center gap-3 text-xs">
-          <span className="w-28 truncate text-muted" title={item.jobId}>{item.jobId}</span>
-          <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, Math.max(0, item.score))}%` }} />
+      {recommendations.slice(0, 7).map((item) => {
+        const displayName = item.jobTitle || item.jobId;
+        return (
+          <div key={item.jobId} className="flex items-center gap-3 text-xs">
+            <span
+              className="w-36 sm:w-48 truncate text-slate-400 font-medium hover:text-slate-200 transition-colors"
+              title={displayName}
+            >
+              {displayName}
+            </span>
+            <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-primary"
+                style={{ width: `${Math.min(100, Math.max(0, item.score))}%` }}
+              />
+            </div>
+            <span className="w-10 text-right font-semibold">{Math.round(item.score)}%</span>
           </div>
-          <span className="w-10 text-right font-semibold">{Math.round(item.score)}%</span>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
