@@ -86,6 +86,7 @@ export function CareerLayout() {
             { to: "/candidate/career", label: "Tổng quan", end: true },
             { to: "/candidate/career/recommendations", label: "Việc làm phù hợp", end: false },
             { to: "/candidate/career/skills", label: "Phân tích kỹ năng", end: false },
+            { to: "/candidate/career/interviews", label: "Thực hành phỏng vấn", end: false },
           ].map(({ to, label, end }) => (
             <NavLink key={to} to={to} end={end} className={({ isActive }) =>
               `rounded-lg px-3 py-2 text-sm font-medium ${isActive ? "bg-primary-light text-primary" : "text-muted hover:bg-slate-100"}`
