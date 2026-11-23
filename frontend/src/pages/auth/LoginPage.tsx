@@ -9,6 +9,7 @@ import { useAuthStore } from "../../store/useAuthStore";
 import { Button } from "../../components/common/Button";
 import { Input } from "../../components/common/Input";
 import { ForgotPasswordModal } from "../../components/auth/ForgotPasswordModal";
+import { getLmsPortalUrl, getMockTicketUrl } from "../../utils/lms";
 
 const loginSchema = z.object({
   email: z.string().min(1, "Vui lòng nhập địa chỉ email").email("Email không đúng định dạng"),
@@ -186,7 +187,7 @@ export function LoginPage() {
   const handleGetMockTicket = async () => {
     setIsFetchingMockTicket(true);
     try {
-      const res = await fetch('/lms/sso/tickets', {
+      const res = await fetch(getMockTicketUrl(), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -202,7 +203,7 @@ export function LoginPage() {
         toast.error("Không lấy được mã vé từ Mock Server");
       }
     } catch {
-      toast.error("Không thể kết nối đến Mock Server (:9000). Vui lòng đảm bảo Mock Server đang chạy");
+      toast.error("Không thể kết nối đến Mock Server. Vui lòng đảm bảo Mock Server đang chạy");
     } finally {
       setIsFetchingMockTicket(false);
     }
@@ -262,12 +263,12 @@ export function LoginPage() {
             </div>
           )}
 
-          {/* Banner điều hướng sang Cổng LMS (:9000) */}
+          {/* Banner điều hướng sang Cổng LMS */}
           <div className="p-3.5 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-xl text-xs space-y-2.5 shadow-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 font-bold text-rose-300">
                 <Sparkles className="h-4 w-4 shrink-0 text-rose-400" />
-                <span>Cổng Sinh Viên Rikkei LMS (:9000)</span>
+                <span>Cổng Sinh Viên Rikkei LMS</span>
               </div>
               <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-slate-300 font-medium">Hệ thống ngoài</span>
             </div>
@@ -275,12 +276,12 @@ export function LoginPage() {
               Mở Cổng LMS để xem bảng điểm học viên, chuyên cần, R-Point và trải nghiệm luồng đăng nhập SSO 1-chạm tự động.
             </p>
             <a
-              href="http://localhost:9000/lms/portal"
+              href={getLmsPortalUrl()}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white transition-all w-full justify-center shadow-xs cursor-pointer"
             >
-              <span>Mở Cổng Sinh Viên LMS (:9000)</span>
+              <span>Mở Cổng Sinh Viên LMS</span>
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
           </div>
