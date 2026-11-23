@@ -108,12 +108,14 @@ const SLOT_STATUS_CONFIG: Record<
   CANCELLED: { label: "Đã hủy", variant: "danger" },
 };
 
+function toLocal(d: Date = new Date()): string {
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
 function defaultSlotDraft(): { startAt: string; endAt: string } {
   const start = new Date(Date.now() + 24 * 60 * 60 * 1000);
   start.setMinutes(0, 0, 0);
   const end = new Date(start.getTime() + 60 * 60 * 1000);
-  const toLocal = (d: Date) =>
-    new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   return { startAt: toLocal(start), endAt: toLocal(end) };
 }
 
@@ -129,7 +131,13 @@ export function RecruitmentDetailPage() {
     if (location.state && (location.state as any).from) {
       navigate((location.state as any).from);
     } else {
-      navigate(-1);
+      const savedStatus = sessionStorage.getItem("hr_interview_status");
+      const savedPage = sessionStorage.getItem("hr_interview_page");
+      const params = new URLSearchParams();
+      if (savedStatus && savedStatus !== "ALL") params.set("status", savedStatus);
+      if (savedPage && savedPage !== "0") params.set("page", savedPage);
+      const query = params.toString();
+      navigate(`/hr/interviews${query ? `?${query}` : ""}`);
     }
   };
 
@@ -402,6 +410,13 @@ export function RecruitmentDetailPage() {
     if (!newRoundName.trim()) {
       toast.error("Vui lòng nhập tên vòng phỏng vấn");
       return;
+    }
+    if (newRoundDate) {
+      const selected = new Date(newRoundDate);
+      if (selected.getTime() < Date.now()) {
+        toast.error("Thời gian phỏng vấn không được ở trong quá khứ");
+        return;
+      }
     }
     createRoundMutation.mutate({
       name: newRoundName.trim(),
@@ -938,6 +953,7 @@ export function RecruitmentDetailPage() {
                     <Input
                       label="Hạn ứng viên trả lời *"
                       type="datetime-local"
+                      min={toLocal(new Date())}
                       value={offerDeadline}
                       onChange={(e) => setOfferDeadline(e.target.value)}
                       required
@@ -1107,6 +1123,7 @@ export function RecruitmentDetailPage() {
           <Input
             label="Thời gian dự kiến"
             type="datetime-local"
+            min={toLocal(new Date())}
             value={newRoundDate}
             onChange={(e) => setNewRoundDate(e.target.value)}
           />
@@ -1228,6 +1245,7 @@ export function RecruitmentDetailPage() {
                   <Input
                     label={`Khung #${index + 1} — Bắt đầu *`}
                     type="datetime-local"
+                    min={toLocal(new Date())}
                     value={slot.startAt}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -1244,6 +1262,7 @@ export function RecruitmentDetailPage() {
                   <Input
                     label="Kết thúc *"
                     type="datetime-local"
+                    min={slot.startAt || toLocal(new Date())}
                     value={slot.endAt}
                     onChange={(e) => {
                       const val = e.target.value;

@@ -11,6 +11,7 @@ import com.example.profileservice.common.event.ProfileVisibilityChangedEvent;
 import com.example.profileservice.entity.visibility.StateTransition;
 import com.example.profileservice.entity.visibility.VisibilityState;
 import com.example.profileservice.entity.visibility.VisibilityStateFactory;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.persistence.Transient;
 import lombok.*;
@@ -199,6 +200,7 @@ public class CandidateProfile {
     /**
      * Get review history ordered by creation date (newest first).
      */
+    @JsonIgnore
     public List<ProfileReview> getReviewHistory() {
         return this.reviews.stream()
                 .sorted((r1, r2) -> r2.getCreatedAt().compareTo(r1.getCreatedAt()))
@@ -208,6 +210,7 @@ public class CandidateProfile {
     /**
      * Get the latest SUBMIT review (for staff dashboard).
      */
+    @JsonIgnore
     public OffsetDateTime getLatestSubmittedAt() {
         return this.reviews.stream()
                 .filter(r -> r.getAction() == ProfileReview.Action.SUBMIT)
@@ -221,6 +224,7 @@ public class CandidateProfile {
     /**
      * Get all domain events emitted by this aggregate.
      */
+    @JsonIgnore
     public List<DomainEvent> getDomainEvents() {
         return new ArrayList<>(domainEvents);
     }

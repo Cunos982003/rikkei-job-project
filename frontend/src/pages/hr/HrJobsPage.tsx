@@ -95,6 +95,7 @@ export function HrJobsPage() {
     { value: "APPROVED", label: "Đã duyệt" },
     { value: "REJECTED", label: "Bị trả lại" },
     { value: "CLOSED", label: "Đã đóng" },
+    { value: "EXPIRED", label: "Hết hạn" },
   ];
 
   return (
@@ -248,10 +249,10 @@ export function HrJobsPage() {
                           leftIcon={<Eye className="h-3.5 w-3.5" />}
                           onClick={() => navigate(`/hr/jobs/${job.id}/edit`)}
                         >
-                          {job.status === "PENDING" || job.status === "CLOSED" ? "Xem" : "Sửa"}
+                          {job.status === "PENDING" || job.status === "CLOSED" || job.status === "EXPIRED" ? "Xem" : "Sửa"}
                         </Button>
 
-                        {job.status !== "CLOSED" && (
+                        {job.status !== "CLOSED" && job.status !== "EXPIRED" && (
                           <Button
                             variant="ghost"
                             size="sm"
