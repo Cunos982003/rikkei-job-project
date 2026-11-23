@@ -102,7 +102,20 @@ private List<RecommendationSnapshot.VerifiedSkill> fetchVerifiedSkills(UUID user
                     .uri("/jobs?status=APPROVED&size=200")
                     .retrieve()
                     .body(new ParameterizedTypeReference<Map<String, Object>>() {});
-            if (response == null || !(response.get("items") instanceof List<?> rawItems)) {
+            // job-service wraps response as ApiResponse<PageResult>:
+            // { "success": true, "data": { "items": [...], "total": N } }
+            List<?> rawItems = null;
+            if (response != null) {
+                if (response.get("items") instanceof List<?> rootItems) {
+                    // direct list at root (mock or legacy)
+                    rawItems = rootItems;
+                } else if (response.get("data") instanceof Map<?, ?> dataMap
+                        && dataMap.get("items") instanceof List<?> nestedItems) {
+                    // wrapped ApiResponse<PageResult> format
+                    rawItems = nestedItems;
+                }
+            }
+            if (rawItems == null) {
                 return List.of();
             }
             List<RecommendationSnapshot.EligibleJob> jobs = new ArrayList<>();

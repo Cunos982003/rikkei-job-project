@@ -1,6 +1,6 @@
 [
   {
-    "id": "job-001",
+    "id": "d0000000-0000-4000-8000-000000000001",
     "title": "Java Backend Developer (Fresher / Junior)",
     "companyId": "comp-001",
     "companyName": "Công ty Cổ phần Rikkeisoft",
@@ -42,11 +42,11 @@
       }
     ],
     "description": "Tham gia phát triển các dự án tài chính, ngân hàng và thương mại điện tử quy mô lớn. Làm việc với Spring Boot, PostgreSQL, Kafka.",
-    "status": "PUBLISHED",
+    "status": "APPROVED",
     "createdAt": "2026-10-15T08:00:00Z"
   },
   {
-    "id": "job-002",
+    "id": "d0000000-0000-4000-8000-000000000002",
     "title": "Frontend React Developer (Fresher)",
     "companyId": "comp-002",
     "companyName": "Rikkei Digital Solutions",
@@ -58,7 +58,7 @@
     "jobSkills": [
       {
         "skillId": "REACT",
-        "skillName": "ReactJS",
+        "skillName": "React",
         "minScore": 70,
         "isMandatory": true
       },
@@ -88,11 +88,11 @@
       }
     ],
     "description": "Phát triển giao diện ứng dụng web responsive, tích hợp REST API, tối ưu hiệu năng trang web cho thị trường Nhật Bản và Việt Nam.",
-    "status": "PUBLISHED",
+    "status": "APPROVED",
     "createdAt": "2026-10-20T08:00:00Z"
   },
   {
-    "id": "job-003",
+    "id": "d0000000-0000-4000-8000-000000000003",
     "title": "Thực tập sinh Fullstack (Dự án IOC)",
     "companyId": "comp-001",
     "companyName": "Công ty Cổ phần Rikkeisoft",
@@ -116,7 +116,7 @@
       },
       {
         "skillId": "REACT",
-        "skillName": "ReactJS",
+        "skillName": "React",
         "minScore": 65,
         "isMandatory": true
       },
@@ -134,7 +134,7 @@
       }
     ],
     "description": "Tham gia đợt thực tập dự án thực chiến IOC, được Mentor hướng dẫn 1-1, cơ hội trở thành nhân viên chính thức sau khi tốt nghiệp.",
-    "status": "PUBLISHED",
+    "status": "APPROVED",
     "createdAt": "2026-10-25T08:00:00Z"
   }
 ]
