@@ -1,4 +1,3 @@
-
 import { NavLink } from "react-router-dom";
 import {
   Award,
@@ -20,6 +19,7 @@ import {
   X,
   Star,
   FileEdit,
+  UserCheck, // <-- BỔ SUNG IMPORT ICON
 } from "lucide-react";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useUiStore } from "../../store/useUiStore";
@@ -65,6 +65,9 @@ const ROLE_NAV_ITEMS: Record<Role, { groupTitle: string; items: NavItem[] }> = {
       { title: "Tìm kiếm ứng viên", path: "/hr/candidates", icon: Users },
       { title: "Phỏng vấn & Offer", path: "/hr/interviews", icon: CalendarCheck },
       { title: "Thực tập IOC", path: "/hr/ioc", icon: Layers },
+
+      // TT-02: BỔ SUNG NÚT THỰC TẬP SINH CỦA TÔI CHO HR
+      { title: "Thực tập sinh của tôi", path: "/hr/interns", icon: Users },
     ],
   },
 
@@ -88,6 +91,9 @@ const ROLE_NAV_ITEMS: Record<Role, { groupTitle: string; items: NavItem[] }> = {
       { title: "Quản lý đơn tuyển dụng", path: "/staff/recruitments", icon: FileText },
       { title: "Ghép đợt IOC", path: "/staff/ioc", icon: Layers },
       { title: "Mở khóa liên hệ PII", path: "/staff/unlock-contacts", icon: KeyRound },
+
+      // TT-02: BỔ SUNG NÚT GHÉP THỰC TẬP CHO STAFF
+      { title: "Ghép thực tập", path: "/staff/placements", icon: UserCheck },
     ],
   },
 

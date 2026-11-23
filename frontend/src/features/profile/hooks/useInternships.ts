@@ -1,17 +1,27 @@
-import { useQuery } from '@tanstack/react-query';
-import type { Internship } from '@/api/types/evaluation';
-import { MOCK_INTERNSHIPS } from '../mocks/internshipMock';
 
-export function useInternships(userId: string | undefined) {
+import { useQuery } from "@tanstack/react-query";
+import { profileApi } from "@/api/endpoints/profile.api";
+import type { Internship } from "@/api/types/evaluation";
+
+export function useInternships(userId?: string) {
     return useQuery({
-        queryKey: ['internships', userId],
-        queryFn: async (): Promise<Internship[]> => {
-            // KHI BE XONG: return client.get(`/api/v1/profiles/${userId}/internships`).then(res => res.data);
+        queryKey: ["internships", userId ?? "me"],
 
-            // TẠM THỜI DÙNG MOCK:
-            await new Promise((resolve) => setTimeout(resolve, 500));
-            return MOCK_INTERNSHIPS;
+        queryFn: async (): Promise<Internship[]> => {
+            const response = userId
+                ? await profileApi.getUserInternships(userId)
+                : await profileApi.getMyInternships();
+
+            if (!response.success) {
+                throw new Error(
+                    response.message || "Không thể tải dữ liệu thực tập"
+                );
+            }
+
+            return response.data ?? [];
         },
-        enabled: !!userId,
+
+        staleTime: 60_000,
+        retry: 1,
     });
 }
