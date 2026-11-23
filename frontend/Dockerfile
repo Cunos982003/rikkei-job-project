@@ -15,7 +15,7 @@ ENV VITE_LMS_PORTAL_URL=${VITE_LMS_PORTAL_URL}
 ENV VITE_MOCK_API_URL=${VITE_MOCK_API_URL}
 RUN npm run build
 
-FROM nginxinc/nginx-unprivileged:1.29-alpine
+FROM nginxinc/nginx-unprivileged:1.31-alpine
 COPY infra/docker/frontend.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /src/dist /usr/share/nginx/html
 EXPOSE 8080
