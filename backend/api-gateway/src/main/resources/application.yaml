@@ -113,14 +113,7 @@ spring:
               uri: ${GATEWAY_JOB_URL:http://localhost:8085}
               predicates:
                 - Path=/api/v1/companies/**,/api/v1/staff/companies/**,/api/v1/staff/hr-accounts/**,/api/v1/jobs,/api/v1/jobs/**,/companies/**,/staff/companies/**,/staff/hr-accounts/**,/jobs,/jobs/**,/api/v1/staff/jobs,/api/v1/staff/jobs/**,/staff/jobs,/staff/jobs/**
-              filters:
-                - RewritePath=/api/v1/(?<segment>.*), /${segment}
-                - RemoveResponseHeader=Access-Control-Allow-Origin
-                - RemoveResponseHeader=Access-Control-Allow-Credentials
-                - RemoveResponseHeader=Access-Control-Expose-Headers
-                - RemoveResponseHeader=Access-Control-Allow-Methods
-                - RemoveResponseHeader=Access-Control-Allow-Headers
-                - RemoveResponseHeader=Access-Control-Max-Age
+              filters: *cors-response-filters
             - id: recruitment-snapshot
               uri: ${GATEWAY_RECRUITMENT_URL:http://localhost:8086}
               predicates:
@@ -137,14 +130,7 @@ spring:
               uri: ${GATEWAY_JOB_URL:http://localhost:8085}
               predicates:
                 - Path=/api/v1/jobs/**,/jobs/**
-              filters:
-                - RewritePath=/api/v1/(?<segment>.*), /${segment}
-                - RemoveResponseHeader=Access-Control-Allow-Origin
-                - RemoveResponseHeader=Access-Control-Allow-Credentials
-                - RemoveResponseHeader=Access-Control-Expose-Headers
-                - RemoveResponseHeader=Access-Control-Allow-Methods
-                - RemoveResponseHeader=Access-Control-Allow-Headers
-                - RemoveResponseHeader=Access-Control-Max-Age
+              filters: *cors-response-filters
             - id: ai-career
               uri: ${GATEWAY_AI_URL:http://localhost:8090}
               predicates:

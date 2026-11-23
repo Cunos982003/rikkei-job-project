@@ -60,7 +60,7 @@ public class CareerService {
 
             if (cached.isPresent()) {
                 JobRecommendation recommendation = cached.get();
-                results[index] = toResponse(recommendation, scoredJob.match());
+                results[index] = toResponse(recommendation, scoredJob.match(), job);
                 continue;
             }
 
@@ -92,7 +92,7 @@ public class CareerService {
             recommendation.setExplanation(RecommendationExplanation.limitWords(item.explanation().join()));
             recommendation.setCreatedAt(item.createdAt());
             recommendation.setInputHash(item.inputHash());
-            results[item.index()] = toResponse(repository.save(recommendation), item.match());
+            results[item.index()] = toResponse(repository.save(recommendation), item.match(), item.job());
         }
         return java.util.Arrays.asList(results);
     }
@@ -122,9 +122,12 @@ public class CareerService {
 
     private JobRecommendationResponse toResponse(
             JobRecommendation recommendation,
-            JobMatchScorer.MatchResult match) {
+            JobMatchScorer.MatchResult match,
+            RecommendationSnapshot.EligibleJob job) {
         return new JobRecommendationResponse(
                 recommendation.getJobId(),
+                job != null ? job.title() : null,
+                job != null ? job.companyName() : null,
                 recommendation.getScore(),
                 recommendation.getExplanation(),
                 recommendation.getCreatedAt(),

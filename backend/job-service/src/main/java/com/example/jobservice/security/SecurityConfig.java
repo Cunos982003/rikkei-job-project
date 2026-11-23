@@ -65,16 +65,17 @@ public class SecurityConfig {
                                                                 "/api/v1/jobs/**")
                                                 .permitAll()
 
-                                                .requestMatchers("/staff/**")
+                                                .requestMatchers("/staff/**", "/api/v1/staff/**")
                                                 .hasAnyRole("STAFF", "ADMIN")
 
-                                                .requestMatchers("/companies/me", "/companies/me/**")
+                                                .requestMatchers("/companies/me", "/companies/me/**",
+                                                                "/api/v1/companies/me", "/api/v1/companies/me/**")
                                                 .hasRole("HR")
 
-                                                .requestMatchers("/companies/**")
+                                                .requestMatchers("/companies/**", "/api/v1/companies/**")
                                                 .authenticated()
 
-                                                .requestMatchers("/jobs/**")
+                                                .requestMatchers("/jobs/**", "/api/v1/jobs/**")
                                                 .authenticated()
 
                                                 .anyRequest().authenticated())
