@@ -13,7 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/staff/hr-accounts")
+@RequestMapping({"/api/v1/staff/hr-accounts", "/staff/hr-accounts"})
 @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
 @Tag(name = "Staff HR Accounts", description = "API quản lý trạng thái khóa/mở khóa tài khoản HR")
 public class StaffHrAccountController {

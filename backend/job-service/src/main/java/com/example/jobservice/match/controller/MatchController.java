@@ -18,7 +18,7 @@ import java.util.UUID;
 
 @Tag(name = "Độ khớp kỹ năng ứng viên với JD", description = "API tính toán điểm khớp ứng viên với JD theo kỹ năng (DN-06)")
 @RestController
-@RequestMapping("/jobs")
+@RequestMapping({"/api/v1/jobs", "/jobs"})
 public class MatchController {
 
     private final MatchService matchService;
