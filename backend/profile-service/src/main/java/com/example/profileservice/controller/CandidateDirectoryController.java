@@ -40,22 +40,6 @@ public class CandidateDirectoryController {
     private final SkillScoreRepository skillScoreRepository;
     private final SkillRepository skillRepository;
 
-    @GetMapping("/skills")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listSkills() {
-        List<Map<String, Object>> result = skillRepository.findAll().stream()
-                .sorted(Comparator.comparing(Skill::getName, String.CASE_INSENSITIVE_ORDER))
-                .map(skill -> {
-                    Map<String, Object> item = new LinkedHashMap<>();
-                    item.put("id", skill.getId());
-                    item.put("code", skill.getCode());
-                    item.put("name", skill.getName());
-                    item.put("group", skill.getGroup());
-                    return item;
-                })
-                .toList();
-        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách kỹ năng thành công", result));
-    }
-
     @GetMapping("/candidates")
     public ResponseEntity<ApiResponse<PageData<Map<String, Object>>>> listCandidates(
             @RequestParam(required = false) String keyword,

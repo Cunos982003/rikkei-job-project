@@ -127,6 +127,9 @@ public class JobService {
         if (job.getStatus() == JobStatus.CLOSED) {
             throw new ConflictException("Tin đã đóng, không thể chỉnh sửa");
         }
+        if (job.getStatus() == JobStatus.EXPIRED) {
+            throw new ConflictException("Tin đã hết hạn, không thể chỉnh sửa");
+        }
 
         validateJobContent(request.deadline(), request.salaryMin(), request.salaryMax(), request.quantity());
 
@@ -164,6 +167,9 @@ public class JobService {
         }
         if (job.getStatus() == JobStatus.CLOSED) {
             throw new ConflictException("Tin đã đóng, không thể chỉnh sửa");
+        }
+        if (job.getStatus() == JobStatus.EXPIRED) {
+            throw new ConflictException("Tin đã hết hạn, không thể chỉnh sửa");
         }
 
         if (job.getStatus() == JobStatus.APPROVED) {
@@ -255,6 +261,9 @@ public class JobService {
 
         if (job.getStatus() == JobStatus.CLOSED) {
             throw new ConflictException("Tin đã được đóng");
+        }
+        if (job.getStatus() == JobStatus.EXPIRED) {
+            throw new ConflictException("Tin đã hết hạn");
         }
 
         job.setStatus(JobStatus.CLOSED);
