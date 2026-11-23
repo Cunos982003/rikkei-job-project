@@ -3,17 +3,20 @@ package com.example.jobservice.company.service;
 import com.example.jobservice.auth.client.AuthClient;
 import com.example.jobservice.auth.client.AuthHrAccount;
 import com.example.jobservice.common.PageResult;
+import com.example.jobservice.common.exception.BadGatewayException;
 import com.example.jobservice.common.exception.BadRequestException;
 import com.example.jobservice.common.exception.ConflictException;
+import com.example.jobservice.common.exception.ForbiddenException;
 import com.example.jobservice.common.exception.ResourceNotFoundException;
-import com.example.jobservice.company.domain.Company;
-import com.example.jobservice.company.domain.CompanyRepository;
-import com.example.jobservice.company.domain.CompanyStatus;
+import com.example.jobservice.company.domain.*;
 import com.example.jobservice.company.dto.*;
+import com.example.jobservice.job.domain.Job;
+import com.example.jobservice.job.domain.JobRepository;
 import com.example.jobservice.security.UserPrincipal;
 import jakarta.persistence.criteria.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -59,15 +62,29 @@ public class CompanyService {
     private final CompanyRepository companyRepository;
     private final AuthClient authClient;
     private final String uploadDir;
+    private final CompanyActionRepository companyActionRepository;
+    private final JobRepository jobRepository;
 
+    @Autowired
     public CompanyService(
             CompanyRepository companyRepository,
             AuthClient authClient,
-            @Value("${app.upload.dir:uploads/logos}") String uploadDir) {
+            @Value("${app.upload.dir:uploads/logos}") String uploadDir,
+            CompanyActionRepository companyActionRepository,
+            JobRepository jobRepository) {
 
         this.companyRepository = companyRepository;
         this.authClient = authClient;
         this.uploadDir = uploadDir;
+        this.companyActionRepository = companyActionRepository;
+        this.jobRepository = jobRepository;
+    }
+
+    public CompanyService(
+            CompanyRepository companyRepository,
+            AuthClient authClient,
+            String uploadDir) {
+        this(companyRepository, authClient, uploadDir, null, null);
     }
 
     @Transactional
@@ -259,12 +276,153 @@ public class CompanyService {
         return StaffHrAccountResponse.fromAuthHrAccount(account);
     }
 
+    private String resolveStaffDisplayName(UserPrincipal staff) {
+        if (staff == null) {
+            return "Hệ thống";
+        }
+        if (staff.getFullName() != null && !staff.getFullName().isBlank()) {
+            return staff.getFullName();
+        }
+        if (staff.getEmail() != null && !staff.getEmail().isBlank()) {
+            return staff.getEmail();
+        }
+        return staff.getId() != null ? staff.getId().toString() : "Hệ thống";
+    }
+
+    @Transactional
+    public CompanyResponse lockCompany(UUID companyId, String reason, UserPrincipal staff) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy doanh nghiệp có id: " + companyId));
+
+        if (company.getStatus() == CompanyStatus.LOCKED) {
+            throw new ConflictException("Doanh nghiệp đã bị khoá");
+        }
+
+        company.setStatus(CompanyStatus.LOCKED);
+        companyRepository.save(company);
+
+        // Lock all ACTIVE HR accounts
+        try {
+            List<AuthHrAccount> hrAccounts = authClient.listHrAccounts(companyId);
+            if (hrAccounts != null) {
+                for (AuthHrAccount hr : hrAccounts) {
+                    if ("ACTIVE".equalsIgnoreCase(hr.status())) {
+                        authClient.lockHrAccount(hr.id(), "[COMPANY_LOCK] " + reason);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            throw new BadGatewayException("Dịch vụ xác thực tạm thời không khả dụng");
+        }
+
+        // Record action
+        String staffId = resolveStaffDisplayName(staff);
+        CompanyAction action = new CompanyAction();
+        action.setCompanyId(companyId);
+        action.setAction(CompanyActionType.LOCK);
+        action.setTargetId(null);
+        action.setReason(reason);
+        action.setStaffId(staffId);
+        companyActionRepository.save(action);
+
+        return CompanyResponse.fromEntity(company);
+    }
+
+    @Transactional
+    public CompanyResponse unlockCompany(UUID companyId, UserPrincipal staff) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy doanh nghiệp có id: " + companyId));
+
+        if (company.getStatus() == CompanyStatus.ACTIVE) {
+            throw new ConflictException("Doanh nghiệp đang hoạt động, không cần mở khoá");
+        }
+
+        company.setStatus(CompanyStatus.ACTIVE);
+        companyRepository.save(company);
+
+        // Unlock only HR accounts locked with [COMPANY_LOCK] prefix
+        try {
+            List<AuthHrAccount> hrAccounts = authClient.listHrAccounts(companyId);
+            if (hrAccounts != null) {
+                for (AuthHrAccount hr : hrAccounts) {
+                    if ("LOCKED".equalsIgnoreCase(hr.status())
+                            && hr.lockedReason() != null
+                            && hr.lockedReason().startsWith("[COMPANY_LOCK]")) {
+                        authClient.unlockHrAccount(hr.id());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            throw new BadGatewayException("Dịch vụ xác thực tạm thời không khả dụng");
+        }
+
+        // Record action
+        String staffId = resolveStaffDisplayName(staff);
+        CompanyAction action = new CompanyAction();
+        action.setCompanyId(companyId);
+        action.setAction(CompanyActionType.UNLOCK);
+        action.setTargetId(null);
+        action.setReason(null);
+        action.setStaffId(staffId);
+        companyActionRepository.save(action);
+
+        return CompanyResponse.fromEntity(company);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResult<CompanyActionResponse> getCompanyHistory(UUID companyId, int page, int size) {
+        companyRepository.findById(companyId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy doanh nghiệp có id: " + companyId));
+
+        int validPage = Math.max(page, 0);
+        int validSize = size > 0 ? Math.min(size, 100) : 10;
+        Pageable pageable = PageRequest.of(validPage, validSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        Page<CompanyAction> actionPage = companyActionRepository.findByCompanyId(companyId, pageable);
+
+        List<CompanyActionResponse> items = actionPage.getContent().stream()
+                .map(a -> {
+                    String targetTitle = null;
+                    if (a.getTargetId() != null &&
+                            (a.getAction() == CompanyActionType.APPROVE_JD || a.getAction() == CompanyActionType.REJECT_JD)) {
+                        targetTitle = jobRepository.findById(a.getTargetId())
+                                .map(Job::getTitle)
+                                .orElse(null);
+                    }
+                    return new CompanyActionResponse(
+                            a.getId(),
+                            a.getAction().name(),
+                            a.getTargetId(),
+                            targetTitle,
+                            a.getReason(),
+                            a.getStaffId(),
+                            a.getCreatedAt());
+                })
+                .toList();
+
+        PageResult.PaginationMeta meta = new PageResult.PaginationMeta(
+                actionPage.getNumber(),
+                actionPage.getSize(),
+                actionPage.getTotalElements(),
+                actionPage.getTotalPages(),
+                actionPage.isFirst(),
+                actionPage.isLast(),
+                actionPage.hasNext(),
+                actionPage.hasPrevious());
+
+        return new PageResult<>(items, meta);
+    }
+
     @Transactional
     public CompanyResponse updateCompanyForCurrentHr(
             UserPrincipal principal,
             UpdateCompanyRequest request) {
 
         Company company = findCompanyOfHr(principal);
+        checkCompanyNotLockedForHr(company);
 
         applyCompanyUpdates(company, request);
 
@@ -296,6 +454,12 @@ public class CompanyService {
                         "Không tìm thấy doanh nghiệp có id: "
                                 + targetCompanyId));
 
+        // Check locked for HR role
+        String role = principal.getRole();
+        if (role != null && (role.equalsIgnoreCase("ROLE_HR") || role.equalsIgnoreCase("HR"))) {
+            checkCompanyNotLockedForHr(company);
+        }
+
         applyCompanyUpdates(company, request);
 
         Company updated = companyRepository.save(company);
@@ -309,6 +473,7 @@ public class CompanyService {
             MultipartFile file) {
 
         Company company = findCompanyOfHr(principal);
+        checkCompanyNotLockedForHr(company);
         return uploadLogoForCompany(company, file);
     }
 
@@ -322,6 +487,12 @@ public class CompanyService {
                         "Không tìm thấy doanh nghiệp có id: " + companyId));
 
         return uploadLogoForCompany(company, file);
+    }
+
+    private void checkCompanyNotLockedForHr(Company company) {
+        if (company.getStatus() == CompanyStatus.LOCKED) {
+            throw new ForbiddenException("Doanh nghiệp đang bị khoá, bạn không thể thực hiện thao tác này");
+        }
     }
 
     private LogoUploadResponse uploadLogoForCompany(
