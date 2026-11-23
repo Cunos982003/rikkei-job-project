@@ -11,6 +11,7 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from "../../../components/common/Card";
 import { Badge } from "../../../components/common/Badge";
 import { Button } from "../../../components/common/Button";
+import { getLmsBaseUrl } from "../../../utils/lms";
 import type { LearningPathStep } from "../../../api/endpoints/learning.api";
 
 interface LearningPathTimelineProps {
@@ -30,7 +31,7 @@ export const LearningPathTimeline: React.FC<LearningPathTimelineProps> = ({
   onRefresh,
   isRefreshing = false,
 }) => {
-  const lmsBaseUrl = import.meta.env.VITE_LMS_BASE_URL || "http://localhost:9000";
+  const lmsBaseUrl = getLmsBaseUrl();
 
   // Format date helper
   const formatDate = (dateStr?: string | null) => {

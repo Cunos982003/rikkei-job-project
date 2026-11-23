@@ -1,7 +1,7 @@
 import { api } from "../client";
 import type { ApiResponse, PaginatedData } from "../types/api";
 
-export type JobStatus = "DRAFT" | "PENDING" | "APPROVED" | "REJECTED" | "CLOSED";
+export type JobStatus = "DRAFT" | "PENDING" | "APPROVED" | "REJECTED" | "CLOSED" | "EXPIRED";
 export type JobLevel = "INTERN" | "FRESHER" | "JUNIOR" | "MIDDLE" | "SENIOR";
 export type JobType = "FULLTIME" | "PARTTIME" | "INTERNSHIP";
 export type WorkMode = "ONSITE" | "REMOTE" | "HYBRID";

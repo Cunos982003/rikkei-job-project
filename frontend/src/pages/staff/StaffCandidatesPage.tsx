@@ -91,7 +91,6 @@ export function StaffCandidatesPage() {
     const codes = candidates.map((c) => c.classCode).filter(Boolean) as string[];
     return [...new Set(codes)].sort();
   }, [candidates]);
-
   const handleClearFilters = () => {
     setSearchInput("");
     setDebouncedSearch("");

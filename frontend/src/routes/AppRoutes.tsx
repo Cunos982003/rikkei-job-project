@@ -1,4 +1,3 @@
-
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore, normalizeRole } from "../store/useAuthStore";
 import { MainLayout } from "../layouts/MainLayout";
@@ -32,8 +31,8 @@ import CandidateLearningPage from "../pages/candidate/CandidateLearningPage";
 import { CandidateInterviewsPage } from "../pages/candidate/CandidateInterviewsPage";
 import { CandidateOffersPage } from "../pages/candidate/CandidateOffersPage";
 import { CandidateRecruitmentsPage } from "../pages/candidate/CandidateRecruitmentsPage";
-// import { InterviewPracticeListPage } from "../pages/candidate/InterviewPracticeListPage";
-// import { InterviewPracticePage } from "../pages/candidate/InterviewPracticePage";
+import { InterviewPracticeListPage } from "../pages/candidate/InterviewPracticeListPage";
+import { InterviewPracticePage } from "../pages/candidate/InterviewPracticePage";
 import { CareerLayout } from "../features/career/CareerLayout";
 import { OverviewPage } from "../pages/career/OverviewPage";
 import { RecommendationsPage } from "../pages/career/RecommendationsPage";
@@ -56,6 +55,10 @@ import { AdminSkillsPage } from "../pages/admin/AdminSkillsPage";
 
 // DG-03: Admin Badge Management
 import AdminBadgesPage from "../pages/admin/AdminBadgesPage";
+
+// TT-02: BỔ SUNG IMPORT 2 TRANG MỚI
+import HrInternsPage from "../pages/hr/HrInternsPage";
+import StaffPlacementPage from "../pages/staff/StaffPlacementPage";
 
 function StaffPlaceholderPage({ title }: { title: string }) {
     return (
@@ -135,23 +138,27 @@ export function AppRoutes() {
                         />
 
                         <Route
+                            path="/candidate/interview-practice"
+                            element={<InterviewPracticeListPage />}
+                        />
+
+                        <Route
+                            path="/candidate/interview-practice/:id"
+                            element={<InterviewPracticePage />}
+                        />
+
+                        <Route
+                            path="/candidate/interview-practices"
+                            element={<Navigate to="/candidate/interview-practice" replace />}
+                        />
+
+                        <Route
                             path="/candidate/career"
                             element={<CareerLayout />}
                         >
-                            <Route
-                                index
-                                element={<OverviewPage />}
-                            />
-
-                            <Route
-                                path="recommendations"
-                                element={<RecommendationsPage />}
-                            />
-
-                            <Route
-                                path="skills"
-                                element={<SkillsPage />}
-                            />
+                            <Route index element={<OverviewPage />} />
+                            <Route path="recommendations" element={<RecommendationsPage />} />
+                            <Route path="skills" element={<SkillsPage />} />
                         </Route>
 
                         <Route
@@ -260,6 +267,12 @@ export function AppRoutes() {
                             path="/hr/ioc"
                             element={<HrCompanyPage />}
                         />
+
+                        {/* TT-02: BỔ SUNG ROUTE THỰC TẬP SINH CỦA HR */}
+                        <Route
+                            path="/hr/interns"
+                            element={<HrInternsPage />}
+                        />
                     </Route>
 
                     {/* =========================
@@ -339,6 +352,12 @@ export function AppRoutes() {
                         <Route
                             path="/staff/candidates/:userId"
                             element={<StaffCandidateDetailPage />}
+                        />
+
+                        {/* TT-02: BỔ SUNG ROUTE GHÉP THỰC TẬP CHO STAFF */}
+                        <Route
+                            path="/staff/placements"
+                            element={<StaffPlacementPage />}
                         />
                     </Route>
 

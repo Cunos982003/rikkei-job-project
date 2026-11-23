@@ -633,7 +633,8 @@ async function requestHandler(req, res) {
         }
       ]
     }));
-    return sendJson(res, 200, formattedSkills);
+    // Wrap trong ApiResponse để tương thích với HttpRecommendationDataSource.fetchVerifiedSkills()
+    return sendJson(res, 200, { success: true, data: formattedSkills });
   }
 
   // 1.25 GET /api/v1/profiles/:userId/evaluations & /profiles/me/evaluations (Đánh giá Mentor)
@@ -891,18 +892,29 @@ async function requestHandler(req, res) {
     return sendJson(res, 200, skillsData);
   }
 
-  // 5. GET /api/v1/jobs (Danh sách JD có phân trang)
-  if (method === 'GET' && pathname === '/api/v1/jobs') {
-    const page = parseInt(query.page) || 1;
+  // 5. GET /api/v1/jobs (Danh sách JD có phân trang - Frontend)
+  //    GET /jobs (Endpoint cho ai-career-service gọi trực tiếp job-service)
+  const isJobsEndpoint = method === 'GET' && (pathname === '/api/v1/jobs' || pathname === '/jobs');
+  if (isJobsEndpoint) {
+    const page = parseInt(query.page) || 0;
     const size = parseInt(query.size) || 20;
-    const startIndex = (page - 1) * size;
-    const paginatedItems = jobsData.slice(startIndex, startIndex + size);
+    const statusFilter = (query.status || '').toUpperCase();
+    // Lọc theo status nếu có (ai-career-service gọi /jobs?status=APPROVED)
+    const filtered = statusFilter
+      ? jobsData.filter(j => (j.status || '').toUpperCase() === statusFilter)
+      : jobsData;
+    const startIndex = page * size;
+    const paginatedItems = filtered.slice(startIndex, startIndex + size);
 
+    // Trả về ApiResponse<PageResult> để tương thích với HttpRecommendationDataSource.fetchEligibleJobs()
     return sendJson(res, 200, {
-      items: paginatedItems,
-      total: jobsData.length,
-      page: page,
-      size: size
+      success: true,
+      data: {
+        items: paginatedItems,
+        total: filtered.length,
+        page: page,
+        size: size
+      }
     });
   }
 

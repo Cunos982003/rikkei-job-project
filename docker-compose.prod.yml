@@ -102,11 +102,8 @@ services:
     restart: unless-stopped
 
   profile-service:
-    build:
-      context: .
-      dockerfile: backend/profile-service/Dockerfile
     image: ghcr.io/cunos982003/rikkei-job-project-profile-service:${IMAGE_TAG:-latest}
-    pull_policy: build
+    pull_policy: always
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/profile_db
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in .env.prod}
@@ -131,11 +128,8 @@ services:
     restart: unless-stopped
 
   job-service:
-    build:
-      context: .
-      dockerfile: backend/job-service/Dockerfile
     image: ghcr.io/cunos982003/rikkei-job-project-job-service:${IMAGE_TAG:-latest}
-    pull_policy: build
+    pull_policy: always
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/job_db
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in .env.prod}
