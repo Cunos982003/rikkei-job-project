@@ -44,6 +44,9 @@ spring:
           writetimeout: 10000
 
 app:
+  jwt:
+    secret: ${APP_JWT_SECRET:${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}}
+    expiration-seconds: ${JWT_EXPIRATION_SECONDS:28800}
   lms:
     base-url: ${LMS_BASE_URL:http://localhost:9000}
     service-key: ${LMS_SERVICE_KEY:dev-key}

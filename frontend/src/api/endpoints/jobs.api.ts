@@ -14,6 +14,21 @@ export interface JobPostingItem {
   description: string;
   status: "DRAFT" | "PENDING" | "PUBLISHED" | "CLOSED";
   createdAt: string;
+  requirements?: string;
+  benefits?: string;
+  position?: string;
+  quantity?: number;
+  workMode?: "ONSITE" | "REMOTE" | "HYBRID" | string;
+  level?: string;
+  experienceLevel?: string;
+  expiresAt?: string;
+  jobSkills?: {
+    skillId: string;
+    skillName: string;
+    minScore: number;
+    isMandatory?: boolean;
+    required?: boolean;
+  }[];
 }
 
 export interface JobFilterParams extends PageParams {

@@ -9,6 +9,7 @@ import com.example.profileservice.profile.domain.event.ProfileVisibilityChangedE
 import com.example.profileservice.profile.domain.visibility.StateTransition;
 import com.example.profileservice.profile.domain.visibility.VisibilityState;
 import com.example.profileservice.profile.domain.visibility.VisibilityStateFactory;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.persistence.Transient;
 import lombok.*;
@@ -93,10 +94,12 @@ public class CandidateProfile {
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "profile", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<ProfileReview> reviews = new ArrayList<>();
 
+    @JsonIgnore
     @Transient
     @Builder.Default
     private List<DomainEvent> domainEvents = new ArrayList<>();

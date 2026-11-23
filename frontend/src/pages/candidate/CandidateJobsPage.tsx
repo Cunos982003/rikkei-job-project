@@ -20,6 +20,7 @@ import { Card, CardContent } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
 import { Modal } from "../../components/common/Modal";
+import { JobDetailModal } from "./components/JobDetailModal";
 
 // Fallback sample jobs matching mock/data/jobs.json
 const FALLBACK_JOBS: JobPostingItem[] = [
@@ -281,92 +282,18 @@ export const CandidateJobsPage: React.FC = () => {
       )}
 
       {/* Modal Job Details */}
-      <Modal
+      <JobDetailModal
+        job={selectedJob}
         isOpen={!!selectedJob}
         onClose={() => setSelectedJob(null)}
-        title={selectedJob?.title}
-        description={selectedJob?.companyName}
-        size="lg"
-        footer={
-          <div className="flex items-center justify-between w-full">
-            <span className="text-xs font-semibold text-emerald-700">
-              Lương: {selectedJob && formatSalary(selectedJob.salaryMin, selectedJob.salaryMax)}
-            </span>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setSelectedJob(null)}>
-                Đóng
-              </Button>
-              {selectedJob && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => { handleAnalyzeJob(selectedJob.id); }}
-                    leftIcon={<Target className="h-4 w-4" />}
-                  >
-                    Phân tích
-                  </Button>
-                  {appliedJobIds.has(selectedJob.id) ? (
-                    <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      Đã nộp đơn
-                    </div>
-                  ) : (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => { setApplyJob(selectedJob); setSelectedJob(null); setCoverLetter(""); }}
-                      leftIcon={<Send className="h-4 w-4" />}
-                    >
-                      Ứng tuyển
-                    </Button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        }
-      >
-        {selectedJob && (
-          <div className="space-y-4 text-sm text-foreground">
-            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 grid grid-cols-2 gap-3 text-xs">
-              <div>
-                <span className="text-muted block">Địa điểm làm việc:</span>
-                <span className="font-semibold">{selectedJob.location}</span>
-              </div>
-              <div>
-                <span className="text-muted block">Hình thức làm việc:</span>
-                <span className="font-semibold">{selectedJob.jobType}</span>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-muted mb-1.5">
-                Mô tả công việc:
-              </h4>
-              <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">
-                {selectedJob.description}
-              </p>
-            </div>
-
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-muted mb-2">
-                Kỹ năng yêu cầu:
-              </h4>
-              <div className="flex flex-wrap gap-1.5">
-                {selectedJob.requiredSkills?.map((skill) => (
-                  <span
-                    key={skill}
-                    className="text-xs font-medium px-2.5 py-1 rounded-md bg-primary-light text-primary border border-primary-border"
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
+        onApply={(job) => {
+          setApplyJob(job);
+          setSelectedJob(null);
+          setCoverLetter("");
+        }}
+        onAnalyze={(jobId) => handleAnalyzeJob(jobId)}
+        isApplied={selectedJob ? appliedJobIds.has(selectedJob.id) : false}
+      />
 
       {/* Modal Ứng tuyển */}
       <Modal

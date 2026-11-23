@@ -1,22 +1,20 @@
 package com.example.jobservice.job;
 
-import java.math.BigDecimal;
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
+import com.example.jobservice.common.ApiResponse;
+import com.example.jobservice.common.PageResult;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.*;
 
 @RestController
 public class JobQueryController {
@@ -30,7 +28,7 @@ public class JobQueryController {
     }
 
     @GetMapping({ "/jobs", "/api/v1/jobs" })
-    public Map<String, Object> listJobs(
+    public ResponseEntity<ApiResponse<PageResult<Map<String, Object>>>> listJobs(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String location,
             @RequestParam(required = false) String jobType,
@@ -55,13 +53,15 @@ public class JobQueryController {
             params.add(jobType.trim().replace("_", "").toUpperCase());
         }
         if (StringUtils.hasText(location)) {
-            where.append(" AND (LOWER(COALESCE(j.city, '')) LIKE LOWER(?) OR LOWER(COALESCE(j.address, '')) LIKE LOWER(?)) ");
+            where.append(
+                    " AND (LOWER(COALESCE(j.city, '')) LIKE LOWER(?) OR LOWER(COALESCE(j.address, '')) LIKE LOWER(?)) ");
             String loc = "%" + location.trim() + "%";
             params.add(loc);
             params.add(loc);
         }
         if (StringUtils.hasText(keyword)) {
-            where.append(" AND (LOWER(j.title) LIKE LOWER(?) OR LOWER(COALESCE(c.name, '')) LIKE LOWER(?) OR LOWER(COALESCE(j.description, '')) LIKE LOWER(?)) ");
+            where.append(
+                    " AND (LOWER(j.title) LIKE LOWER(?) OR LOWER(COALESCE(c.name, '')) LIKE LOWER(?) OR LOWER(COALESCE(j.description, '')) LIKE LOWER(?)) ");
             String kw = "%" + keyword.trim() + "%";
             params.add(kw);
             params.add(kw);
@@ -79,7 +79,8 @@ public class JobQueryController {
         String listSql = """
                 SELECT j.id, j.company_id, COALESCE(c.name, 'Doanh nghiệp đối tác') AS company_name,
                        j.title, j.description, j.requirements, j.level, j.type,
-                       j.status, j.salary_min, j.salary_max, j.city, j.address, j.deadline, j.created_at
+                       j.status, j.salary_min, j.salary_max, j.city, j.address, j.deadline, j.created_at,
+                       j.position, j.benefits, j.quantity, j.work_mode
                 FROM jobs j
                 LEFT JOIN companies c ON c.id = j.company_id
                 """ + where + " ORDER BY j.created_at DESC LIMIT ? OFFSET ?";
@@ -90,12 +91,8 @@ public class JobQueryController {
             items.add(toJobPayload(row));
         }
 
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("items", items);
-        response.put("total", total);
-        response.put("page", safePage);
-        response.put("size", safeSize);
-        return response;
+        PageResult<Map<String, Object>> result = PageResult.of(items, safePage, safeSize, total);
+        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách việc làm thành công", result));
     }
 
     private Map<String, Object> toJobPayload(Map<String, Object> row) {
@@ -125,6 +122,7 @@ public class JobQueryController {
             js.put("skillName", skillName);
             js.put("minScore", minScore != null ? minScore : 0);
             js.put("isMandatory", isMandatory != null ? isMandatory : true);
+            js.put("required", isMandatory != null ? isMandatory : true);
             jobSkills.add(js);
         }
 
@@ -147,6 +145,7 @@ public class JobQueryController {
         Object levelVal = getVal(row, "level");
         Object typeVal = getVal(row, "type");
         Object statusVal = getVal(row, "status");
+        Object workModeVal = getVal(row, "work_mode");
 
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("id", id);
@@ -155,7 +154,12 @@ public class JobQueryController {
         item.put("title", getVal(row, "title"));
         item.put("description", getVal(row, "description"));
         item.put("requirements", getVal(row, "requirements"));
+        item.put("position", getVal(row, "position"));
+        item.put("benefits", getVal(row, "benefits"));
+        item.put("quantity", toInteger(getVal(row, "quantity")));
+        item.put("workMode", workModeVal != null ? workModeVal.toString() : null);
         item.put("experienceLevel", levelVal != null ? levelVal.toString() : null);
+        item.put("level", levelVal != null ? levelVal.toString() : null);
         item.put("jobType", formatJobType(typeVal));
         item.put("status", statusVal != null ? statusVal.toString() : null);
         item.put("salaryMin", toDouble(getVal(row, "salary_min")));
@@ -184,7 +188,8 @@ public class JobQueryController {
     }
 
     private Instant deadlineToExpiresAt(Object deadlineObj) {
-        if (deadlineObj == null) return null;
+        if (deadlineObj == null)
+            return null;
         LocalDate date = null;
         if (deadlineObj instanceof LocalDate ld) {
             date = ld;
@@ -203,23 +208,32 @@ public class JobQueryController {
     }
 
     private Object getVal(Map<String, Object> map, String key) {
-        if (map == null) return null;
-        if (map.containsKey(key)) return map.get(key);
-        if (map.containsKey(key.toUpperCase())) return map.get(key.toUpperCase());
-        if (map.containsKey(key.toLowerCase())) return map.get(key.toLowerCase());
+        if (map == null)
+            return null;
+        if (map.containsKey(key))
+            return map.get(key);
+        if (map.containsKey(key.toUpperCase()))
+            return map.get(key.toUpperCase());
+        if (map.containsKey(key.toLowerCase()))
+            return map.get(key.toLowerCase());
         return null;
     }
 
     private Boolean toBoolean(Object val) {
-        if (val == null) return null;
-        if (val instanceof Boolean b) return b;
-        if (val instanceof Number n) return n.intValue() != 0;
+        if (val == null)
+            return null;
+        if (val instanceof Boolean b)
+            return b;
+        if (val instanceof Number n)
+            return n.intValue() != 0;
         return Boolean.valueOf(val.toString());
     }
 
     private Integer toInteger(Object val) {
-        if (val == null) return null;
-        if (val instanceof Number n) return n.intValue();
+        if (val == null)
+            return null;
+        if (val instanceof Number n)
+            return n.intValue();
         try {
             return Integer.parseInt(val.toString());
         } catch (Exception e) {
@@ -228,9 +242,12 @@ public class JobQueryController {
     }
 
     private Double toDouble(Object value) {
-        if (value == null) return null;
-        if (value instanceof BigDecimal bd) return bd.doubleValue();
-        if (value instanceof Number n) return n.doubleValue();
+        if (value == null)
+            return null;
+        if (value instanceof BigDecimal bd)
+            return bd.doubleValue();
+        if (value instanceof Number n)
+            return n.doubleValue();
         try {
             return Double.parseDouble(value.toString());
         } catch (Exception e) {
@@ -239,13 +256,20 @@ public class JobQueryController {
     }
 
     private Instant toInstant(Object value) {
-        if (value == null) return null;
-        if (value instanceof Instant instant) return instant;
-        if (value instanceof Timestamp ts) return ts.toInstant();
-        if (value instanceof java.time.OffsetDateTime odt) return odt.toInstant();
-        if (value instanceof java.time.ZonedDateTime zdt) return zdt.toInstant();
-        if (value instanceof java.time.LocalDateTime ldt) return ldt.atZone(VIETNAM_ZONE).toInstant();
-        if (value instanceof java.util.Date d) return d.toInstant();
+        if (value == null)
+            return null;
+        if (value instanceof Instant instant)
+            return instant;
+        if (value instanceof Timestamp ts)
+            return ts.toInstant();
+        if (value instanceof java.time.OffsetDateTime odt)
+            return odt.toInstant();
+        if (value instanceof java.time.ZonedDateTime zdt)
+            return zdt.toInstant();
+        if (value instanceof java.time.LocalDateTime ldt)
+            return ldt.atZone(VIETNAM_ZONE).toInstant();
+        if (value instanceof java.util.Date d)
+            return d.toInstant();
         return null;
     }
 }

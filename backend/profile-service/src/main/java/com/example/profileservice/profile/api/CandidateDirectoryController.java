@@ -37,7 +37,7 @@ public class CandidateDirectoryController {
     private final SkillScoreRepository skillScoreRepository;
     private final SkillRepository skillRepository;
 
-    @GetMapping("/skills")
+    @GetMapping("/candidate-directory/skills")
     public ResponseEntity<List<Map<String, Object>>> listSkills() {
         List<Map<String, Object>> result = skillRepository.findAll().stream()
                 .sorted(Comparator.comparing(Skill::getName, String.CASE_INSENSITIVE_ORDER))
@@ -125,7 +125,8 @@ public class CandidateDirectoryController {
 
         for (SkillScore score : scores) {
             Skill skill = skillById.get(score.getSkillId());
-            if (skill == null) continue;
+            if (skill == null)
+                continue;
             Short effectiveScore = score.getVerifiedScore() != null ? score.getVerifiedScore() : score.getSelfScore();
             int numericScore = effectiveScore != null ? effectiveScore.intValue() : 0;
             if (effectiveScore != null) {

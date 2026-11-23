@@ -1,5 +1,6 @@
 package com.example.jobservice.company.controller;
 
+import com.example.jobservice.common.ApiResponse;
 import com.example.jobservice.company.dto.CompanyResponse;
 import com.example.jobservice.company.dto.LogoUploadResponse;
 import com.example.jobservice.company.dto.UpdateCompanyRequest;
@@ -18,7 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/companies")
-@Tag(name = "Companies", description = "API quan ly ho so doanh nghiep danh cho HR")
+@Tag(name = "Companies", description = "API quản lý hồ sơ doanh nghiệp dành cho HR")
 public class CompanyController {
 
     private final CompanyService companyService;
@@ -29,40 +30,40 @@ public class CompanyController {
 
     @GetMapping("/me")
     @PreAuthorize("hasRole('HR')")
-    @Operation(summary = "Xem ho so cong ty cua toi", description = "HR lay thong tin chi tiet ve cong ty minh thuoc ve.")
-    public ResponseEntity<CompanyResponse> getMyCompany(@AuthenticationPrincipal UserPrincipal principal) {
+    @Operation(summary = "Xem hồ sơ công ty của tôi", description = "HR lấy thông tin chi tiết về công ty mình thuộc về.")
+    public ResponseEntity<ApiResponse<CompanyResponse>> getMyCompany(@AuthenticationPrincipal UserPrincipal principal) {
         CompanyResponse response = companyService.getCompanyForCurrentHr(principal);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Lấy thông tin hồ sơ doanh nghiệp thành công", response));
     }
 
     @PutMapping("/me")
     @PreAuthorize("hasRole('HR')")
-    @Operation(summary = "Chinh sua ho so cong ty cua toi", description = "HR tu cap nhat ho so cong ty. Khong duoc sua ma so thue va trang thai.")
-    public ResponseEntity<CompanyResponse> updateMyCompany(
+    @Operation(summary = "Chỉnh sửa hồ sơ công ty của tôi", description = "HR tự cập nhật hồ sơ công ty. Không được sửa mã số thuế và trạng thái.")
+    public ResponseEntity<ApiResponse<CompanyResponse>> updateMyCompany(
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody UpdateCompanyRequest request) {
         CompanyResponse response = companyService.updateCompanyForCurrentHr(principal, request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật thông tin hồ sơ doanh nghiệp thành công", response));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('HR', 'STAFF', 'ADMIN')")
-    @Operation(summary = "Chinh sua ho so cong ty theo ID", description = "HR chi sua duoc cong ty minh; neu goi sua cong ty khac se tra ve 404.")
-    public ResponseEntity<CompanyResponse> updateCompanyById(
+    @Operation(summary = "Chỉnh sửa hồ sơ công ty theo ID", description = "HR chỉ sửa được công ty mình; nếu gọi sửa công ty khác sẽ trả về 404.")
+    public ResponseEntity<ApiResponse<CompanyResponse>> updateCompanyById(
             @PathVariable("id") UUID id,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody UpdateCompanyRequest request) {
         CompanyResponse response = companyService.updateCompanyById(id, principal, request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật thông tin doanh nghiệp thành công", response));
     }
 
     @PostMapping(value = "/me/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('HR')")
-    @Operation(summary = "Tai len logo cong ty", description = "HR tai len anh logo. Dinh dang JPG hoac PNG, dung luong toi da 2MB.")
-    public ResponseEntity<LogoUploadResponse> uploadLogo(
+    @Operation(summary = "Tải lên logo công ty", description = "HR tải lên ảnh logo. Định dạng JPG hoặc PNG, dung lượng tối đa 2MB.")
+    public ResponseEntity<ApiResponse<LogoUploadResponse>> uploadLogo(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam("file") MultipartFile file) {
         LogoUploadResponse response = companyService.uploadLogo(principal, file);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Tải lên logo doanh nghiệp thành công", response));
     }
 }

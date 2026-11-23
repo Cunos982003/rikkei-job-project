@@ -2,6 +2,7 @@ package com.example.jobservice.job.service;
 
 import com.example.jobservice.auth.client.AuthClient;
 import com.example.jobservice.auth.client.AuthHrAccount;
+import com.example.jobservice.common.PageResult;
 import com.example.jobservice.common.exception.BadRequestException;
 import com.example.jobservice.common.exception.ConflictException;
 import com.example.jobservice.common.exception.ForbiddenException;
@@ -14,9 +15,11 @@ import com.example.jobservice.job.catalog.CatalogSkill;
 import com.example.jobservice.job.catalog.SkillCatalogClient;
 import com.example.jobservice.job.domain.*;
 import com.example.jobservice.job.dto.*;
+import com.example.jobservice.match.domain.MatchScoreRepository;
 import com.example.jobservice.security.UserPrincipal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -44,6 +47,12 @@ public class JobService {
     private final SkillCatalogClient skillCatalogClient;
     private final AuthClient authClient;
     private final Clock clock;
+    private MatchScoreRepository matchScoreRepository;
+
+    @Autowired(required = false)
+    public void setMatchScoreRepository(MatchScoreRepository matchScoreRepository) {
+        this.matchScoreRepository = matchScoreRepository;
+    }
 
     public JobService(
             JobRepository jobRepository,
@@ -113,6 +122,9 @@ public class JobService {
         job.setCreatedBy(principal.getEmail());
 
         Job saved = jobRepository.save(job);
+        if (matchScoreRepository != null) {
+            matchScoreRepository.markStaleByJobId(saved.getId());
+        }
         return mapToJobResponse(saved, company.getName(), Collections.emptyList(), Collections.emptyList());
     }
 
@@ -151,6 +163,9 @@ public class JobService {
         job.setDeadline(request.deadline());
 
         Job updated = jobRepository.save(job);
+        if (matchScoreRepository != null) {
+            matchScoreRepository.markStaleByJobId(updated.getId());
+        }
         return buildJobResponse(updated, principal);
     }
 
@@ -218,6 +233,9 @@ public class JobService {
         }
 
         Job updatedJob = jobRepository.save(job);
+        if (matchScoreRepository != null) {
+            matchScoreRepository.markStaleByJobId(updatedJob.getId());
+        }
         return buildJobResponse(updatedJob, principal);
     }
 
@@ -263,7 +281,7 @@ public class JobService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<JobListItemResponse> listMyJobs(UserPrincipal principal, String statusStr, int page, int size) {
+    public PageResult<JobListItemResponse> listMyJobs(UserPrincipal principal, String statusStr, int page, int size) {
         UUID companyId = getRequiredCompanyId(principal);
 
         int resolvedPage = Math.max(page, 0);
@@ -308,7 +326,7 @@ public class JobService {
                 })
                 .toList();
 
-        PaginationMeta meta = new PaginationMeta(
+        PageResult.PaginationMeta meta = new PageResult.PaginationMeta(
                 jobPage.getNumber(),
                 jobPage.getSize(),
                 jobPage.getTotalElements(),
@@ -318,17 +336,11 @@ public class JobService {
                 jobPage.hasNext(),
                 jobPage.hasPrevious());
 
-        return new PageResponse<>(
-                items,
-                meta,
-                jobPage.getTotalElements(),
-                jobPage.getTotalPages(),
-                jobPage.getNumber(),
-                jobPage.getSize());
+        return new PageResult<>(items, meta);
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<JobResponse> listStaffJobs(String statusStr, int page, int size) {
+    public PageResult<JobResponse> listStaffJobs(String statusStr, int page, int size) {
         int resolvedPage = Math.max(page, 0);
         int resolvedSize = size <= 0 ? 10 : Math.min(size, 100);
         Pageable pageable = PageRequest.of(resolvedPage, resolvedSize, Sort.by(Sort.Direction.DESC, "updatedAt"));
@@ -367,7 +379,7 @@ public class JobService {
                 })
                 .toList();
 
-        PaginationMeta meta = new PaginationMeta(
+        PageResult.PaginationMeta meta = new PageResult.PaginationMeta(
                 jobPage.getNumber(),
                 jobPage.getSize(),
                 jobPage.getTotalElements(),
@@ -377,13 +389,7 @@ public class JobService {
                 jobPage.hasNext(),
                 jobPage.hasPrevious());
 
-        return new PageResponse<>(
-                items,
-                meta,
-                jobPage.getTotalElements(),
-                jobPage.getTotalPages(),
-                jobPage.getNumber(),
-                jobPage.getSize());
+        return new PageResult<>(items, meta);
     }
 
     @Transactional
