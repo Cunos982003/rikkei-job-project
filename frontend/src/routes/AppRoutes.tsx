@@ -31,6 +31,8 @@ import CandidateLearningPage from "../pages/candidate/CandidateLearningPage";
 import { CandidateInterviewsPage } from "../pages/candidate/CandidateInterviewsPage";
 import { CandidateOffersPage } from "../pages/candidate/CandidateOffersPage";
 import { CandidateRecruitmentsPage } from "../pages/candidate/CandidateRecruitmentsPage";
+import { InterviewPracticeListPage } from "../pages/candidate/InterviewPracticeListPage";
+import { InterviewPracticePage } from "../pages/candidate/InterviewPracticePage";
 import { CareerLayout } from "../features/career/CareerLayout";
 import { OverviewPage } from "../pages/career/OverviewPage";
 import { RecommendationsPage } from "../pages/career/RecommendationsPage";
@@ -57,6 +59,17 @@ import AdminBadgesPage from "../pages/admin/AdminBadgesPage";
 // TT-02: BỔ SUNG IMPORT 2 TRANG MỚI
 import HrInternsPage from "../pages/hr/HrInternsPage";
 import StaffPlacementPage from "../pages/staff/StaffPlacementPage";
+
+function StaffPlaceholderPage({ title }: { title: string }) {
+    return (
+        <div className="mx-auto max-w-7xl space-y-6 p-4">
+            <div className="border-b border-border pb-4">
+                <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+                <p className="mt-1 text-sm text-muted">Tính năng đang trong quá trình phát triển.</p>
+            </div>
+        </div>
+    );
+}
 
 function RootRedirect() {
     const { user, isAuthenticated } = useAuthStore();
@@ -122,6 +135,21 @@ export function AppRoutes() {
                         <Route
                             path="/candidate/jobs"
                             element={<CandidateJobsPage />}
+                        />
+
+                        <Route
+                            path="/candidate/interview-practice"
+                            element={<InterviewPracticeListPage />}
+                        />
+
+                        <Route
+                            path="/candidate/interview-practice/:id"
+                            element={<InterviewPracticePage />}
+                        />
+
+                        <Route
+                            path="/candidate/interview-practices"
+                            element={<Navigate to="/candidate/interview-practice" replace />}
                         />
 
                         <Route
@@ -297,11 +325,6 @@ export function AppRoutes() {
                         />
 
                         <Route
-                            path="/staff/companies"
-                            element={<StaffJobsPage />}
-                        />
-
-                        <Route
                             path="/staff/recruitments"
                             element={<StaffRecruitmentsPage />}
                         />
@@ -313,12 +336,12 @@ export function AppRoutes() {
 
                         <Route
                             path="/staff/ioc"
-                            element={<StaffJobsPage />}
+                            element={<StaffPlaceholderPage title="Ghép đợt IOC" />}
                         />
 
                         <Route
                             path="/staff/unlock-contacts"
-                            element={<StaffJobsPage />}
+                            element={<StaffPlaceholderPage title="Mở khóa liên hệ PII" />}
                         />
 
                         <Route

@@ -35,8 +35,10 @@ public class JobSkillId implements Serializable {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
         JobSkillId that = (JobSkillId) o;
         return Objects.equals(jobId, that.jobId) && Objects.equals(skillId, that.skillId);
     }
@@ -46,4 +48,3 @@ public class JobSkillId implements Serializable {
         return Objects.hash(jobId, skillId);
     }
 }
-
