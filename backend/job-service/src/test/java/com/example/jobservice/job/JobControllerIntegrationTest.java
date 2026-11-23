@@ -133,7 +133,7 @@ class JobControllerIntegrationTest {
         mockMvc.perform(post("/jobs/" + job.getId() + "/submit")
                         .header("Authorization", hr1Token))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail", containsString("Cần ít nhất 1 kỹ năng bắt buộc")));
+                .andExpect(jsonPath("$.message", containsString("Cần ít nhất 1 kỹ năng bắt buộc")));
     }
 
     @Test
@@ -154,7 +154,7 @@ class JobControllerIntegrationTest {
         mockMvc.perform(post("/jobs/" + job.getId() + "/submit")
                         .header("Authorization", hr1Token))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail", containsString("Cần ít nhất 1 kỹ năng bắt buộc")));
+                .andExpect(jsonPath("$.message", containsString("Cần ít nhất 1 kỹ năng bắt buộc")));
     }
 
     @Test
@@ -183,7 +183,7 @@ class JobControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(pastDeadlineReq)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail", containsString("Hạn nộp hồ sơ phải từ hôm nay trở đi")));
+                .andExpect(jsonPath("$.message", containsString("Hạn nộp hồ sơ phải từ hôm nay trở đi")));
 
         // salaryMin > salaryMax
         CreateJobRequest invalidSalaryReq = new CreateJobRequest(
@@ -208,7 +208,7 @@ class JobControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidSalaryReq)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail", containsString("Lương tối thiểu không được lớn hơn lương tối đa")));
+                .andExpect(jsonPath("$.message", containsString("Lương tối thiểu không được lớn hơn lương tối đa")));
     }
 
     @Test
@@ -287,8 +287,8 @@ class JobControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateReq)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("PENDING"))
-                .andExpect(jsonPath("$.rejectedReason").value(nullValue()));
+                .andExpect(jsonPath("$.data.status").value("PENDING"))
+                .andExpect(jsonPath("$.data.rejectedReason").value(nullValue()));
 
         // 2) Sửa khi đang PENDING -> 409
         mockMvc.perform(put("/jobs/" + job.getId())
@@ -296,7 +296,7 @@ class JobControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateReq)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail", containsString("Tin đang chờ duyệt, không thể chỉnh sửa")));
+                .andExpect(jsonPath("$.message", containsString("Tin đang chờ duyệt, không thể chỉnh sửa")));
 
         // 3) Sửa khi đã CLOSED -> 409
         job.setStatus(JobStatus.CLOSED);
@@ -307,7 +307,7 @@ class JobControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateReq)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail", containsString("Tin đã đóng, không thể chỉnh sửa")));
+                .andExpect(jsonPath("$.message", containsString("Tin đã đóng, không thể chỉnh sửa")));
     }
 
     @Test
@@ -324,7 +324,7 @@ class JobControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(nonExistent)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail", containsString("Kỹ năng không tồn tại")));
+                .andExpect(jsonPath("$.message", containsString("Kỹ năng không tồn tại")));
 
         // Trùng skillId
         List<JobSkillItem> duplicateSkills = List.of(
@@ -336,7 +336,7 @@ class JobControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(duplicateSkills)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail", containsString("Kỹ năng bị trùng lặp")));
+                .andExpect(jsonPath("$.message", containsString("Kỹ năng bị trùng lặp")));
     }
 
     @Test
@@ -364,11 +364,11 @@ class JobControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").isNotEmpty())
-                .andExpect(jsonPath("$.type").value("INTERNSHIP"))
-                .andExpect(jsonPath("$.level").value("INTERN"))
-                .andExpect(jsonPath("$.status").value("DRAFT"))
-                .andExpect(jsonPath("$.companyId").value(companyAId.toString()));
+                .andExpect(jsonPath("$.data.id").isNotEmpty())
+                .andExpect(jsonPath("$.data.type").value("INTERNSHIP"))
+                .andExpect(jsonPath("$.data.level").value("INTERN"))
+                .andExpect(jsonPath("$.data.status").value("DRAFT"))
+                .andExpect(jsonPath("$.data.companyId").value(companyAId.toString()));
     }
 
     @Test
@@ -397,10 +397,10 @@ class JobControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.data.status").value("DRAFT"))
                 .andReturn().getResponse().getContentAsString();
 
-        String jobIdStr = objectMapper.readTree(createRes).get("id").asText();
+        String jobIdStr = objectMapper.readTree(createRes).get("data").get("id").asText();
         UUID jobId = UUID.fromString(jobIdStr);
 
         // 2) PUT skills
@@ -414,15 +414,15 @@ class JobControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(skills)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.skills", hasSize(3)))
-                .andExpect(jsonPath("$.requiredSkills", hasSize(2)))
-                .andExpect(jsonPath("$.requiredSkills", containsInAnyOrder("Java Core", "Spring Boot")));
+                .andExpect(jsonPath("$.data.skills", hasSize(3)))
+                .andExpect(jsonPath("$.data.requiredSkills", hasSize(2)))
+                .andExpect(jsonPath("$.data.requiredSkills", containsInAnyOrder("Java Core", "Spring Boot")));
 
         // 3) Submit -> 200 PENDING
         mockMvc.perform(post("/jobs/" + jobId + "/submit")
                         .header("Authorization", hr1Token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("PENDING"));
+                .andExpect(jsonPath("$.data.status").value("PENDING"));
 
         // 4) List /companies/me/jobs?status=PENDING
         mockMvc.perform(get("/companies/me/jobs")
@@ -431,10 +431,10 @@ class JobControllerIntegrationTest {
                         .param("page", "0")
                         .param("size", "10"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items", not(empty())))
-                .andExpect(jsonPath("$.pagination.page").value(0))
-                .andExpect(jsonPath("$.pagination.size").value(10))
-                .andExpect(jsonPath("$.items[0].requiredSkillCount").isNumber());
+                .andExpect(jsonPath("$.data.items", not(empty())))
+                .andExpect(jsonPath("$.data.pagination.page").value(0))
+                .andExpect(jsonPath("$.data.pagination.size").value(10))
+                .andExpect(jsonPath("$.data.items[0].requiredSkillCount").isNumber());
     }
 
     @Test
@@ -454,8 +454,9 @@ class JobControllerIntegrationTest {
         mockMvc.perform(get("/jobs/" + job.getId())
                         .header("Authorization", candidateToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(job.getId().toString()))
-                .andExpect(jsonPath("$.status").value("APPROVED"));
+                .andExpect(jsonPath("$.data.id").value(job.getId().toString()))
+                .andExpect(jsonPath("$.data.status").value("APPROVED"));
     }
 }
+
 

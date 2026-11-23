@@ -1,24 +1,21 @@
 package com.example.jobservice.common.exception;
 
+import com.example.jobservice.common.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.validation.FieldError;
-import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.net.URI;
-import java.time.Instant;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestControllerAdvice
@@ -27,107 +24,78 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(BusinessException.class)
-    public ProblemDetail handleBusinessException(BusinessException ex) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(ex.getStatus(), ex.getMessage());
-        problem.setTitle(ex.getStatus().getReasonPhrase());
-        problem.setProperty("timestamp", Instant.now());
-        return problem;
+    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
+        return ResponseEntity.status(ex.getStatus())
+                .body(ApiResponse.error(ex.getStatus(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiResponse<Void>> handleResponseStatusException(ResponseStatusException ex) {
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+        String reason = ex.getReason() != null ? ex.getReason() : "Yêu cầu không hợp lệ";
+        return ResponseEntity.status(status).body(ApiResponse.error(status, reason));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         log.warn("Database constraint violation", ex);
-        String cause = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
-                "Dữ liệu đã tồn tại hoặc vi phạm ràng buộc trong hệ thống" + (cause != null ? ": " + cause : ""));
-        problem.setTitle("Conflict");
-        problem.setProperty("timestamp", Instant.now());
-        return problem;
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(HttpStatus.CONFLICT,
+                        "Dữ liệu đã tồn tại trong hệ thống hoặc vi phạm ràng buộc dữ liệu"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ProblemDetail handleValidationException(MethodArgumentNotValidException ex) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
-                "Dữ liệu yêu cầu không hợp lệ");
-        problem.setTitle("Validation Error");
-        problem.setType(URI.create("urn:problem:validation-error"));
-        problem.setProperty("timestamp", Instant.now());
+    public ResponseEntity<ApiResponse<Map<String, Object>>> handleValidationException(
+            MethodArgumentNotValidException ex) {
+        List<Map<String, String>> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
+                .map(err -> Map.of(
+                        "field", err.getField(),
+                        "message", err.getDefaultMessage() != null ? err.getDefaultMessage() : "Không hợp lệ"))
+                .toList();
 
-        Map<String, String> fieldErrors = new HashMap<>();
-        for (FieldError fieldError : ex.getBindingResult().getFieldErrors()) {
-            fieldErrors.put(fieldError.getField(), fieldError.getDefaultMessage());
-        }
-        problem.setProperty("errors", fieldErrors);
-        return problem;
+        ApiResponse<Map<String, Object>> response = ApiResponse.error(
+                HttpStatus.BAD_REQUEST,
+                "Dữ liệu nhập vào không hợp lệ, vui lòng kiểm tra lại",
+                Map.of("errors", fieldErrors));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
-    public ProblemDetail handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
-                "Kích thước tệp logo không được vượt quá 2MB");
-        problem.setTitle("Payload Too Large");
-        problem.setProperty("timestamp", Instant.now());
-        return problem;
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Kích thước tệp tải lên không được vượt quá 2MB"));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
-        problem.setTitle("Bad Request");
-        problem.setProperty("timestamp", Instant.now());
-        return problem;
+    public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
+        String msg = ex.getMessage() != null && !ex.getMessage().isBlank() ? ex.getMessage()
+                : "Tham số yêu cầu không hợp lệ";
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, msg));
     }
 
-    /**
-     * JSON gửi lên sai cú pháp hoặc sai kiểu dữ liệu → 400 (trước đây rơi vào 500).
-     */
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ProblemDetail handleUnreadableBody(HttpMessageNotReadableException ex) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
-                "Nội dung yêu cầu không đúng định dạng JSON");
-        problem.setTitle("Bad Request");
-        problem.setProperty("timestamp", Instant.now());
-        return problem;
+    public ResponseEntity<ApiResponse<Void>> handleUnreadableBody(HttpMessageNotReadableException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Nội dung yêu cầu không đúng định dạng JSON"));
     }
 
-    /** Tham số đường dẫn sai kiểu, ví dụ /staff/companies/abc → 400. */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
-                "Tham số '" + ex.getName() + "' không hợp lệ");
-        problem.setTitle("Bad Request");
-        problem.setProperty("timestamp", Instant.now());
-        return problem;
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Tham số '" + ex.getName() + "' không hợp lệ"));
     }
 
-    /** @PreAuthorize từ chối → 403 (trước đây rơi vào handler chung thành 500). */
     @ExceptionHandler(AccessDeniedException.class)
-    public ProblemDetail handleAccessDenied(AccessDeniedException ex) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN,
-                "Bạn không có quyền thực hiện thao tác này");
-        problem.setTitle("Forbidden");
-        problem.setProperty("timestamp", Instant.now());
-        return problem;
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(HttpStatus.FORBIDDEN, "Bạn không có quyền thực hiện thao tác này"));
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ProblemDetail> handleGeneralException(Exception ex) {
-        // Các lỗi chuẩn của Spring MVC (405, 415, thiếu part, 404 tài nguyên...) đã
-        // mang sẵn
-        // status và nội dung đúng, giữ nguyên thay vì ép thành 500.
-        if (ex instanceof ErrorResponse errorResponse) {
-            return ResponseEntity.status(errorResponse.getStatusCode())
-                    .headers(errorResponse.getHeaders())
-                    .body(errorResponse.getBody());
-        }
-
-        // Lỗi không lường trước: ghi log đầy đủ ở server, trả thông báo chung cho
-        // client
+@ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception ex) {
         log.error("Unhandled exception", ex);
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR,
-                "Đã xảy ra lỗi hệ thống");
-        problem.setTitle("Internal Server Error");
-        problem.setProperty("timestamp", Instant.now());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problem);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR, "Đã xảy ra sự cố trên hệ thống máy chủ, vui lòng thử lại sau"));
     }
 }

@@ -138,10 +138,11 @@ class CompanyControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").isString())
-                .andExpect(jsonPath("$.name", is("Công ty TNHH Phần mềm ABC")))
-                .andExpect(jsonPath("$.taxCode", is("0108889999")))
-                .andExpect(jsonPath("$.status", is("ACTIVE")));
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.id").isString())
+                .andExpect(jsonPath("$.data.name", is("Công ty TNHH Phần mềm ABC")))
+                .andExpect(jsonPath("$.data.taxCode", is("0108889999")))
+                .andExpect(jsonPath("$.data.status", is("ACTIVE")));
     }
 
     @Test
@@ -159,7 +160,9 @@ class CompanyControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.taxCode",
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.data.errors[0].field", is("taxCode")))
+                .andExpect(jsonPath("$.data.errors[0].message",
                                 containsString("Mã số thuế phải gồm 10 hoặc 13 chữ số")));
     }
 
@@ -175,10 +178,11 @@ class CompanyControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.email", is("hr.test.create@rikkei.vn")))
-                .andExpect(jsonPath("$.role", is("ROLE_HR")))
-                .andExpect(jsonPath("$.companyId", is(companyAId.toString())))
-                .andExpect(jsonPath("$.mustChangePassword", is(true)));
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.email", is("hr.test.create@rikkei.vn")))
+                .andExpect(jsonPath("$.data.role", is("ROLE_HR")))
+                .andExpect(jsonPath("$.data.companyId", is(companyAId.toString())))
+                .andExpect(jsonPath("$.data.mustChangePassword", is(true)));
     }
 
     @Test
@@ -193,7 +197,8 @@ class CompanyControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail", containsString("đã tồn tại")));
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", containsString("đã tồn tại")));
     }
 
     @Test
@@ -202,8 +207,9 @@ class CompanyControllerIntegrationTest {
         mockMvc.perform(get("/companies/me")
                         .header("Authorization", hr1Token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id", is(companyAId.toString())))
-                .andExpect(jsonPath("$.taxCode", is("0101234567")));
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.id", is(companyAId.toString())))
+                .andExpect(jsonPath("$.data.taxCode", is("0101234567")));
     }
 
     @Test
@@ -223,11 +229,12 @@ class CompanyControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name",
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.name",
                                 is("Công ty Cổ phần Công nghệ Rikkei A Mới")))
-                .andExpect(jsonPath("$.industry", is("Fintech")))
-                .andExpect(jsonPath("$.taxCode", is("0101234567")))
-                .andExpect(jsonPath("$.status", is("ACTIVE")));
+                .andExpect(jsonPath("$.data.industry", is("Fintech")))
+                .andExpect(jsonPath("$.data.taxCode", is("0101234567")))
+                .andExpect(jsonPath("$.data.status", is("ACTIVE")));
     }
 
     @Test
@@ -247,7 +254,8 @@ class CompanyControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.detail",
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message",
                                 containsString("Không tìm thấy doanh nghiệp")));
     }
 
@@ -266,7 +274,8 @@ class CompanyControllerIntegrationTest {
                         .file(file)
                         .header("Authorization", hr1Token))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail",
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message",
                                 containsString("không được vượt quá 2MB")));
     }
 
@@ -286,7 +295,8 @@ class CompanyControllerIntegrationTest {
                         .file(file)
                         .header("Authorization", hr1Token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.logoUrl",
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.logoUrl",
                                 startsWith("/uploads/logos/company-" + companyAId + "-")));
     }
 }

@@ -16,7 +16,7 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
     open-in-view: false
     show-sql: false
     properties:
@@ -25,7 +25,7 @@ spring:
         jdbc:
           time_zone: UTC
   flyway:
-    enabled: true
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
     baseline-on-migrate: true
     validate-on-migrate: ${SPRING_FLYWAY_VALIDATE_ON_MIGRATE:false}
     locations: classpath:db/migration
@@ -50,6 +50,11 @@ skill:
   catalog:
     base-url: ${PROFILE_SERVICE_URL:http://localhost:8082}
     stub: ${SKILL_CATALOG_STUB:false}
+
+candidate:
+  skills:
+    base-url: ${PROFILE_SERVICE_URL:http://localhost:8082}
+    stub: ${CANDIDATE_SKILLS_STUB:false}
 
 springdoc:
   api-docs:
@@ -109,6 +114,10 @@ auth:
 skill:
   catalog:
     stub: ${SKILL_CATALOG_STUB:true}
+
+candidate:
+  skills:
+    stub: ${CANDIDATE_SKILLS_STUB:true}
 
 app:
   jwt:

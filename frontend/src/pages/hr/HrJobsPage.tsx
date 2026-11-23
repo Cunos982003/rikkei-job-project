@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { hrJobsApi, type JobListItem } from "../../api/endpoints/hrJobs.api";
@@ -18,21 +19,9 @@ import { Button } from "../../components/common/Button";
 import { Card, CardContent } from "../../components/common/Card";
 import { Modal } from "../../components/common/Modal";
 import { JobStatusBadge } from "../../components/hr/JobStatusBadge";
+import { JobDetailModal } from "../../components/hr/JobDetailModal";
+import { LEVEL_LABELS, TYPE_LABELS } from "../../utils/jobLabels";
 import { cn } from "../../utils/cn";
-
-const LEVEL_LABELS: Record<string, string> = {
-  INTERN: "Thực tập",
-  FRESHER: "Fresher",
-  JUNIOR: "Junior",
-  MIDDLE: "Middle",
-  SENIOR: "Senior",
-};
-
-const TYPE_LABELS: Record<string, string> = {
-  FULLTIME: "Toàn thời gian",
-  PARTTIME: "Bán thời gian",
-  INTERNSHIP: "Thực tập",
-};
 
 export function HrJobsPage() {
   const navigate = useNavigate();
@@ -41,6 +30,19 @@ export function HrJobsPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 10;
+
+  // Modal xem chi tiết tin
+  const [viewingJobId, setViewingJobId] = useState<string | null>(null);
+
+  const { data: viewingJobResponse } = useQuery({
+    queryKey: ["hr", "jobs", "detail", viewingJobId],
+    queryFn: async () => {
+      if (!viewingJobId) return null;
+      const res = await hrJobsApi.getJob(viewingJobId);
+      return res.data;
+    },
+    enabled: !!viewingJobId,
+  });
 
   // Modal đóng tin
   const [closingJob, setClosingJob] = useState<JobListItem | null>(null);
@@ -208,7 +210,10 @@ export function HrJobsPage() {
               <tbody className="divide-y divide-border">
                 {jobs.map((job) => (
                   <tr key={job.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-5 py-4 font-semibold text-foreground max-w-xs truncate">
+                    <td
+                      className="px-5 py-4 font-semibold text-foreground max-w-xs truncate cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => setViewingJobId(job.id)}
+                    >
                       {job.title}
                     </td>
                     <td className="px-4 py-4 text-muted">{job.position}</td>
@@ -229,6 +234,15 @@ export function HrJobsPage() {
                     </td>
                     <td className="px-5 py-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          leftIcon={<FileText className="h-3.5 w-3.5" />}
+                          onClick={() => setViewingJobId(job.id)}
+                        >
+                          Chi tiết
+                        </Button>
+
                         <Button
                           variant="outline"
                           size="sm"
@@ -290,6 +304,34 @@ export function HrJobsPage() {
           )}
         </Card>
       )}
+
+      {/* Modal chi tiết tin tuyển dụng */}
+      <JobDetailModal
+        job={viewingJobResponse ?? null}
+        onClose={() => setViewingJobId(null)}
+        footer={
+          <div className="flex items-center justify-end gap-2 w-full">
+            <Button variant="outline" size="sm" onClick={() => setViewingJobId(null)}>
+              Đóng
+            </Button>
+            {viewingJobResponse &&
+              viewingJobResponse.status !== "PENDING" &&
+              viewingJobResponse.status !== "CLOSED" && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    const id = viewingJobResponse.id;
+                    setViewingJobId(null);
+                    navigate(`/hr/jobs/${id}/edit`);
+                  }}
+                >
+                  Sửa tin
+                </Button>
+              )}
+          </div>
+        }
+      />
 
       {/* Modal xác nhận đóng tin */}
       <Modal

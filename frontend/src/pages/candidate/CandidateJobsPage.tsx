@@ -7,8 +7,8 @@ import { jobsApi, type JobPostingItem } from "../../api/endpoints/jobs.api";
 import { recruitmentApi } from "../../api/endpoints/recruitment.api";
 import { Button } from "../../components/common/Button";
 import { JobCardItem } from "./components/JobCardItem";
-import { ApplyJobModal } from "./components/ApplyJobModal";
 import { JobDetailModal } from "./components/JobDetailModal";
+import { ApplyJobModal } from "./components/ApplyJobModal";
 
 // Fallback sample jobs matching mock/data/jobs.json
 const FALLBACK_JOBS: JobPostingItem[] = [
@@ -235,17 +235,17 @@ export const CandidateJobsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Modal Chi tiết Job */}
+      {/* Modal Job Details */}
       <JobDetailModal
         job={selectedJob}
-        isApplied={selectedJob ? appliedJobIds.has(selectedJob.id) : false}
+        isOpen={Boolean(selectedJob)}
         onClose={handleCloseDetailModal}
         onApply={(job) => {
-          setSelectedJob(null);
-          setApplyJob(job);
+          handleOpenApplyModal(job);
+          handleCloseDetailModal();
         }}
-        onAnalyze={handleAnalyzeJob}
-        formatSalary={formatSalary}
+        onAnalyze={(jobId) => handleAnalyzeJob(jobId)}
+        isApplied={selectedJob ? appliedJobIds.has(selectedJob.id) : false}
       />
 
       {/* Modal Ứng tuyển độc lập (không re-render toàn bộ danh sách khi gõ phím) */}

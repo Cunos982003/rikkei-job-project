@@ -1,0 +1,223 @@
+openapi: 3.0.3
+info:
+  title: Rikkei Jobs - Candidate & JD Matching API (DN-06)
+  description: >
+    API tính toán điểm khớp độ phù hợp kỹ năng giữa ứng viên và tin tuyển dụng (JD) cho Rikkei Jobs (Task DN-06).
+    Cung cấp endpoint cho ứng viên tự tra cứu độ khớp của chính mình và cho nhà tuyển dụng / cán bộ tra cứu độ khớp của ứng viên.
+  version: 1.0.0
+  contact:
+    name: Rikkei Jobs Team
+    email: dev@rikkei.vn
+
+servers:
+  - url: http://localhost:8085
+    description: Local Job Service
+  - url: http://localhost:8080/api/v1
+    description: API Gateway
+
+paths:
+  /jobs/{id}/match/me:
+    get:
+      tags:
+        - Matching
+      summary: Xem điểm khớp của chính mình với tin tuyển dụng (CANDIDATE)
+      description: >
+        Dành riêng cho ứng viên tra cứu điểm khớp kỹ năng của chính mình với một tin tuyển dụng ở trạng thái APPROVED.
+        Hệ thống tự động lấy userId từ token đăng nhập hiện tại và tính toán lại điểm khớp mới nhất.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID định danh tin tuyển dụng
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Tính toán điểm khớp thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchResultResponse'
+        '401':
+          description: Chưa xác thực hoặc token không hợp lệ
+        '403':
+          description: Người dùng không có vai trò CANDIDATE
+        '404':
+          description: Không tìm thấy tin tuyển dụng hoặc tin chưa ở trạng thái APPROVED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '502':
+          description: Dịch vụ hồ sơ ứng viên tạm thời không khả dụng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /jobs/{id}/match/{userId}:
+    get:
+      tags:
+        - Matching
+      summary: Xem điểm khớp của một ứng viên cụ thể với tin tuyển dụng (HR/STAFF/ADMIN)
+      description: >
+        Dành cho Nhà tuyển dụng (HR), Cán bộ (STAFF) hoặc Quản trị viên (ADMIN) xem điểm khớp kỹ năng của một ứng viên với JD.
+        HR chỉ xem được tin tuyển dụng thuộc công ty mình quản lý. STAFF/ADMIN có quyền xem mọi tin tuyển dụng.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID định danh tin tuyển dụng
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          description: UUID định danh tài khoản ứng viên
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Tính toán điểm khớp thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchResultResponse'
+        '401':
+          description: Chưa xác thực hoặc token không hợp lệ
+        '403':
+          description: Người dùng không có vai trò HR, STAFF hoặc ADMIN
+        '404':
+          description: Không tìm thấy tin tuyển dụng hoặc không tìm thấy hồ sơ ứng viên
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '502':
+          description: Dịch vụ hồ sơ ứng viên tạm thời không khả dụng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    MatchSkillItem:
+      type: object
+      required:
+        - skill
+        - skillCode
+        - required
+        - minScore
+        - candidateScore
+        - gap
+      properties:
+        skill:
+          type: string
+          description: Tên kỹ năng hiển thị
+          example: Java Core
+        skillCode:
+          type: string
+          description: Mã định danh chuẩn của kỹ năng
+          example: JAVA_CORE
+        required:
+          type: boolean
+          description: Kỹ năng bắt buộc (true) hay ưu tiên (false)
+          example: true
+        minScore:
+          type: integer
+          description: Điểm tối thiểu yêu cầu trong JD
+          example: 70
+        candidateScore:
+          type: integer
+          description: Điểm đã kiểm định của ứng viên (0 nếu chưa có hoặc chưa kiểm định)
+          example: 70
+        gap:
+          type: integer
+          description: Khoảng cách thiếu hụt điểm (minScore - candidateScore khi thiếu, ngược lại là 0)
+          example: 0
+
+    MatchResultResponse:
+      type: object
+      required:
+        - jobId
+        - userId
+        - score
+        - belowMinimum
+        - met
+        - missing
+        - computedAt
+        - stale
+      properties:
+        jobId:
+          type: string
+          format: uuid
+          description: UUID của tin tuyển dụng
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        userId:
+          type: string
+          format: uuid
+          description: UUID của ứng viên được tính điểm
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        score:
+          type: number
+          format: double
+          description: Điểm số độ khớp tổng thể (thang điểm 100, làm tròn 1 chữ số thập phân)
+          example: 82.5
+        belowMinimum:
+          type: boolean
+          description: Cờ cảnh báo ứng viên dưới 50% điểm yêu cầu ở ít nhất một kỹ năng bắt buộc
+          example: false
+        met:
+          type: array
+          description: Danh sách các kỹ năng đạt yêu cầu (candidateScore >= minScore)
+          items:
+            $ref: '#/components/schemas/MatchSkillItem'
+        missing:
+          type: array
+          description: Danh sách các kỹ năng chưa đạt yêu cầu (candidateScore < minScore)
+          items:
+            $ref: '#/components/schemas/MatchSkillItem'
+        computedAt:
+          type: string
+          format: date-time
+          description: Thời điểm thực hiện tính toán
+          example: "2026-11-20T09:00:00Z"
+        stale:
+          type: boolean
+          description: Cờ dữ liệu cũ (luôn trả về false khi gọi API tính toán)
+          example: false
+
+    ProblemDetail:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri
+          example: "about:blank"
+        title:
+          type: string
+          example: "Not Found"
+        status:
+          type: integer
+          example: 404
+        detail:
+          type: string
+          example: "Không tìm thấy tin tuyển dụng"
+        instance:
+          type: string
+          example: "/jobs/3fa85f64-5717-4562-b3fc-2c963f66afa6/match/me"
+

@@ -40,6 +40,22 @@ public class CandidateDirectoryController {
     private final SkillScoreRepository skillScoreRepository;
     private final SkillRepository skillRepository;
 
+    @GetMapping("/candidate-directory/skills")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listSkills() {
+        List<Map<String, Object>> result = skillRepository.findAll().stream()
+                .sorted(Comparator.comparing(Skill::getName, String.CASE_INSENSITIVE_ORDER))
+                .map(skill -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("id", skill.getId());
+                    item.put("code", skill.getCode());
+                    item.put("name", skill.getName());
+                    item.put("group", skill.getGroup());
+                    return item;
+                })
+                .toList();
+        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách kỹ năng thành công", result));
+    }
+
     @GetMapping("/candidates")
     public ResponseEntity<ApiResponse<PageData<Map<String, Object>>>> listCandidates(
             @RequestParam(required = false) String keyword,
@@ -82,7 +98,8 @@ public class CandidateDirectoryController {
         Map<UUID, Skill> skillById = skillRepository.findAll().stream()
                 .collect(Collectors.toMap(Skill::getId, Function.identity(), (a, b) -> a));
 
-        return ResponseEntity.ok(ApiResponse.success("Lấy thông tin ứng viên thành công", toCandidatePayload(profile, skillById)));
+        return ResponseEntity
+                .ok(ApiResponse.success("Lấy thông tin ứng viên thành công", toCandidatePayload(profile, skillById)));
     }
 
     private boolean matchesKeyword(CandidateProfile p, String keyword) {
@@ -109,7 +126,8 @@ public class CandidateDirectoryController {
 
         for (SkillScore score : scores) {
             Skill skill = skillById.get(score.getSkillId());
-            if (skill == null) continue;
+            if (skill == null)
+                continue;
             Short effectiveScore = score.getVerifiedScore() != null ? score.getVerifiedScore() : score.getSelfScore();
             int numericScore = effectiveScore != null ? effectiveScore.intValue() : 0;
             if (effectiveScore != null) {
