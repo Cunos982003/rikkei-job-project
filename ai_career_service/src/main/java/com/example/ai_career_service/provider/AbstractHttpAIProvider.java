@@ -14,6 +14,7 @@ import java.util.Map;
 abstract class AbstractHttpAIProvider implements AIProvider {
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration CHAT_TIMEOUT = Duration.ofSeconds(30);
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(REQUEST_TIMEOUT)
@@ -49,7 +50,32 @@ abstract class AbstractHttpAIProvider implements AIProvider {
         }
     }
 
+    @Override
+    public String chat(String systemPrompt, String userPrompt) {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException("The selected AI provider API key is not configured");
+        }
+        try {
+            HttpRequest request = createChatRequest(systemPrompt, userPrompt);
+            HttpResponse<String> response = httpClient.send(
+                    request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException("AI provider returned HTTP " + response.statusCode() + ": " + response.body());
+            }
+            return extractText(objectMapper.readTree(response.body()));
+        } catch (IOException exception) {
+            throw new IllegalStateException("Could not communicate with the selected AI provider", exception);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("AI provider request was interrupted", exception);
+        }
+    }
+
     protected abstract HttpRequest createRequest(String prompt) throws IOException;
+
+    protected HttpRequest createChatRequest(String systemPrompt, String userPrompt) throws IOException {
+        return createRequest((systemPrompt != null && !systemPrompt.isBlank() ? systemPrompt + "\n\n" : "") + userPrompt);
+    }
 
     protected abstract String extractText(JsonNode response);
 
@@ -68,6 +94,12 @@ abstract class AbstractHttpAIProvider implements AIProvider {
     protected final HttpRequest.Builder requestBuilder(String endpoint) {
         return HttpRequest.newBuilder(URI.create(endpoint))
                 .timeout(REQUEST_TIMEOUT)
+                .header("Content-Type", "application/json");
+    }
+
+    protected final HttpRequest.Builder chatRequestBuilder(String endpoint) {
+        return HttpRequest.newBuilder(URI.create(endpoint))
+                .timeout(CHAT_TIMEOUT)
                 .header("Content-Type", "application/json");
     }
 

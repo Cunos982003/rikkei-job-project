@@ -2,6 +2,7 @@
 -- 03_seed_job_db.sql : JOB SERVICE SEED DATA (job_db)
 -- 10 Companies (khớp UUID company_id trong clean_and_sync_users.sql)
 -- + 12 JobCategories + 24 JobLocations + 120 Jobs (84 APPROVED, 12 PENDING, 12 REJECTED, 12 CLOSED) + 360 JobSkills
+-- + 12 JobCategories + 24 JobLocations + 120 Jobs (84 APPROVED, 12 PENDING, 12 REJECTED, 12 CLOSED) + 360 JobSkills
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS companies (
@@ -50,7 +51,24 @@ CREATE TABLE IF NOT EXISTS jobs (
     salary_min NUMERIC(15,0),
     salary_max NUMERIC(15,0),
     description TEXT,
+    position VARCHAR(255) NOT NULL,
+    level VARCHAR(20) NOT NULL,
+    type VARCHAR(20) NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    city VARCHAR(100),
+    address VARCHAR(500),
+    work_mode VARCHAR(20) NOT NULL DEFAULT 'ONSITE',
+    salary_min NUMERIC(15,0),
+    salary_max NUMERIC(15,0),
+    description TEXT,
     requirements TEXT,
+    benefits TEXT,
+    deadline DATE NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
+    rejected_reason VARCHAR(1000),
+    created_by VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
     benefits TEXT,
     deadline DATE NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
@@ -60,8 +78,20 @@ CREATE TABLE IF NOT EXISTS jobs (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_company_status ON jobs(company_id, status);
+CREATE INDEX IF NOT EXISTS idx_jobs_company_status ON jobs(company_id, status);
 
 CREATE TABLE IF NOT EXISTS job_skills (
+    job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    skill_id VARCHAR(64) NOT NULL,
+    skill_code VARCHAR(64),
+    skill_name VARCHAR(255) NOT NULL,
+    required BOOLEAN NOT NULL DEFAULT TRUE,
+    min_score INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (job_id, skill_id)
+);
+CREATE INDEX IF NOT EXISTS idx_job_skills_job ON job_skills(job_id);
+
+CREATE TABLE IF NOT EXISTS match_scores (
     job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
     skill_id VARCHAR(64) NOT NULL,
     skill_code VARCHAR(64),
@@ -81,7 +111,15 @@ CREATE TABLE IF NOT EXISTS match_scores (
     stale BOOLEAN NOT NULL DEFAULT FALSE,
     computed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (job_id, user_id)
+    user_id UUID NOT NULL,
+    score NUMERIC(5,1) NOT NULL,
+    below_minimum BOOLEAN NOT NULL DEFAULT FALSE,
+    detail TEXT,
+    stale BOOLEAN NOT NULL DEFAULT FALSE,
+    computed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (job_id, user_id)
 );
+CREATE INDEX IF NOT EXISTS idx_match_scores_user ON match_scores(user_id);
 CREATE INDEX IF NOT EXISTS idx_match_scores_user ON match_scores(user_id);
 
 -- 1. 10 Companies

@@ -1,6 +1,6 @@
 package com.example.profileservice.skill.api;
 
-import com.example.profileservice.skill.api.dto.SkillCatalogResponse;
+import com.example.profileservice.dto.SkillCatalogResponse;
 import com.example.profileservice.skill.application.SkillCatalogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,7 +21,7 @@ import java.util.Map;
  * Controller cung cấp danh mục kỹ năng chuẩn của hệ thống.
  */
 @RestController
-@RequestMapping("/api/v1/skills")
+@RequestMapping("/api/v1/skill-catalog")
 @RequiredArgsConstructor
 public class SkillCatalogController {
 

@@ -21,6 +21,7 @@ import com.example.recruitment_service.dto.ApiResponse;
 import com.example.recruitment_service.dto.DeclineOfferRequest;
 import com.example.recruitment_service.dto.EmploymentRecordResponse;
 import com.example.recruitment_service.dto.OfferResponse;
+import com.example.recruitment_service.dto.PageResult;
 import com.example.recruitment_service.dto.RecruitmentStaffSummary;
 import com.example.recruitment_service.dto.SendOfferRequest;
 import com.example.recruitment_service.enums.RecruitmentStatus;
@@ -64,13 +65,13 @@ public class OfferController {
     }
 
     @GetMapping({"/hr/applications", "/applications"})
-    public ResponseEntity<ApiResponse<Page<RecruitmentStaffSummary>>> listForHr(
+    public ResponseEntity<ApiResponse<PageResult<RecruitmentStaffSummary>>> listForHr(
             @AuthenticationPrincipal UserPrincipal hr,
             @RequestParam(required = false) UUID jobId,
             @RequestParam(required = false) RecruitmentStatus status,
             @RequestParam(defaultValue = "0") @Min(0) int page) {
         Page<RecruitmentStaffSummary> result = recruitmentService.listForHr(hr, jobId, status, page);
-        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách đơn ứng tuyển của doanh nghiệp thành công", result));
+        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách đơn ứng tuyển của doanh nghiệp thành công", PageResult.from(result)));
     }
 
     @GetMapping("/me/offers")

@@ -8,7 +8,14 @@ export const queryClient = new QueryClient({
     queries: {
       staleTime: 1000 * 60 * 5, // 5 phút (tránh gọi lại API liên tục)
       gcTime: 1000 * 60 * 15, // 15 phút (giữ trong cache trước khi garbage collect)
-      retry: 1, // Thử lại tối đa 1 lần nếu gặp lỗi mạng
+      retry: (failureCount, error: any) => {
+        // Không retry cho các lỗi 4xx (400, 401, 403, 404, 422) vì dữ liệu/quyền không đổi
+        const status = error?.response?.status || error?.statusCode;
+        if (status && status >= 400 && status < 500) {
+          return false;
+        }
+        return failureCount < 1;
+      },
       refetchOnWindowFocus: false, // Không tự refetch khi người dùng đổi tab trình duyệt
       refetchOnReconnect: true, // Tự refetch khi có mạng trở lại
     },

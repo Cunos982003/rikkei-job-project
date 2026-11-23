@@ -42,8 +42,8 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
     isApplied !== undefined
       ? isApplied
       : appliedJobIds
-      ? appliedJobIds.has(currentJob.id)
-      : false;
+        ? appliedJobIds.has(currentJob.id)
+        : false;
 
   const levelVal = currentJob.level || currentJob.experienceLevel;
   const levelLabel = levelVal ? LEVEL_LABELS[levelVal] || levelVal : null;

@@ -201,6 +201,25 @@ axiosInstance.interceptors.request.use(
   }
 );
 
+const lastToastTimes = new Map<string, number>();
+const TOAST_DEBOUNCE_MS = 1500;
+
+function showDeduplicatedErrorToast(msg: string) {
+  const now = Date.now();
+  const lastTime = lastToastTimes.get(msg) || 0;
+  if (now - lastTime < TOAST_DEBOUNCE_MS) {
+    return;
+  }
+  lastToastTimes.set(msg, now);
+  if (lastToastTimes.size > 20) {
+    const cutoff = now - 5000;
+    for (const [k, v] of lastToastTimes.entries()) {
+      if (v < cutoff) lastToastTimes.delete(k);
+    }
+  }
+  toast.error(msg);
+}
+
 // -------------------------------------------------------------
 // RESPONSE INTERCEPTOR: Trích xuất Envelope & Bắt lỗi chuẩn tiếng Việt
 // -------------------------------------------------------------
@@ -230,7 +249,7 @@ axiosInstance.interceptors.response.use(
     if (!error.response) {
       // Lỗi mất kết nối mạng hoặc không gọi được Gateway/Backend
       errorMessage = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra đường truyền mạng";
-      if (!isSilent) toast.error(errorMessage);
+      if (!isSilent) showDeduplicatedErrorToast(errorMessage);
       return Promise.reject(error);
     }
 
@@ -280,7 +299,7 @@ axiosInstance.interceptors.response.use(
     if (!isSilent) {
       // Nếu có lỗi validation theo từng field, hiển thị lỗi trường đầu tiên hoặc thông báo chung
       const firstFieldError = errorData?.data?.errors?.[0]?.message;
-      toast.error(firstFieldError || errorMessage);
+      showDeduplicatedErrorToast(firstFieldError || errorMessage);
     }
 
     return Promise.reject(error);
