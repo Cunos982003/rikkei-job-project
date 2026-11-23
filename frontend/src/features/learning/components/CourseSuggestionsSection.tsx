@@ -20,6 +20,7 @@ import {
   CardContent,
 } from "../../../components/common/Card";
 import { Button } from "../../../components/common/Button";
+import { getLmsBaseUrl } from "../../../utils/lms";
 import type {
   SkillCourseSuggestion,
   SuggestedCourseItem,
@@ -43,7 +44,7 @@ export const CourseSuggestionsSection: React.FC<CourseSuggestionsSectionProps> =
   isRefreshing,
   enrollingCourseId,
 }) => {
-  const lmsBaseUrl = import.meta.env.VITE_LMS_BASE_URL || "http://localhost:9000";
+  const lmsBaseUrl = getLmsBaseUrl();
 
   const renderPriorityBadge = (priority: GapPriority) => {
     switch (priority) {

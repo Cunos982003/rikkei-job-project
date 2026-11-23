@@ -82,3 +82,30 @@ OpenAPI JSON: http://localhost:8085/v3/api-docs
 ```powershell
 ./gradlew clean compileJava test
 ```
+
+## Điểm Khớp Kỹ Năng Ứng Viên Với JD (DN-06)
+
+### 1. Kiến trúc & Tích hợp điểm kỹ năng ứng viên
+- `job-service` lưu điểm khớp và chi tiết so khớp vào bảng `match_scores`.
+- Điểm kỹ năng đã kiểm định của ứng viên (`verifiedScore`) được lấy từ `profile-service` qua `CandidateSkillClient` (`GET /api/v1/profiles/internal/{userId}/skill-scores`).
+- `RestCandidateSkillClient`: gọi REST sang `profile-service`, chuyển tiếp header `Authorization`, timeout kết nối 3s, đọc 5s.
+- `StubCandidateSkillClient`: dùng trong test và chạy local (`candidate.skills.stub=true`).
+- Cơ chế stale hook: khi JD cập nhật kỹ năng (`PUT /jobs/{id}/skills`) hoặc thông tin (`PUT /jobs/{id}`), các bản ghi `match_scores` liên quan sẽ được tự động đánh dấu `stale = true`. Khi có yêu cầu tra cứu độ khớp, hệ thống luôn tính toán lại và cập nhật bản ghi mới nhất (`stale = false`).
+
+### 2. Biến cấu hình:
+| Biến môi trường | Mặc định | Mô tả |
+|---|---|---|
+| `CANDIDATE_SKILLS_STUB` | `false` (prod), `true` (local/test) | `true`: dùng stub in-memory; `false`: gọi REST tới `profile-service` |
+| `PROFILE_SERVICE_URL` | `http://localhost:8082` | URL gốc của `profile-service` |
+
+### 3. Thử nhanh khi chạy local:
+Khởi động service với profile `local` hoặc thiết lập biến môi trường `CANDIDATE_SKILLS_STUB=true`:
+```powershell
+$env:CANDIDATE_SKILLS_STUB="true"
+./gradlew bootRun
+```
+
+### 4. API theo DN-06:
+- `GET /jobs/{id}/match/me`: Ứng viên (`ROLE_CANDIDATE`) xem điểm khớp của chính mình với JD `APPROVED`.
+- `GET /jobs/{id}/match/{userId}`: `ROLE_HR`, `ROLE_STAFF`, `ROLE_ADMIN` xem điểm khớp của ứng viên với JD (HR chỉ xem được JD công ty mình).
+

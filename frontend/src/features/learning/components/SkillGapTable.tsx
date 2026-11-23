@@ -3,6 +3,7 @@ import { AlertOctagon, AlertTriangle, Info, ArrowUpRight, Award, GraduationCap }
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../../components/common/Card";
 import { Badge } from "../../../components/common/Badge";
 import { Button } from "../../../components/common/Button";
+import { getLmsBaseUrl } from "../../../utils/lms";
 import type { GapItem, GapPriority } from "../../../api/endpoints/learning.api";
 
 interface SkillGapTableProps {
@@ -176,8 +177,7 @@ export const SkillGapTable: React.FC<SkillGapTableProps> = ({ items }) => {
                       className="text-xs text-primary hover:text-primary-hover hover:bg-primary-light"
                       rightIcon={<ArrowUpRight className="h-3.5 w-3.5" />}
                       onClick={() => {
-                        const lmsUrl = import.meta.env.VITE_LMS_BASE_URL || 'http://localhost:9000';
-                        window.open(lmsUrl, "_blank");
+                        window.open(getLmsBaseUrl(), "_blank");
                       }}
                     >
                       Học trên LMS

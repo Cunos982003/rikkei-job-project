@@ -1,5 +1,6 @@
 package com.example.jobservice.company.controller;
 
+import com.example.jobservice.common.ApiResponse;
 import com.example.jobservice.company.dto.LockHrAccountRequest;
 import com.example.jobservice.company.dto.StaffHrAccountResponse;
 import com.example.jobservice.company.service.CompanyService;
@@ -25,18 +26,17 @@ public class StaffHrAccountController {
 
     @PostMapping("/{id}/lock")
     @Operation(summary = "Khóa tài khoản HR", description = "STAFF khóa tài khoản HR và ghi nhận lý do.")
-    public ResponseEntity<StaffHrAccountResponse> lockHrAccount(
+    public ResponseEntity<ApiResponse<StaffHrAccountResponse>> lockHrAccount(
             @PathVariable("id") UUID id,
             @Valid @RequestBody LockHrAccountRequest request) {
         StaffHrAccountResponse response = companyService.lockHrAccount(id, request.reason());
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Khóa tài khoản HR thành công", response));
     }
 
     @PostMapping("/{id}/unlock")
     @Operation(summary = "Mở khóa tài khoản HR", description = "STAFF mở khóa tài khoản HR.")
-    public ResponseEntity<StaffHrAccountResponse> unlockHrAccount(@PathVariable("id") UUID id) {
+    public ResponseEntity<ApiResponse<StaffHrAccountResponse>> unlockHrAccount(@PathVariable("id") UUID id) {
         StaffHrAccountResponse response = companyService.unlockHrAccount(id);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Mở khóa tài khoản HR thành công", response));
     }
 }
-

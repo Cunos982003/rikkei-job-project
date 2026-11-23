@@ -2,6 +2,7 @@ package com.example.jobservice.company.service;
 
 import com.example.jobservice.auth.client.AuthClient;
 import com.example.jobservice.auth.client.AuthHrAccount;
+import com.example.jobservice.common.PageResult;
 import com.example.jobservice.common.exception.BadRequestException;
 import com.example.jobservice.common.exception.ConflictException;
 import com.example.jobservice.common.exception.ResourceNotFoundException;
@@ -160,7 +161,7 @@ public class CompanyService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<CompanyListItemResponse> getStaffCompanies(
+    public PageResult<CompanyListItemResponse> getStaffCompanies(
             String q,
             String statusStr,
             int page,
@@ -217,7 +218,7 @@ public class CompanyService {
                         0L))
                 .toList();
 
-        PaginationMeta meta = new PaginationMeta(
+        PageResult.PaginationMeta meta = new PageResult.PaginationMeta(
                 companyPage.getNumber(),
                 companyPage.getSize(),
                 companyPage.getTotalElements(),
@@ -227,13 +228,7 @@ public class CompanyService {
                 companyPage.hasNext(),
                 companyPage.hasPrevious());
 
-        return new PageResponse<>(
-                items,
-                meta,
-                companyPage.getTotalElements(),
-                companyPage.getTotalPages(),
-                companyPage.getNumber(),
-                companyPage.getSize());
+        return new PageResult<>(items, meta);
     }
 
     @Transactional(readOnly = true)

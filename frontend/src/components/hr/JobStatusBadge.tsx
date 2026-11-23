@@ -41,6 +41,12 @@ export function JobStatusBadge({ status, className }: JobStatusBadgeProps) {
       text: "text-slate-800",
       border: "border-slate-300",
     },
+    EXPIRED: {
+      label: "Hết hạn",
+      bg: "bg-slate-100",
+      text: "text-slate-600",
+      border: "border-slate-300",
+    },
   };
 
   const config = configs[status] || configs.DRAFT;

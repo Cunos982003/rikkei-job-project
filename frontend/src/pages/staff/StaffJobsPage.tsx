@@ -5,9 +5,10 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../..
 import { Badge } from "../../components/common/Badge";
 import { Button } from "../../components/common/Button";
 import { Modal } from "../../components/common/Modal";
-import { CheckSquare, Check, X, RefreshCw, AlertCircle, Briefcase, MapPin, Calendar } from "lucide-react";
+import { CheckSquare, Check, X, RefreshCw, AlertCircle, Briefcase, MapPin, Calendar, Eye } from "lucide-react";
 import { staffJobsApi } from "../../api/endpoints/staffJobs.api";
 import type { JobResponse } from "../../api/endpoints/hrJobs.api";
+import { JobDetailModal } from "../../components/hr/JobDetailModal";
 
 function formatSalary(min?: number | null, max?: number | null): string {
   if (min == null && max == null) return "Thoả thuận";
@@ -20,6 +21,9 @@ function formatSalary(min?: number | null, max?: number | null): string {
 
 export function StaffJobsPage() {
   const queryClient = useQueryClient();
+
+  // Modal chi tiết
+  const [viewingJob, setViewingJob] = useState<JobResponse | null>(null);
 
   // Modal từ chối
   const [rejectingJob, setRejectingJob] = useState<JobResponse | null>(null);
@@ -48,6 +52,7 @@ export function StaffJobsPage() {
     mutationFn: (jobId: string) => staffJobsApi.approveJob(jobId),
     onSuccess: () => {
       toast.success("Phê duyệt tin tuyển dụng thành công!");
+      setViewingJob(null);
       queryClient.invalidateQueries({ queryKey: ["staff", "jobs"] });
     },
     onError: (err: any) => {
@@ -63,6 +68,7 @@ export function StaffJobsPage() {
     onSuccess: () => {
       toast.success("Đã từ chối tin tuyển dụng.");
       setRejectingJob(null);
+      setViewingJob(null);
       setRejectReason("");
       queryClient.invalidateQueries({ queryKey: ["staff", "jobs"] });
     },
@@ -152,7 +158,12 @@ export function StaffJobsPage() {
                 <CardHeader>
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <CardTitle className="text-base">{job.title}</CardTitle>
+                      <CardTitle
+                        className="text-base cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => setViewingJob(job)}
+                      >
+                        {job.title}
+                      </CardTitle>
                       <CardDescription className="flex items-center gap-2 mt-1">
                         <span>Doanh nghiệp: <strong>{job.companyName || "Chưa cập nhật"}</strong></span>
                         {job.city && (
@@ -213,6 +224,14 @@ export function StaffJobsPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      leftIcon={<Eye className="h-4 w-4" />}
+                      onClick={() => setViewingJob(job)}
+                    >
+                      Xem chi tiết
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="text-danger border-rose-200 hover:bg-rose-50"
                       leftIcon={<X className="h-4 w-4" />}
                       disabled={approveMutation.isPending || rejectMutation.isPending}
@@ -236,6 +255,52 @@ export function StaffJobsPage() {
           })
         )}
       </div>
+
+      {/* Modal xem chi tiết tin JD */}
+      <JobDetailModal
+        job={viewingJob}
+        onClose={() => setViewingJob(null)}
+        footer={
+          viewingJob && (
+            <div className="flex items-center justify-end gap-2 w-full">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setViewingJob(null)}
+                disabled={approveMutation.isPending || rejectMutation.isPending}
+              >
+                Đóng
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-danger border-rose-200 hover:bg-rose-50"
+                leftIcon={<X className="h-4 w-4" />}
+                disabled={approveMutation.isPending || rejectMutation.isPending}
+                onClick={() => {
+                  const jobToReject = viewingJob;
+                  setViewingJob(null);
+                  handleOpenReject(jobToReject);
+                }}
+              >
+                Từ chối (kèm lý do)
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon={<Check className="h-4 w-4" />}
+                disabled={approveMutation.isPending || rejectMutation.isPending}
+                onClick={() => {
+                  handleApprove(viewingJob);
+                  setViewingJob(null);
+                }}
+              >
+                {approveMutation.isPending ? "Đang xử lý..." : "Phê duyệt tin JD"}
+              </Button>
+            </div>
+          )
+        }
+      />
 
       {/* Modal từ chối kèm lý do */}
       <Modal

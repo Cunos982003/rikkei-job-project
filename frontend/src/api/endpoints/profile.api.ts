@@ -1,6 +1,10 @@
+
 import { api } from "../client";
 import type { ApiResponse } from "../types/api";
-import type { MentorEvaluation } from "../types/evaluation";
+import type {
+  MentorEvaluation,
+  Internship,
+} from "../types/evaluation";
 
 export interface SkillEvidenceItem {
   source: string;
@@ -50,7 +54,12 @@ export interface CertificateItem {
   fileType?: string;
 }
 
-export type Visibility = "PRIVATE" | "PENDING" | "PUBLIC" | "REJECTED" | "RECRUITER";
+export type Visibility =
+    | "PRIVATE"
+    | "PENDING"
+    | "PUBLIC"
+    | "REJECTED"
+    | "RECRUITER";
 
 export type ReviewAction = "SUBMIT" | "APPROVE" | "REJECT" | "WITHDRAW";
 
@@ -225,7 +234,9 @@ export const profileApi = {
    * Lấy danh sách kỹ năng của chính mình (Candidate)
    */
   getMySkills(): Promise<ApiResponse<SkillProfileItem[]>> {
-    return api.get<SkillProfileItem[]>("/profiles/me/skills", { silentError: true });
+    return api.get<SkillProfileItem[]>("/profiles/me/skills", {
+      silentError: true,
+    });
   },
 
   /**
@@ -235,12 +246,31 @@ export const profileApi = {
     return api.get<SkillProfileItem[]>(`/profiles/${userId}/skills`);
   },
 
+  // ===== Thực tập IOC (TT-01) =====
+
+  /**
+   * Lấy danh sách thực tập của chính ứng viên đang đăng nhập.
+   */
+  getMyInternships(): Promise<ApiResponse<Internship[]>> {
+    return api.get<Internship[]>("/profiles/me/internships");
+  },
+
+  /**
+   * Lấy danh sách thực tập của ứng viên khác.
+   */
+  getUserInternships(userId: string): Promise<ApiResponse<Internship[]>> {
+    return api.get<Internship[]>(`/profiles/${userId}/internships`);
+  },
+
   /**
    * Lấy danh sách đánh giá của Mentor dành cho ứng viên
    * @param userId ID của ứng viên (hoặc để trống/undefined nếu lấy của chính mình)
    */
   getEvaluations(userId?: string): Promise<ApiResponse<MentorEvaluation[]>> {
-    const url = userId ? `/profiles/${userId}/evaluations` : "/profiles/me/evaluations";
+    const url = userId
+        ? `/profiles/${userId}/evaluations`
+        : "/profiles/me/evaluations";
+
     return api.get<MentorEvaluation[]>(url);
   },
 
@@ -250,13 +280,17 @@ export const profileApi = {
    * Lấy chi tiết hồ sơ cá nhân (tự tạo từ LMS nếu chưa có)
    */
   getMyProfile(): Promise<ApiResponse<CandidateProfile>> {
-    return api.get<CandidateProfile>("/profiles/me", { silentError: true });
+    return api.get<CandidateProfile>("/profiles/me", {
+      silentError: true,
+    });
   },
 
   /**
    * Cập nhật hồ sơ cá nhân. Backend bỏ qua các trường LMS.
    */
-  updateMyProfile(data: Partial<CandidateProfile>): Promise<ApiResponse<CandidateProfile>> {
+  updateMyProfile(
+      data: Partial<CandidateProfile>
+  ): Promise<ApiResponse<CandidateProfile>> {
     return api.put<CandidateProfile>("/profiles/me", data);
   },
 
@@ -297,14 +331,21 @@ export const profileApi = {
   // ===== Học vấn =====
 
   getEducations(): Promise<ApiResponse<EducationItem[]>> {
-    return api.get<EducationItem[]>("/profiles/me/educations", { silentError: true });
+    return api.get<EducationItem[]>("/profiles/me/educations", {
+      silentError: true,
+    });
   },
 
-  createEducation(data: EducationItem): Promise<ApiResponse<EducationItem>> {
+  createEducation(
+      data: EducationItem
+  ): Promise<ApiResponse<EducationItem>> {
     return api.post<EducationItem>("/profiles/me/educations", data);
   },
 
-  updateEducation(id: string, data: EducationItem): Promise<ApiResponse<EducationItem>> {
+  updateEducation(
+      id: string,
+      data: EducationItem
+  ): Promise<ApiResponse<EducationItem>> {
     return api.put<EducationItem>(`/profiles/me/educations/${id}`, data);
   },
 
@@ -315,14 +356,21 @@ export const profileApi = {
   // ===== Chứng chỉ =====
 
   getCertificates(): Promise<ApiResponse<CertificateItem[]>> {
-    return api.get<CertificateItem[]>("/profiles/me/certificates", { silentError: true });
+    return api.get<CertificateItem[]>("/profiles/me/certificates", {
+      silentError: true,
+    });
   },
 
-  createCertificate(data: CertificateItem): Promise<ApiResponse<CertificateItem>> {
+  createCertificate(
+      data: CertificateItem
+  ): Promise<ApiResponse<CertificateItem>> {
     return api.post<CertificateItem>("/profiles/me/certificates", data);
   },
 
-  updateCertificate(id: string, data: CertificateItem): Promise<ApiResponse<CertificateItem>> {
+  updateCertificate(
+      id: string,
+      data: CertificateItem
+  ): Promise<ApiResponse<CertificateItem>> {
     return api.put<CertificateItem>(`/profiles/me/certificates/${id}`, data);
   },
 
@@ -339,6 +387,7 @@ export const profileApi = {
   uploadFile(file: File): Promise<ApiResponse<{ url: string }>> {
     const formData = new FormData();
     formData.append("file", file);
+
     return api.post<{ url: string }>("/files", formData);
   },
 
@@ -347,41 +396,81 @@ export const profileApi = {
   /**
    * Lấy danh sách hồ sơ chờ duyệt cho staff (có filter q, classCode, rejectionCount)
    */
-  getStaffProfileReviews(params: StaffProfileReviewsParams = {}): Promise<ApiResponse<{ content: StaffPendingReview[]; totalElements: number; totalPages: number; number: number; size: number }>> {
+  getStaffProfileReviews(
+      params: StaffProfileReviewsParams = {}
+  ): Promise<
+      ApiResponse<{
+        content: StaffPendingReview[];
+        totalElements: number;
+        totalPages: number;
+        number: number;
+        size: number;
+      }>
+  > {
     const searchParams = new URLSearchParams();
+
     if (params.status) searchParams.set("status", params.status);
     if (params.q) searchParams.set("q", params.q);
     if (params.classCode) searchParams.set("classCode", params.classCode);
-    if (params.page !== undefined) searchParams.set("page", String(params.page));
-    if (params.size !== undefined) searchParams.set("size", String(params.size));
-    return api.get<{ content: StaffPendingReview[]; totalElements: number; totalPages: number; number: number; size: number }>(`/staff/profile-reviews?${searchParams.toString()}`);
+    if (params.page !== undefined) {
+      searchParams.set("page", String(params.page));
+    }
+    if (params.size !== undefined) {
+      searchParams.set("size", String(params.size));
+    }
+
+    return api.get<{
+      content: StaffPendingReview[];
+      totalElements: number;
+      totalPages: number;
+      number: number;
+      size: number;
+    }>(`/staff/profile-reviews?${searchParams.toString()}`);
   },
 
   /**
    * Lấy preview hồ sơ ứng viên cho staff (che email/phone)
    */
-  getStaffPreviewProfile(userId: string): Promise<ApiResponse<StaffPreviewProfile>> {
+  getStaffPreviewProfile(
+      userId: string
+  ): Promise<ApiResponse<StaffPreviewProfile>> {
     return api.get<StaffPreviewProfile>(`/staff/profiles/${userId}/preview`);
   },
 
   /**
    * Sửa phần tự khai (headline, summary, self_skills) bởi staff
    */
-  editStaffSelfDeclared(userId: string, data: StaffEditSelfDeclaredRequest): Promise<ApiResponse<StaffEditSelfDeclaredResponse>> {
-    return api.put<StaffEditSelfDeclaredResponse>(`/staff/profiles/${userId}/self-declared`, data);
+  editStaffSelfDeclared(
+      userId: string,
+      data: StaffEditSelfDeclaredRequest
+  ): Promise<ApiResponse<StaffEditSelfDeclaredResponse>> {
+    return api.put<StaffEditSelfDeclaredResponse>(
+        `/staff/profiles/${userId}/self-declared`,
+        data
+    );
   },
 
   /**
    * Duyệt hồ sơ ứng viên (PENDING → PUBLIC) - Staff only
    */
-  approveProfile(userId: string): Promise<ApiResponse<{ userId: string; visibility: string }>> {
-    return api.post<{ userId: string; visibility: string }>(`/staff/profiles/${userId}/approve`);
+  approveProfile(
+      userId: string
+  ): Promise<ApiResponse<{ userId: string; visibility: string }>> {
+    return api.post<{ userId: string; visibility: string }>(
+        `/staff/profiles/${userId}/approve`
+    );
   },
 
   /**
    * Trả lại hồ sơ ứng viên (PENDING → REJECTED) - Staff only
    */
-  rejectProfile(userId: string, reason: string): Promise<ApiResponse<{ userId: string; visibility: string }>> {
-    return api.post<{ userId: string; visibility: string }>(`/staff/profiles/${userId}/reject`, { reason });
+  rejectProfile(
+      userId: string,
+      reason: string
+  ): Promise<ApiResponse<{ userId: string; visibility: string }>> {
+    return api.post<{ userId: string; visibility: string }>(
+        `/staff/profiles/${userId}/reject`,
+        { reason }
+    );
   },
 };

@@ -1,6 +1,7 @@
 package com.example.profileservice.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
@@ -81,6 +82,8 @@ public class SecurityConfig {
                 })
             )
             .authorizeHttpRequests(auth -> auth
+                .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                .requestMatchers("/error").permitAll()
                 .requestMatchers(
                         "/actuator/health",
                         "/actuator/health/**")
@@ -88,8 +91,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
-                .requestMatchers("/api/v1/profiles/me/**").authenticated()
-                .requestMatchers("/api/v1/admin/**").hasAnyRole("STAFF", "ADMIN")
+                .requestMatchers("/api/v1/candidates/**", "/api/v1/skills/**").permitAll()
+                .requestMatchers("/api/v1/profiles/me", "/api/v1/profiles/me/**").authenticated()
+                .requestMatchers("/api/v1/files/**").authenticated()
+                .requestMatchers("/api/v1/staff/**", "/api/v1/admin/**").hasAnyRole("STAFF", "ADMIN")
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated()
             )

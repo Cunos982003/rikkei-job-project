@@ -1,4 +1,3 @@
-
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore, normalizeRole } from "../store/useAuthStore";
 import { MainLayout } from "../layouts/MainLayout";
@@ -56,6 +55,10 @@ import { AdminSkillsPage } from "../pages/admin/AdminSkillsPage";
 
 // DG-03: Admin Badge Management
 import AdminBadgesPage from "../pages/admin/AdminBadgesPage";
+
+// TT-02: BỔ SUNG IMPORT 2 TRANG MỚI
+import HrInternsPage from "../pages/hr/HrInternsPage";
+import StaffPlacementPage from "../pages/staff/StaffPlacementPage";
 
 function RootRedirect() {
     const { user, isAuthenticated } = useAuthStore();
@@ -142,20 +145,9 @@ export function AppRoutes() {
                             path="/candidate/career"
                             element={<CareerLayout />}
                         >
-                            <Route
-                                index
-                                element={<OverviewPage />}
-                            />
-
-                            <Route
-                                path="recommendations"
-                                element={<RecommendationsPage />}
-                            />
-
-                            <Route
-                                path="skills"
-                                element={<SkillsPage />}
-                            />
+                            <Route index element={<OverviewPage />} />
+                            <Route path="recommendations" element={<RecommendationsPage />} />
+                            <Route path="skills" element={<SkillsPage />} />
                         </Route>
 
                         <Route
@@ -264,6 +256,12 @@ export function AppRoutes() {
                             path="/hr/ioc"
                             element={<HrCompanyPage />}
                         />
+
+                        {/* TT-02: BỔ SUNG ROUTE THỰC TẬP SINH CỦA HR */}
+                        <Route
+                            path="/hr/interns"
+                            element={<HrInternsPage />}
+                        />
                     </Route>
 
                     {/* =========================
@@ -348,6 +346,12 @@ export function AppRoutes() {
                         <Route
                             path="/staff/candidates/:userId"
                             element={<StaffCandidateDetailPage />}
+                        />
+
+                        {/* TT-02: BỔ SUNG ROUTE GHÉP THỰC TẬP CHO STAFF */}
+                        <Route
+                            path="/staff/placements"
+                            element={<StaffPlacementPage />}
                         />
                     </Route>
 
