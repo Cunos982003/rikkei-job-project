@@ -49,6 +49,8 @@ const offerStore = loadData('offers.json') || { applications: [], offers: [] };
 const mockApplications = offerStore.applications || [];
 const mockOffers = offerStore.offers || [];
 const mockEmploymentRecords = loadData('employment_records.json') || [];
+let savedJobsData = loadData('saved_jobs.json') || {};
+const candidateTargets = {};
 
 // Lịch sử duyệt hồ sơ (HS-05), chỉ tồn tại trong bộ nhớ của tiến trình mock
 const profileReviews = [];
@@ -118,6 +120,15 @@ function resolveUserFromRequest(req) {
     } catch (e) {}
   }
   return users.find(u => u.role === 'CANDIDATE') || users[0];
+}
+
+function getCandidateStorageKey(req) {
+  const user = resolveUserFromRequest(req);
+  if (user) {
+    if (user.lmsUserId) return user.lmsUserId;
+    if (user.id) return user.id;
+  }
+  return 'cand-001';
 }
 
 // Helper helper gửi response JSON
@@ -891,18 +902,562 @@ async function requestHandler(req, res) {
     return sendJson(res, 200, skillsData);
   }
 
-  // 5. GET /api/v1/jobs (Danh sách JD có phân trang)
-  if (method === 'GET' && pathname === '/api/v1/jobs') {
+  // 5.1. GET /api/v1/candidate/saved-jobs (Danh sách việc làm đã lưu của ứng viên)
+  const cleanPath = (pathname || '').replace(/\/$/, '');
+  const isSavedJobsRoute = cleanPath === '/api/v1/candidate/saved-jobs' || cleanPath === '/candidate/saved-jobs';
+  const savedJobDeleteMatch = cleanPath.match(/^(?:\/api\/v1)?\/candidate\/saved-jobs\/([^/?]+)$/);
+
+  if (method === 'GET' && isSavedJobsRoute) {
+    const key = getCandidateStorageKey(req);
+    const list = savedJobsData[key] || savedJobsData['std-001'] || savedJobsData['cand-001'] || [];
+    const fullJobs = list
+      .map(item => {
+        let job = jobsData.find(j => j.id === item.jobId);
+        if (!job) {
+          job = {
+            id: item.jobId,
+            title: 'Java Backend Developer (FRESHER) #25',
+            companyName: 'VNG Cloud & Digital Hub',
+            location: 'Cầu Giấy, Hà Nội',
+            salaryMin: 12000000,
+            salaryMax: 18000000,
+            jobType: 'FULL_TIME',
+            requiredSkills: ['Java Core', 'Spring Boot', 'SQL'],
+            description: 'Vị trí lập trình viên backend Java phát triển hệ thống doanh nghiệp.',
+            status: 'PUBLISHED'
+          };
+        }
+        return { ...job, savedAt: item.savedAt };
+      });
+
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách việc làm đã lưu thành công',
+      data: fullJobs
+    });
+  }
+
+  // 5.2. POST /api/v1/candidate/saved-jobs (Lưu việc làm / thả tim)
+  if (method === 'POST' && isSavedJobsRoute) {
+    const body = await parseBody(req);
+    const jobId = body?.jobId;
+    if (!jobId) {
+      return sendError(res, 400, 'Thiếu thông tin jobId');
+    }
+    const key = getCandidateStorageKey(req);
+    if (!savedJobsData[key]) savedJobsData[key] = [];
+    if (!savedJobsData[key].some(item => item.jobId === jobId)) {
+      savedJobsData[key].push({
+        jobId,
+        savedAt: new Date().toISOString()
+      });
+      saveData('saved_jobs.json', savedJobsData);
+    }
+    return sendJson(res, 201, {
+      success: true,
+      statusCode: 201,
+      message: 'Lưu việc làm thành công',
+      data: { jobId, saved: true }
+    });
+  }
+
+  // 5.3. DELETE /api/v1/candidate/saved-jobs/:jobId (Bỏ lưu việc làm)
+  if (method === 'DELETE' && savedJobDeleteMatch) {
+    const jobId = savedJobDeleteMatch[1];
+    const key = getCandidateStorageKey(req);
+    if (savedJobsData[key]) {
+      savedJobsData[key] = savedJobsData[key].filter(item => item.jobId !== jobId);
+      saveData('saved_jobs.json', savedJobsData);
+    }
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Bỏ lưu việc làm thành công',
+      data: { jobId, saved: false }
+    });
+  }
+
+  // 5.4. GET /api/v1/jobs/:id (Chi tiết một tin tuyển dụng)
+  const jobDetailMatch = (pathname || '').match(/^(?:\/api\/v1)?\/jobs\/([^/?]+)$/);
+  if (method === 'GET' && jobDetailMatch && jobDetailMatch[1] !== 'undefined' && jobDetailMatch[1] !== 'me') {
+    const jobId = jobDetailMatch[1];
+    const job = jobsData.find(j => j.id === jobId);
+    if (!job) {
+      return sendJson(res, 404, {
+        success: false,
+        statusCode: 404,
+        message: `Không tìm thấy tin tuyển dụng với ID ${jobId}`
+      });
+    }
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy chi tiết tin tuyển dụng thành công',
+      data: job
+    });
+  }
+
+  // 5.5. GET /api/v1/jobs (Danh sách JD có lọc và phân trang)
+  if (method === 'GET' && (pathname === '/api/v1/jobs' || pathname === '/jobs')) {
+    let filtered = [...jobsData];
+    if (query.keyword) {
+      const q = String(query.keyword).trim().toLowerCase();
+      filtered = filtered.filter(j =>
+        (j.title && j.title.toLowerCase().includes(q)) ||
+        (j.companyName && j.companyName.toLowerCase().includes(q)) ||
+        (Array.isArray(j.requiredSkills) && j.requiredSkills.some(s => s.toLowerCase().includes(q)))
+      );
+    }
+    if (query.location && query.location !== 'ALL') {
+      const loc = String(query.location).trim().toLowerCase();
+      filtered = filtered.filter(j => j.location && j.location.toLowerCase().includes(loc));
+    }
+    if (query.jobType && query.jobType !== 'ALL') {
+      filtered = filtered.filter(j => j.jobType === query.jobType);
+    }
+
     const page = parseInt(query.page) || 1;
     const size = parseInt(query.size) || 20;
     const startIndex = (page - 1) * size;
-    const paginatedItems = jobsData.slice(startIndex, startIndex + size);
+    const paginatedItems = filtered.slice(startIndex, startIndex + size);
 
     return sendJson(res, 200, {
-      items: paginatedItems,
-      total: jobsData.length,
-      page: page,
-      size: size
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách tin tuyển dụng thành công',
+      data: {
+        items: paginatedItems,
+        total: filtered.length,
+        page: page,
+        size: size
+      }
+    });
+  }
+
+  // 5.6. GET /api/v1/learning/me/gap-analysis (Phân tích khoảng thiếu hụt năng lực theo JD)
+  const isGapAnalysisRoute = cleanPath === '/api/v1/learning/me/gap-analysis' || cleanPath === '/learning/me/gap-analysis';
+  if (method === 'GET' && isGapAnalysisRoute) {
+    const candidate = resolveUserFromRequest(req);
+    const candProfile = candidates.find(c => c.email === candidate?.email || c.lmsUserId === candidate?.lmsUserId) || candidates[0];
+
+    const jobId = query.jobId || '';
+    let targetJob = jobsData.find(j => j.id === jobId);
+
+    // 1. Nếu chưa có trong mock data, thử fetch trực tiếp từ job-service nội bộ (:8085)
+    if (!targetJob && jobId) {
+      try {
+        const jobServiceUrl = process.env.JOB_SERVICE_URL || 'http://localhost:8085';
+        const jobRes = await fetch(`${jobServiceUrl}/jobs/${jobId}`, { signal: AbortSignal.timeout(1500) });
+        if (jobRes.ok) {
+          const json = await jobRes.json();
+          if (json?.data) {
+            targetJob = json.data;
+          }
+        }
+      } catch {
+        // Fallback tự động bên dưới nếu job-service không phản hồi
+      }
+    }
+
+    // 2. Nếu vẫn chưa có, tự động tạo hồ sơ kỹ năng trực quan, đa dạng theo từng loại công việc
+    if (!targetJob && jobId) {
+      const cleanId = String(jobId);
+      const numPart = parseInt(cleanId.replace(/\D/g, '').slice(-2), 10) || 0;
+      const typeIndex = numPart % 6;
+
+      if (typeIndex === 1 || cleanId.toLowerCase().includes('react') || cleanId.toLowerCase().includes('frontend')) {
+        targetJob = {
+          id: jobId,
+          title: `Frontend React Developer #${numPart || '02'}`,
+          companyName: 'Rikkei Digital Solutions',
+          description: 'Phát triển giao diện ứng dụng web responsive React & TypeScript.',
+          jobSkills: [
+            { skillId: 'REACT', skillName: 'React', minScore: 75, isMandatory: true },
+            { skillId: 'TYPESCRIPT', skillName: 'TypeScript', minScore: 70, isMandatory: true },
+            { skillId: 'JAVASCRIPT', skillName: 'JavaScript', minScore: 65, isMandatory: true },
+            { skillId: 'TAILWIND_CSS', skillName: 'Tailwind CSS', minScore: 60, isMandatory: false }
+          ]
+        };
+      } else if (typeIndex === 2 || cleanId.toLowerCase().includes('ai') || cleanId.toLowerCase().includes('python')) {
+        targetJob = {
+          id: jobId,
+          title: `Python AI & Machine Learning Engineer #${numPart || '04'}`,
+          companyName: 'Viettel AI Lab',
+          description: 'Nghiên cứu và phát triển giải pháp AI & Học máy.',
+          jobSkills: [
+            { skillId: 'PYTHON', skillName: 'Python', minScore: 80, isMandatory: true },
+            { skillId: 'MACHINE_LEARNING', skillName: 'Machine Learning', minScore: 75, isMandatory: true },
+            { skillId: 'SQL', skillName: 'SQL', minScore: 70, isMandatory: false }
+          ]
+        };
+      } else if (typeIndex === 3 || cleanId.toLowerCase().includes('devops') || cleanId.toLowerCase().includes('cloud')) {
+        targetJob = {
+          id: jobId,
+          title: `DevOps & Cloud Engineer #${numPart || '07'}`,
+          companyName: 'VNG Cloud Infrastructure',
+          description: 'Vận hành hạ tầng đám mây và tối ưu CI/CD pipeline.',
+          jobSkills: [
+            { skillId: 'DOCKER', skillName: 'Docker', minScore: 80, isMandatory: true },
+            { skillId: 'KUBERNETES', skillName: 'Kubernetes', minScore: 75, isMandatory: true },
+            { skillId: 'AWS', skillName: 'AWS Cloud', minScore: 70, isMandatory: false }
+          ]
+        };
+      } else if (typeIndex === 4 || cleanId.toLowerCase().includes('mobile') || cleanId.toLowerCase().includes('flutter')) {
+        targetJob = {
+          id: jobId,
+          title: `Mobile App Developer (Flutter) #${numPart || '05'}`,
+          companyName: 'MoMo Fintech Engineering',
+          description: 'Phát triển ứng dụng di động tài chính đa nền tảng.',
+          jobSkills: [
+            { skillId: 'FLUTTER', skillName: 'Flutter', minScore: 70, isMandatory: true },
+            { skillId: 'REACT_NATIVE', skillName: 'React Native', minScore: 65, isMandatory: true },
+            { skillId: 'TYPESCRIPT', skillName: 'TypeScript', minScore: 60, isMandatory: false }
+          ]
+        };
+      } else if (typeIndex === 5 || cleanId.toLowerCase().includes('senior')) {
+        targetJob = {
+          id: jobId,
+          title: `Senior Java Microservices Engineer #${numPart || '03'}`,
+          companyName: 'Công ty Cổ phần Rikkeisoft',
+          description: 'Thiết kế kiến trúc hệ thống phân tán và Microservices quy mô lớn.',
+          jobSkills: [
+            { skillId: 'JAVA_CORE', skillName: 'Java Core', minScore: 85, isMandatory: true },
+            { skillId: 'SPRING_BOOT', skillName: 'Spring Boot', minScore: 85, isMandatory: true },
+            { skillId: 'MICROSERVICES', skillName: 'Microservices', minScore: 80, isMandatory: true },
+            { skillId: 'KAFKA', skillName: 'Apache Kafka', minScore: 75, isMandatory: false }
+          ]
+        };
+      } else {
+        targetJob = {
+          id: jobId,
+          title: `Java Backend Developer (FRESHER) #${numPart || '01'}`,
+          companyName: 'Công ty Cổ phần Rikkeisoft',
+          description: 'Vị trí lập trình viên backend Java phát triển hệ thống doanh nghiệp.',
+          jobSkills: [
+            { skillId: 'JAVA_CORE', skillName: 'Java Core', minScore: 70, isMandatory: true },
+            { skillId: 'SPRING_BOOT', skillName: 'Spring Boot', minScore: 65, isMandatory: true },
+            { skillId: 'SQL', skillName: 'SQL', minScore: 65, isMandatory: true }
+          ]
+        };
+      }
+    }
+
+    if (!targetJob) {
+      targetJob = jobsData[0];
+    }
+    const candidateSkills = candProfile?.skills || [];
+
+    const rawJobSkills = targetJob.jobSkills || targetJob.skills || [];
+    const jobSkills = rawJobSkills.length > 0
+      ? rawJobSkills.map((js, idx) => ({
+          skillId: js.skillId || js.skillCode || `SKL_${idx + 1}`,
+          skillName: js.skillName || js.skillCode || `Skill ${idx + 1}`,
+          minScore: Number(js.minScore) || 70,
+          isMandatory: js.isMandatory !== undefined ? Boolean(js.isMandatory) : (js.required !== undefined ? Boolean(js.required) : true)
+        }))
+      : (targetJob.requiredSkills || []).map((s, idx) => ({
+          skillId: `SKL_${idx + 1}`,
+          skillName: s,
+          minScore: 70,
+          isMandatory: idx < 3
+        }));
+
+    const gapItems = jobSkills.map(js => {
+      const jsName = String(js.skillName || js.skillId || '').toLowerCase().trim();
+      const matched = candidateSkills.find(cs => {
+        if (cs.verified === false || cs.score === null || cs.score === undefined) return false;
+        const csName = String(cs.name || cs.skillName || '').toLowerCase().trim();
+        if (!csName) return false;
+        if (csName === jsName) return true;
+        if (jsName.includes('react') && csName.includes('react')) return true;
+        if (jsName.includes('java') && !jsName.includes('javascript') && csName.includes('java') && !csName.includes('javascript')) return true;
+        if (jsName.includes('sql') && csName.includes('sql')) return true;
+        if (jsName.includes('spring') && csName.includes('spring')) return true;
+        if (jsName.includes('docker') && csName.includes('docker')) return true;
+        if (jsName.includes('git') && csName.includes('git')) return true;
+        if (jsName.includes('python') && csName.includes('python')) return true;
+        if (jsName.includes('typescript') && csName.includes('typescript')) return true;
+        if (jsName.includes('javascript') && csName.includes('javascript')) return true;
+        return false;
+      });
+      const current = (matched && typeof matched.score === 'number') ? matched.score : 0;
+      const required = js.minScore || 70;
+      const gap = Math.max(0, required - current);
+      let priority = 'LOW';
+      if (js.isMandatory && gap > 15) priority = 'HIGH';
+      else if (gap > 0) priority = 'MEDIUM';
+
+      return {
+        skillId: js.skillId,
+        skill: js.skillName,
+        skillName: js.skillName,
+        required,
+        current,
+        gap,
+        priority,
+        isMandatory: Boolean(js.isMandatory)
+      };
+    });
+
+    const passedCount = gapItems.filter(g => g.gap === 0).length;
+    const totalCount = gapItems.length;
+    const readiness = totalCount > 0 ? Math.round((passedCount / totalCount) * 100) : 100;
+
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Phân tích khoảng thiếu hụt năng lực thành công',
+      data: {
+        target: {
+          type: 'JOB',
+          id: targetJob.id,
+          code: targetJob.id,
+          name: targetJob.title,
+          description: targetJob.description || ''
+        },
+        readiness,
+        totalRequiredSkills: totalCount,
+        passedSkillsCount: passedCount,
+        missingSkillsCount: totalCount - passedCount,
+        computedAt: new Date().toISOString(),
+        items: gapItems
+      }
+    });
+  }
+
+  // 5.7. GET /api/v1/learning/target-positions
+  if (method === 'GET' && (pathname === '/api/v1/learning/target-positions' || pathname === '/learning/target-positions')) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh mục vị trí mục tiêu thành công',
+      data: [
+        {
+          id: "POS_JAVA",
+          code: "JAVA_DEV",
+          name: "Lập trình viên Backend Java",
+          description: "Phát triển hệ thống backend doanh nghiệp với Java Core, Spring Boot, SQL và Microservices.",
+          skills: [
+            { skillId: "JAVA_CORE", skillName: "Java Core", minScore: 75, isMandatory: true },
+            { skillId: "SPRING_BOOT", skillName: "Spring Boot", minScore: 70, isMandatory: true },
+            { skillId: "SQL", skillName: "SQL", minScore: 70, isMandatory: true },
+            { skillId: "REST_API", skillName: "REST API", minScore: 70, isMandatory: true },
+            { skillId: "GIT", skillName: "Git", minScore: 60, isMandatory: false }
+          ]
+        },
+        {
+          id: "POS_REACT",
+          code: "REACT_DEV",
+          name: "Lập trình viên Frontend React",
+          description: "Phát triển giao diện ứng dụng web hiện đại với React, TypeScript, HTML/CSS và Tailwind CSS.",
+          skills: [
+            { skillId: "REACT", skillName: "ReactJS", minScore: 75, isMandatory: true },
+            { skillId: "TYPESCRIPT", skillName: "TypeScript", minScore: 70, isMandatory: true },
+            { skillId: "HTML_CSS", skillName: "HTML/CSS", minScore: 80, isMandatory: true },
+            { skillId: "REST_API", skillName: "REST API", minScore: 70, isMandatory: true },
+            { skillId: "GIT", skillName: "Git", minScore: 60, isMandatory: false }
+          ]
+        }
+      ]
+    });
+  }
+
+  // 5.8. GET & PUT /api/v1/learning/me/target
+  const isLearningTargetRoute = pathname === '/api/v1/learning/me/target' || pathname === '/learning/me/target';
+  if (method === 'GET' && isLearningTargetRoute) {
+    const key = getCandidateStorageKey(req);
+    const target = candidateTargets[key] || {
+      userId: key,
+      targetType: "JOB",
+      jobId: "job-001",
+      targetName: "Java Backend Developer (Fresher / Junior)",
+      chosenAt: new Date().toISOString()
+    };
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy mục tiêu nghề nghiệp thành công',
+      data: target
+    });
+  }
+
+  if (method === 'PUT' && isLearningTargetRoute) {
+    const body = await parseBody(req);
+    const key = getCandidateStorageKey(req);
+    const job = body?.jobId ? jobsData.find(j => j.id === body.jobId) : null;
+    const target = {
+      userId: key,
+      targetType: body?.positionId ? "POSITION" : "JOB",
+      positionId: body?.positionId || null,
+      jobId: body?.jobId || null,
+      targetName: job ? job.title : (body?.positionId ? "Vị trí mục tiêu" : "Mục tiêu việc làm"),
+      chosenAt: new Date().toISOString()
+    };
+    candidateTargets[key] = target;
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Cập nhật mục tiêu thành công',
+      data: target
+    });
+  }
+
+  // 5.9. GET /api/v1/learning/me/course-suggestions (Khóa học gợi ý)
+  if (method === 'GET' && (cleanPath === '/api/v1/learning/me/course-suggestions' || cleanPath === '/learning/me/course-suggestions')) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách khóa học gợi ý thành công',
+      data: [
+        {
+          skillId: 'SPRING_BOOT',
+          skillName: 'Spring Boot',
+          requiredScore: 70,
+          currentScore: 50,
+          gap: 20,
+          priority: 'HIGH',
+          courses: [
+            {
+              lmsCourseId: 'CRS-JAVA-001',
+              courseName: 'Khóa học Spring Boot & Microservices nâng cao',
+              lessonHint: 'Tập trung Module 4: REST API & Spring Data JPA',
+              levelFrom: 50,
+              levelTo: 75,
+              isEnrolled: false
+            }
+          ]
+        },
+        {
+          skillId: 'SQL',
+          skillName: 'SQL',
+          requiredScore: 70,
+          currentScore: 55,
+          gap: 15,
+          priority: 'MEDIUM',
+          courses: [
+            {
+              lmsCourseId: 'CRS-DB-002',
+              courseName: 'Tối ưu hóa câu truy vấn CSDL PostgreSQL thực chiến',
+              lessonHint: 'Tập trung Module 2: Indexing & Query Tuning',
+              levelFrom: 55,
+              levelTo: 80,
+              isEnrolled: false
+            }
+          ]
+        }
+      ]
+    });
+  }
+
+  // 5.10. GET & POST /api/v1/learning/me/enrollments (Ghi danh khóa học)
+  const isEnrollmentsRoute = cleanPath === '/api/v1/learning/me/enrollments' || cleanPath === '/learning/me/enrollments';
+  if (method === 'GET' && isEnrollmentsRoute) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách khóa học đã ghi danh thành công',
+      data: []
+    });
+  }
+
+  if (method === 'POST' && isEnrollmentsRoute) {
+    const body = await parseBody(req);
+    const key = getCandidateStorageKey(req);
+    return sendJson(res, 201, {
+      success: true,
+      statusCode: 201,
+      message: 'Ghi danh khóa học thành công',
+      data: {
+        id: `enr-${Date.now()}`,
+        userId: key,
+        lmsCourseId: body?.lmsCourseId || 'CRS-JAVA-001',
+        courseName: 'Khóa học Spring Boot & Microservices nâng cao',
+        skillId: body?.skillId || 'SPRING_BOOT',
+        status: 'ENROLLED',
+        progress: 0,
+        enrolledAt: new Date().toISOString()
+      }
+    });
+  }
+
+  // 5.11. POST /api/v1/learning/me/enrollments/refresh (Làm mới tiến độ LMS)
+  if (method === 'POST' && (cleanPath === '/api/v1/learning/me/enrollments/refresh' || cleanPath === '/learning/me/enrollments/refresh')) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Làm mới tiến độ khóa học từ LMS thành công',
+      data: {
+        totalUpdated: 0,
+        completedCoursesCount: 0,
+        enrollments: []
+      }
+    });
+  }
+
+  // 5.12. GET & POST /api/v1/learning/me/learning-path (Lộ trình học tập)
+  const isLearningPathRoute = cleanPath === '/api/v1/learning/me/learning-path' || cleanPath === '/learning/me/learning-path';
+  if (method === 'GET' && isLearningPathRoute) {
+    const key = getCandidateStorageKey(req);
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy lộ trình học tập thành công',
+      data: {
+        id: `lp-${key}`,
+        userId: key,
+        targetType: 'JOB',
+        targetId: 'job-001',
+        targetName: 'Java Backend Developer (Fresher / Junior)',
+        readinessAtStart: 60,
+        currentReadiness: 80,
+        readinessGrowth: 20,
+        completionPercentage: 50,
+        totalSteps: 2,
+        completedSteps: 1,
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
+        steps: [
+          {
+            id: 'step-1',
+            stepOrder: 1,
+            skillId: 'SPRING_BOOT',
+            skillName: 'Spring Boot',
+            requiredScore: 70,
+            currentScore: 50,
+            gap: 20,
+            isMandatory: true,
+            lmsCourseId: 'CRS-JAVA-001',
+            courseName: 'Khóa học Spring Boot & Microservices nâng cao',
+            status: 'TODO'
+          }
+        ]
+      }
+    });
+  }
+
+  if (method === 'POST' && isLearningPathRoute) {
+    const key = getCandidateStorageKey(req);
+    return sendJson(res, 201, {
+      success: true,
+      statusCode: 201,
+      message: 'Sinh lộ trình học tập thành công',
+      data: {
+        id: `lp-${key}`,
+        userId: key,
+        targetType: 'JOB',
+        targetId: 'job-001',
+        targetName: 'Java Backend Developer (Fresher / Junior)',
+        readinessAtStart: 60,
+        currentReadiness: 60,
+        readinessGrowth: 0,
+        completionPercentage: 0,
+        totalSteps: 1,
+        completedSteps: 0,
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
+        steps: []
+      }
     });
   }
 

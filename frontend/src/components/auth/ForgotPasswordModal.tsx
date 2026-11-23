@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -36,24 +36,20 @@ export function ForgotPasswordModal({
   const {
     register,
     handleSubmit,
-    setValue,
     reset,
     formState: { errors },
   } = useForm<ForgotPasswordFormValues>({
     resolver: zodResolver(forgotPasswordSchema),
-    defaultValues: {
-      email: defaultEmail,
+    values: {
+      email: defaultEmail || "",
     },
   });
 
-  useEffect(() => {
-    if (isOpen) {
-      setIsSuccess(false);
-      setValue("email", defaultEmail || "");
-    } else {
-      reset();
-    }
-  }, [isOpen, defaultEmail, setValue, reset]);
+  const handleClose = () => {
+    setIsSuccess(false);
+    reset({ email: defaultEmail || "" });
+    onClose();
+  };
 
   const onSubmit = async (data: ForgotPasswordFormValues) => {
     setIsSubmitting(true);
@@ -75,7 +71,7 @@ export function ForgotPasswordModal({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={isSuccess ? "Kiểm tra hộp thư" : "Quên mật khẩu"}
       description={
         isSuccess
@@ -111,7 +107,7 @@ export function ForgotPasswordModal({
               type="button"
               variant="primary"
               className="w-full justify-center text-xs py-2.5"
-              onClick={onClose}
+              onClick={handleClose}
             >
               Đã hiểu, quay lại Đăng nhập
             </Button>

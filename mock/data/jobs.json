@@ -1,5 +1,44 @@
 [
   {
+    "id": "d0000000-0000-4000-8000-000000000025",
+    "title": "Java Backend Developer (FRESHER) #25",
+    "companyId": "55555555-5555-4555-8555-555555555555",
+    "companyName": "VNG Cloud & Digital Hub",
+    "location": "Cầu Giấy, Hà Nội",
+    "salaryMin": 12000000,
+    "salaryMax": 18000000,
+    "jobType": "FULL_TIME",
+    "workMode": "ONSITE",
+    "experienceLevel": "FRESHER",
+    "expiresAt": "2026-12-30T23:59:59Z",
+    "requiredSkills": ["Java Core", "Spring Boot", "SQL"],
+    "jobSkills": [
+      {
+        "skillId": "JAVA_CORE",
+        "skillName": "Java Core",
+        "minScore": 75,
+        "isMandatory": true
+      },
+      {
+        "skillId": "SPRING_BOOT",
+        "skillName": "Spring Boot",
+        "minScore": 70,
+        "isMandatory": true
+      },
+      {
+        "skillId": "SQL",
+        "skillName": "SQL",
+        "minScore": 70,
+        "isMandatory": true
+      }
+    ],
+    "description": "Cơ hội gia nhập VNG Cloud & Digital Hub ở vị trí Java Backend Developer (FRESHER) #25. Tham gia phát triển các hệ thống quy mô lớn, môi trường Agile chuyên nghiệp, hỗ trợ đào tạo và thưởng dự án hấp dẫn.",
+    "requirements": "• Thành thạo JAVA_CORE, SPRING_BOOT, SQL. Cấp độ mong muốn: FRESHER.\n• Tư duy giải quyết vấn đề tốt và chủ động trong công việc.",
+    "benefits": "• Lương thưởng cạnh tranh theo năng lực, đóng BHXH đầy đủ, hỗ trợ thiết bị làm việc và đào tạo nâng cao.",
+    "status": "APPROVED",
+    "createdAt": "2026-11-17T08:00:00Z"
+  },
+  {
     "id": "job-001",
     "title": "Java Backend Developer (Fresher / Junior)",
     "companyId": "comp-001",
@@ -8,6 +47,9 @@
     "salaryMin": 12000000,
     "salaryMax": 18000000,
     "jobType": "FULL_TIME",
+    "workMode": "HYBRID",
+    "experienceLevel": "Fresher / Junior",
+    "expiresAt": "2026-12-31T23:59:59Z",
     "requiredSkills": ["Java", "Spring Boot", "SQL", "Git", "REST API"],
     "jobSkills": [
       {
@@ -41,7 +83,9 @@
         "isMandatory": false
       }
     ],
-    "description": "Tham gia phát triển các dự án tài chính, ngân hàng và thương mại điện tử quy mô lớn. Làm việc với Spring Boot, PostgreSQL, Kafka.",
+    "description": "Tham gia phát triển các dự án tài chính, ngân hàng và thương mại điện tử quy mô lớn. Làm việc với kiến trúc Microservices, Spring Boot, PostgreSQL, Apache Kafka và Docker.",
+    "requirements": "• Tốt nghiệp hoặc sắp tốt nghiệp Đại học/Học viện chuyên ngành CNTT, Phần mềm hoặc liên quan.\n• Nắm vững kiến thức nền tảng Java Core, OOP, Collection, Concurrency cơ bản.\n• Đã từng làm việc với Spring Boot, Spring Data JPA, Hibernate và RESTful API.\n• Hiểu biết về cơ sở dữ liệu quan hệ (PostgreSQL, MySQL), có khả năng viết truy vấn SQL tối ưu.\n• Kỹ năng sử dụng Git cơ bản, tinh thần trách nhiệm cao, ham học hỏi và sẵn sàng nghiên cứu công nghệ mới.",
+    "benefits": "• Mức lương cạnh tranh từ 12 - 18 triệu theo năng lực thực tế, xét tăng lương định kỳ 2 lần/năm.\n• Thưởng dự án hấp dẫn, thưởng tháng lương thứ 13, thưởng các ngày lễ Tết.\n• Được Mentor Senior dày dặn kinh nghiệm kèm cặp 1-1 trong suốt thời gian làm việc.\n• Công ty tài trợ 100% học phí và lệ phí thi các chứng chỉ quốc tế (AWS, Oracle Java...).\n• Gói bảo hiểm sức khỏe Rikkei Care cao cấp, khám sức khỏe định kỳ hàng năm.\n• Du lịch nghỉ mát 1-2 lần/năm, teambuilding hàng quý, môi trường trẻ trung, cởi mở.",
     "status": "PUBLISHED",
     "createdAt": "2026-10-15T08:00:00Z"
   },
@@ -54,6 +98,9 @@
     "salaryMin": 10000000,
     "salaryMax": 16000000,
     "jobType": "FULL_TIME",
+    "workMode": "ONSITE",
+    "experienceLevel": "Fresher",
+    "expiresAt": "2026-12-25T23:59:59Z",
     "requiredSkills": ["ReactJS", "TypeScript", "HTML/CSS", "JavaScript", "Tailwind CSS"],
     "jobSkills": [
       {
@@ -87,7 +134,9 @@
         "isMandatory": false
       }
     ],
-    "description": "Phát triển giao diện ứng dụng web responsive, tích hợp REST API, tối ưu hiệu năng trang web cho thị trường Nhật Bản và Việt Nam.",
+    "description": "Phát triển giao diện ứng dụng web responsive, tích hợp REST API, tối ưu hiệu năng trang web cho thị trường Nhật Bản và Việt Nam. Phối hợp chặt chẽ với UI/UX Designer và Backend team.",
+    "requirements": "• Nắm vững kiến thức HTML5, CSS3, JavaScript (ES6+), ReactJS (Hooks, State Management).\n• Có kinh nghiệm làm việc với TypeScript và Tailwind CSS là một lợi thế lớn.\n• Hiểu cách tương tác với REST API thông qua Axios hoặc Fetch.\n• Tư duy thẩm mỹ UI/UX tốt, chú trọng chi tiết pixel-perfect và responsiveness.",
+    "benefits": "• Thu nhập từ 10 - 16 triệu/tháng, đánh giá năng lực xét thưởng rõ ràng.\n• Thưởng tháng lương thứ 13, thưởng hiệu quả công việc.\n• Tham gia vào các dự án chuyển đổi số công nghệ cao tại Đà Nẵng.\n• Văn phòng hiện đại view sông Hàn, trang thiết bị làm việc tân tiến (Macbook/Màn hình kép).",
     "status": "PUBLISHED",
     "createdAt": "2026-10-20T08:00:00Z"
   },
@@ -100,6 +149,9 @@
     "salaryMin": 5000000,
     "salaryMax": 8000000,
     "jobType": "INTERNSHIP",
+    "workMode": "HYBRID",
+    "experienceLevel": "Internship",
+    "expiresAt": "2026-12-15T23:59:59Z",
     "requiredSkills": ["Java", "Spring Boot", "ReactJS", "SQL", "Làm việc nhóm"],
     "jobSkills": [
       {
@@ -133,7 +185,9 @@
         "isMandatory": false
       }
     ],
-    "description": "Tham gia đợt thực tập dự án thực chiến IOC, được Mentor hướng dẫn 1-1, cơ hội trở thành nhân viên chính thức sau khi tốt nghiệp.",
+    "description": "Tham gia đợt thực tập dự án thực chiến IOC, được Mentor hướng dẫn 1-1, cơ hội trở thành nhân viên chính thức sau khi tốt nghiệp. Thực chiến phát triển các module Fullstack Java & React.",
+    "requirements": "• Sinh viên năm cuối hoặc mới tốt nghiệp chuyên ngành CNTT, có thể làm việc tối thiểu 4 ngày/tuần.\n• Nắm cơ bản Java và ReactJS.\n• Thái độ tích cực, chủ động, ham học hỏi và có khả năng làm việc nhóm.",
+    "benefits": "• Phụ cấp thực tập từ 5 - 8 triệu/tháng.\n• Cơ hội đặc cách lên nhân viên chính thức (Fresher) ngay sau kỳ thực tập mà không cần thi tuyển lại.\n• Xác nhận con dấu thực tập và hỗ trợ đồ án tốt nghiệp từ các chuyên gia Rikkei.",
     "status": "PUBLISHED",
     "createdAt": "2026-10-25T08:00:00Z"
   }

@@ -25,7 +25,8 @@ import { Button } from "../../components/common/Button";
 import { Input } from "../../components/common/Input";
 import { Card, CardHeader, CardTitle, CardContent } from "../../components/common/Card";
 import { Modal } from "../../components/common/Modal";
-import { JobSkillPicker, type SelectedSkillItem, toCanonicalSkillCode } from "../../components/hr/JobSkillPicker";
+import { JobSkillPicker, type SelectedSkillItem } from "../../components/hr/JobSkillPicker";
+import { toCanonicalSkillCode } from "../../utils/skillUtils";
 import { JobStatusBadge } from "../../components/hr/JobStatusBadge";
 import { cn } from "../../utils/cn";
 

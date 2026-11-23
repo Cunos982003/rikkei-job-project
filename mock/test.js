@@ -311,6 +311,92 @@ async function runTests() {
     '27. [UT-07] Ứng viên nhận offer -> HIRED, hồ sơ hiện kinh nghiệm mới, HR xác nhận onboard ghi confirmedAt'
   );
 
+  // 28. GET /api/v1/jobs/job-001 (Chi tiết tin tuyển dụng)
+  const res28 = await simulateRequest({
+    method: 'GET',
+    url: '/api/v1/jobs/job-001'
+  });
+  assert(
+    res28.statusCode === 200 && res28.body.success === true && res28.body.data.id === 'job-001',
+    '28. [Candidate] Lấy chi tiết tin tuyển dụng /api/v1/jobs/:id trả về HTTP 200 kèm jobSkills'
+  );
+
+  // 29. GET /api/v1/jobs/non-existent-job (Trả về 404)
+  const res29 = await simulateRequest({
+    method: 'GET',
+    url: '/api/v1/jobs/non-existent-job'
+  });
+  assert(
+    res29.statusCode === 404 && res29.body.success === false,
+    '29. [Candidate] Lấy tin tuyển dụng không tồn tại trả về HTTP 404'
+  );
+
+  // 30. GET /api/v1/candidate/saved-jobs
+  const res30 = await simulateRequest({
+    method: 'GET',
+    url: '/api/v1/candidate/saved-jobs',
+    headers: { 'x-user-id': 'cand-001', 'x-user-role': 'CANDIDATE' }
+  });
+  assert(
+    res30.statusCode === 200 && res30.body.success === true && Array.isArray(res30.body.data),
+    '30. [Candidate] Lấy danh sách việc làm đã lưu trả về HTTP 200 kèm danh sách công việc'
+  );
+
+  // 31. POST /api/v1/candidate/saved-jobs (Lưu việc làm) & DELETE (Bỏ lưu)
+  const res31Save = await simulateRequest({
+    method: 'POST',
+    url: '/api/v1/candidate/saved-jobs',
+    headers: { 'x-user-id': 'cand-001', 'x-user-role': 'CANDIDATE', 'content-type': 'application/json' }
+  }, { jobId: 'job-003' });
+  const res31Delete = await simulateRequest({
+    method: 'DELETE',
+    url: '/api/v1/candidate/saved-jobs/job-003',
+    headers: { 'x-user-id': 'cand-001', 'x-user-role': 'CANDIDATE' }
+  });
+  assert(
+    res31Save.statusCode === 201 && res31Save.body.data.saved === true &&
+    res31Delete.statusCode === 200 && res31Delete.body.data.saved === false,
+    '31. [Candidate] Thêm và xóa việc làm đã lưu (thả tim) hoạt động chính xác'
+  );
+
+  // 32. GET /api/v1/learning/me/gap-analysis?jobId=job-001
+  const res32 = await simulateRequest({
+    method: 'GET',
+    url: '/api/v1/learning/me/gap-analysis?jobId=job-001',
+    headers: { 'x-user-id': 'cand-001', 'x-user-role': 'CANDIDATE' }
+  });
+  assert(
+    res32.statusCode === 200 && res32.body.success === true &&
+    typeof res32.body.data.readiness === 'number' &&
+    Array.isArray(res32.body.data.items),
+    '32. [Candidate] Phân tích khoảng thiếu hụt năng lực theo JD trả về đầy đủ readiness và items'
+  );
+
+  // 33. GET /api/v1/learning/me/gap-analysis với UUID job từ PostgreSQL seed
+  const res33 = await simulateRequest({
+    method: 'GET',
+    url: '/api/v1/learning/me/gap-analysis?jobId=d0000000-0000-4000-8000-000000000025',
+    headers: { 'x-user-id': 'cand-001', 'x-user-role': 'CANDIDATE' }
+  });
+  assert(
+    res33.statusCode === 200 && res33.body.success === true &&
+    res33.body.data.target.id === 'd0000000-0000-4000-8000-000000000025' &&
+    typeof res33.body.data.readiness === 'number',
+    '33. [Candidate] Phân tích năng lực với UUID job từ DB seed trả về kết quả chính xác'
+  );
+
+  // 34. GET /api/v1/learning/me/course-suggestions
+  const res34 = await simulateRequest({
+    method: 'GET',
+    url: '/api/v1/learning/me/course-suggestions',
+    headers: { 'x-user-id': 'cand-001', 'x-user-role': 'CANDIDATE' }
+  });
+  assert(
+    res34.statusCode === 200 && res34.body.success === true &&
+    Array.isArray(res34.body.data),
+    '34. [Candidate] Lấy danh sách khóa học LMS gợi ý hoạt động ổn định'
+  );
+
   console.log('\n====================================================');
   console.log(`📊 KẾT QUẢ KIỂM THỬ: ${passed} PASS, ${failed} FAIL`);
   console.log('====================================================');

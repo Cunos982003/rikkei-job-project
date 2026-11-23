@@ -1,21 +1,14 @@
 import { AlertCircle, BriefcaseBusiness, CircleCheck, Clock3, RefreshCw, Search, Target } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useOutletContext } from 'react-router-dom'
 import { getCareerApiError, type JobRecommendation } from '../../../api/endpoints/career.api'
 import { Badge } from '../../../components/common/Badge'
 import { Button } from '../../../components/common/Button'
 import { Card, CardContent } from '../../../components/common/Card'
 import { formatDate } from '../../../utils/formatters'
-import type { CareerOutletContext } from '../CareerLayout'
-
-export const formatScore = (score: number) => `${Math.round(score)}%`
+import { formatScore, useCareerData } from '../careerUtils'
 
 export function ChartLoading() {
   return <div className="h-[245px] w-full animate-pulse rounded-xl bg-slate-50" aria-label="Đang tải biểu đồ" />
-}
-
-export function useCareerData() {
-  return useOutletContext<CareerOutletContext>()
 }
 
 export function PageIntro({
@@ -156,12 +149,6 @@ export function MetricCard({
       </div>
       <p className="mt-3 text-xs text-slate-400">{caption}</p>
     </Card>
-  )
-}
-
-export function getSkillGaps(recommendations: JobRecommendation[]) {
-  return recommendations.flatMap((recommendation) =>
-    recommendation.skillGaps.map((gap) => ({ ...gap, jobId: recommendation.jobId })),
   )
 }
 

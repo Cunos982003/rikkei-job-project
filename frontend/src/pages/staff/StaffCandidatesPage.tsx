@@ -21,28 +21,15 @@ export function StaffCandidatesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // State
-  const [searchInput, setSearchInput] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [classCode, setClassCode] = useState("");
-  const [status, setStatus] = useState("PENDING");
-  const [currentPage, setCurrentPage] = useState(0);
-  const pageSize = 10;
-
-  // Initialize from URL params once on mount
-  useEffect(() => {
-    const q = searchParams.get("q");
-    const cc = searchParams.get("classCode");
-    const st = searchParams.get("status");
+  const [searchInput, setSearchInput] = useState(() => searchParams.get("q") || "");
+  const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get("q") || "");
+  const [classCode, setClassCode] = useState(() => searchParams.get("classCode") || "");
+  const [status, setStatus] = useState(() => searchParams.get("status") || "PENDING");
+  const [currentPage, setCurrentPage] = useState(() => {
     const pg = searchParams.get("page");
-
-    if (q) {
-      setSearchInput(q);
-      setDebouncedSearch(q);
-    }
-    if (cc) setClassCode(cc);
-    if (st) setStatus(st);
-    if (pg) setCurrentPage(parseInt(pg, 10));
-  }, []);
+    return pg ? parseInt(pg, 10) || 0 : 0;
+  });
+  const pageSize = 10;
 
   // Debounce search input (350ms)
   useEffect(() => {
@@ -96,7 +83,7 @@ export function StaffCandidatesPage() {
     if (params.toString() !== searchParams.toString()) {
       setSearchParams(params, { replace: true });
     }
-  }, [debouncedSearch, classCode, status, currentPage]);
+  }, [debouncedSearch, classCode, status, currentPage, searchParams, setSearchParams]);
 
   const handleClearFilters = () => {
     setSearchInput("");

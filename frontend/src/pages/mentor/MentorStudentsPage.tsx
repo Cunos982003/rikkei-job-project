@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/useAuthStore";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../components/common/Card";
 import { Badge } from "../../components/common/Badge";
@@ -5,6 +6,7 @@ import { Button } from "../../components/common/Button";
 import { Users, ClipboardCheck, ArrowRight } from "lucide-react";
 
 export function MentorStudentsPage() {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
 
   return (
@@ -36,7 +38,13 @@ export function MentorStudentsPage() {
               </div>
             </div>
 
-            <Button variant="primary" size="sm" className="w-full" leftIcon={<ClipboardCheck className="h-4 w-4" />}>
+            <Button
+              variant="primary"
+              size="sm"
+              className="w-full"
+              leftIcon={<ClipboardCheck className="h-4 w-4" />}
+              onClick={() => navigate("/mentor/evaluations")}
+            >
               Điền phiếu đánh giá Mentor
             </Button>
           </CardContent>
@@ -61,7 +69,13 @@ export function MentorStudentsPage() {
               </div>
             </div>
 
-            <Button variant="outline" size="sm" className="w-full" rightIcon={<ArrowRight className="h-4 w-4" />}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              rightIcon={<ArrowRight className="h-4 w-4" />}
+              onClick={() => navigate("/mentor/evaluations")}
+            >
               Xem lại phiếu đã gửi
             </Button>
           </CardContent>
