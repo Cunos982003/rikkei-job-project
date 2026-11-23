@@ -102,7 +102,20 @@ private List<RecommendationSnapshot.VerifiedSkill> fetchVerifiedSkills(UUID user
                     .uri("/jobs?status=APPROVED&size=200")
                     .retrieve()
                     .body(new ParameterizedTypeReference<Map<String, Object>>() {});
-            if (response == null || !(response.get("items") instanceof List<?> rawItems)) {
+            // job-service wraps response as ApiResponse<PageResult>:
+            // { "success": true, "data": { "items": [...], "total": N } }
+            List<?> rawItems = null;
+            if (response != null) {
+                if (response.get("items") instanceof List<?> rootItems) {
+                    // direct list at root (mock or legacy)
+                    rawItems = rootItems;
+                } else if (response.get("data") instanceof Map<?, ?> dataMap
+                        && dataMap.get("items") instanceof List<?> nestedItems) {
+                    // wrapped ApiResponse<PageResult> format
+                    rawItems = nestedItems;
+                }
+            }
+            if (rawItems == null) {
                 return List.of();
             }
             List<RecommendationSnapshot.EligibleJob> jobs = new ArrayList<>();
@@ -111,6 +124,8 @@ private List<RecommendationSnapshot.VerifiedSkill> fetchVerifiedSkills(UUID user
                     continue;
                 }
                 String idStr = stringOrNull(item.get("id"));
+                String title = stringOrNull(item.get("title"));
+                String companyName = stringOrNull(item.get("companyName"));
                 if (idStr == null) {
                     continue;
                 }
@@ -144,7 +159,7 @@ private List<RecommendationSnapshot.VerifiedSkill> fetchVerifiedSkills(UUID user
                                         : RecommendationSnapshot.RequirementType.PREFERRED));
                     }
                 }
-                jobs.add(new RecommendationSnapshot.EligibleJob(jobId, revision, requirements));
+                jobs.add(new RecommendationSnapshot.EligibleJob(jobId, title, companyName, revision, requirements));
             }
             return jobs;
         } catch (Exception ex) {

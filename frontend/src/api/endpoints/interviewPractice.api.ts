@@ -32,8 +32,10 @@ export interface SubmitAnswerPayload {
   answer: string;
 }
 
+const AI_CAREER_BASE = import.meta.env.VITE_AI_CAREER_BASE_URL || "/ai-career";
+
 const interviewAxios = axios.create({
-  baseURL: "/me/interview-practices",
+  baseURL: `${AI_CAREER_BASE}/me/interview-practices`,
   timeout: 45000,
   headers: {
     "Content-Type": "application/json",

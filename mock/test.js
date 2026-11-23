@@ -154,7 +154,8 @@ async function runTests() {
 
   // TEST 12: Hồ sơ kỹ năng cá nhân cho Frontend
   const res12 = await simulateRequest({ method: 'GET', url: '/api/v1/profiles/me/skills' });
-  assert(res12.statusCode === 200 && Array.isArray(res12.body) && res12.body.length >= 8 && res12.body[0].evidences,
+  const skillsList12 = Array.isArray(res12.body) ? res12.body : (res12.body?.data || []);
+  assert(res12.statusCode === 200 && Array.isArray(skillsList12) && skillsList12.length >= 8 && skillsList12[0].evidences,
     '12. Endpoint /api/v1/profiles/me/skills trả về danh sách kỹ năng chuẩn format với evidences');
 
   // TEST 13: Danh sách đánh giá Mentor từ evaluations.json

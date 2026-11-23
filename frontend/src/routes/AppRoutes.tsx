@@ -154,6 +154,11 @@ export function AppRoutes() {
                         />
 
                         <Route
+                            path="/candidate/interview-practices"
+                            element={<Navigate to="/candidate/interview-practice" replace />}
+                        />
+
+                        <Route
                             path="/candidate/career"
                             element={<CareerLayout />}
                         >

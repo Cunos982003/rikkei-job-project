@@ -20,7 +20,7 @@ export function StaffCandidatesPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // State
+  // State from URL params on mount
   const [searchInput, setSearchInput] = useState(() => searchParams.get("q") || "");
   const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get("q") || "");
   const [classCode, setClassCode] = useState(() => searchParams.get("classCode") || "");
@@ -39,6 +39,16 @@ export function StaffCandidatesPage() {
     }, 350);
     return () => clearTimeout(handler);
   }, [searchInput]);
+
+  // Sync state to URL params cleanly
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (debouncedSearch) params.set("q", debouncedSearch);
+    if (classCode) params.set("classCode", classCode);
+    if (status && status !== "PENDING") params.set("status", status);
+    if (currentPage > 0) params.set("page", currentPage.toString());
+    setSearchParams(params, { replace: true });
+  }, [debouncedSearch, classCode, status, currentPage, setSearchParams]);
 
   // Build params for API
   const apiParams: StaffProfileReviewsParams = useMemo(() => ({
@@ -63,28 +73,24 @@ export function StaffCandidatesPage() {
     staleTime: 30 * 1000,
   });
 
-  const candidates: StaffPendingReview[] = response?.content ?? [];
-  const totalElements = response?.totalElements ?? 0;
-  const totalPages = response?.totalPages ?? 0;
+  const candidates: StaffPendingReview[] =
+    (response as any)?.items ??
+    (response as any)?.content ??
+    [];
+  const totalElements =
+    (response as any)?.pagination?.totalElements ??
+    (response as any)?.totalElements ??
+    0;
+  const totalPages =
+    (response as any)?.pagination?.totalPages ??
+    (response as any)?.totalPages ??
+    0;
 
   // Extract unique class codes from candidates for filter dropdown
   const classCodes = useMemo(() => {
-    const codes = (response?.content ?? []).map(c => c.classCode).filter(Boolean) as string[];
+    const codes = candidates.map((c) => c.classCode).filter(Boolean) as string[];
     return [...new Set(codes)].sort();
-  }, [response?.content]);
-
-  // Sync state to URL params when filters change
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (debouncedSearch) params.set("q", debouncedSearch);
-    if (classCode) params.set("classCode", classCode);
-    if (status && status !== "PENDING") params.set("status", status);
-    if (currentPage > 0) params.set("page", currentPage.toString());
-    if (params.toString() !== searchParams.toString()) {
-      setSearchParams(params, { replace: true });
-    }
-  }, [debouncedSearch, classCode, status, currentPage, searchParams, setSearchParams]);
-
+  }, [candidates]);
   const handleClearFilters = () => {
     setSearchInput("");
     setDebouncedSearch("");

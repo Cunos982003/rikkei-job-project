@@ -23,7 +23,7 @@ export function RecommendationsPage() {
     const needle = search.trim().toLocaleLowerCase('vi')
     if (!needle) return recommendations
     return recommendations.filter((item) =>
-      [item.jobId, item.explanation, ...item.skillGaps.map((skill) => skill.skillName)]
+      [item.jobId, item.jobTitle || '', item.companyName || '', item.explanation, ...item.skillGaps.map((skill) => skill.skillName)]
         .join(' ')
         .toLocaleLowerCase('vi')
         .includes(needle),
@@ -49,7 +49,7 @@ export function RecommendationsPage() {
                 <Input
                   aria-label="Tìm trong đề xuất"
                   className="pl-9"
-                  placeholder="Tìm theo mã vị trí, kỹ năng..."
+                  placeholder="Tìm theo tên vị trí, kỹ năng, công ty..."
                   {...register('search')}
                 />
               </label>

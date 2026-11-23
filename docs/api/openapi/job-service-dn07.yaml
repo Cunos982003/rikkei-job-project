@@ -1,0 +1,547 @@
+openapi: 3.0.3
+info:
+  title: Rikkei Jobs - Staff JD Approval & Company Management API (DN-07)
+  description: >
+    API dành cho Cán bộ tuyển dụng (Staff / Admin) thực hiện phê duyệt / từ chối tin tuyển dụng (JD),
+    khoá / mở khoá doanh nghiệp, tra cứu lịch sử thao tác doanh nghiệp và cấu hình tự động đóng JD quá hạn (Task DN-07).
+  version: 1.0.0
+  contact:
+    name: Rikkei Jobs Team
+    email: dev@rikkei.vn
+
+servers:
+  - url: http://localhost:8085
+    description: Local Job Service
+  - url: http://localhost:8080/api/v1
+    description: API Gateway
+
+paths:
+  /staff/jobs:
+    get:
+      tags:
+        - Staff Jobs
+      summary: Danh sách tin tuyển dụng cho Cán bộ (hỗ trợ lọc theo trạng thái và doanh nghiệp)
+      description: >
+        Cán bộ tuyển dụng xem danh sách tin tuyển dụng có phân trang. Có thể lọc theo trạng thái (ví dụ PENDING để chờ duyệt)
+        và/hoặc lọc theo mã doanh nghiệp (companyId).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Lọc theo trạng thái tin tuyển dụng (DRAFT, PENDING, APPROVED, REJECTED, CLOSED)
+          schema:
+            type: string
+        - name: companyId
+          in: query
+          required: false
+          description: UUID định danh doanh nghiệp cần lọc
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          required: false
+          description: Số trang (mặc định 0)
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          description: Số lượng phần tử mỗi trang (mặc định 10, tối đa 100)
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Lấy danh sách tin tuyển dụng thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageJobResponseEnvelope'
+        '400':
+          description: Trạng thái không hợp lệ
+        '401':
+          description: Chưa đăng nhập hoặc token không hợp lệ
+        '403':
+          description: Không có quyền truy cập (yêu cầu vai trò STAFF hoặc ADMIN)
+
+  /staff/jobs/{id}/approve:
+    post:
+      tags:
+        - Staff Jobs
+      summary: Phê duyệt tin tuyển dụng
+      description: >
+        Cán bộ duyệt tin tuyển dụng từ trạng thái PENDING sang APPROVED.
+        Cập nhật reviewedBy bằng ID cán bộ, reviewedAt theo thời gian hiện tại,
+        và ghi nhận 1 bản ghi vào lịch sử thao tác công ty (company_actions: APPROVE_JD).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID định danh tin tuyển dụng cần duyệt
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Phê duyệt tin tuyển dụng thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponseEnvelope'
+        '401':
+          description: Chưa đăng nhập hoặc token không hợp lệ
+        '403':
+          description: Yêu cầu quyền STAFF hoặc ADMIN
+        '404':
+          description: Không tìm thấy tin tuyển dụng
+        '409':
+          description: Tin tuyển dụng không ở trạng thái PENDING (chỉ có thể phê duyệt tin đang chờ duyệt)
+
+  /staff/jobs/{id}/reject:
+    post:
+      tags:
+        - Staff Jobs
+      summary: Từ chối / trả lại tin tuyển dụng kèm lý do
+      description: >
+        Cán bộ từ chối tin tuyển dụng từ trạng thái PENDING sang REJECTED kèm lý do bắt buộc (không được để trống, tối đa 1000 ký tự).
+        Cập nhật reviewedBy, reviewedAt, rejectedReason và ghi nhận lịch sử REJECT_JD vào company_actions.
+        HR sau đó có thể chỉnh sửa và gửi duyệt lại.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID định danh tin tuyển dụng cần từ chối
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  description: Lý do từ chối / trả lại tin tuyển dụng (tối đa 1000 ký tự)
+                  example: "Mô tả công việc và mức lương chưa phù hợp, yêu cầu làm rõ trách nhiệm công việc"
+      responses:
+        '200':
+          description: Từ chối tin tuyển dụng thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponseEnvelope'
+        '400':
+          description: Lý do từ chối để trống hoặc vượt quá 1000 ký tự
+        '401':
+          description: Chưa đăng nhập hoặc token không hợp lệ
+        '403':
+          description: Yêu cầu quyền STAFF hoặc ADMIN
+        '404':
+          description: Không tìm thấy tin tuyển dụng
+        '409':
+          description: Tin tuyển dụng không ở trạng thái PENDING (chỉ có thể từ chối tin đang chờ duyệt)
+
+  /staff/companies/{id}/lock:
+    post:
+      tags:
+        - Staff Companies
+      summary: Khoá doanh nghiệp và toàn bộ tài khoản HR trực thuộc
+      description: >
+        Cán bộ khoá doanh nghiệp với lý do bắt buộc (tối đa 500 ký tự). Trạng thái doanh nghiệp chuyển sang LOCKED.
+        Đồng thời ủy quyền gọi sang auth-service khoá tất cả tài khoản HR đang ACTIVE của công ty đó với tiền tố `[COMPANY_LOCK] <reason>`.
+        Ghi nhận thao tác LOCK vào company_actions.
+        Khi công ty bị khoá, toàn bộ JD APPROVED của công ty sẽ bị ẩn khỏi trang việc làm công khai (GET /jobs) và trả về 404 cho ứng viên.
+        HR của doanh nghiệp này không thể tạo mới, chỉnh sửa JD hoặc cập nhật hồ sơ công ty (trả về 403 Forbidden).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID định danh doanh nghiệp cần khoá
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LockCompanyRequest'
+      responses:
+        '200':
+          description: Khoá doanh nghiệp thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResponseEnvelope'
+        '400':
+          description: Lý do khoá để trống hoặc dài hơn 500 ký tự
+        '401':
+          description: Chưa đăng nhập hoặc token không hợp lệ
+        '403':
+          description: Yêu cầu vai trò STAFF hoặc ADMIN
+        '404':
+          description: Không tìm thấy doanh nghiệp
+        '409':
+          description: Doanh nghiệp đã bị khoá từ trước
+        '502':
+          description: Lỗi giao tiếp khi gọi auth-service để khoá HR (giao dịch tự động rollback toàn bộ)
+
+  /staff/companies/{id}/unlock:
+    post:
+      tags:
+        - Staff Companies
+      summary: Mở khoá doanh nghiệp và mở lại các tài khoản HR bị khoá theo công ty
+      description: >
+        Cán bộ mở khoá doanh nghiệp. Trạng thái công ty chuyển sang ACTIVE.
+        Hệ thống gọi auth-service mở khoá các tài khoản HR có lockedReason bắt đầu bằng `[COMPANY_LOCK]`.
+        Các tài khoản HR bị khoá riêng với lý do khác sẽ KHÔNG bị mở khoá.
+        Ghi nhận thao tác UNLOCK vào company_actions.
+        Các JD APPROVED của doanh nghiệp sẽ tự động xuất hiện lại trên trang việc làm công khai.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID định danh doanh nghiệp cần mở khoá
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Mở khoá doanh nghiệp thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResponseEnvelope'
+        '401':
+          description: Chưa đăng nhập hoặc token không hợp lệ
+        '403':
+          description: Yêu cầu vai trò STAFF hoặc ADMIN
+        '404':
+          description: Không tìm thấy doanh nghiệp
+        '409':
+          description: Doanh nghiệp đang ở trạng thái ACTIVE (không cần mở khoá)
+        '502':
+          description: Lỗi giao tiếp khi gọi auth-service để mở khoá HR (giao dịch rollback toàn bộ)
+
+  /staff/companies/{id}/history:
+    get:
+      tags:
+        - Staff Companies
+      summary: Xem lịch sử thao tác doanh nghiệp
+      description: >
+        Cán bộ tra cứu nhật ký thao tác (LOCK, UNLOCK, APPROVE_JD, REJECT_JD) theo thứ tự thời gian giảm dần (mới nhất trước).
+        Bao gồm staffId thực hiện, lý do (nếu có), targetId và targetTitle (tiêu đề JD nếu thao tác là APPROVE_JD / REJECT_JD).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID định danh doanh nghiệp
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          required: false
+          description: Số trang (mặc định 0)
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          description: Số lượng phần tử mỗi trang (mặc định 10)
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Lấy lịch sử thao tác doanh nghiệp thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyHistoryResponseEnvelope'
+        '401':
+          description: Chưa đăng nhập hoặc token không hợp lệ
+        '403':
+          description: Yêu cầu vai trò STAFF hoặc ADMIN
+        '404':
+          description: Không tìm thấy doanh nghiệp
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    LockCompanyRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          description: Lý do khoá doanh nghiệp
+          example: "Doanh nghiệp có dấu hiệu đăng tin lừa đảo người ứng tuyển"
+
+    JobResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        companyId:
+          type: string
+          format: uuid
+        companyName:
+          type: string
+        title:
+          type: string
+        position:
+          type: string
+        level:
+          type: string
+          enum: [INTERN, FRESHER, JUNIOR, MIDDLE, SENIOR, LEAD, MANAGER]
+        type:
+          type: string
+          enum: [FULLTIME, PARTTIME, INTERNSHIP]
+        quantity:
+          type: integer
+        city:
+          type: string
+        address:
+          type: string
+        workMode:
+          type: string
+          enum: [ONSITE, HYBRID, REMOTE]
+        salaryMin:
+          type: number
+        salaryMax:
+          type: number
+        description:
+          type: string
+        requirements:
+          type: string
+        benefits:
+          type: string
+        deadline:
+          type: string
+          format: date
+        expiresAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [DRAFT, PENDING, APPROVED, REJECTED, CLOSED]
+        rejectedReason:
+          type: string
+          nullable: true
+        reviewedBy:
+          type: string
+          nullable: true
+          description: ID cán bộ thực hiện duyệt hoặc từ chối JD
+          example: "00000000-0000-0000-0000-000000000001"
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Thời điểm cán bộ duyệt hoặc từ chối JD
+          example: "2026-11-23T10:15:30Z"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CompanyActionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        action:
+          type: string
+          enum: [LOCK, UNLOCK, APPROVE_JD, REJECT_JD]
+          example: "APPROVE_JD"
+        targetId:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID của JD (khi APPROVE_JD/REJECT_JD) hoặc null (khi LOCK/UNLOCK)
+        targetTitle:
+          type: string
+          nullable: true
+          description: Tiêu đề JD liên kết (nếu là thao tác duyệt/từ chối JD)
+          example: "Kỹ sư phần mềm Java"
+        reason:
+          type: string
+          nullable: true
+          description: Lý do thao tác (khi từ chối JD hoặc khoá doanh nghiệp)
+          example: "Mô tả công việc chưa rõ ràng"
+        staffId:
+          type: string
+          description: ID cán bộ thực hiện thao tác
+          example: "00000000-0000-0000-0000-000000000001"
+        createdAt:
+          type: string
+          format: date-time
+          description: Thời điểm ghi nhận thao tác
+
+    CompanyResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        taxCode:
+          type: string
+        industry:
+          type: string
+        size:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        website:
+          type: string
+        logoUrl:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, LOCKED]
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        isFirst:
+          type: boolean
+        isLast:
+          type: boolean
+        hasNext:
+          type: boolean
+        hasPrevious:
+          type: boolean
+
+    JobResponseEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        statusCode:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "Phê duyệt tin tuyển dụng thành công"
+        data:
+          $ref: '#/components/schemas/JobResponse'
+        timestamp:
+          type: string
+
+    CompanyResponseEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        statusCode:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "Khoá doanh nghiệp thành công"
+        data:
+          $ref: '#/components/schemas/CompanyResponse'
+        timestamp:
+          type: string
+
+    PageJobResponseEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        statusCode:
+          type: integer
+          example: 200
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/JobResponse'
+            pagination:
+              $ref: '#/components/schemas/PaginationMeta'
+        timestamp:
+          type: string
+
+    CompanyHistoryResponseEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        statusCode:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "Lấy lịch sử thao tác doanh nghiệp thành công"
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/CompanyActionResponse'
+            pagination:
+              $ref: '#/components/schemas/PaginationMeta'
+        timestamp:
+          type: string
+

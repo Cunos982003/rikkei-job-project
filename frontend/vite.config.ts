@@ -70,28 +70,23 @@ export default defineConfig(({ mode }) => {
         // 5. Quản lý Doanh nghiệp & HR -> job-service (:8085)
         '/api/v1/staff/jobs': {
           target: env.VITE_JOB_SERVICE_URL || 'http://localhost:8085',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/v1/, '')
+          changeOrigin: true
         },
         '/api/v1/staff/companies': {
           target: env.VITE_JOB_SERVICE_URL || 'http://localhost:8085',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/v1/, '')
+          changeOrigin: true
         },
         '/api/v1/staff/hr-accounts': {
           target: env.VITE_JOB_SERVICE_URL || 'http://localhost:8085',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/v1/, '')
+          changeOrigin: true
         },
         '/api/v1/companies': {
           target: env.VITE_JOB_SERVICE_URL || 'http://localhost:8085',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/v1/, '')
+          changeOrigin: true
         },
         '^/api/v1/jobs(?!/[^/?]+/(?:recruit|apply))(/|\\?|$)': {
           target: env.VITE_JOB_SERVICE_URL || 'http://localhost:8085',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/v1/, '')
+          changeOrigin: true
         },
         '/api/v1/candidate/saved-jobs': {
           target: env.VITE_MOCK_API_URL || 'http://localhost:9000',

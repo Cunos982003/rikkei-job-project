@@ -28,7 +28,7 @@ public class JobController {
         this.jobService = jobService;
     }
 
-    @PostMapping("/jobs")
+    @PostMapping({ "/api/v1/jobs", "/jobs" })
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('HR')")
     @Operation(summary = "Tạo mới tin tuyển dụng (Bản nháp)", description = "HR tạo bản nháp tin tuyển dụng cho công ty của mình.")
@@ -40,7 +40,7 @@ public class JobController {
                 .body(ApiResponse.created("Tạo mới tin tuyển dụng thành công", response));
     }
 
-    @PutMapping("/jobs/{id}")
+    @PutMapping({ "/api/v1/jobs/{id}", "/jobs/{id}" })
     @PreAuthorize("hasRole('HR')")
     @Operation(summary = "Cập nhật thông tin tin tuyển dụng", description = "HR chỉnh sửa thông tin JD. Nếu JD đang APPROVED sẽ chuyển sang PENDING.")
     public ResponseEntity<ApiResponse<JobResponse>> updateJob(
@@ -51,7 +51,7 @@ public class JobController {
         return ResponseEntity.ok(ApiResponse.success("Cập nhật tin tuyển dụng thành công", response));
     }
 
-    @PutMapping("/jobs/{id}/skills")
+    @PutMapping({ "/api/v1/jobs/{id}/skills", "/jobs/{id}/skills" })
     @PreAuthorize("hasRole('HR')")
     @Operation(summary = "Cập nhật danh sách kỹ năng yêu cầu cho JD", description = "Thay thế toàn bộ kỹ năng của tin tuyển dụng.")
     public ResponseEntity<ApiResponse<JobResponse>> replaceSkills(
@@ -62,7 +62,7 @@ public class JobController {
         return ResponseEntity.ok(ApiResponse.success("Cập nhật danh sách kỹ năng thành công", response));
     }
 
-    @PostMapping("/jobs/{id}/submit")
+    @PostMapping({ "/api/v1/jobs/{id}/submit", "/jobs/{id}/submit" })
     @PreAuthorize("hasRole('HR')")
     @Operation(summary = "Gửi duyệt tin tuyển dụng", description = "Chuyển trạng thái tin từ DRAFT/REJECTED sang PENDING để chờ duyệt.")
     public ResponseEntity<ApiResponse<JobResponse>> submitJob(
@@ -72,7 +72,7 @@ public class JobController {
         return ResponseEntity.ok(ApiResponse.success("Gửi duyệt tin tuyển dụng thành công", response));
     }
 
-    @PostMapping("/jobs/{id}/close")
+    @PostMapping({ "/api/v1/jobs/{id}/close", "/jobs/{id}/close" })
     @PreAuthorize("hasRole('HR')")
     @Operation(summary = "Đóng tin tuyển dụng", description = "Đóng tin tuyển dụng. Không áp dụng cho tin đã đóng.")
     public ResponseEntity<ApiResponse<JobResponse>> closeJob(
@@ -82,7 +82,7 @@ public class JobController {
         return ResponseEntity.ok(ApiResponse.success("Đóng tin tuyển dụng thành công", response));
     }
 
-    @GetMapping("/companies/me/jobs")
+    @GetMapping({ "/api/v1/companies/me/jobs", "/companies/me/jobs" })
     @PreAuthorize("hasRole('HR')")
     @Operation(summary = "Danh sách tin tuyển dụng của công ty tôi", description = "HR xem danh sách các tin tuyển dụng của công ty mình có phân trang và lọc trạng thái.")
     public ResponseEntity<ApiResponse<PageResult<JobListItemResponse>>> listMyJobs(
@@ -94,7 +94,7 @@ public class JobController {
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách tin tuyển dụng thành công", response));
     }
 
-    @GetMapping({ "/jobs/{id}", "/api/v1/jobs/{id}" })
+    @GetMapping({ "/api/v1/jobs/{id}", "/jobs/{id}" })
     @Operation(summary = "Xem chi tiết tin tuyển dụng", description = "HR xem tin công ty mình, STAFF/ADMIN xem mọi tin, ứng viên chỉ xem được tin APPROVED.")
     public ResponseEntity<ApiResponse<JobResponse>> getJob(
             @PathVariable("id") UUID id,
@@ -103,33 +103,37 @@ public class JobController {
         return ResponseEntity.ok(ApiResponse.success("Lấy chi tiết tin tuyển dụng thành công", response));
     }
 
-    @GetMapping("/staff/jobs")
+    @GetMapping({ "/api/v1/staff/jobs", "/staff/jobs" })
     @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     @Operation(summary = "Danh sách tin tuyển dụng cho Cán bộ", description = "Cán bộ xem danh sách tin tuyển dụng chờ duyệt hoặc theo trạng thái.")
     public ResponseEntity<ApiResponse<PageResult<JobResponse>>> listStaffJobs(
             @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "companyId", required = false) UUID companyId,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
-        PageResult<JobResponse> response = jobService.listStaffJobs(status, page, size);
+        PageResult<JobResponse> response = jobService.listStaffJobs(status, companyId, page, size);
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách tin tuyển dụng thành công", response));
     }
 
-    @PostMapping("/staff/jobs/{id}/approve")
+    @PostMapping({ "/api/v1/staff/jobs/{id}/approve", "/staff/jobs/{id}/approve" })
     @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     @Operation(summary = "Phê duyệt tin tuyển dụng", description = "Cán bộ duyệt tin tuyển dụng PENDING sang APPROVED.")
-    public ResponseEntity<ApiResponse<JobResponse>> approveJob(@PathVariable("id") UUID id) {
-        JobResponse response = jobService.approveJob(id);
+    public ResponseEntity<ApiResponse<JobResponse>> approveJob(
+            @PathVariable("id") UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        JobResponse response = jobService.approveJob(id, principal);
         return ResponseEntity.ok(ApiResponse.success("Phê duyệt tin tuyển dụng thành công", response));
     }
 
-    @PostMapping("/staff/jobs/{id}/reject")
+    @PostMapping({ "/api/v1/staff/jobs/{id}/reject", "/staff/jobs/{id}/reject" })
     @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     @Operation(summary = "Từ chối tin tuyển dụng", description = "Cán bộ từ chối tin tuyển dụng kèm lý do.")
     public ResponseEntity<ApiResponse<JobResponse>> rejectJob(
             @PathVariable("id") UUID id,
-            @RequestBody(required = false) Map<String, String> body) {
+            @RequestBody(required = false) Map<String, String> body,
+            @AuthenticationPrincipal UserPrincipal principal) {
         String reason = body != null ? body.get("reason") : null;
-        JobResponse response = jobService.rejectJob(id, reason);
+        JobResponse response = jobService.rejectJob(id, reason, principal);
         return ResponseEntity.ok(ApiResponse.success("Từ chối tin tuyển dụng thành công", response));
     }
 }

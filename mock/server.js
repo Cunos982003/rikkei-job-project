@@ -644,7 +644,8 @@ async function requestHandler(req, res) {
         }
       ]
     }));
-    return sendJson(res, 200, formattedSkills);
+    // Wrap trong ApiResponse để tương thích với HttpRecommendationDataSource.fetchVerifiedSkills()
+    return sendJson(res, 200, { success: true, data: formattedSkills });
   }
 
   // 1.25 GET /api/v1/profiles/:userId/evaluations & /profiles/me/evaluations (Đánh giá Mentor)
@@ -924,7 +925,7 @@ async function requestHandler(req, res) {
             jobType: 'FULL_TIME',
             requiredSkills: ['Java Core', 'Spring Boot', 'SQL'],
             description: 'Vị trí lập trình viên backend Java phát triển hệ thống doanh nghiệp.',
-            status: 'PUBLISHED'
+            status: 'APPROVED'
           };
         }
         return { ...job, savedAt: item.savedAt };
@@ -982,7 +983,12 @@ async function requestHandler(req, res) {
   const jobDetailMatch = (pathname || '').match(/^(?:\/api\/v1)?\/jobs\/([^/?]+)$/);
   if (method === 'GET' && jobDetailMatch && jobDetailMatch[1] !== 'undefined' && jobDetailMatch[1] !== 'me') {
     const jobId = jobDetailMatch[1];
-    const job = jobsData.find(j => j.id === jobId);
+    let job = jobsData.find(j => j.id === jobId);
+    if (!job && jobId.startsWith('job-')) {
+      const idx = jobId.replace('job-', '');
+      const uuid = `d0000000-0000-4000-8000-${idx.padStart(12, '0')}`;
+      job = jobsData.find(j => j.id === uuid);
+    }
     if (!job) {
       return sendJson(res, 404, {
         success: false,
@@ -998,9 +1004,13 @@ async function requestHandler(req, res) {
     });
   }
 
-  // 5.5. GET /api/v1/jobs (Danh sách JD có lọc và phân trang)
+  // 5.5. GET /api/v1/jobs (Danh sách JD có lọc và phân trang - Frontend & ai-career-service)
   if (method === 'GET' && (pathname === '/api/v1/jobs' || pathname === '/jobs')) {
     let filtered = [...jobsData];
+    const statusFilter = (query.status || '').toUpperCase();
+    if (statusFilter) {
+      filtered = filtered.filter(j => (j.status || '').toUpperCase() === statusFilter);
+    }
     if (query.keyword) {
       const q = String(query.keyword).trim().toLowerCase();
       filtered = filtered.filter(j =>
@@ -1017,9 +1027,9 @@ async function requestHandler(req, res) {
       filtered = filtered.filter(j => j.jobType === query.jobType);
     }
 
-    const page = parseInt(query.page) || 1;
+    const page = parseInt(query.page) || 0;
     const size = parseInt(query.size) || 20;
-    const startIndex = (page - 1) * size;
+    const startIndex = page > 0 ? (page - 1) * size : 0;
     const paginatedItems = filtered.slice(startIndex, startIndex + size);
 
     return sendJson(res, 200, {
