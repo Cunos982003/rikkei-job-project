@@ -83,6 +83,16 @@ export interface StaffLogoUploadResponse {
   message: string;
 }
 
+export interface CompanyActionItem {
+  id: string;
+  action: "LOCK" | "UNLOCK" | "APPROVE_JD" | "REJECT_JD";
+  targetId?: string | null;
+  targetTitle?: string | null;
+  reason?: string | null;
+  staffId?: string | null;
+  createdAt: string;
+}
+
 export const staffCompaniesApi = {
   list(params?: StaffCompanyListParams): Promise<ApiResponse<PaginatedData<StaffCompanyListItem>>> {
     return api.get<PaginatedData<StaffCompanyListItem>>("/staff/companies", { params });
@@ -118,6 +128,18 @@ export const staffCompaniesApi = {
 
   unlockHrAccount(id: string): Promise<ApiResponse<StaffHrAccount>> {
     return api.post<StaffHrAccount>(`/staff/hr-accounts/${id}/unlock`);
+  },
+
+  lockCompany(id: string, reason: string): Promise<ApiResponse<StaffCompanyDetail>> {
+    return api.post<StaffCompanyDetail>(`/staff/companies/${id}/lock`, { reason });
+  },
+
+  unlockCompany(id: string): Promise<ApiResponse<StaffCompanyDetail>> {
+    return api.post<StaffCompanyDetail>(`/staff/companies/${id}/unlock`);
+  },
+
+  getHistory(id: string, params?: { page?: number; size?: number }): Promise<ApiResponse<PaginatedData<CompanyActionItem>>> {
+    return api.get<PaginatedData<CompanyActionItem>>(`/staff/companies/${id}/history`, { params });
   },
 };
 

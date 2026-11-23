@@ -42,6 +42,7 @@ public record JobResponse(
         OffsetDateTime updatedAt,
         String experienceLevel,
         String jobType,
-        String location
+        String location,
+        String reviewedBy,
+        OffsetDateTime reviewedAt
 ) {}
-

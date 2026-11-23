@@ -61,6 +61,20 @@ CREATE TABLE IF NOT EXISTS jobs (
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_company_status ON jobs(company_id, status);
 
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS reviewed_by VARCHAR(100);
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP WITH TIME ZONE;
+
+CREATE TABLE IF NOT EXISTS company_actions (
+    id UUID PRIMARY KEY,
+    company_id UUID NOT NULL,
+    action VARCHAR(20) NOT NULL,
+    target_id UUID,
+    reason VARCHAR(1000),
+    staff_id VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_company_actions_company ON company_actions(company_id, created_at);
+
 CREATE TABLE IF NOT EXISTS job_skills (
     job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
     skill_id VARCHAR(64) NOT NULL,

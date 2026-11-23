@@ -4,6 +4,7 @@ import type { JobResponse } from "./hrJobs.api";
 
 export interface ListStaffJobsParams {
   status?: string;
+  companyId?: string;
   page?: number;
   size?: number;
 }

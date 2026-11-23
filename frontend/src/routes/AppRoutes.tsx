@@ -60,6 +60,17 @@ import AdminBadgesPage from "../pages/admin/AdminBadgesPage";
 import HrInternsPage from "../pages/hr/HrInternsPage";
 import StaffPlacementPage from "../pages/staff/StaffPlacementPage";
 
+function StaffPlaceholderPage({ title }: { title: string }) {
+    return (
+        <div className="mx-auto max-w-7xl space-y-6 p-4">
+            <div className="border-b border-border pb-4">
+                <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+                <p className="mt-1 text-sm text-muted">Tính năng đang trong quá trình phát triển.</p>
+            </div>
+        </div>
+    );
+}
+
 function RootRedirect() {
     const { user, isAuthenticated } = useAuthStore();
 
@@ -314,11 +325,6 @@ export function AppRoutes() {
                         />
 
                         <Route
-                            path="/staff/companies"
-                            element={<StaffJobsPage />}
-                        />
-
-                        <Route
                             path="/staff/recruitments"
                             element={<StaffRecruitmentsPage />}
                         />
@@ -330,12 +336,12 @@ export function AppRoutes() {
 
                         <Route
                             path="/staff/ioc"
-                            element={<StaffJobsPage />}
+                            element={<StaffPlaceholderPage title="Ghép đợt IOC" />}
                         />
 
                         <Route
                             path="/staff/unlock-contacts"
-                            element={<StaffJobsPage />}
+                            element={<StaffPlaceholderPage title="Mở khóa liên hệ PII" />}
                         />
 
                         <Route

@@ -109,3 +109,47 @@ $env:CANDIDATE_SKILLS_STUB="true"
 - `GET /jobs/{id}/match/me`: Ứng viên (`ROLE_CANDIDATE`) xem điểm khớp của chính mình với JD `APPROVED`.
 - `GET /jobs/{id}/match/{userId}`: `ROLE_HR`, `ROLE_STAFF`, `ROLE_ADMIN` xem điểm khớp của ứng viên với JD (HR chỉ xem được JD công ty mình).
 
+## Cán Bộ Duyệt JD & Quản Lý Doanh Nghiệp (DN-07)
+
+### 1. Tính năng & Kiến trúc
+- **Phê duyệt / Từ chối JD**:
+  - `POST /staff/jobs/{id}/approve`: Duyệt JD từ `PENDING` sang `APPROVED`. Cập nhật `reviewedBy`, `reviewedAt` theo Clock bean, và ghi nhận 1 bản ghi `APPROVE_JD` vào bảng `company_actions`. Chỉ duyệt khi JD đang `PENDING` (trạng thái khác trả `409 Conflict`).
+  - `POST /staff/jobs/{id}/reject`: Trả lại JD từ `PENDING` sang `REJECTED` với lý do bắt buộc (tối đa 1000 ký tự). Cập nhật `rejectedReason`, `reviewedBy`, `reviewedAt`, và ghi nhận `REJECT_JD` vào `company_actions`. HR có thể sửa và gửi duyệt lại (`REJECTED` -> `PENDING`).
+  - `GET /staff/jobs?status=PENDING&companyId=...`: Cán bộ xem danh sách JD có hỗ trợ lọc theo trạng thái và/hoặc doanh nghiệp.
+
+- **Khoá / Mở khoá Doanh nghiệp**:
+  - `POST /staff/companies/{id}/lock`: Cán bộ khoá doanh nghiệp kèm lý do (tối đa 500 ký tự). Trạng thái chuyển sang `LOCKED`. Hệ thống gọi `authClient.listHrAccounts(companyId)` và gọi `authClient.lockHrAccount` đối với mọi tài khoản HR đang `ACTIVE` với tiền tố `[COMPANY_LOCK] <reason>`. Toàn bộ thao tác thực hiện trong một `@Transactional`, nếu gọi `auth-service` lỗi sẽ ném `BadGatewayException` và rollback toàn bộ. Ghi nhận `LOCK` vào `company_actions`. Doanh nghiệp đã `LOCKED` trả về `409 Conflict`.
+  - `POST /staff/companies/{id}/unlock`: Mở khoá doanh nghiệp sang `ACTIVE`. Hệ thống chỉ mở khoá các tài khoản HR đang `LOCKED` có `lockedReason` bắt đầu bằng `[COMPANY_LOCK]`. Tài khoản HR bị khoá riêng vì lý do khác giữ nguyên trạng thái khoá. Ghi nhận `UNLOCK` vào `company_actions`. Doanh nghiệp đang `ACTIVE` trả về `409 Conflict`.
+  - `GET /staff/companies/{id}/history?page=0&size=10`: Xem nhật ký thao tác doanh nghiệp (`LOCK`, `UNLOCK`, `APPROVE_JD`, `REJECT_JD`) sắp xếp theo thời gian mới nhất trước (`createdAt DESC`), kèm thông tin cán bộ thực hiện (`staffId`) và tiêu đề JD (`targetTitle`) nếu là duyệt/từ chối JD.
+
+- **Chặn HR của doanh nghiệp bị khoá & Ẩn JD**:
+  - HR thuộc doanh nghiệp có trạng thái `LOCKED` sẽ bị chặn (ném `ForbiddenException` 403: "Doanh nghiệp đang bị khoá, bạn không thể thực hiện thao tác này") khi gọi các thao tác ghi: `createJob`, `updateJob`, `replaceSkills`, `submitJob`, `closeJob`, cập nhật hồ sơ công ty và upload logo. Các thao tác đọc (`GET`) của HR vẫn được phép.
+  - Toàn bộ tin tuyển dụng (`APPROVED`) của công ty bị `LOCKED` sẽ tự động bị ẩn khỏi trang việc làm công khai (`GET /jobs`, `JobQueryController` bổ sung điều kiện `AND COALESCE(c.status, 'ACTIVE') <> 'LOCKED'`). Ứng viên tra cứu chi tiết (`GET /jobs/{id}`) sẽ nhận về `404 Not Found`. Cán bộ (STAFF/ADMIN) vẫn có thể xem chi tiết JD này qua `/staff/jobs`.
+
+- **Tự động đóng JD quá hạn (`JobExpiryScheduler`)**:
+  - Tự động chạy hàng ngày theo lịch trình: `@Scheduled(cron = "${job.expiry.cron:0 5 0 * * *}", zone = "Asia/Ho_Chi_Minh")`.
+  - `closeExpiredJobs()`: Chuyển tất cả tin tuyển dụng có `status = APPROVED` và `deadline < ngày hiện tại` (theo Clock bean múi giờ `Asia/Ho_Chi_Minh`) sang `CLOSED`, cập nhật `updatedAt`. Các tin `DRAFT`, `PENDING`, `REJECTED` quá hạn không bị ảnh hưởng.
+  - Tự động đánh dấu `stale = true` cho các bản ghi `match_scores` liên quan đến JD vừa đóng.
+  - Cấu hình bật/tắt qua property `job.expiry.enabled` (mặc định `true`, tắt trong profile `test`).
+
+### 2. Biến cấu hình (DN-07):
+| Biến môi trường / Property | Giá trị mặc định | Mô tả |
+|-----------------------------|------------------|-------|
+| `job.expiry.cron`           | `0 5 0 * * *`    | Biểu thức Cron chạy tác vụ quét và đóng JD quá hạn (múi giờ Asia/Ho_Chi_Minh) |
+| `job.expiry.enabled`        | `true`           | Bật/tắt tác vụ tự động đóng JD quá hạn (tự động tắt trong profile `test`) |
+
+### 3. Cách chạy & Dữ liệu mẫu thử nghiệm:
+- **Khởi động**:
+  ```powershell
+  ./gradlew bootRun --args="--spring.profiles.active=local"
+  ```
+- **Dữ liệu mẫu từ `MockDataInitializer`**:
+  - Doanh nghiệp 1: Mã số thuế `0101234567` (Công ty Cổ phần Rikkeisoft, trạng thái `ACTIVE`).
+  - Doanh nghiệp 2: Mã số thuế `0107654321` (Rikkei Digital Solutions, trạng thái `ACTIVE`).
+  - Tài khoản HR mẫu trong `StubAuthClient`:
+    - `hr1@rikkeijobs.test` (gắn với Doanh nghiệp 1)
+    - `hr2@rikkeijobs.test` (gắn với Doanh nghiệp 2)
+  - Tài khoản Cán bộ mẫu: role `ROLE_STAFF`, email `staff1@rikkeijobs.test`.
+  - JD mẫu chờ duyệt: `MockDataInitializer` nạp sẵn JD có trạng thái `PENDING` theo danh sách sequential statuses (`DRAFT`, `PENDING`, `APPROVED`), sẵn sàng để cán bộ duyệt hoặc từ chối qua `/staff/jobs/{id}/approve` và `/staff/jobs/{id}/reject`.
+
+
