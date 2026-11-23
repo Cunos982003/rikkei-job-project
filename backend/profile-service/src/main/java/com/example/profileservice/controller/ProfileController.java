@@ -1,23 +1,21 @@
-package com.example.profileservice.profile.api;
+package com.example.profileservice.controller;
 
 import com.example.profileservice.common.ApiResponse;
-import com.example.profileservice.profile.api.dto.PublishRequest;
-import com.example.profileservice.profile.api.dto.ReviewHistoryItemDto;
-import com.example.profileservice.profile.api.dto.SelfSkillDto;
-import com.example.profileservice.profile.api.dto.UpdateProfileRequest;
-import com.example.profileservice.profile.domain.CandidateProfile;
-import com.example.profileservice.profile.infrastructure.LmsClient;
-import com.example.profileservice.profile.service.InvalidTransitionException;
-import com.example.profileservice.profile.service.ProfileCommandService;
-import com.example.profileservice.profile.service.SkillProfileService;
-import com.example.profileservice.profile.service.VisibilityService;
+import com.example.profileservice.dto.PublishRequest;
+import com.example.profileservice.dto.ReviewHistoryItemDto;
+import com.example.profileservice.dto.SelfSkillDto;
+import com.example.profileservice.dto.UpdateProfileRequest;
+import com.example.profileservice.entity.CandidateProfile;
+import com.example.profileservice.service.ProfileCommandService;
+import com.example.profileservice.service.SkillProfileService;
+import com.example.profileservice.service.VisibilityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -33,7 +31,7 @@ public class ProfileController {
         if (headerUserId != null) {
             return headerUserId;
         }
-        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        var auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getName() != null) {
             try {
                 return UUID.fromString(auth.getName());
@@ -48,10 +46,10 @@ public class ProfileController {
         UUID effectiveUserId = resolveUserId(userId);
         if (effectiveUserId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
         }
         CandidateProfile profile = profileCommandService.getOrCreateProfile(effectiveUserId);
-        return ResponseEntity.ok(ApiResponse.success("Profile retrieved successfully", profile));
+        return ResponseEntity.ok(ApiResponse.success("Lấy hồ sơ thành công", profile));
     }
 
     @PutMapping("/me")
@@ -61,10 +59,10 @@ public class ProfileController {
         UUID effectiveUserId = resolveUserId(userId);
         if (effectiveUserId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
         }
         CandidateProfile updated = profileCommandService.updateProfile(effectiveUserId, update);
-        return ResponseEntity.ok(ApiResponse.success("Profile updated successfully", updated));
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật hồ sơ thành công", updated));
     }
 
     @PutMapping("/me/self-skills")
@@ -74,10 +72,10 @@ public class ProfileController {
         UUID effectiveUserId = resolveUserId(userId);
         if (effectiveUserId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
         }
         skillProfileService.upsertSelfSkills(effectiveUserId, skills);
-        return ResponseEntity.ok(ApiResponse.success("Self skills updated successfully", null));
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật kỹ năng tự khai thành công", null));
     }
 
     @PostMapping("/me/publish")
@@ -87,12 +85,12 @@ public class ProfileController {
         UUID effectiveUserId = resolveUserId(userId);
         if (effectiveUserId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
         }
         boolean consent = request != null && Boolean.TRUE.equals(request.getConsent());
         visibilityService.submitForReview(effectiveUserId, consent);
         CandidateProfile profile = profileCommandService.getOrCreateProfile(effectiveUserId);
-        return ResponseEntity.ok(ApiResponse.success("Profile submitted for review", profile));
+        return ResponseEntity.ok(ApiResponse.success("Gửi hồ sơ duyệt thành công", profile));
     }
 
     @PostMapping("/me/withdraw")
@@ -101,11 +99,11 @@ public class ProfileController {
         UUID effectiveUserId = resolveUserId(userId);
         if (effectiveUserId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
         }
         visibilityService.withdraw(effectiveUserId);
         CandidateProfile profile = profileCommandService.getOrCreateProfile(effectiveUserId);
-        return ResponseEntity.ok(ApiResponse.success("Profile withdrawn successfully", profile));
+        return ResponseEntity.ok(ApiResponse.success("Rút hồ sơ thành công", profile));
     }
 
     @GetMapping("/me/review-history")
@@ -114,33 +112,11 @@ public class ProfileController {
         UUID effectiveUserId = resolveUserId(userId);
         if (effectiveUserId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
         }
         List<ReviewHistoryItemDto> history = visibilityService.getReviewHistory(effectiveUserId).stream()
                 .map(ReviewHistoryItemDto::from)
                 .toList();
-        return ResponseEntity.ok(ApiResponse.success("Review history retrieved successfully", history));
-    }
-
-    @ExceptionHandler(InvalidTransitionException.class)
-    public ResponseEntity<ApiResponse<Void>> handleInvalidTransition(InvalidTransitionException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error(HttpStatus.CONFLICT, ex.getMessage()));
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBadRequest(IllegalArgumentException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, ex.getMessage()));
-    }
-
-    @ExceptionHandler(LmsClient.LmsClientException.class)
-    public ResponseEntity<ApiResponse<Void>> handleLmsClientException(LmsClient.LmsClientException ex) {
-        HttpStatus status = ex.getStatusCode() != null ? ex.getStatusCode() : HttpStatus.SERVICE_UNAVAILABLE;
-        // For 404 (student not in LMS), return 404 to indicate resource not found
-        // For other errors (5xx, other 4xx), return 503 Service Unavailable
-        HttpStatus responseStatus = (status == HttpStatus.NOT_FOUND) ? HttpStatus.NOT_FOUND : HttpStatus.SERVICE_UNAVAILABLE;
-        return ResponseEntity.status(responseStatus)
-                .body(ApiResponse.error(responseStatus, ex.getMessage()));
+        return ResponseEntity.ok(ApiResponse.success("Lấy lịch sử duyệt thành công", history));
     }
 }

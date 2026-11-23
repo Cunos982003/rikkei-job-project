@@ -491,9 +491,8 @@ export function HrInterviewSchedulePage() {
                 type="button"
                 onClick={() => {
                   setStatusFilter(tab.value);
-                  setAppPage(0);
                 }}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
                   active
                     ? "bg-primary text-white border-primary shadow-xs"
                     : "bg-surface text-foreground border-border hover:bg-slate-50"

@@ -28,15 +28,30 @@ export function StaffCandidatesPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 10;
 
+  // Initialize from URL params once on mount
+  useEffect(() => {
+    const q = searchParams.get("q");
+    const cc = searchParams.get("classCode");
+    const st = searchParams.get("status");
+    const pg = searchParams.get("page");
+
+    if (q) {
+      setSearchInput(q);
+      setDebouncedSearch(q);
+    }
+    if (cc) setClassCode(cc);
+    if (st) setStatus(st);
+    if (pg) setCurrentPage(parseInt(pg, 10));
+  }, []);
+
   // Debounce search input (350ms)
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchInput.trim());
       setCurrentPage(0);
-      updateUrlParams();
     }, 350);
     return () => clearTimeout(handler);
-  }, [searchInput, classCode, status]);
+  }, [searchInput]);
 
   // Build params for API
   const apiParams: StaffProfileReviewsParams = useMemo(() => ({
@@ -71,31 +86,17 @@ export function StaffCandidatesPage() {
     return [...new Set(codes)].sort();
   }, [response?.content]);
 
-  // Update URL params for shareable links
-  const updateUrlParams = () => {
+  // Sync state to URL params when filters change
+  useEffect(() => {
     const params = new URLSearchParams();
     if (debouncedSearch) params.set("q", debouncedSearch);
     if (classCode) params.set("classCode", classCode);
     if (status && status !== "PENDING") params.set("status", status);
     if (currentPage > 0) params.set("page", currentPage.toString());
-    setSearchParams(params, { replace: true });
-  };
-
-  // Initialize from URL params on mount
-  useEffect(() => {
-    const q = searchParams.get("q");
-    const cc = searchParams.get("classCode");
-    const st = searchParams.get("status");
-    const pg = searchParams.get("page");
-
-    if (q) {
-      setSearchInput(q);
-      setDebouncedSearch(q);
+    if (params.toString() !== searchParams.toString()) {
+      setSearchParams(params, { replace: true });
     }
-    if (cc) setClassCode(cc);
-    if (st) setStatus(st);
-    if (pg) setCurrentPage(parseInt(pg, 10));
-  }, [searchParams]);
+  }, [debouncedSearch, classCode, status, currentPage]);
 
   const handleClearFilters = () => {
     setSearchInput("");
