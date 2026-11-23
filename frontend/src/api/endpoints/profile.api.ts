@@ -347,14 +347,27 @@ export const profileApi = {
   /**
    * Lấy danh sách hồ sơ chờ duyệt cho staff (có filter q, classCode, rejectionCount)
    */
-  getStaffProfileReviews(params: StaffProfileReviewsParams = {}): Promise<ApiResponse<{ content: StaffPendingReview[]; totalElements: number; totalPages: number; number: number; size: number }>> {
+  getStaffProfileReviews(params: StaffProfileReviewsParams = {}): Promise<ApiResponse<{
+    items?: StaffPendingReview[];
+    content?: StaffPendingReview[];
+    totalElements?: number;
+    totalPages?: number;
+    pagination?: {
+      page: number;
+      size: number;
+      totalElements: number;
+      totalPages: number;
+    };
+    number?: number;
+    size?: number;
+  }>> {
     const searchParams = new URLSearchParams();
     if (params.status) searchParams.set("status", params.status);
     if (params.q) searchParams.set("q", params.q);
     if (params.classCode) searchParams.set("classCode", params.classCode);
     if (params.page !== undefined) searchParams.set("page", String(params.page));
     if (params.size !== undefined) searchParams.set("size", String(params.size));
-    return api.get<{ content: StaffPendingReview[]; totalElements: number; totalPages: number; number: number; size: number }>(`/staff/profile-reviews?${searchParams.toString()}`);
+    return api.get(`/staff/profile-reviews?${searchParams.toString()}`);
   },
 
   /**

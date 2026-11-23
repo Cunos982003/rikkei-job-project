@@ -108,17 +108,20 @@ public class JobController {
     @Operation(summary = "Danh sách tin tuyển dụng cho Cán bộ", description = "Cán bộ xem danh sách tin tuyển dụng chờ duyệt hoặc theo trạng thái.")
     public ResponseEntity<ApiResponse<PageResult<JobResponse>>> listStaffJobs(
             @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "companyId", required = false) UUID companyId,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
-        PageResult<JobResponse> response = jobService.listStaffJobs(status, page, size);
+        PageResult<JobResponse> response = jobService.listStaffJobs(status, companyId, page, size);
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách tin tuyển dụng thành công", response));
     }
 
     @PostMapping("/staff/jobs/{id}/approve")
     @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     @Operation(summary = "Phê duyệt tin tuyển dụng", description = "Cán bộ duyệt tin tuyển dụng PENDING sang APPROVED.")
-    public ResponseEntity<ApiResponse<JobResponse>> approveJob(@PathVariable("id") UUID id) {
-        JobResponse response = jobService.approveJob(id);
+    public ResponseEntity<ApiResponse<JobResponse>> approveJob(
+            @PathVariable("id") UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        JobResponse response = jobService.approveJob(id, principal);
         return ResponseEntity.ok(ApiResponse.success("Phê duyệt tin tuyển dụng thành công", response));
     }
 
@@ -127,9 +130,10 @@ public class JobController {
     @Operation(summary = "Từ chối tin tuyển dụng", description = "Cán bộ từ chối tin tuyển dụng kèm lý do.")
     public ResponseEntity<ApiResponse<JobResponse>> rejectJob(
             @PathVariable("id") UUID id,
-            @RequestBody(required = false) Map<String, String> body) {
+            @RequestBody(required = false) Map<String, String> body,
+            @AuthenticationPrincipal UserPrincipal principal) {
         String reason = body != null ? body.get("reason") : null;
-        JobResponse response = jobService.rejectJob(id, reason);
+        JobResponse response = jobService.rejectJob(id, reason, principal);
         return ResponseEntity.ok(ApiResponse.success("Từ chối tin tuyển dụng thành công", response));
     }
 }

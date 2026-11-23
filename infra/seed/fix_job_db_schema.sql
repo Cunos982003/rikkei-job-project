@@ -14,6 +14,19 @@ ALTER TABLE jobs ADD COLUMN IF NOT EXISTS work_mode VARCHAR(20) DEFAULT 'ONSITE'
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS deadline DATE;
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS benefits TEXT;
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS rejected_reason VARCHAR(1000);
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS reviewed_by VARCHAR(100);
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP WITH TIME ZONE;
+
+CREATE TABLE IF NOT EXISTS company_actions (
+    id UUID PRIMARY KEY,
+    company_id UUID NOT NULL,
+    action VARCHAR(20) NOT NULL,
+    target_id UUID,
+    reason VARCHAR(1000),
+    staff_id VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_company_actions_company ON company_actions(company_id, created_at);
 
 -- 2. Đồng bộ dữ liệu từ các cột cũ sang cột mới cho 120 jobs hiện có
 UPDATE jobs SET

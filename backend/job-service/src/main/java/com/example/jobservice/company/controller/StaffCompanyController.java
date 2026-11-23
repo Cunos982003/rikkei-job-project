@@ -76,4 +76,33 @@ public class StaffCompanyController {
         StaffCompanyDetailResponse response = companyService.getStaffCompanyDetail(id);
         return ResponseEntity.ok(ApiResponse.success("Lấy thông tin chi tiết doanh nghiệp thành công", response));
     }
+
+    @PostMapping("/{id}/lock")
+    @Operation(summary = "Khoá doanh nghiệp", description = "Cán bộ khoá doanh nghiệp và khoá tất cả tài khoản HR.")
+    public ResponseEntity<ApiResponse<CompanyResponse>> lockCompany(
+            @PathVariable("id") UUID id,
+            @Valid @RequestBody LockCompanyRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        CompanyResponse response = companyService.lockCompany(id, request.reason(), principal);
+        return ResponseEntity.ok(ApiResponse.success("Khoá doanh nghiệp thành công", response));
+    }
+
+    @PostMapping("/{id}/unlock")
+    @Operation(summary = "Mở khoá doanh nghiệp", description = "Cán bộ mở khoá doanh nghiệp và mở khoá các tài khoản HR bị khoá do COMPANY_LOCK.")
+    public ResponseEntity<ApiResponse<CompanyResponse>> unlockCompany(
+            @PathVariable("id") UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        CompanyResponse response = companyService.unlockCompany(id, principal);
+        return ResponseEntity.ok(ApiResponse.success("Mở khoá doanh nghiệp thành công", response));
+    }
+
+    @GetMapping("/{id}/history")
+    @Operation(summary = "Lịch sử thao tác doanh nghiệp", description = "Danh sách các thao tác (LOCK, UNLOCK, APPROVE_JD, REJECT_JD) theo thứ tự mới nhất.")
+    public ResponseEntity<ApiResponse<PageResult<CompanyActionResponse>>> getCompanyHistory(
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        PageResult<CompanyActionResponse> response = companyService.getCompanyHistory(id, page, size);
+        return ResponseEntity.ok(ApiResponse.success("Lấy lịch sử thao tác doanh nghiệp thành công", response));
+    }
 }
