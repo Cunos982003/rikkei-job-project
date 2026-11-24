@@ -324,6 +324,8 @@ export function AppRoutes() {
                             element={<StaffCompanyDetailPage />}
                         />
 
+                        {/* ĐÃ XÓA DÒNG ROUTE BỊ TRÙNG /staff/companies Ở ĐÂY */}
+
                         <Route
                             path="/staff/recruitments"
                             element={<StaffRecruitmentsPage />}
