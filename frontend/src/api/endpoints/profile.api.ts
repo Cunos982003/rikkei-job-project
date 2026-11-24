@@ -6,6 +6,65 @@ import type {
   Internship,
 } from "../types/evaluation";
 
+// ===== HS-03 Portfolio Types =====
+
+export type PortfolioSource = "PM" | "SELF" | "IOC" | "MANUAL";
+
+export interface PortfolioMedia {
+  id: string;
+  url: string;
+  mediaType: "IMAGE";
+  sortOrder: number;
+}
+
+export interface PortfolioProject {
+  id: string;
+  name: string;
+  role?: string;
+  description?: string;
+  techStack?: string;
+  repoUrl?: string;
+  demoUrl?: string;
+  startDate?: string;
+  endDate?: string;
+  visible: boolean;
+  sortOrder: number;
+  internshipId?: string;
+  source: PortfolioSource;
+  sourceRef: string;
+  media: PortfolioMedia[];
+}
+
+export interface CreatePortfolioProjectRequest {
+  name: string;
+  role?: string;
+  description?: string;
+  techStack?: string;
+  repoUrl?: string;
+  demoUrl?: string;
+  startDate?: string;
+  endDate?: string;
+  visible?: boolean;
+  sortOrder?: number;
+}
+
+export type UpdatePortfolioProjectRequest = CreatePortfolioProjectRequest;
+
+export interface ReorderPortfolioProjectsRequest {
+  projectIds: string[];
+}
+
+export interface ReorderPortfolioMediaRequest {
+  mediaIds: string[];
+}
+
+export interface UploadPortfolioMediaResponse {
+  id: string;
+  url: string;
+  mediaType: "IMAGE";
+  sortOrder: number;
+}
+
 export interface SkillEvidenceItem {
   source: string;
   sourceRef?: string;
@@ -463,6 +522,97 @@ export const profileApi = {
     return api.post<{ userId: string; visibility: string }>(
       `/staff/profiles/${userId}/reject`,
       { reason }
+    );
+  },
+
+  // ===== HS-03 Portfolio =====
+
+  /**
+   * Lấy danh sách dự án portfolio của chính mình
+   */
+  getMyPortfolio(): Promise<ApiResponse<PortfolioProject[]>> {
+    return api.get<PortfolioProject[]>("/profiles/me/portfolio");
+  },
+
+  /**
+   * Lấy danh sách dự án portfolio công khai của người khác
+   */
+  getUserPortfolio(userId: string): Promise<ApiResponse<PortfolioProject[]>> {
+    return api.get<PortfolioProject[]>(`/profiles/${userId}/portfolio`);
+  },
+
+  /**
+   * Tạo dự án portfolio mới
+   */
+  createPortfolioProject(
+    data: CreatePortfolioProjectRequest
+  ): Promise<ApiResponse<PortfolioProject>> {
+    return api.post<PortfolioProject>("/profiles/me/portfolio", data);
+  },
+
+  /**
+   * Cập nhật dự án portfolio
+   */
+  updatePortfolioProject(
+    projectId: string,
+    data: UpdatePortfolioProjectRequest
+  ): Promise<ApiResponse<PortfolioProject>> {
+    return api.put<PortfolioProject>(`/profiles/me/portfolio/${projectId}`, data);
+  },
+
+  /**
+   * Xóa dự án portfolio (không thể xóa dự án IOC)
+   */
+  deletePortfolioProject(projectId: string): Promise<ApiResponse<null>> {
+    return api.delete<null>(`/profiles/me/portfolio/${projectId}`);
+  },
+
+  /**
+   * Sắp xếp lại thứ tự dự án portfolio
+   */
+  reorderPortfolioProjects(
+    data: ReorderPortfolioProjectsRequest
+  ): Promise<ApiResponse<PortfolioProject[]>> {
+    return api.put<PortfolioProject[]>("/profiles/me/portfolio/order", data);
+  },
+
+  /**
+   * Tải lên ảnh cho dự án portfolio (JPG/PNG, tối đa 5MB, tối đa 6 ảnh/dự án)
+   */
+  uploadPortfolioMedia(
+    projectId: string,
+    file: File
+  ): Promise<ApiResponse<UploadPortfolioMediaResponse>> {
+    const formData = new FormData();
+    formData.append("file", file);
+    return api.post<UploadPortfolioMediaResponse>(
+      `/profiles/me/portfolio/${projectId}/media`,
+      formData
+    );
+  },
+
+  /**
+   * Sắp xếp lại thứ tự ảnh trong dự án portfolio
+   */
+  reorderPortfolioMedia(
+    projectId: string,
+    data: ReorderPortfolioMediaRequest
+  ): Promise<ApiResponse<null>> {
+    return api.put<null>(
+      `/profiles/me/portfolio/${projectId}/media/order`,
+      data
+    );
+  },
+
+  /**
+   * Xóa ảnh khỏi dự án portfolio
+   */
+  deletePortfolioMedia(
+    projectId: string,
+    mediaId: string
+  ): Promise<ApiResponse<null>> {
+    return api.delete<null>(
+      `/profiles/me/portfolio/${projectId}/media/${mediaId}`
     );
   },
 };
