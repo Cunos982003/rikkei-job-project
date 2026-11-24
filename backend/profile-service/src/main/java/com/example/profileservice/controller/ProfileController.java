@@ -1,19 +1,23 @@
 package com.example.profileservice.controller;
 
 import com.example.profileservice.common.ApiResponse;
+import com.example.profileservice.dto.PortfolioProjectDto;
 import com.example.profileservice.dto.PublishRequest;
 import com.example.profileservice.dto.ReviewHistoryItemDto;
 import com.example.profileservice.dto.SelfSkillDto;
 import com.example.profileservice.dto.UpdateProfileRequest;
 import com.example.profileservice.entity.CandidateProfile;
+import com.example.profileservice.service.PortfolioService;
 import com.example.profileservice.service.ProfileCommandService;
 import com.example.profileservice.service.SkillProfileService;
 import com.example.profileservice.service.VisibilityService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -26,6 +30,7 @@ public class ProfileController {
     private final ProfileCommandService profileCommandService;
     private final SkillProfileService skillProfileService;
     private final VisibilityService visibilityService;
+    private final PortfolioService portfolioService;
 
     private UUID resolveUserId(UUID headerUserId) {
         if (headerUserId != null) {
@@ -118,5 +123,123 @@ public class ProfileController {
                 .map(ReviewHistoryItemDto::from)
                 .toList();
         return ResponseEntity.ok(ApiResponse.success("Lấy lịch sử duyệt thành công", history));
+    }
+
+    // ========== Portfolio Endpoints (HS-03) ==========
+
+    @GetMapping("/me/portfolio")
+    public ResponseEntity<ApiResponse<List<PortfolioProjectDto>>> getMyPortfolio(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
+        }
+        List<PortfolioProjectDto> portfolio = portfolioService.getMyPortfolio(effectiveUserId);
+        return ResponseEntity.ok(ApiResponse.success("Lấy portfolio thành công", portfolio));
+    }
+
+    @GetMapping("/{userId}/portfolio")
+    public ResponseEntity<ApiResponse<List<PortfolioProjectDto>>> getPublicPortfolio(
+            @PathVariable UUID userId) {
+        List<PortfolioProjectDto> portfolio = portfolioService.getPublicPortfolio(userId);
+        return ResponseEntity.ok(ApiResponse.success("Lấy portfolio công khai thành công", portfolio));
+    }
+
+    @PostMapping("/me/portfolio")
+    public ResponseEntity<ApiResponse<PortfolioProjectDto>> createProject(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @Valid @RequestBody PortfolioProjectDto dto) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
+        }
+        PortfolioProjectDto created = portfolioService.createProject(effectiveUserId, dto);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Tạo dự án portfolio thành công", created));
+    }
+
+    @PutMapping("/me/portfolio/{projectId}")
+    public ResponseEntity<ApiResponse<PortfolioProjectDto>> updateProject(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @PathVariable UUID projectId,
+            @Valid @RequestBody PortfolioProjectDto dto) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
+        }
+        PortfolioProjectDto updated = portfolioService.updateProject(effectiveUserId, projectId, dto);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật dự án portfolio thành công", updated));
+    }
+
+    @DeleteMapping("/me/portfolio/{projectId}")
+    public ResponseEntity<ApiResponse<Void>> deleteProject(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @PathVariable UUID projectId) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
+        }
+        portfolioService.deleteProject(effectiveUserId, projectId);
+        return ResponseEntity.ok(ApiResponse.success("Xóa dự án portfolio thành công", null));
+    }
+
+    @PutMapping("/me/portfolio/order")
+    public ResponseEntity<ApiResponse<List<PortfolioProjectDto>>> reorderProjects(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @Valid @RequestBody PortfolioProjectDto.ReorderProjectsRequest request) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
+        }
+        List<PortfolioProjectDto> reordered = portfolioService.reorderProjects(effectiveUserId, request.getProjectIds());
+        return ResponseEntity.ok(ApiResponse.success("Sắp xếp lại portfolio thành công", reordered));
+    }
+
+    @PostMapping("/me/portfolio/{projectId}/media")
+    public ResponseEntity<ApiResponse<PortfolioProjectDto.PortfolioMediaDto>> uploadMedia(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @PathVariable UUID projectId,
+            @RequestPart("file") MultipartFile file) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
+        }
+        PortfolioProjectDto.PortfolioMediaDto media = portfolioService.uploadMedia(effectiveUserId, projectId, file);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Tải lên ảnh portfolio thành công", media));
+    }
+
+    @DeleteMapping("/me/portfolio/{projectId}/media/{mediaId}")
+    public ResponseEntity<ApiResponse<Void>> deleteMedia(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @PathVariable UUID projectId,
+            @PathVariable UUID mediaId) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
+        }
+        portfolioService.deleteMedia(effectiveUserId, projectId, mediaId);
+        return ResponseEntity.ok(ApiResponse.success("Xóa ảnh portfolio thành công", null));
+    }
+
+    @PutMapping("/me/portfolio/{projectId}/media/order")
+    public ResponseEntity<ApiResponse<Void>> reorderMedia(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @PathVariable UUID projectId,
+            @Valid @RequestBody PortfolioProjectDto.ReorderMediaRequest request) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
+        }
+        portfolioService.reorderMedia(effectiveUserId, projectId, request.getMediaIds());
+        return ResponseEntity.ok(ApiResponse.success("Sắp xếp lại ảnh portfolio thành công", null));
     }
 }
