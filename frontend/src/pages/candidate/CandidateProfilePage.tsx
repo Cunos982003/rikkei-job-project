@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/useAuthStore";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../../components/common/Card";
+import { cn } from "../../utils/cn";
 import { Badge } from "../../components/common/Badge";
 import { Button } from "../../components/common/Button";
 import { Input } from "../../components/common/Input";
@@ -69,6 +70,107 @@ function emptyEducation(): EducationItem {
 
 function emptyCertificate(): CertificateItem {
   return { name: "", issuer: "", issuedAt: "", expiresAt: "", fileUrl: "", fileType: "" };
+}
+
+// MediaDropzone component for drag & drop image upload
+interface MediaDropzoneProps {
+  projectId: string;
+  isIOC: boolean;
+  isUploading: boolean;
+  currentMediaCount: number;
+  onUpload: (projectId: string, file: File) => void;
+}
+
+function MediaDropzone({
+  projectId,
+  isIOC,
+  isUploading,
+  currentMediaCount,
+  onUpload,
+}: MediaDropzoneProps) {
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) onUpload(projectId, file);
+  };
+
+  const handleClick = () => {
+    if (isUploading) return;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/jpeg,image/png";
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) onUpload(projectId, file);
+    };
+    input.click();
+  };
+
+  if (isIOC) {
+    return (
+      <div className="aspect-square rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-slate-50/50 min-h-[160px]">
+        <div className="text-center text-muted px-4">
+          <Image className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">Dự án IOC không hỗ trợ tải ảnh</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "aspect-square rounded-xl border-2 border-dashed flex items-center justify-center bg-slate-50/50 min-h-[160px] cursor-pointer transition-all",
+        isDragOver && "border-primary bg-primary/5",
+        !isDragOver && "border-border hover:border-primary/50 hover:bg-primary/5"
+      )}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      onClick={handleClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
+    >
+      <div className="text-center px-4 py-8">
+        <div className={cn(
+          "mx-auto mb-3 transition-transform",
+          isDragOver && "scale-110 text-primary",
+          !isDragOver && "text-muted"
+        )}>
+          <Upload className="h-10 w-10" />
+        </div>
+        <p className="text-sm font-medium text-foreground whitespace-nowrap">
+          Kéo thả hoặc click để tải ảnh
+        </p>
+        <p className="text-xs text-muted mt-1">JPG, PNG — tối đa 5MB</p>
+        {currentMediaCount > 0 && (
+          <p className="text-xs text-muted mt-1">Đã có {currentMediaCount}/6 ảnh</p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function CandidateProfilePage() {
@@ -1245,42 +1347,20 @@ export function CandidateProfilePage() {
                           <Card
                               key={project.id}
                               hoverable
-                              className="relative overflow-hidden transition-all duration-300 group"
+                              className="h-full flex flex-col relative overflow-hidden transition-all duration-300 group"
                               style={{ animationDelay: `${index * 50}ms` }}
                           >
-                            {/* Source Badge - top right */}
-                            <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1">
-                              {project.source === "IOC" ? (
-                                  <Badge variant="primary" size="sm" className="gap-1" title={`Source: IOC${project.sourceRef ? ` | Ref: ${project.sourceRef}` : ''}`}>
-                                    <Code2 className="h-2.5 w-2.5" />
-                                    IOC
-                                  </Badge>
-                              ) : (
-                                  <>
-                                    <Badge variant="outline" size="sm" className="gap-1 bg-white/90 backdrop-blur" title={`Source: ${project.source || "MANUAL"}${project.sourceRef ? ` | Ref: ${project.sourceRef}` : ''}`}>
-                                      <Code2 className="h-2.5 w-2.5" />
-                                      {project.source || "MANUAL"}
-                                    </Badge>
-                                    {project.sourceRef && (
-                                        <span className="text-[10px] text-muted font-mono px-1.5 py-0.5 rounded bg-white/90 backdrop-blur shadow-sm"
-                                              title={`Source Ref: ${project.sourceRef}`}>
-                                          {project.sourceRef.substring(0, 8)}...
-                                        </span>
-                                    )}
-                                  </>
-                              )}
-                            </div>
-
-                            <CardContent className="p-5 space-y-4">
-                              {/* Project Header - title, visibility badge, role, actions */}
-                              <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-                                <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-                                  <div className="flex items-center flex-wrap gap-2">
-                                    <h4 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors pr-2"
+                            <CardContent className="p-5 flex flex-1 flex-col gap-3">
+                              {/* Project Header */}
+                              <div className="flex flex-col gap-2">
+                                {/* Row 1: Title + Visibility badge */}
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <h4 className="font-semibold text-foreground truncate min-w-0 group-hover:text-primary transition-colors"
                                         title={project.name}>
                                       {project.name}
                                     </h4>
-                                    {/* Visibility badge in normal flow */}
+                                    {/* Visibility badge - always on same line as title */}
                                     {project.visible ? (
                                         <Badge variant="verified" size="sm" showIcon className="gap-1 whitespace-nowrap shrink-0">
                                           <Eye className="h-2.5 w-2.5" />
@@ -1293,15 +1373,40 @@ export function CandidateProfilePage() {
                                         </Badge>
                                     )}
                                   </div>
-                                  {project.role && (
-                                      <Badge variant="default" size="sm">
-                                        {project.role}
-                                      </Badge>
-                                  )}
                                 </div>
-                                <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity sm:opacity-100">
+
+                                {/* Row 2: Role badge (if exists) + Source badge + SourceRef + Actions */}
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    {project.role && (
+                                        <Badge variant="default" size="sm" className="whitespace-nowrap shrink-0">
+                                          {project.role}
+                                        </Badge>
+                                    )}
+                                    {/* Source Badge */}
+                                    {project.source === "IOC" ? (
+                                        <Badge variant="primary" size="sm" className="gap-1 shrink-0" title={`Source: IOC${project.sourceRef ? ` | Ref: ${project.sourceRef}` : ''}`}>
+                                          <Code2 className="h-2.5 w-2.5" />
+                                          IOC
+                                        </Badge>
+                                    ) : (
+                                        <>
+                                          <Badge variant="outline" size="sm" className="gap-1 shrink-0 bg-white/90 backdrop-blur" title={`Source: ${project.source || "MANUAL"}${project.sourceRef ? ` | Ref: ${project.sourceRef}` : ''}`}>
+                                            <Code2 className="h-2.5 w-2.5" />
+                                            {project.source || "MANUAL"}
+                                          </Badge>
+                                          {project.sourceRef && (
+                                              <span className="text-[10px] text-muted font-mono px-1.5 py-0.5 rounded bg-white/90 backdrop-blur shadow-sm max-w-[110px] truncate shrink-0"
+                                                    title={`Source Ref: ${project.sourceRef}`}>
+                                                {project.sourceRef}
+                                              </span>
+                                          )}
+                                        </>
+                                    )}
+                                  </div>
+                                  {/* Actions - always visible */}
                                   {project.source !== "IOC" && (
-                                      <>
+                                      <div className="flex items-center gap-1 flex-shrink-0">
                                         <Button
                                             variant="ghost"
                                             size="sm"
@@ -1320,7 +1425,7 @@ export function CandidateProfilePage() {
                                         >
                                           <Trash2 className="h-4 w-4" />
                                         </Button>
-                                      </>
+                                      </div>
                                   )}
                                 </div>
                               </div>
@@ -1399,7 +1504,8 @@ export function CandidateProfilePage() {
                                       {project.media?.length || 0}/6
                                     </span>
                                   </span>
-                                  {project.source !== "IOC" && (
+                                  {/* Only show "Tải ảnh" button in header when there ARE already images */}
+                                  {(project.media?.length || 0) > 0 && project.source !== "IOC" && (
                                       <Button
                                           variant="outline"
                                           size="sm"
@@ -1487,39 +1593,13 @@ export function CandidateProfilePage() {
                                       )}
                                     </div>
                                 ) : (
-                                    <div className="aspect-square rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-slate-50/50 min-h-[160px]">
-                                      {project.source !== "IOC" && (
-                                          <Button
-                                              variant="outline"
-                                              size="sm"
-                                              leftIcon={<Upload className="h-4 w-4 flex-shrink-0" />}
-                                              disabled={uploadingMedia?.projectId === project.id}
-                                              onClick={() => {
-                                                if (uploadingMedia?.projectId === project.id) return;
-                                                const input = document.createElement("input");
-                                                input.type = "file";
-                                                input.accept = "image/jpeg,image/png";
-                                                input.onchange = (e) => {
-                                                  const file = (e.target as HTMLInputElement).files?.[0];
-                                                  if (file) handleMediaUpload(project.id, file);
-                                                };
-                                                input.click();
-                                              }}
-                                              className="group whitespace-nowrap px-4 py-3"
-                                          >
-                                            <span className="flex items-center gap-2 whitespace-nowrap">
-                                              <Image className="h-4 w-4 flex-shrink-0 group-hover:scale-110 transition-transform" />
-                                              Kéo thả hoặc click để tải ảnh
-                                            </span>
-                                          </Button>
-                                      )}
-                                      {project.source === "IOC" && (
-                                          <div className="text-center text-muted px-4">
-                                            <Image className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                            <p className="text-sm">Dự án IOC không hỗ trợ tải ảnh</p>
-                                          </div>
-                                      )}
-                                    </div>
+                                    <MediaDropzone
+                                      projectId={project.id}
+                                      isIOC={project.source === "IOC"}
+                                      isUploading={uploadingMedia?.projectId === project.id}
+                                      currentMediaCount={project.media?.length || 0}
+                                      onUpload={handleMediaUpload}
+                                    />
                                 )}
                               </div>
                             </CardContent>
@@ -1622,7 +1702,7 @@ export function CandidateProfilePage() {
                 value={certificateForm.name}
                 onChange={(e) => setCertificateForm({ ...certificateForm, name: e.target.value })}
                 placeholder="Ví dụ: Oracle Certified Professional, Java SE 11"
-                error={portfolioErrors.name}
+                error={errors.name}
             />
             <Input
                 label="Tổ chức cấp *"
