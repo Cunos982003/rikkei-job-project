@@ -104,6 +104,7 @@ export function CandidateProfilePage() {
   const [certificateForm, setCertificateForm] = useState<CertificateItem>(emptyCertificate);
   const [skillScore, setSkillScore] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [portfolioErrors, setPortfolioErrors] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
 
   // Portfolio state
@@ -550,7 +551,7 @@ export function CandidateProfilePage() {
       }
     }
 
-    setErrors(nextErrors);
+    setPortfolioErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
     const payload: CreatePortfolioProjectRequest = {
@@ -573,7 +574,7 @@ export function CandidateProfilePage() {
 
   const handleDeleteProject = (project: PortfolioProject) => {
     if (project.source === "IOC") {
-      setErrors({ form: "Không thể xóa dự án thực tập (IOC)" });
+      setPortfolioErrors({ form: "Không thể xóa dự án thực tập (IOC)" });
       return;
     }
     if (confirm("Bạn có chắc chắn muốn xóa dự án này?")) {
@@ -583,12 +584,12 @@ export function CandidateProfilePage() {
 
   const handleMediaUpload = (projectId: string, file: File) => {
     if (file.size > MAX_UPLOAD_BYTES) {
-      setErrors({ form: "Ảnh vượt quá dung lượng cho phép (tối đa 5MB)" });
+      setPortfolioErrors({ form: "Ảnh vượt quá dung lượng cho phép (tối đa 5MB)" });
       return;
     }
     const validTypes = ["image/jpeg", "image/png"];
     if (!validTypes.includes(file.type)) {
-      setErrors({ form: "Chỉ chấp nhận file JPG, PNG" });
+      setPortfolioErrors({ form: "Chỉ chấp nhận file JPG, PNG" });
       return;
     }
     setUploadingMedia({ projectId, file });
@@ -1135,7 +1136,7 @@ export function CandidateProfilePage() {
 
           {/* ===== Portfolio ===== */}
           {activeTab === "portfolio" && (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex items-center gap-3">
@@ -1161,9 +1162,11 @@ export function CandidateProfilePage() {
                   </Button>
                 </div>
 
+                <div className="h-px bg-border my-4" />
+
                 {/* Stats bar */}
                 {portfolio.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-3 text-sm text-muted bg-slate-50 rounded-lg p-3">
+                    <div className="flex flex-wrap items-center gap-4 text-sm text-muted bg-slate-50 rounded-lg p-4">
                       <span className="flex items-center gap-1">
                         <Briefcase className="h-4 w-4" />
                         <strong className="text-foreground">{portfolio.length}</strong> dự án
@@ -1191,7 +1194,7 @@ export function CandidateProfilePage() {
 
                 {/* Loading State */}
                 {portfolioLoading && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                       {[1, 2, 3].map((i) => (
                           <Card key={i} className="animate-pulse">
                             <CardContent className="p-5 space-y-3">
@@ -1237,7 +1240,7 @@ export function CandidateProfilePage() {
 
                 {/* Project Grid */}
                 {!portfolioLoading && portfolio.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                       {portfolio.map((project, index) => (
                           <Card
                               key={project.id}
@@ -1245,57 +1248,58 @@ export function CandidateProfilePage() {
                               className="relative overflow-hidden transition-all duration-300 group"
                               style={{ animationDelay: `${index * 50}ms` }}
                           >
-                            {/* Source Badge */}
+                            {/* Source Badge - top right */}
                             <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1">
-                              {project.source === "IOC" && (
-                                  <Badge variant="primary" size="sm" className="gap-1">
+                              {project.source === "IOC" ? (
+                                  <Badge variant="primary" size="sm" className="gap-1" title={`Source: IOC${project.sourceRef ? ` | Ref: ${project.sourceRef}` : ''}`}>
                                     <Code2 className="h-2.5 w-2.5" />
                                     IOC
                                   </Badge>
-                              )}
-                              {project.source !== "IOC" && (
-                                  <Badge variant="outline" size="sm" className="gap-1 bg-white/90 backdrop-blur">
-                                    <Code2 className="h-2.5 w-2.5" />
-                                    {project.source || "MANUAL"}
-                                  </Badge>
-                              )}
-                              {project.sourceRef && (
-                                  <span className="text-[10px] text-muted font-mono px-1.5 py-0.5 rounded bg-white/90 backdrop-blur shadow-sm"
-                                        title={`Source Ref: ${project.sourceRef}`}>
-                                    {project.sourceRef.substring(0, 8)}...
-                                  </span>
-                              )}
-                            </div>
-
-                            {/* Visibility indicator top-left */}
-                            <div className="absolute top-3 left-3 z-10">
-                              {project.visible ? (
-                                  <Badge variant="verified" size="sm" showIcon className="gap-1 bg-white/90 backdrop-blur shadow-sm">
-                                    <Eye className="h-2.5 w-2.5" />
-                                    Công khai
-                                  </Badge>
                               ) : (
-                                  <Badge variant="outline" size="sm" showIcon className="gap-1 bg-white/90 backdrop-blur shadow-sm">
-                                    <EyeOff className="h-2.5 w-2.5" />
-                                    Riêng tư
-                                  </Badge>
+                                  <>
+                                    <Badge variant="outline" size="sm" className="gap-1 bg-white/90 backdrop-blur" title={`Source: ${project.source || "MANUAL"}${project.sourceRef ? ` | Ref: ${project.sourceRef}` : ''}`}>
+                                      <Code2 className="h-2.5 w-2.5" />
+                                      {project.source || "MANUAL"}
+                                    </Badge>
+                                    {project.sourceRef && (
+                                        <span className="text-[10px] text-muted font-mono px-1.5 py-0.5 rounded bg-white/90 backdrop-blur shadow-sm"
+                                              title={`Source Ref: ${project.sourceRef}`}>
+                                          {project.sourceRef.substring(0, 8)}...
+                                        </span>
+                                    )}
+                                  </>
                               )}
                             </div>
 
-                            <CardContent className="p-4 space-y-4">
-                              {/* Project Header */}
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-                                    {project.name}
-                                  </h4>
+                            <CardContent className="p-5 space-y-4">
+                              {/* Project Header - title, visibility badge, role, actions */}
+                              <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                                <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                                  <div className="flex items-center flex-wrap gap-2">
+                                    <h4 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors pr-2"
+                                        title={project.name}>
+                                      {project.name}
+                                    </h4>
+                                    {/* Visibility badge in normal flow */}
+                                    {project.visible ? (
+                                        <Badge variant="verified" size="sm" showIcon className="gap-1 whitespace-nowrap shrink-0">
+                                          <Eye className="h-2.5 w-2.5" />
+                                          Công khai
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="outline" size="sm" showIcon className="gap-1 whitespace-nowrap shrink-0">
+                                          <EyeOff className="h-2.5 w-2.5" />
+                                          Riêng tư
+                                        </Badge>
+                                    )}
+                                  </div>
                                   {project.role && (
-                                      <Badge variant="default" size="sm" className="mt-1.5">
+                                      <Badge variant="default" size="sm">
                                         {project.role}
                                       </Badge>
                                   )}
                                 </div>
-                                <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity sm:opacity-100">
                                   {project.source !== "IOC" && (
                                       <>
                                         <Button
@@ -1321,16 +1325,16 @@ export function CandidateProfilePage() {
                                 </div>
                               </div>
 
-                              {/* Description */}
+                              {/* Description - only render when exists */}
                               {project.description && (
                                   <p className="text-sm text-muted line-clamp-3 leading-relaxed">
                                     {project.description}
                                   </p>
                               )}
 
-                              {/* Tech Stack */}
+                              {/* Tech Stack - only render when exists */}
                               {project.techStack && (
-                                  <div className="flex flex-wrap gap-1.5">
+                                  <div className="flex flex-wrap gap-2">
                                     {project.techStack.split(',').slice(0, 5).map((tech, i) => (
                                         <Badge key={i} variant="outline" size="sm" className="gap-1 text-xs">
                                           <Code2 className="h-2.5 w-2.5" />
@@ -1345,8 +1349,13 @@ export function CandidateProfilePage() {
                                   </div>
                               )}
 
+                              {/* Meta Info - divider only when there's description or techStack above */}
+                              {(project.description || project.techStack) && (
+                                  <div className="pt-2 border-t border-border" />
+                              )}
+
                               {/* Meta Info */}
-                              <div className="flex flex-wrap items-center gap-3 text-xs text-muted pt-1 border-t border-border">
+                              <div className="flex flex-wrap items-center gap-4 text-xs text-muted">
                                 {project.startDate && (
                                     <span className="flex items-center gap-1">
                                       <Calendar className="h-3.5 w-3.5" />
@@ -1415,7 +1424,7 @@ export function CandidateProfilePage() {
                                 </div>
 
                                 {(project.media?.length || 0) > 0 ? (
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                                       {project.media.map((media) => (
                                           <div key={media.id} className="relative group aspect-square rounded-xl overflow-hidden bg-slate-50">
                                             <img
@@ -1478,12 +1487,12 @@ export function CandidateProfilePage() {
                                       )}
                                     </div>
                                 ) : (
-                                    <div className="aspect-video rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-slate-50/50">
+                                    <div className="aspect-square rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-slate-50/50 min-h-[160px]">
                                       {project.source !== "IOC" && (
                                           <Button
                                               variant="outline"
                                               size="sm"
-                                              leftIcon={<Upload className="h-4 w-4" />}
+                                              leftIcon={<Upload className="h-4 w-4 flex-shrink-0" />}
                                               disabled={uploadingMedia?.projectId === project.id}
                                               onClick={() => {
                                                 if (uploadingMedia?.projectId === project.id) return;
@@ -1496,10 +1505,10 @@ export function CandidateProfilePage() {
                                                 };
                                                 input.click();
                                               }}
-                                              className="group"
+                                              className="group whitespace-nowrap px-4 py-3"
                                           >
-                                            <span className="flex items-center gap-2">
-                                              <Image className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                                            <span className="flex items-center gap-2 whitespace-nowrap">
+                                              <Image className="h-4 w-4 flex-shrink-0 group-hover:scale-110 transition-transform" />
                                               Kéo thả hoặc click để tải ảnh
                                             </span>
                                           </Button>
@@ -1613,7 +1622,7 @@ export function CandidateProfilePage() {
                 value={certificateForm.name}
                 onChange={(e) => setCertificateForm({ ...certificateForm, name: e.target.value })}
                 placeholder="Ví dụ: Oracle Certified Professional, Java SE 11"
-                error={errors.name}
+                error={portfolioErrors.name}
             />
             <Input
                 label="Tổ chức cấp *"
@@ -1752,7 +1761,7 @@ export function CandidateProfilePage() {
                   value={projectForm.name}
                   onChange={(e) => setProjectForm({ ...projectForm, name: e.target.value })}
                   placeholder="Ví dụ: Hệ thống quản lý tuyển dụng"
-                  error={errors.name}
+                  error={portfolioErrors.name}
               />
               <Input
                   label="Vai trò"
@@ -1823,7 +1832,7 @@ export function CandidateProfilePage() {
                 Hiển thị công khai trên hồ sơ
               </label>
             </div>
-            {errors.form && <p className="text-xs text-danger font-medium">{errors.form}</p>}
+            {portfolioErrors.form && <p className="text-xs text-danger font-medium">{portfolioErrors.form}</p>}
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={closeProjectModal}>
                 <X className="h-4 w-4" />
