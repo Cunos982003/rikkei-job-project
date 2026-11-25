@@ -23,6 +23,8 @@ app:
     job-service-url: ${JOB_SERVICE_URL:http://localhost:8085}
   ai:
     provider: ${AI_PROVIDER:mock}
+    daily-limit: ${AI_CHAT_DAILY_LIMIT:30}
+    timezone: ${AI_QUOTA_TIMEZONE:Asia/Ho_Chi_Minh}
     openai:
       api-key: ${AI_OPENAI_API_KEY:}
       endpoint: ${AI_OPENAI_ENDPOINT:https://api.openai.com/v1/chat/completions}
