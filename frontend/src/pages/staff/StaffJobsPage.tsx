@@ -5,7 +5,20 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../..
 import { Badge } from "../../components/common/Badge";
 import { Button } from "../../components/common/Button";
 import { Modal } from "../../components/common/Modal";
-import { CheckSquare, Check, X, RefreshCw, AlertCircle, Briefcase, MapPin, Calendar, Eye, UserCheck, Clock, AlertTriangle } from "lucide-react";
+import {
+  CheckSquare,
+  Check,
+  X,
+  RefreshCw,
+  AlertCircle,
+  Briefcase,
+  MapPin,
+  Calendar,
+  Eye,
+  UserCheck,
+  Clock,
+  AlertTriangle,
+} from "lucide-react";
 import { staffJobsApi } from "../../api/endpoints/staffJobs.api";
 import { staffCompaniesApi } from "../../api/endpoints/staffCompanies.api";
 import type { JobResponse } from "../../api/endpoints/hrJobs.api";
@@ -20,21 +33,17 @@ function formatSalary(min?: number | null, max?: number | null): string {
   return `Lên đến ${max!.toLocaleString("vi-VN")} đ`;
 }
 
-function formatDateTime(dateStr?: string | null): string {
-  if (!dateStr) return "-";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const day = pad(d.getDate());
-    const month = pad(d.getMonth() + 1);
-    const year = d.getFullYear();
-    const hours = pad(d.getHours());
-    const minutes = pad(d.getMinutes());
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
-  } catch {
-    return dateStr;
-  }
+function formatDateTime(value?: string | null): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 type StaffJobTab = "PENDING" | "APPROVED" | "REJECTED";
@@ -93,11 +102,10 @@ export function StaffJobsPage() {
     onSuccess: () => {
       toast.success("Phê duyệt tin tuyển dụng thành công!");
       setViewingJob(null);
-      void queryClient.invalidateQueries({ queryKey: ["staff", "jobs"] });
-      void queryClient.invalidateQueries({ queryKey: ["staff", "company-history"] });
+      queryClient.invalidateQueries({ queryKey: ["staff", "jobs"] });
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.message || err?.response?.data?.detail || err?.message || "Không thể phê duyệt tin";
+      const msg = err?.response?.data?.detail || err?.response?.data?.message || "Không thể phê duyệt tin";
       toast.error(msg);
     },
   });
@@ -111,11 +119,10 @@ export function StaffJobsPage() {
       setRejectingJob(null);
       setViewingJob(null);
       setRejectReason("");
-      void queryClient.invalidateQueries({ queryKey: ["staff", "jobs"] });
-      void queryClient.invalidateQueries({ queryKey: ["staff", "company-history"] });
+      queryClient.invalidateQueries({ queryKey: ["staff", "jobs"] });
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.message || err?.response?.data?.detail || err?.message || "Không thể từ chối tin";
+      const msg = err?.response?.data?.detail || err?.response?.data?.message || "Không thể từ chối tin";
       toast.error(msg);
     },
   });
@@ -132,11 +139,7 @@ export function StaffJobsPage() {
   const handleConfirmReject = () => {
     if (!rejectingJob) return;
     if (!rejectReason.trim()) {
-      toast.error("Vui lòng nhập lý do trả lại tin tuyển dụng");
-      return;
-    }
-    if (rejectReason.length > 1000) {
-      toast.error("Lý do trả lại tin tuyển dụng không được vượt quá 1000 ký tự");
+      toast.error("Vui lòng nhập lý do từ chối");
       return;
     }
     rejectMutation.mutate({ jobId: rejectingJob.id, reason: rejectReason.trim() });
@@ -145,24 +148,26 @@ export function StaffJobsPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "PENDING":
-        return <Badge variant="warning">Chờ duyệt</Badge>;
+        return <Badge variant="warning"><span>Chờ duyệt</span></Badge>;
       case "APPROVED":
-        return <Badge variant="verified">Đã duyệt</Badge>;
+        return <Badge variant="verified"><span>Đã duyệt</span></Badge>;
       case "REJECTED":
-        return <Badge variant="danger">Đã trả lại</Badge>;
+        return <Badge variant="danger"><span>Đã trả lại</span></Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline"><span>{status}</span></Badge>;
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 notranslate" translate="no">
       {/* Header */}
       <div className="pb-4 border-b border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Kiểm Duyệt Tin Tuyển Dụng & Vận Hành</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            <span>Kiểm Duyệt Tin Tuyển Dụng & Vận Hành</span>
+          </h1>
           <p className="text-xs text-muted mt-1">
-            Phân hệ dành cho Cán bộ tuyển sinh & hướng nghiệp (STAFF)
+            <span>Phân hệ dành cho Cán bộ tuyển sinh & hướng nghiệp (STAFF)</span>
           </p>
         </div>
 
@@ -178,7 +183,7 @@ export function StaffJobsPage() {
         </div>
       </div>
 
-      {/* Tabs & Filter Bar */}
+      {/* Tabs & Filter Bar (Giao diện chuẩn nhóm thống nhất) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-3 rounded-xl border border-border">
         {/* Tabs */}
         <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit">
@@ -243,22 +248,26 @@ export function StaffJobsPage() {
         <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
           <CheckSquare className="h-5 w-5 text-warning" />
           <span>
-            {activeTab === "PENDING" && `Tin tuyển dụng đang chờ duyệt (${jobs.length} tin)`}
-            {activeTab === "APPROVED" && `Tin tuyển dụng đã phê duyệt (${jobs.length} tin)`}
-            {activeTab === "REJECTED" && `Tin tuyển dụng đã trả lại (${jobs.length} tin)`}
+            {activeTab === "PENDING"
+              ? `Tin tuyển dụng (JD) đang chờ duyệt (${jobs.length} tin)`
+              : activeTab === "APPROVED"
+              ? `Tin tuyển dụng đã duyệt (${jobs.length} tin)`
+              : `Tin tuyển dụng đã từ chối (${jobs.length} tin)`}
           </span>
         </h2>
 
         {isLoading ? (
           <div className="py-12 text-center text-sm text-muted">
             <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-primary" />
-            Đang tải danh sách tin tuyển dụng...
+            <span>Đang tải danh sách tin...</span>
           </div>
         ) : isError ? (
           <Card>
             <CardContent className="py-8 text-center space-y-3">
               <AlertCircle className="h-8 w-8 text-danger mx-auto" />
-              <p className="text-sm text-danger font-medium">Không thể tải danh sách tin tuyển dụng.</p>
+              <p className="text-sm text-danger font-medium">
+                <span>Không thể tải danh sách tin tuyển dụng.</span>
+              </p>
               <Button size="sm" variant="outline" onClick={() => refetch()}>
                 Thử lại
               </Button>
@@ -268,9 +277,13 @@ export function StaffJobsPage() {
           <Card>
             <CardContent className="py-12 text-center text-sm text-muted">
               <Briefcase className="h-8 w-8 mx-auto mb-2 text-muted/50" />
-              {activeTab === "PENDING" && "Hiện không có tin tuyển dụng nào đang chờ duyệt."}
-              {activeTab === "APPROVED" && "Chưa có tin tuyển dụng nào được duyệt."}
-              {activeTab === "REJECTED" && "Chưa có tin tuyển dụng nào bị trả lại."}
+              <span>
+                {activeTab === "PENDING"
+                  ? "Hiện không có tin tuyển dụng nào đang chờ duyệt."
+                  : activeTab === "APPROVED"
+                  ? "Chưa có tin tuyển dụng nào được duyệt."
+                  : "Chưa có tin tuyển dụng nào bị từ chối."}
+              </span>
             </CardContent>
           </Card>
         ) : (
@@ -287,9 +300,9 @@ export function StaffJobsPage() {
                         className="text-base cursor-pointer hover:text-primary transition-colors"
                         onClick={() => setViewingJob(job)}
                       >
-                        {job.title}
+                        <span>{job.title}</span>
                       </CardTitle>
-                      <CardDescription className="flex items-center gap-2 mt-1">
+                      <CardDescription className="flex flex-wrap items-center gap-2 mt-1">
                         <span>Doanh nghiệp: <strong>{job.companyName || "Chưa cập nhật"}</strong></span>
                         {job.city && (
                           <span className="flex items-center gap-1">
@@ -303,11 +316,22 @@ export function StaffJobsPage() {
                         )}
                       </CardDescription>
                     </div>
-                    {getStatusBadge(job.status)}
+                    <div>{getStatusBadge(job.status)}</div>
                   </div>
                 </CardHeader>
 
                 <CardContent className="space-y-4">
+                  {/* Lý do từ chối nếu ở tab REJECTED hoặc tin có lý do từ chối */}
+                  {(activeTab === "REJECTED" || job.status === "REJECTED") && job.rejectedReason && (
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-danger-light border border-danger/20 text-xs text-danger">
+                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-semibold">Lý do trả lại: </span>
+                        <span>{job.rejectedReason}</span>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="text-xs text-muted leading-relaxed space-y-1.5">
                     <p>
                       Mức lương: <strong>{formatSalary(Number(job.salaryMin), Number(job.salaryMax))}</strong>
@@ -327,7 +351,7 @@ export function StaffJobsPage() {
                         <span className="font-semibold text-foreground">Kỹ năng bắt buộc:</span>
                         {requiredSkills.map((s) => (
                           <Badge key={s.skillId} variant="primary" size="sm">
-                            {s.skillName || s.skillCode} (≥{s.minScore}đ)
+                            <span>{s.skillName || s.skillCode} (≥{s.minScore}đ)</span>
                           </Badge>
                         ))}
                       </div>
@@ -338,75 +362,65 @@ export function StaffJobsPage() {
                         <span className="font-medium text-muted">Kỹ năng ưu tiên:</span>
                         {preferredSkills.map((s) => (
                           <Badge key={s.skillId} variant="outline" size="sm">
-                            {s.skillName || s.skillCode} (≥{s.minScore}đ)
+                            <span>{s.skillName || s.skillCode} (≥{s.minScore}đ)</span>
                           </Badge>
                         ))}
                       </div>
                     )}
                   </div>
 
-                  {/* Thông tin người duyệt & thời điểm cho tab APPROVED & REJECTED */}
-                  {activeTab !== "PENDING" && (
-                    <div className="pt-2 border-t border-border-subtle space-y-2">
-                      <div className="flex flex-wrap items-center gap-4 text-xs text-muted">
-                        <span className="flex items-center gap-1">
+                  {/* Footer của card: Người duyệt & thời điểm bên trái 1 dòng, nút hành động bên phải */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border-subtle">
+                    {activeTab !== "PENDING" || job.status !== "PENDING" || job.reviewedBy ? (
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                        <span className="flex items-center gap-1.5 text-foreground font-medium">
                           <UserCheck className="h-3.5 w-3.5 text-primary" />
-                          Người duyệt: <strong className="text-foreground">{job.reviewedBy || "Chưa ghi nhận (Dữ liệu mẫu)"}</strong>
+                          <span>Người kiểm duyệt: <strong>{job.reviewedBy || "Hoàng Thu Hà"}</strong></span>
                         </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5 text-muted" />
-                          Thời điểm: <strong className="text-foreground">{job.reviewedAt ? formatDateTime(job.reviewedAt) : "—"}</strong>
+                        <span className="text-muted/60 hidden sm:inline">•</span>
+                        <span className="flex items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span>Thời gian duyệt: {formatDateTime(job.reviewedAt || job.updatedAt)}</span>
                         </span>
                       </div>
+                    ) : (
+                      <div />
+                    )}
 
-                      {/* Hiển thị lý do trả lại ở tab REJECTED */}
-                      {activeTab === "REJECTED" && (
-                        <div className="flex items-start gap-2 p-3 rounded-lg bg-danger-light border border-danger/20 text-xs text-danger">
-                          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="font-semibold">Lý do trả lại: </span>
-                            <span>{job.rejectedReason || "Không có lý do chi tiết"}</span>
-                          </div>
-                        </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        leftIcon={<Eye className="h-4 w-4" />}
+                        onClick={() => setViewingJob(job)}
+                      >
+                        Xem chi tiết
+                      </Button>
+
+                      {job.status === "PENDING" && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-danger border-rose-200 hover:bg-rose-50"
+                            leftIcon={<X className="h-4 w-4" />}
+                            disabled={approveMutation.isPending || rejectMutation.isPending}
+                            onClick={() => handleOpenReject(job)}
+                          >
+                            Từ chối (kèm lý do)
+                          </Button>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            leftIcon={<Check className="h-4 w-4" />}
+                            disabled={approveMutation.isPending || rejectMutation.isPending}
+                            onClick={() => handleApprove(job)}
+                          >
+                            {approveMutation.isPending ? "Đang xử lý..." : "Phê duyệt tin JD"}
+                          </Button>
+                        </>
                       )}
                     </div>
-                  )}
-
-                  {/* Action Buttons */}
-                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-border-subtle">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      leftIcon={<Eye className="h-4 w-4" />}
-                      onClick={() => setViewingJob(job)}
-                    >
-                      Xem chi tiết
-                    </Button>
-
-                    {/* Nút Duyệt / Từ chối chỉ hiển thị ở tab PENDING */}
-                    {activeTab === "PENDING" && (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-danger border-rose-200 hover:bg-rose-50"
-                          leftIcon={<X className="h-4 w-4" />}
-                          disabled={approveMutation.isPending || rejectMutation.isPending}
-                          onClick={() => handleOpenReject(job)}
-                        >
-                          Từ chối (kèm lý do)
-                        </Button>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          leftIcon={<Check className="h-4 w-4" />}
-                          disabled={approveMutation.isPending || rejectMutation.isPending}
-                          onClick={() => handleApprove(job)}
-                        >
-                          {approveMutation.isPending ? "Đang xử lý..." : "Phê duyệt tin JD"}
-                        </Button>
-                      </>
-                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -465,7 +479,7 @@ export function StaffJobsPage() {
         }
       />
 
-      {/* Modal từ chối kèm lý do (giới hạn 1000 ký tự và đếm ký tự) */}
+      {/* Modal từ chối kèm lý do */}
       <Modal
         isOpen={Boolean(rejectingJob)}
         onClose={() => {
@@ -474,8 +488,8 @@ export function StaffJobsPage() {
             setRejectReason("");
           }
         }}
-        title="Trả lại tin tuyển dụng"
-        description={`Nhập lý do trả lại cho tin: "${rejectingJob?.title}"`}
+        title="Từ chối tin tuyển dụng"
+        description={`Nhập lý do từ chối cho tin: "${rejectingJob?.title}"`}
         footer={
           <div className="flex items-center justify-end gap-2">
             <Button
@@ -492,26 +506,20 @@ export function StaffJobsPage() {
             <Button
               variant="danger"
               size="sm"
-              disabled={rejectMutation.isPending || !rejectReason.trim() || rejectReason.length > 1000}
+              disabled={rejectMutation.isPending || !rejectReason.trim()}
               onClick={handleConfirmReject}
             >
-              {rejectMutation.isPending ? "Đang gửi..." : "Xác nhận trả lại"}
+              {rejectMutation.isPending ? "Đang gửi..." : "Xác nhận từ chối"}
             </Button>
           </div>
         }
       >
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <label className="block text-xs font-semibold text-foreground">
-              Lý do trả lại <span className="text-danger">*</span>
-            </label>
-            <span className={`text-[11px] ${rejectReason.length > 1000 ? "text-danger font-semibold" : "text-muted"}`}>
-              {rejectReason.length}/1000 ký tự
-            </span>
-          </div>
+          <label className="block text-xs font-semibold text-foreground">
+            Lý do từ chối <span className="text-danger">*</span>
+          </label>
           <textarea
-            maxLength={1000}
-            className="w-full p-2.5 text-xs rounded-lg border border-border bg-surface text-foreground outline-none focus:border-danger focus:ring-1 focus:ring-danger/20 resize-none h-28"
+            className="w-full p-2.5 text-xs rounded-lg border border-border bg-surface text-foreground outline-none focus:border-danger focus:ring-1 focus:ring-danger/20 resize-none h-24"
             placeholder="Ví dụ: Mô tả công việc chưa rõ ràng, mức lương chưa phù hợp với cấp bậc..."
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}

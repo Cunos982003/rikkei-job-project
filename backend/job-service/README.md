@@ -109,47 +109,37 @@ $env:CANDIDATE_SKILLS_STUB="true"
 - `GET /jobs/{id}/match/me`: Ứng viên (`ROLE_CANDIDATE`) xem điểm khớp của chính mình với JD `APPROVED`.
 - `GET /jobs/{id}/match/{userId}`: `ROLE_HR`, `ROLE_STAFF`, `ROLE_ADMIN` xem điểm khớp của ứng viên với JD (HR chỉ xem được JD công ty mình).
 
-## Cán Bộ Duyệt JD & Quản Lý Doanh Nghiệp (DN-07)
+## Cán bộ Duyệt JD & Quản lý Doanh nghiệp (DN-07)
 
-### 1. Tính năng & Kiến trúc
+### 1. Kiến trúc & Cơ chế vận hành
 - **Phê duyệt / Từ chối JD**:
-  - `POST /staff/jobs/{id}/approve`: Duyệt JD từ `PENDING` sang `APPROVED`. Cập nhật `reviewedBy`, `reviewedAt` theo Clock bean, và ghi nhận 1 bản ghi `APPROVE_JD` vào bảng `company_actions`. Chỉ duyệt khi JD đang `PENDING` (trạng thái khác trả `409 Conflict`).
-  - `POST /staff/jobs/{id}/reject`: Trả lại JD từ `PENDING` sang `REJECTED` với lý do bắt buộc (tối đa 1000 ký tự). Cập nhật `rejectedReason`, `reviewedBy`, `reviewedAt`, và ghi nhận `REJECT_JD` vào `company_actions`. HR có thể sửa và gửi duyệt lại (`REJECTED` -> `PENDING`).
-  - `GET /staff/jobs?status=PENDING&companyId=...`: Cán bộ xem danh sách JD có hỗ trợ lọc theo trạng thái và/hoặc doanh nghiệp.
+  - Cán bộ (`ROLE_STAFF`, `ROLE_ADMIN`) duyệt tin tuyển dụng ở trạng thái `PENDING` sang `APPROVED` hoặc từ chối sang `REJECTED`.
+  - Khi từ chối, lý do trả lại (`rejectedReason`) là bắt buộc, không được để trống và tối đa 1000 ký tự.
+  - Hệ thống tự động ghi nhận định danh cán bộ (`reviewedBy`) và thời điểm (`reviewedAt`) vào entity `Job`, đồng thời ghi một bản ghi lịch sử `APPROVE_JD` hoặc `REJECT_JD` vào bảng `company_actions`.
+  - Doanh nghiệp có thể chỉnh sửa tin bị từ chối (`REJECTED`) và gửi duyệt lại (`PENDING`).
+- **Khoá / Mở khoá doanh nghiệp & Cascade tài khoản HR**:
+  - Khi khoá công ty (`POST /staff/companies/{id}/lock`), công ty chuyển sang `LOCKED`. Hệ thống tự động gọi sang `auth-service` khoá toàn bộ tài khoản HR đang `ACTIVE` với tiền tố lý do `[COMPANY_LOCK] <reason>`. Ghi bản ghi `LOCK` vào `company_actions`.
+  - Khi mở khoá (`POST /staff/companies/{id}/unlock`), công ty chuyển sang `ACTIVE`. Hệ thống chỉ mở khoá các tài khoản HR bị khoá có `lockedReason` bắt đầu bằng `[COMPANY_LOCK]`. Những HR bị khoá riêng vì lý do vi phạm khác vẫn giữ nguyên trạng thái `LOCKED`. Ghi bản ghi `UNLOCK` vào `company_actions`.
+  - Nếu quá trình gọi sang `auth-service` gặp sự cố, transaction sẽ rollback và trả mã lỗi `502 Bad Gateway`, bảo đảm tính nhất quán dữ liệu giữa 2 service.
+- **Chặn thao tác & Ẩn dữ liệu của doanh nghiệp bị khoá**:
+  - Toàn bộ thao tác của HR thuộc công ty bị khoá (tạo JD, sửa JD, cập nhật kỹ năng, gửi duyệt, đóng tin, sửa hồ sơ công ty, upload logo) đều bị chặn và trả về `403 Forbidden`.
+  - Tin tuyển dụng của doanh nghiệp bị khoá tự động bị ẩn khỏi danh sách công khai (`GET /jobs`). Nếu ứng viên hoặc guest gọi trực tiếp `GET /jobs/{id}` của doanh nghiệp bị khoá sẽ nhận mã lỗi `404 Not Found`.
+- **Tự động đóng tin tuyển dụng hết hạn (Cron Scheduler)**:
+  - Tiến trình scheduler chạy định kỳ (mặc định lúc 00:05 mỗi ngày theo múi giờ `Asia/Ho_Chi_Minh`) quét các JD đang `APPROVED` có `deadline < ngày hiện tại`, tự động chuyển trạng thái sang `CLOSED` và đánh dấu `stale` trong bảng điểm khớp `match_scores`.
+  - Cho phép bật/tắt qua cấu hình `job.expiry.enabled` (mặc định `true`, tắt trong test profile) và tùy chỉnh biểu thức cron qua `job.expiry.cron`.
 
-- **Khoá / Mở khoá Doanh nghiệp**:
-  - `POST /staff/companies/{id}/lock`: Cán bộ khoá doanh nghiệp kèm lý do (tối đa 500 ký tự). Trạng thái chuyển sang `LOCKED`. Hệ thống gọi `authClient.listHrAccounts(companyId)` và gọi `authClient.lockHrAccount` đối với mọi tài khoản HR đang `ACTIVE` với tiền tố `[COMPANY_LOCK] <reason>`. Toàn bộ thao tác thực hiện trong một `@Transactional`, nếu gọi `auth-service` lỗi sẽ ném `BadGatewayException` và rollback toàn bộ. Ghi nhận `LOCK` vào `company_actions`. Doanh nghiệp đã `LOCKED` trả về `409 Conflict`.
-  - `POST /staff/companies/{id}/unlock`: Mở khoá doanh nghiệp sang `ACTIVE`. Hệ thống chỉ mở khoá các tài khoản HR đang `LOCKED` có `lockedReason` bắt đầu bằng `[COMPANY_LOCK]`. Tài khoản HR bị khoá riêng vì lý do khác giữ nguyên trạng thái khoá. Ghi nhận `UNLOCK` vào `company_actions`. Doanh nghiệp đang `ACTIVE` trả về `409 Conflict`.
-  - `GET /staff/companies/{id}/history?page=0&size=10`: Xem nhật ký thao tác doanh nghiệp (`LOCK`, `UNLOCK`, `APPROVE_JD`, `REJECT_JD`) sắp xếp theo thời gian mới nhất trước (`createdAt DESC`), kèm thông tin cán bộ thực hiện (`staffId`) và tiêu đề JD (`targetTitle`) nếu là duyệt/từ chối JD.
+### 2. Biến cấu hình:
+| Biến môi trường | Giá trị mặc định | Mô tả |
+|-----------------|------------------|-------|
+| `JOB_EXPIRY_ENABLED` | `true` (prod/local), `false` (test) | Bật/tắt tiến trình tự động đóng tin tuyển dụng quá hạn |
+| `JOB_EXPIRY_CRON` | `0 5 0 * * *` | Biểu thức cron chạy lúc 00:05 hàng ngày theo giờ Việt Nam |
 
-- **Chặn HR của doanh nghiệp bị khoá & Ẩn JD**:
-  - HR thuộc doanh nghiệp có trạng thái `LOCKED` sẽ bị chặn (ném `ForbiddenException` 403: "Doanh nghiệp đang bị khoá, bạn không thể thực hiện thao tác này") khi gọi các thao tác ghi: `createJob`, `updateJob`, `replaceSkills`, `submitJob`, `closeJob`, cập nhật hồ sơ công ty và upload logo. Các thao tác đọc (`GET`) của HR vẫn được phép.
-  - Toàn bộ tin tuyển dụng (`APPROVED`) của công ty bị `LOCKED` sẽ tự động bị ẩn khỏi trang việc làm công khai (`GET /jobs`, `JobQueryController` bổ sung điều kiện `AND COALESCE(c.status, 'ACTIVE') <> 'LOCKED'`). Ứng viên tra cứu chi tiết (`GET /jobs/{id}`) sẽ nhận về `404 Not Found`. Cán bộ (STAFF/ADMIN) vẫn có thể xem chi tiết JD này qua `/staff/jobs`.
-
-- **Tự động đóng JD quá hạn (`JobExpiryScheduler`)**:
-  - Tự động chạy hàng ngày theo lịch trình: `@Scheduled(cron = "${job.expiry.cron:0 5 0 * * *}", zone = "Asia/Ho_Chi_Minh")`.
-  - `closeExpiredJobs()`: Chuyển tất cả tin tuyển dụng có `status = APPROVED` và `deadline < ngày hiện tại` (theo Clock bean múi giờ `Asia/Ho_Chi_Minh`) sang `CLOSED`, cập nhật `updatedAt`. Các tin `DRAFT`, `PENDING`, `REJECTED` quá hạn không bị ảnh hưởng.
-  - Tự động đánh dấu `stale = true` cho các bản ghi `match_scores` liên quan đến JD vừa đóng.
-  - Cấu hình bật/tắt qua property `job.expiry.enabled` (mặc định `true`, tắt trong profile `test`).
-
-### 2. Biến cấu hình (DN-07):
-| Biến môi trường / Property | Giá trị mặc định | Mô tả |
-|-----------------------------|------------------|-------|
-| `job.expiry.cron`           | `0 5 0 * * *`    | Biểu thức Cron chạy tác vụ quét và đóng JD quá hạn (múi giờ Asia/Ho_Chi_Minh) |
-| `job.expiry.enabled`        | `true`           | Bật/tắt tác vụ tự động đóng JD quá hạn (tự động tắt trong profile `test`) |
-
-### 3. Cách chạy & Dữ liệu mẫu thử nghiệm:
-- **Khởi động**:
-  ```powershell
-  ./gradlew bootRun --args="--spring.profiles.active=local"
-  ```
-- **Dữ liệu mẫu từ `MockDataInitializer`**:
-  - Doanh nghiệp 1: Mã số thuế `0101234567` (Công ty Cổ phần Rikkeisoft, trạng thái `ACTIVE`).
-  - Doanh nghiệp 2: Mã số thuế `0107654321` (Rikkei Digital Solutions, trạng thái `ACTIVE`).
-  - Tài khoản HR mẫu trong `StubAuthClient`:
-    - `hr1@rikkeijobs.test` (gắn với Doanh nghiệp 1)
-    - `hr2@rikkeijobs.test` (gắn với Doanh nghiệp 2)
-  - Tài khoản Cán bộ mẫu: role `ROLE_STAFF`, email `staff1@rikkeijobs.test`.
-  - JD mẫu chờ duyệt: `MockDataInitializer` nạp sẵn JD có trạng thái `PENDING` theo danh sách sequential statuses (`DRAFT`, `PENDING`, `APPROVED`), sẵn sàng để cán bộ duyệt hoặc từ chối qua `/staff/jobs/{id}/approve` và `/staff/jobs/{id}/reject`.
+### 3. API theo DN-07:
+- `POST /staff/jobs/{id}/approve`: Cán bộ duyệt JD `PENDING` sang `APPROVED`.
+- `POST /staff/jobs/{id}/reject`: Cán bộ từ chối JD `PENDING` sang `REJECTED` kèm lý do.
+- `GET /staff/jobs?status=PENDING&companyId=...`: Lọc danh sách JD theo trạng thái và doanh nghiệp.
+- `POST /staff/companies/{id}/lock`: Cán bộ khoá doanh nghiệp và cascade khoá HR.
+- `POST /staff/companies/{id}/unlock`: Cán bộ mở khoá doanh nghiệp và cascade mở HR.
+- `GET /staff/companies/{id}/history`: Cán bộ xem lịch sử thao tác tác động lên doanh nghiệp.
 
 

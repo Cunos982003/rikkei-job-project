@@ -118,6 +118,11 @@ candidate:
   skills:
     stub: ${CANDIDATE_SKILLS_STUB:true}
 
+job:
+  expiry:
+    enabled: ${JOB_EXPIRY_ENABLED:true}
+    cron: ${JOB_EXPIRY_CRON:0 5 0 * * *}
+
 app:
   jwt:
     secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
