@@ -280,6 +280,13 @@ INSERT INTO jobs (id, company_id, title, position, level, type, quantity, city, 
     ('d0000000-0000-4000-8000-000000000120', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Golang Backend Developer (SENIOR) #120', 'Golang Backend Developer', 'SENIOR', 'FULLTIME', 2, 'Hà Nội', 'Hà Nội / TP.HCM / Đà Nẵng, Hybrid', 'REMOTE', 42000000, 57000000, 'Cơ hội gia nhập Base.vn SaaS Enterprise ở vị trí Golang Backend Developer (SENIOR) #120. Tham gia phát triển các hệ thống quy mô lớn, môi trường Agile chuyên nghiệp, hỗ trợ đào tạo và thưởng dự án hấp dẫn.', 'Thành thạo GOLANG, POSTGRESQL, REDIS. Cấp độ mong muốn: SENIOR. Tư duy giải quyết vấn đề tốt và chủ động trong công việc.', 'Lương thưởng cạnh tranh theo năng lực, đóng BHXH đầy đủ, hỗ trợ thiết bị làm việc và đào tạo nâng cao.', ((NOW() - interval '5 days')::date), 'CLOSED', NULL, 'f015c129-aa6a-44f5-a2b3-d40e8bf0645f', NOW() - interval '11 days', NOW())
 ON CONFLICT (id) DO NOTHING;
 
+-- Cập nhật reviewed_by và reviewed_at cho các tin đã duyệt hoặc đã từ chối
+UPDATE jobs 
+SET reviewed_by = 'Hoàng Thu Hà', 
+    reviewed_at = updated_at 
+WHERE (status = 'APPROVED' OR status = 'REJECTED') 
+  AND (reviewed_by IS NULL OR reviewed_by = '');
+
 -- 5. 360 Job Skills
 INSERT INTO job_skills (job_id, skill_id, skill_code, skill_name, required, min_score) VALUES
     ('d0000000-0000-4000-8000-000000000001', 'JAVA_CORE', 'JAVA_CORE', 'Java Core', TRUE, 65),

@@ -54,6 +54,22 @@ export function JobDetailModal({ job, onClose, footer }: JobDetailModalProps) {
           </div>
         )}
 
+        {/* Thông tin người kiểm duyệt và thời gian duyệt */}
+        {(job.status === "APPROVED" || job.status === "REJECTED" || job.reviewedBy || job.reviewedAt) && (
+          <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-1">
+            <div className="flex items-center gap-1.5 text-foreground font-medium">
+              <span className="text-muted">Người kiểm duyệt:</span>
+              <span className="font-semibold text-primary">{job.reviewedBy || "Hoàng Thu Hà"}</span>
+            </div>
+            {(job.reviewedAt || job.updatedAt) && (
+              <div className="flex items-center gap-1.5 text-muted">
+                <span>Thời gian duyệt:</span>
+                <span>{job.reviewedAt ? new Date(job.reviewedAt).toLocaleString("vi-VN") : new Date(job.updatedAt).toLocaleString("vi-VN")}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Lưới thông tin */}
         <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-2 sm:grid-cols-3 gap-3.5 text-xs">
           {job.position && (
