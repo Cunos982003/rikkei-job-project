@@ -90,7 +90,7 @@ spring:
             - id: profile
               uri: ${GATEWAY_PROFILE_URL:http://localhost:8082}
               predicates:
-                - Path=/api/v1/profiles/**,/api/v1/files/**,/api/v1/candidates,/api/v1/candidates/**,/api/v1/candidate-directory/**,/api/v1/staff/profile-reviews,/api/v1/staff/profiles/**,/api/v1/me/**,/me/**
+                - Path=/api/v1/profiles/**,/api/v1/files/**,/api/v1/candidates,/api/v1/candidates/**,/api/v1/candidate-directory/**,/api/v1/staff/profile-reviews,/api/v1/staff/profiles/**,/api/v1/me/contact-access-logs,/me/**
               filters: *cors-response-filters
             - id: recruitment
               uri: ${GATEWAY_RECRUITMENT_URL:http://localhost:8086}
