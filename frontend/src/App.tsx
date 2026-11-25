@@ -3,12 +3,15 @@ import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "sonner";
 import { queryClient } from "./lib/queryClient";
 import { AppRoutes } from "./routes/AppRoutes";
+import { ErrorBoundary } from "./components/common/ErrorBoundary";
 
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AppRoutes />
+        <ErrorBoundary>
+          <AppRoutes />
+        </ErrorBoundary>
       </BrowserRouter>
       <Toaster
         position="top-right"

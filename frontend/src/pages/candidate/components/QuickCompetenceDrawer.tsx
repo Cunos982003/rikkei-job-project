@@ -13,6 +13,9 @@ import {
   Award,
 } from "lucide-react";
 import { learningApi, type GapAnalysisResult } from "../../../api/endpoints/learning.api";
+import { profileApi, type SkillProfileItem } from "../../../api/endpoints/profile.api";
+import { candidateKeys } from "../../../api/queryKeys";
+import { useAuthStore } from "../../../store/useAuthStore";
 import { Button } from "../../../components/common/Button";
 import { Badge } from "../../../components/common/Badge";
 import { cn } from "../../../utils/cn";
@@ -40,16 +43,51 @@ export const QuickCompetenceDrawer: React.FC<QuickCompetenceDrawerProps> = ({
   onOpenApply,
   isApplied,
 }) => {
-  // Fetch gap analysis data dynamically from mock API
+  const { user } = useAuthStore();
+
+  // Fetch gap analysis data dynamically from learning-service
   const { data: gapRes, isLoading } = useQuery({
-    queryKey: ["quickGapAnalysis", jobId],
+    queryKey: candidateKeys.learning.quickGap(jobId),
     queryFn: () => learningApi.getGapAnalysis(jobId).catch(() => null),
     enabled: isOpen && Boolean(jobId),
     staleTime: 60 * 1000,
     retry: false,
   });
 
-  // Tạo fallback phân tích năng lực tự động nếu chưa kết nối được server
+  // Lấy danh sách kỹ năng thực tế của ứng viên từ profile-service
+  const { data: mySkillsRes } = useQuery({
+    queryKey: candidateKeys.skills.byUser(user?.id),
+    queryFn: async () => {
+      try {
+        const res = await profileApi.getMySkills();
+        return res;
+      } catch {
+        return null;
+      }
+    },
+    enabled: isOpen && Boolean(user?.id),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const candidateSkillsMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const skills: SkillProfileItem[] = mySkillsRes?.data || [];
+    for (const s of skills) {
+      const score = s.verifiedScore ?? s.selfScore ?? 0;
+      if (s.skillName) {
+        map.set(s.skillName.toLowerCase().trim(), score);
+      }
+      if (s.skillCode) {
+        map.set(s.skillCode.toLowerCase().trim(), score);
+      }
+      if (s.skillId) {
+        map.set(s.skillId.toLowerCase().trim(), score);
+      }
+    }
+    return map;
+  }, [mySkillsRes]);
+
+  // Phân tích năng lực đối chiếu điểm thực tế của ứng viên với yêu cầu của tin tuyển dụng
   const fallbackAnalysis: GapAnalysisResult = useMemo(() => {
     const rawSkills =
       jobSkills && jobSkills.length > 0
@@ -64,27 +102,25 @@ export const QuickCompetenceDrawer: React.FC<QuickCompetenceDrawerProps> = ({
             isMandatory: idx < 2,
           }));
 
-    const CANDIDATE_KNOWN_SCORES: Record<string, number> = {
-      java: 85,
-      "java core": 85,
-      spring: 78,
-      "spring boot": 78,
-      sql: 72,
-      javascript: 65,
-      docker: 60,
-      git: 70,
-    };
-
     const items = rawSkills.map((s, idx) => {
       const required = s.minScore || 70;
       const sName = (s.skillName || "").toLowerCase().trim();
+      const sId = (s.skillId || "").toLowerCase().trim();
+
+      // Tra cứu điểm kỹ năng thật của ứng viên
       let current = 0;
-      for (const [k, v] of Object.entries(CANDIDATE_KNOWN_SCORES)) {
-        if (sName.includes(k) || k.includes(sName)) {
-          current = v;
-          break;
+      if (candidateSkillsMap.has(sName)) {
+        current = candidateSkillsMap.get(sName)!;
+      } else if (candidateSkillsMap.has(sId)) {
+        current = candidateSkillsMap.get(sId)!;
+      } else {
+        for (const [k, v] of candidateSkillsMap.entries()) {
+          if (sName.includes(k) || k.includes(sName)) {
+            current = Math.max(current, v);
+          }
         }
       }
+
       const gap = Math.max(0, required - current);
       return {
         skillId: s.skillId || `SKL_${idx + 1}`,
@@ -113,10 +149,10 @@ export const QuickCompetenceDrawer: React.FC<QuickCompetenceDrawerProps> = ({
       totalRequiredSkills: items.length,
       passedSkillsCount: passedCount,
       missingSkillsCount: items.length - passedCount,
-      computedAt: "2026-11-25T00:00:00.000Z",
+      computedAt: new Date().toISOString(),
       items,
     };
-  }, [jobSkills, requiredSkills, jobId, jobTitle]);
+  }, [jobSkills, requiredSkills, jobId, jobTitle, candidateSkillsMap]);
 
   const analysis: GapAnalysisResult = gapRes?.data || fallbackAnalysis;
   const readiness = analysis?.readiness ?? 0;

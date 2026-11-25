@@ -1,6 +1,8 @@
 import { InternshipBlock } from './components/InternshipBlock';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export default function InternshipsPage() {
+    const { user } = useAuthStore();
     return (
         <div className="container mx-auto py-6 px-4">
             <div className="mb-6">
@@ -10,8 +12,7 @@ export default function InternshipsPage() {
                 </p>
             </div>
 
-            {/* Truyền userId giả lập để test, sau này thay bằng ID thật */}
-            <InternshipBlock userId="user-123" />
+            <InternshipBlock userId={user?.id} />
         </div>
     );
 }

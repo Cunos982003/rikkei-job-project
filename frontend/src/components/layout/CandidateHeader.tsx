@@ -25,6 +25,7 @@ import {
 import { useAuthStore } from "../../store/useAuthStore";
 import { candidateJobsApi } from "../../api/endpoints/candidateJobs.api";
 import { jobsApi } from "../../api/endpoints/jobs.api";
+import { candidateKeys } from "../../api/queryKeys";
 import { ChangePasswordModal } from "../auth/ChangePasswordModal";
 import { cn } from "../../utils/cn";
 
@@ -149,7 +150,7 @@ export function CandidateHeader() {
 
   // Đếm số lượng việc làm đã lưu để hiển thị badge trên icon Trái tim
   const { data: savedJobsRes } = useQuery({
-    queryKey: ["savedJobs"],
+    queryKey: candidateKeys.jobs.saved(),
     queryFn: () =>
       candidateJobsApi.getSavedJobs().catch(() => ({ success: true, statusCode: 200, message: "", data: [] })),
     staleTime: 5 * 60 * 1000,
@@ -162,7 +163,7 @@ export function CandidateHeader() {
   // Prefetch dữ liệu khi người dùng hover vào menu để trang tải tức thì
   const prefetchSavedJobs = useCallback(() => {
     queryClient.prefetchQuery({
-      queryKey: ["savedJobs"],
+      queryKey: candidateKeys.jobs.saved(),
       queryFn: () =>
         candidateJobsApi.getSavedJobs().catch(() => ({ success: true, statusCode: 200, message: "", data: [] })),
       staleTime: 5 * 60 * 1000,
@@ -171,7 +172,7 @@ export function CandidateHeader() {
 
   const prefetchJobs = useCallback(() => {
     queryClient.prefetchQuery({
-      queryKey: ["candidateJobs"],
+      queryKey: candidateKeys.jobs.list(),
       queryFn: () => jobsApi.getJobs().catch(() => null),
       staleTime: 5 * 60 * 1000,
     });

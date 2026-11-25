@@ -20,7 +20,7 @@ export function StaffCandidatesPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // State from URL params on mount
+  // State from URL params
   const [searchInput, setSearchInput] = useState(() => searchParams.get("q") || "");
   const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get("q") || "");
   const [classCode, setClassCode] = useState(() => searchParams.get("classCode") || "");
@@ -78,12 +78,12 @@ export function StaffCandidatesPage() {
     (response as any)?.content ??
     [], [response]);
   const totalElements =
-    (response as any)?.pagination?.totalElements ??
-    (response as any)?.totalElements ??
+    response?.pagination?.totalElements ??
+    response?.totalElements ??
     0;
   const totalPages =
-    (response as any)?.pagination?.totalPages ??
-    (response as any)?.totalPages ??
+    response?.pagination?.totalPages ??
+    response?.totalPages ??
     0;
 
   // Extract unique class codes from candidates for filter dropdown
@@ -91,6 +91,20 @@ export function StaffCandidatesPage() {
     const codes = candidates.map((c) => c.classCode).filter(Boolean) as string[];
     return [...new Set(codes)].sort();
   }, [candidates]);
+
+  // Sync state to URL params when filters change
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (debouncedSearch) params.set("q", debouncedSearch);
+    if (classCode) params.set("classCode", classCode);
+    if (status && status !== "PENDING") params.set("status", status);
+    if (currentPage > 0) params.set("page", currentPage.toString());
+    const newStr = params.toString();
+    const curStr = searchParams.toString();
+    if (newStr !== curStr) {
+      setSearchParams(params, { replace: true });
+    }
+  }, [debouncedSearch, classCode, status, currentPage]);
   const handleClearFilters = () => {
     setSearchInput("");
     setDebouncedSearch("");
@@ -191,15 +205,17 @@ export function StaffCandidatesPage() {
               </Button>
             </div>
           ) : candidates.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 text-center">
+            <div className="flex flex-col items-center justify-center p-12 text-center notranslate" translate="no">
               <div className="rounded-full bg-slate-100 p-3 text-slate-400 mb-3">
                 <Users className="h-6 w-6" />
               </div>
               <h3 className="text-base font-semibold text-foreground">Không tìm thấy hồ sơ nào</h3>
               <p className="mt-1 text-sm text-muted max-w-md">
-                {hasActiveFilters
-                  ? "Không có hồ sơ nào khớp với tiêu chí tìm kiếm hoặc bộ lọc hiện tại."
-                  : "Không có hồ sơ nào đang chờ duyệt."}
+                <span>
+                  {hasActiveFilters
+                    ? "Không có hồ sơ nào khớp với tiêu chí tìm kiếm hoặc bộ lọc hiện tại."
+                    : "Không có hồ sơ nào đang chờ duyệt."}
+                </span>
               </p>
               {hasActiveFilters && (
                 <Button
@@ -218,7 +234,7 @@ export function StaffCandidatesPage() {
                 candidates={candidates}
                 sortBy="submittedAt"
                 sortOrder="asc"
-                onSort={() => {}} // Sorting handled by API
+                onSort={() => { }} // Sorting handled by API
                 onRowClick={handleRowClick}
                 isLoading={false}
                 emptyMessage="Không có hồ sơ nào trong hàng chờ duyệt"

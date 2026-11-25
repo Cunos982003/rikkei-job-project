@@ -92,8 +92,9 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_MOCK_API_URL || 'http://localhost:9000',
           changeOrigin: true
         },
+        // 5.1. Phân hệ Đào tạo bổ sung LMS -> learning-service (:8089) hoặc API Gateway (:8080)
         '/api/v1/learning': {
-          target: env.VITE_MOCK_API_URL || 'http://localhost:9000',
+          target: env.VITE_LEARNING_SERVICE_URL || env.VITE_GATEWAY_URL || 'http://localhost:8089',
           changeOrigin: true
         },
         '/api/v1/hr/interns': {
