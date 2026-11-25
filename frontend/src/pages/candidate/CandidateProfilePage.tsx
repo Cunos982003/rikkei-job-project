@@ -40,6 +40,7 @@ import {
   Code2,
 } from "lucide-react";
 import { offersApi } from "../../api/endpoints/offers.api";
+import { candidateKeys } from "../../api/queryKeys";
 import {
   profileApi,
   type CandidateProfile,
@@ -53,6 +54,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { VisibilitySection } from "../../features/profile/components/VisibilitySection";
 // BỔ SUNG: Import component DG-03
 import { OverallCompetencyBlock } from "../../features/profile/components/OverallCompetencyBlock";
+import { CandidateContactAccessLogs } from "../../components/candidate/CandidateContactAccessLogs";
 
 const VN_PHONE_REGEX = /^(03|05|07|08|09)[0-9]{8}$/;
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -174,7 +176,7 @@ function MediaDropzone({
 }
 
 export function CandidateProfilePage() {
-  const { user, isCandidate } = useAuthStore();
+  const { user, isCandidate, updateUser } = useAuthStore();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -233,7 +235,7 @@ export function CandidateProfilePage() {
     error: profileError,
     refetch: refetchProfile,
   } = useQuery({
-    queryKey: ["myProfile", user?.id],
+    queryKey: candidateKeys.profile.detail(user?.id),
     queryFn: () => profileApi.getMyProfile(),
     enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
@@ -241,21 +243,21 @@ export function CandidateProfilePage() {
   });
 
   const { data: educationsData, isLoading: educationsLoading } = useQuery({
-    queryKey: ["myEducations", user?.id],
+    queryKey: candidateKeys.profile.educations(user?.id),
     queryFn: () => profileApi.getEducations(),
     enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: certificatesData, isLoading: certificatesLoading } = useQuery({
-    queryKey: ["myCertificates", user?.id],
+    queryKey: candidateKeys.profile.certificates(user?.id),
     queryFn: () => profileApi.getCertificates(),
     enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: skillsData, isLoading: skillsLoading } = useQuery({
-    queryKey: ["mySkills", user?.id],
+    queryKey: candidateKeys.skills.byUser(user?.id),
     queryFn: () => profileApi.getMySkills(),
     staleTime: 5 * 60 * 1000,
   });
@@ -274,7 +276,7 @@ export function CandidateProfilePage() {
   });
 
   const { data: employmentRecordsData } = useQuery({
-    queryKey: ["myEmploymentRecords", user?.id],
+    queryKey: candidateKeys.profile.employment(user?.id),
     queryFn: () => offersApi.listMyEmploymentRecords(),
     staleTime: 60 * 1000,
   });
@@ -306,21 +308,35 @@ export function CandidateProfilePage() {
         };
       });
     }
-  }, [profileData]);
+  }, [profileData, user?.avatarUrl, user?.fullName, updateUser]);
 
   // ========== Mutations ==========
 
   const updateProfileMutation = useMutation({
     mutationFn: (data: Partial<CandidateProfile>) => profileApi.updateMyProfile(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["myProfile"] });
+    onSuccess: (res, variables) => {
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.all() });
+      // Cập nhật ngay avatarUrl và fullName vào AuthStore để thanh Header cập nhật tức thì
+      const patch: { avatarUrl?: string; fullName?: string } = {};
+      if (variables.avatarUrl !== undefined) {
+        patch.avatarUrl = variables.avatarUrl;
+      }
+      if (res?.data?.avatarUrl) {
+        patch.avatarUrl = res.data.avatarUrl;
+      }
+      if (res?.data?.fullName) {
+        patch.fullName = res.data.fullName;
+      }
+      if (Object.keys(patch).length > 0) {
+        updateUser(patch);
+      }
     },
   });
 
   const createEducationMutation = useMutation({
     mutationFn: (data: EducationItem) => profileApi.createEducation(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["myEducations"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.educations() });
       closeEducationModal();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -332,7 +348,7 @@ export function CandidateProfilePage() {
     mutationFn: ({ id, data }: { id: string; data: EducationItem }) =>
         profileApi.updateEducation(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["myEducations"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.educations() });
       closeEducationModal();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -342,13 +358,13 @@ export function CandidateProfilePage() {
 
   const deleteEducationMutation = useMutation({
     mutationFn: (id: string) => profileApi.deleteEducation(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["myEducations"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: candidateKeys.profile.educations() }),
   });
 
   const createCertificateMutation = useMutation({
     mutationFn: (data: CertificateItem) => profileApi.createCertificate(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["myCertificates"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.certificates() });
       closeCertificateModal();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -360,7 +376,7 @@ export function CandidateProfilePage() {
     mutationFn: ({ id, data }: { id: string; data: CertificateItem }) =>
         profileApi.updateCertificate(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["myCertificates"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.certificates() });
       closeCertificateModal();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -370,14 +386,16 @@ export function CandidateProfilePage() {
 
   const deleteCertificateMutation = useMutation({
     mutationFn: (id: string) => profileApi.deleteCertificate(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["myCertificates"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: candidateKeys.profile.certificates() }),
   });
 
   const upsertSelfSkillsMutation = useMutation({
     mutationFn: (skills: { skillId: string; selfScore: number }[]) =>
         profileApi.upsertSelfSkills(skills),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["mySkills"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.skills.all() });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.learning.all() });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.career.all() });
       setIsSkillModalOpen(false);
       setEditingSkill(null);
     },

@@ -10,6 +10,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+  flyway:
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
+    baseline-on-migrate: true
+    baseline-version: 3
+    validate-on-migrate: false
   mail:
     host: ${SMTP_HOST:}
     port: ${SMTP_PORT:25}

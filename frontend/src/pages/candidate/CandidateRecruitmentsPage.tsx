@@ -22,6 +22,7 @@ import {
   type CandidateRecruitmentDetails,
   type RecruitmentStatus,
 } from "../../api/endpoints/recruitment.api";
+import { candidateKeys } from "../../api/queryKeys";
 import { Card, CardContent } from "../../components/common/Card";
 import { Badge } from "../../components/common/Badge";
 import { Button } from "../../components/common/Button";
@@ -210,7 +211,7 @@ function DetailModal({
   onWithdraw: (id: string) => void;
 }) {
   const { data: res, isLoading } = useQuery({
-    queryKey: ["my-recruitment-detail", applicationId],
+    queryKey: candidateKeys.recruitments.detail(applicationId),
     queryFn: () => recruitmentApi.getMyRecruitmentDetail(applicationId),
     enabled: !!applicationId,
   });
@@ -500,7 +501,7 @@ export function CandidateRecruitmentsPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   const { data: res, isLoading, isError, refetch } = useQuery({
-    queryKey: ["my-recruitments", filterStatus],
+    queryKey: candidateKeys.recruitments.list(filterStatus),
     queryFn: () =>
       recruitmentApi.getMyRecruitments(filterStatus !== "ALL" ? filterStatus : undefined),
     staleTime: 60_000,
@@ -513,7 +514,8 @@ export function CandidateRecruitmentsPage() {
       toast.success("Đã rút đơn ứng tuyển thành công.");
       setWithdrawId(null);
       setDetailId(null);
-      queryClient.invalidateQueries({ queryKey: ["my-recruitments"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.recruitments.all() });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.jobs.all() });
     },
   });
 

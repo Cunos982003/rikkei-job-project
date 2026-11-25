@@ -22,5 +22,7 @@ public class GapAnalysisResponse {
     private Instant computedAt;
     @Builder.Default
     private List<GapItemResponse> items = new ArrayList<>();
+    @Builder.Default
+    private List<GapItemResponse> allSkills = new ArrayList<>();
 }
 

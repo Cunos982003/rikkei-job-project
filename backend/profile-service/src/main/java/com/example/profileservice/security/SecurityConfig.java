@@ -84,18 +84,17 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                 .requestMatchers("/error").permitAll()
-                .requestMatchers(
-                        "/actuator/health",
-                        "/actuator/health/**")
-                .permitAll()
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
+                // Public endpoints - MUST come before HttpMethod-specific matchers
+                .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                .requestMatchers("/api/v1/candidates/**", "/api/v1/candidate-directory/**", "/api/v1/skills/**", "/api/v1/skill-catalog/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
-                .requestMatchers("/api/v1/candidates/**", "/api/v1/skills/**").permitAll()
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
+                .requestMatchers("/actuator/**").permitAll()
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                // Protected endpoints
                 .requestMatchers("/api/v1/profiles/me", "/api/v1/profiles/me/**").authenticated()
                 .requestMatchers("/api/v1/files/**").authenticated()
                 .requestMatchers("/api/v1/staff/**", "/api/v1/admin/**").hasAnyRole("STAFF", "ADMIN")
-                .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

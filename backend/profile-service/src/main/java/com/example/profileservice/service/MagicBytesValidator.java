@@ -11,18 +11,24 @@ public final class MagicBytesValidator {
     private MagicBytesValidator() {}
 
     public enum FileType {
-        PDF("pdf"),
-        JPG("jpg"),
-        PNG("png");
+        PDF("pdf", "application/pdf"),
+        JPG("jpg", "image/jpeg"),
+        PNG("png", "image/png");
 
         private final String extension;
+        private final String contentType;
 
-        FileType(String extension) {
+        FileType(String extension, String contentType) {
             this.extension = extension;
+            this.contentType = contentType;
         }
 
         public String extension() {
             return extension;
+        }
+
+        public String contentType() {
+            return contentType;
         }
     }
 

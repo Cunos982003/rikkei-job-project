@@ -68,6 +68,7 @@ public class SecurityConfig {
                                 "/api/v1/jobs", "/api/v1/jobs/**", "/jobs", "/jobs/**",
                                 "/api/v1/skills", "/api/v1/skills/**",
                                 "/api/v1/candidates", "/api/v1/candidates/**",
+                                "/api/v1/candidate-directory/**",
                                 "/api/v1/learning/target-positions", "/api/v1/learning/target-positions/**",
                                 "/api/v1/files/**",
                                 "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()

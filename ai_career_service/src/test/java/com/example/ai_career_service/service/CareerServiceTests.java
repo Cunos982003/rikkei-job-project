@@ -131,6 +131,40 @@ class CareerServiceTests {
     }
 
     @Test
+    void reusesExistingEntityWhenCacheIsExpiredToAvoidDuplicateKeyViolation() {
+        UUID existingId = UUID.randomUUID();
+        JobRecommendation existing = new JobRecommendation();
+        existing.setId(existingId);
+        existing.setUserId(USER_ID);
+        existing.setJobId(jobId(1));
+        existing.setCreatedAt(java.time.Instant.now().minus(java.time.Duration.ofDays(5))); // Expired > 24h
+        existing.setInputHash("old-hash");
+
+        var job = new RecommendationSnapshot.EligibleJob(
+                jobId(1),
+                "revision-1",
+                List.of(new RecommendationSnapshot.SkillRequirement(
+                        "Java", 80, RecommendationSnapshot.RequirementType.REQUIRED)));
+
+        when(dataSource.loadSnapshot(USER_ID))
+                .thenReturn(new RecommendationSnapshot(
+                        "profile-v1",
+                        List.of(new RecommendationSnapshot.VerifiedSkill("Java", 80)),
+                        List.of(job)));
+        when(repository.findByUserIdAndJobId(USER_ID, jobId(1))).thenReturn(Optional.of(existing));
+        when(repository.save(any(JobRecommendation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(aiProvider.generateExplanation(any())).thenReturn("Refreshed explanation");
+
+        CareerService service = new CareerService(dataSource, repository, aiProvider, directExecutor);
+        var recommendations = service.getRecommendations(USER_ID, 10);
+
+        assertThat(recommendations).hasSize(1);
+        org.mockito.ArgumentCaptor<JobRecommendation> captor = org.mockito.ArgumentCaptor.forClass(JobRecommendation.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getId()).isEqualTo(existingId);
+    }
+
+    @Test
     void getMatchScoreScoresRequestedJob() {
         var betterJob = new RecommendationSnapshot.EligibleJob(
                 jobId(1),

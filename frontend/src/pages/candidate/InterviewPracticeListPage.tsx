@@ -59,7 +59,7 @@ export const InterviewPracticeListPage: React.FC = () => {
           setIsSelectJobOpen(false);
           setSelectedJobId("");
           if (res?.data?.id) {
-            navigate(`/candidate/interview-practice/${res.data.id}`);
+            navigate(`/candidate/career/interviews/${res.data.id}`);
           }
         },
       }
@@ -156,7 +156,7 @@ export const InterviewPracticeListPage: React.FC = () => {
               key={item.id}
               hoverable
               className="border-border cursor-pointer transition-all"
-              onClick={() => navigate(`/candidate/interview-practice/${item.id}`)}
+              onClick={() => navigate(`/candidate/career/interviews/${item.id}`)}
             >
               <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-2 flex-1">
