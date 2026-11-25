@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { profileApi } from "../../../api/endpoints/profile.api";
+import { candidateKeys } from "../../../api/queryKeys";
 
 /**
  * Lịch sử duyệt hồ sơ (HS-05). Chỉ tải khi người dùng thực sự cần xem.
  */
 export function useReviewHistory(enabled = true) {
   return useQuery({
-    queryKey: ["reviewHistory"],
+    queryKey: candidateKeys.profile.visibilityHistory(),
     queryFn: () => profileApi.getReviewHistory(),
     staleTime: 30 * 1000,
     enabled,
@@ -22,8 +23,8 @@ export function usePublishProfile() {
   return useMutation({
     mutationFn: (consent: boolean) => profileApi.publishProfile(consent),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["myProfile"] });
-      queryClient.invalidateQueries({ queryKey: ["reviewHistory"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.all() });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.visibilityHistory() });
     },
   });
 }
@@ -33,8 +34,8 @@ export function useWithdrawProfile() {
   return useMutation({
     mutationFn: () => profileApi.withdrawProfile(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["myProfile"] });
-      queryClient.invalidateQueries({ queryKey: ["reviewHistory"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.all() });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.visibilityHistory() });
     },
   });
 }

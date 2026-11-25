@@ -20,6 +20,7 @@ import { jobsApi, type JobPostingItem } from "../../api/endpoints/jobs.api";
 import { candidateJobsApi } from "../../api/endpoints/candidateJobs.api";
 import { recruitmentApi } from "../../api/endpoints/recruitment.api";
 import { learningApi } from "../../api/endpoints/learning.api";
+import { candidateKeys } from "../../api/queryKeys";
 import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
 import { QuickCompetenceDrawer } from "./components/QuickCompetenceDrawer";
@@ -135,7 +136,7 @@ export function CandidateJobDetailPage() {
 
   // 1. Lấy chi tiết công việc
   const { data: jobRes, isLoading } = useQuery({
-    queryKey: ["candidateJobDetail", id],
+    queryKey: candidateKeys.jobs.detail(id),
     queryFn: async () => {
       if (!id) return null;
       try {
@@ -155,7 +156,7 @@ export function CandidateJobDetailPage() {
 
   // 2. Lấy danh sách việc làm đã lưu
   const { data: savedJobsRes } = useQuery({
-    queryKey: ["savedJobs"],
+    queryKey: candidateKeys.jobs.saved(),
     queryFn: () =>
       candidateJobsApi.getSavedJobs().catch(() => ({ success: true, statusCode: 200, message: "", data: [] })),
     staleTime: 60 * 1000,
@@ -169,7 +170,7 @@ export function CandidateJobDetailPage() {
 
   // 3. Lấy danh sách ứng tuyển
   const { data: recruitmentsRes } = useQuery({
-    queryKey: ["my-recruitments"],
+    queryKey: candidateKeys.recruitments.all(),
     queryFn: () => recruitmentApi.getMyRecruitments().catch(() => ({ data: [] } as any)),
     staleTime: 5 * 60 * 1000,
   });
@@ -178,14 +179,14 @@ export function CandidateJobDetailPage() {
     if (!job) return false;
     const list = (recruitmentsRes as any)?.data ?? recruitmentsRes;
     if (Array.isArray(list)) {
-      return list.some((r: any) => r?.jobId === job.id);
+      return list.some((r: any) => r?.jobId === job.id && r?.status !== "WITHDRAWN");
     }
     return false;
   }, [recruitmentsRes, job]);
 
   // 4. Lấy nhanh điểm sẵn sàng cho thẻ widget
   const { data: quickGapRes } = useQuery({
-    queryKey: ["quickGapAnalysis", job?.id],
+    queryKey: candidateKeys.learning.gapAnalysis(job?.id),
     queryFn: () => learningApi.getGapAnalysis(job?.id).catch(() => null),
     enabled: Boolean(job?.id),
     staleTime: 60 * 1000,
@@ -206,10 +207,10 @@ export function CandidateJobDetailPage() {
     },
     onMutate: async () => {
       if (!job) return;
-      await queryClient.cancelQueries({ queryKey: ["savedJobs"] });
-      const previous = queryClient.getQueryData(["savedJobs"]);
+      await queryClient.cancelQueries({ queryKey: candidateKeys.jobs.saved() });
+      const previous = queryClient.getQueryData(candidateKeys.jobs.saved());
 
-      queryClient.setQueryData(["savedJobs"], (old: any) => {
+      queryClient.setQueryData(candidateKeys.jobs.saved(), (old: any) => {
         const currentData = Array.isArray(old?.data) ? old.data : [];
         if (isSaved) {
           return { ...old, data: currentData.filter((j: any) => j.id !== job.id) };
@@ -222,7 +223,7 @@ export function CandidateJobDetailPage() {
     },
     onError: (_err, _vars, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(["savedJobs"], context.previous);
+        queryClient.setQueryData(candidateKeys.jobs.saved(), context.previous);
       }
       toast.error("Không thể cập nhật danh sách việc làm đã lưu!");
     },
@@ -232,7 +233,7 @@ export function CandidateJobDetailPage() {
       } else {
         toast.success("Đã lưu việc làm vào danh sách theo dõi!");
       }
-      queryClient.invalidateQueries({ queryKey: ["savedJobs"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.jobs.saved() });
     },
   });
 
@@ -245,7 +246,7 @@ export function CandidateJobDetailPage() {
     onSuccess: () => {
       toast.success("Nộp đơn ứng tuyển thành công! HR doanh nghiệp sẽ liên hệ với bạn.");
       setIsApplyModalOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["my-recruitments"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.recruitments.all() });
     },
   });
 

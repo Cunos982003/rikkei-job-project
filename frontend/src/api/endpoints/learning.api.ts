@@ -63,6 +63,7 @@ export interface GapAnalysisResult {
   missingSkillsCount: number;
   computedAt: string;
   items: GapItem[];
+  allSkills?: GapItem[];
 }
 
 // ==============================================================================
@@ -161,6 +162,7 @@ export interface LearningPathResponse {
   status: LearningPathStatus;
   createdAt: string;
   steps: LearningPathStep[];
+  radarSkills?: GapItem[];
 }
 
 /**

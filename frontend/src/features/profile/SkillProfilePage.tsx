@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { useSkillProfile } from "@/features/profile/hooks";
 import type { SkillProfileItem } from "@/api/endpoints/profile.api";
+import { useAuthStore } from "@/store/useAuthStore";
 import { cn } from "@/utils/cn";
 import { Award, User, ChevronDown, ChevronUp, Calendar, CheckCircle2 } from "lucide-react";
 import { LevelConstants } from "@/common/LevelConstants";
@@ -17,7 +18,9 @@ import { MentorEvaluationsBlock } from "./components/MentorEvaluations";
 
 function SkillProfileContent() {
   const { userId } = useParams<{ userId?: string }>();
+  const { user } = useAuthStore();
   const isOwnProfile = !userId;
+  const effectiveUserId = userId || user?.id;
   const { data, isLoading, error, refetch } = useSkillProfile(userId);
 
   const skills = data ?? [];
@@ -108,10 +111,10 @@ function SkillProfileContent() {
           <h2 className="text-xl font-bold">Kinh nghiệm & Đánh giá</h2>
 
           {/* Khối Thực tập IOC */}
-          <InternshipBlock userId={userId || "user-123"} />
+          <InternshipBlock userId={effectiveUserId} />
 
           {/* Khối Đánh giá từ Mentor */}
-          <MentorEvaluationsBlock userId={userId || "user-123"} />
+          <MentorEvaluationsBlock userId={effectiveUserId} />
         </div>
 
       </div>

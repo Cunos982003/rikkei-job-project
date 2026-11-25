@@ -279,10 +279,18 @@ public class LearningPathServiceImpl implements LearningPathService {
                         (first, second) -> first
                 ));
 
-        // Bản đồ thông tin kỹ năng từ GapAnalysis
-        Map<String, GapItemResponse> gapItemMap = gapAnalysis != null && gapAnalysis.getItems() != null
-                ? gapAnalysis.getItems().stream().collect(Collectors.toMap(GapItemResponse::getSkillId, Function.identity(), (a, b) -> a))
-                : Collections.emptyMap();
+        // Bản đồ thông tin kỹ năng từ GapAnalysis (ưu tiên allSkills chứa đầy đủ cả kỹ năng đã đạt và còn thiếu)
+        List<GapItemResponse> radarSkillsList = Collections.emptyList();
+        if (gapAnalysis != null) {
+            if (gapAnalysis.getAllSkills() != null && !gapAnalysis.getAllSkills().isEmpty()) {
+                radarSkillsList = gapAnalysis.getAllSkills();
+            } else if (gapAnalysis.getItems() != null) {
+                radarSkillsList = gapAnalysis.getItems();
+            }
+        }
+
+        Map<String, GapItemResponse> gapItemMap = radarSkillsList.stream()
+                .collect(Collectors.toMap(GapItemResponse::getSkillId, Function.identity(), (a, b) -> a));
 
         // Bản đồ thông tin khóa học từ mappings
         List<SkillCourseMapping> allMappings = skillCourseMappingRepository.findAll();
@@ -366,6 +374,7 @@ public class LearningPathServiceImpl implements LearningPathService {
                 .status(path.getStatus())
                 .createdAt(path.getCreatedAt())
                 .steps(stepResponses)
+                .radarSkills(radarSkillsList)
                 .build();
     }
 }
