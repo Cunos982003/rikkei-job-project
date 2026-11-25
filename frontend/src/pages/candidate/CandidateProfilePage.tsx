@@ -28,7 +28,6 @@ import {
   Paperclip,
   CheckCircle2,
   Gift,
-  RefreshCw,
 } from "lucide-react";
 import { offersApi } from "../../api/endpoints/offers.api";
 import {
@@ -39,8 +38,8 @@ import {
 } from "../../api/endpoints/profile.api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { VisibilitySection } from "../../features/profile/components/VisibilitySection";
-// BỔ SUNG: Import component DG-03
-import { OverallCompetencyBlock } from "../../features/profile/components/OverallCompetencyBlock";
+// BỔ SUNG: Import InternshipBlock
+import { InternshipBlock } from "../../features/profile/components/InternshipBlock";
 
 const VN_PHONE_REGEX = /^(03|05|07|08|09)[0-9]{8}$/;
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -95,17 +94,11 @@ export function CandidateProfilePage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
 
-  const {
-    data: profileData,
-    isLoading: profileLoading,
-    error: profileError,
-    refetch: refetchProfile,
-  } = useQuery({
+  const { data: profileData, isLoading: profileLoading, error: profileError } = useQuery({
     queryKey: ["myProfile", user?.id],
     queryFn: () => profileApi.getMyProfile(),
     enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
-    retry: false,
   });
 
   const { data: educationsData, isLoading: educationsLoading } = useQuery({
@@ -405,33 +398,13 @@ export function CandidateProfilePage() {
     );
   }
 
-  if (profileError && !profileData?.data) {
+  if (profileError) {
     return (
-      <div className="text-center py-12 p-6 rounded-2xl border border-dashed border-border bg-surface max-w-md mx-auto my-12 shadow-xs">
-        <AlertCircle className="h-12 w-12 text-rose-500 mx-auto mb-3" />
-        <h3 className="text-base font-bold text-foreground">Không thể kết nối đến máy chủ hồ sơ</h3>
-        <p className="text-muted text-xs mt-1 leading-relaxed">
-          Dịch vụ hồ sơ tạm thời chưa phản hồi hoặc đang trong quá trình khởi động. Vui lòng thử lại sau ít giây.
-        </p>
-        <div className="pt-4 flex justify-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetchProfile()}
-            leftIcon={<RefreshCw className="h-4 w-4" />}
-          >
-            Thử tải lại
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => navigate("/candidate/jobs")}
-            leftIcon={<Briefcase className="h-4 w-4" />}
-          >
-            Xem việc làm
-          </Button>
+        <div className="text-center py-12">
+          <AlertCircle className="h-12 w-12 text-danger mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-foreground">Không thể tải hồ sơ</h3>
+          <p className="text-muted text-sm mt-1">Vui lòng thử lại sau hoặc liên hệ hỗ trợ</p>
         </div>
-      </div>
     );
   }
 
@@ -534,6 +507,9 @@ export function CandidateProfilePage() {
                     <Input label="Tên khóa học" value={profile?.courseName ?? ""} disabled leftIcon={<BookOpen className="h-4 w-4" />} hint="Đồng bộ từ LMS" />
                   </CardContent>
                 </Card>
+
+                {/* BỔ SUNG: Khối Thực tập IOC */}
+                <InternshipBlock userId={user?.id} />
 
                 {/* [UT-07] Kinh nghiệm nhận việc từ Offer */}
                 <Card>
@@ -809,10 +785,7 @@ export function CandidateProfilePage() {
           {/* ===== Kỹ năng ===== */}
           {activeTab === "skills" && (
               <div className="space-y-6">
-                {/* BỔ SUNG: Khối Chỉ số năng lực tổng hợp & Huy hiệu (DG-03) */}
-                <OverallCompetencyBlock />
-
-                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mt-8">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
                   <Star className="h-5 w-5 text-warning" />
                   Kỹ năng
                 </h2>
