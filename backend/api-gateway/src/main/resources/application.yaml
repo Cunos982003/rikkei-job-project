@@ -87,6 +87,11 @@ spring:
                 - RemoveResponseHeader=Access-Control-Allow-Methods
                 - RemoveResponseHeader=Access-Control-Allow-Headers
                 - RemoveResponseHeader=Access-Control-Max-Age
+            - id: ai-conversations-direct
+              uri: ${GATEWAY_AI_URL:http://localhost:8090}
+              predicates:
+                - Path=/me/conversations,/me/conversations/**
+              filters: *cors-response-filters
             - id: profile
               uri: ${GATEWAY_PROFILE_URL:http://localhost:8082}
               predicates:

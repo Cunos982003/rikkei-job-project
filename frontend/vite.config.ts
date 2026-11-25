@@ -123,6 +123,10 @@ export default defineConfig(({ mode }) => {
         '/me/job-recommendations': {
           target: env.VITE_GATEWAY_URL || 'http://localhost:8080',
           changeOrigin: true
+        },
+        '/me/conversations': {
+          target: env.VITE_AI_CAREER_URL || env.VITE_GATEWAY_URL || 'http://localhost:8080',
+          changeOrigin: true
         }
       }
     }

@@ -38,6 +38,7 @@ const CandidateOffersPage = lazy(() => import("../pages/candidate/CandidateOffer
 const CandidateRecruitmentsPage = lazy(() => import("../pages/candidate/CandidateRecruitmentsPage").then(m => ({ default: m.CandidateRecruitmentsPage })));
 const CareerLayout = lazy(() => import("../features/career/CareerLayout").then(m => ({ default: m.CareerLayout })));
 const OverviewPage = lazy(() => import("../pages/career/OverviewPage").then(m => ({ default: m.OverviewPage })));
+const CareerAssistantPage = lazy(() => import("../pages/career/CareerAssistantPage").then(m => ({ default: m.CareerAssistantPage })));
 const RecommendationsPage = lazy(() => import("../pages/career/RecommendationsPage").then(m => ({ default: m.RecommendationsPage })));
 const SkillsPage = lazy(() => import("../pages/career/SkillsPage").then(m => ({ default: m.SkillsPage })));
 const HrCompanyPage = lazy(() => import("../pages/hr/HrCompanyPage").then(m => ({ default: m.HrCompanyPage })));
@@ -170,6 +171,7 @@ export function AppRoutes() {
                             element={<CareerLayout />}
                         >
                             <Route index element={<OverviewPage />} />
+                            <Route path="assistant" element={<CareerAssistantPage />} />
                             <Route path="recommendations" element={<RecommendationsPage />} />
                             <Route path="skills" element={<SkillsPage />} />
                             <Route path="interviews" element={<InterviewPracticeListPage />} />
