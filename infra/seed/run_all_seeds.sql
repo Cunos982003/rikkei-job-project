@@ -17,6 +17,10 @@
 \c job_db
 \i infra/seed/03_seed_job_db.sql
 
+\echo '>>> [3b] Seeding contact_access_control (UT-03 contact requests & access logs)...'
+\c profile_db
+\i infra/seed/09_seed_contact_access_control.sql
+
 \echo '>>> [4] Seeding recruitment_db (180 recruitments, 420+ history, 46 rounds, 34 feedbacks, 18 offers, 6 employment_records + UT-06/UT-07)...'
 \c recruitment_db
 \i infra/seed/04_seed_recruitment_db.sql
