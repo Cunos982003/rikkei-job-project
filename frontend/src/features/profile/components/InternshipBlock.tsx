@@ -15,6 +15,8 @@ import {
     GraduationCap,
     RefreshCw,
     UserRound,
+    ShieldCheck, // <-- Thêm icon xác thực
+    Clock, // <-- Thêm icon trạng thái
 } from "lucide-react";
 
 interface InternshipBlockProps {
@@ -100,6 +102,7 @@ export function InternshipBlock({ userId }: InternshipBlockProps) {
                     !isError &&
                     internships.map((item) => {
                         const acceptedTasks = item.tasks ?? [];
+                        const isActive = item.finalScore == null; // Nếu chưa có điểm cuối kỳ => Đang thực tập
 
                         return (
                             <section
@@ -111,7 +114,6 @@ export function InternshipBlock({ userId }: InternshipBlockProps) {
                                         <div className="flex items-center gap-2">
                                             <FolderKanban className="h-5 w-5 shrink-0 text-primary" />
                                             <h3 className="font-semibold">
-                                                {/* ĐÃ SỬA LỖI TẠI ĐÂY */}
                                                 {item.batchName || "Chưa cập nhật tên đợt"}
                                             </h3>
                                         </div>
@@ -121,15 +123,23 @@ export function InternshipBlock({ userId }: InternshipBlockProps) {
                                         </p>
                                     </div>
 
-                                    <Badge
-                                        variant="secondary"
-                                        className="h-fit whitespace-nowrap"
-                                    >
-                                        Điểm cuối kỳ:{" "}
-                                        {item.finalScore != null
-                                            ? `${item.finalScore}/10`
-                                            : "Chưa có"}
-                                    </Badge>
+                                    <div className="flex flex-col sm:items-end gap-2">
+                                        {/* Nhãn xác thực nguồn */}
+                                        <Badge variant="outline" className="w-fit bg-green-50 text-green-700 border-green-200 gap-1">
+                                            <ShieldCheck className="w-3 h-3" /> Đã xác thực từ lms-pm
+                                        </Badge>
+
+                                        {/* Trạng thái điểm */}
+                                        {isActive ? (
+                                            <Badge variant="outline" className="w-fit bg-yellow-50 text-yellow-700 border-yellow-200 gap-1">
+                                                <Clock className="w-3 h-3" /> Đang thực tập
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="secondary" className="w-fit bg-blue-50 text-blue-700">
+                                                Điểm cuối kỳ: {item.finalScore}/10
+                                            </Badge>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <Separator />
