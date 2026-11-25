@@ -11,6 +11,7 @@ import com.example.profileservice.entity.ProfileReview;
 import com.example.profileservice.repository.CandidateProfileRepository;
 import com.example.profileservice.repository.ProfileEditRepository;
 import com.example.profileservice.repository.ProfileReviewRepository;
+import com.example.profileservice.service.ContactAccessService;
 import com.example.profileservice.service.ProfileQueryService;
 import com.example.profileservice.service.SkillProfileService;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class VisibilityService {
     private final ProfileEditRepository profileEditRepo;
     private final SkillProfileService skillProfileService;
     private final ProfileQueryService profileQueryService;
+    private final ContactAccessService contactAccessService;
 
     @Transactional
     public void submitForReview(UUID userId, boolean consent) {
@@ -105,9 +107,11 @@ public class VisibilityService {
 
     /**
      * Lấy preview hồ sơ đầy đủ cho staff xem (che email/phone theo UT-03).
+     * @param userId candidate userId
+     * @param staffCompanyId companyId of the staff viewing (for contact access check)
      */
     @Transactional(readOnly = true)
-    public StaffPreviewProfileDto getPreviewProfile(UUID userId) {
+    public StaffPreviewProfileDto getPreviewProfile(UUID userId, UUID staffCompanyId) {
         // Count rejections
         long rejectionCount = reviewRepo.countByUserIdAndAction(userId, ProfileReview.Action.REJECT);
 
@@ -125,7 +129,7 @@ public class VisibilityService {
                 .toList();
 
         // Delegate to ProfileQueryService
-        return profileQueryService.getProfileForPreview(userId, rejectionCount, reviewHistory);
+        return profileQueryService.getProfileForPreview(userId, staffCompanyId, rejectionCount, reviewHistory);
     }
 
     /**

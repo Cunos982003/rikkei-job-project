@@ -38,6 +38,7 @@ import {
   Link2,
   Calendar,
   Code2,
+  History,
 } from "lucide-react";
 import { offersApi } from "../../api/endpoints/offers.api";
 import {
@@ -53,6 +54,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { VisibilitySection } from "../../features/profile/components/VisibilitySection";
 // BỔ SUNG: Import component DG-03
 import { OverallCompetencyBlock } from "../../features/profile/components/OverallCompetencyBlock";
+import { CandidateContactAccessLogs } from "../../components/candidate/CandidateContactAccessLogs";
 
 const VN_PHONE_REGEX = /^(03|05|07|08|09)[0-9]{8}$/;
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -184,7 +186,7 @@ export function CandidateProfilePage() {
     }
   }, [isCandidate, navigate]);
 
-  const [activeTab, setActiveTab] = useState<"info" | "education" | "certificate" | "skills" | "portfolio">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "education" | "certificate" | "skills" | "portfolio" | "contact-logs">("info");
 
   const [isEducationModalOpen, setIsEducationModalOpen] = useState(false);
   const [editingEducation, setEditingEducation] = useState<EducationItem | null>(null);
@@ -780,6 +782,7 @@ export function CandidateProfilePage() {
     { id: "certificate", label: "Chứng chỉ", icon: FileText },
     { id: "skills", label: "Kỹ năng", icon: Star },
     { id: "portfolio", label: "Portfolio", icon: Briefcase },
+    { id: "contact-logs", label: "Nhật ký liên hệ", icon: History },
   ] as const;
 
   return (
@@ -1651,6 +1654,13 @@ export function CandidateProfilePage() {
                     </div>
                 )}
               </div>
+          )}
+
+          {/* ===== Nhật ký liên hệ ===== */}
+          {activeTab === "contact-logs" && (
+            <div className="space-y-6">
+              <CandidateContactAccessLogs />
+            </div>
           )}
 
         </div>

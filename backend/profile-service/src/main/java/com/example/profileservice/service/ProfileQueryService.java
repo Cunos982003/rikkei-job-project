@@ -16,6 +16,7 @@ import com.example.profileservice.entity.SkillScore;
 import com.example.profileservice.repository.SkillEvidenceRepository;
 import com.example.profileservice.repository.SkillRepository;
 import com.example.profileservice.repository.SkillScoreRepository;
+import com.example.profileservice.service.ContactAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,13 +41,17 @@ public class ProfileQueryService {
     private final SkillScoreRepository scoreRepo;
     private final SkillRepository skillRepo;
     private final ProfileMaskingService maskingService;
+    private final ContactAccessService contactAccessService;
 
     @Transactional(readOnly = true)
-    public StaffPreviewProfileDto getProfileForPreview(UUID userId, long rejectionCount, List<StaffPreviewProfileDto.ReviewHistoryDto> reviewHistory) {
+    public StaffPreviewProfileDto getProfileForPreview(UUID userId, UUID companyId, long rejectionCount, List<StaffPreviewProfileDto.ReviewHistoryDto> reviewHistory) {
         CandidateProfile profile = profileRepo.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Profile not found for userId: " + userId));
 
-        // Mask email and phone using ProfileMaskingService
+        // Check if company can see contact info
+        boolean canSeeContact = companyId != null && contactAccessService.canSeeContact(companyId, userId);
+
+        // Mask email and phone using ProfileMaskingService if no access
         String maskedEmail = maskingService.maskEmail(Email.of(profile.getEmail()));
         String maskedPhone = maskingService.maskPhone(Phone.of(profile.getPhone()));
 
@@ -69,8 +74,8 @@ public class ProfileQueryService {
         return StaffPreviewProfileDto.builder()
                 .userId(profile.getUserId())
                 .fullName(profile.getFullName())
-                .email(profile.getEmail())
-                .phone(profile.getPhone())
+                .email(canSeeContact ? profile.getEmail() : null)
+                .phone(canSeeContact ? profile.getPhone() : null)
                 .maskedEmail(maskedEmail)
                 .maskedPhone(maskedPhone)
                 .dob(profile.getDob() != null ? profile.getDob().toString() : null)

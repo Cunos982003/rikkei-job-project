@@ -55,6 +55,8 @@ const StaffCandidatesPage = lazy(() => import("../pages/staff/StaffCandidatesPag
 const StaffCandidateDetailPage = lazy(() => import("../pages/staff/StaffCandidateDetailPage").then(m => ({ default: m.StaffCandidateDetailPage })));
 const StaffRecruitmentsPage = lazy(() => import("../pages/staff/StaffRecruitmentsPage").then(m => ({ default: m.StaffRecruitmentsPage })));
 const RecruitmentDetailPage = lazy(() => import("../pages/hr/RecruitmentDetailPage").then(m => ({ default: m.RecruitmentDetailPage })));
+const StaffContactRequestsPage = lazy(() => import("../pages/staff/StaffContactRequestsPage").then(m => ({ default: m.StaffContactRequestsPage })));
+const StaffContactAccessLogsPage = lazy(() => import("../pages/staff/StaffContactAccessLogsPage").then(m => ({ default: m.StaffContactAccessLogsPage })));
 
 // Admin Pages
 const AdminSkillsPage = lazy(() => import("../pages/admin/AdminSkillsPage").then(m => ({ default: m.AdminSkillsPage })));
@@ -413,6 +415,17 @@ export function AppRoutes() {
                         <Route
                             path="/staff/placements"
                             element={<StaffPlacementPage />}
+                        />
+
+                        {/* UT-03: Contact Access Control */}
+                        <Route
+                            path="/staff/contact-requests"
+                            element={<StaffContactRequestsPage />}
+                        />
+
+                        <Route
+                            path="/staff/contact-access-logs"
+                            element={<StaffContactAccessLogsPage />}
                         />
                     </Route>
 
