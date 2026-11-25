@@ -43,7 +43,10 @@ export function StaffCandidateDetailPage() {
     size: 100, // Get a larger list for navigation
   });
 
-  const pendingCandidates = reviewsResponse?.data?.content ?? [];
+  const pendingCandidates = useMemo(
+    () => reviewsResponse?.data?.content ?? [],
+    [reviewsResponse?.data?.content]
+  );
 
   // Find current index and next/prev candidates
   const currentIndex = useMemo(() =>

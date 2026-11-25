@@ -1,75 +1,70 @@
+import { Suspense, lazy } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore, normalizeRole } from "../store/useAuthStore";
 import { MainLayout } from "../layouts/MainLayout";
 import { AuthLayout } from "../layouts/AuthLayout";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
 import { RoleGuard } from "../components/auth/RoleGuard";
+import { RouteLoadingFallback } from "../components/feedback/RouteLoadingFallback";
+import { FeaturePlaceholderPage } from "../pages/common/FeaturePlaceholderPage";
 
 // Pages
-import { LoginPage } from "../pages/auth/LoginPage";
-import { ResetPasswordPage } from "../pages/auth/ResetPasswordPage";
-import { UnauthorizedPage } from "../pages/common/UnauthorizedPage";
-import { NotFoundPage } from "../pages/common/NotFoundPage";
+const LoginPage = lazy(() => import("../pages/auth/LoginPage").then(m => ({ default: m.LoginPage })));
+const ResetPasswordPage = lazy(() => import("../pages/auth/ResetPasswordPage").then(m => ({ default: m.ResetPasswordPage })));
+const UnauthorizedPage = lazy(() => import("../pages/common/UnauthorizedPage").then(m => ({ default: m.UnauthorizedPage })));
+const NotFoundPage = lazy(() => import("../pages/common/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 
 // Feature Profile Pages
-import EvaluationsPage from "../features/profile/EvaluationsPage";
-import InternshipsPage from "../features/profile/InternshipsPage";
-import { SkillProfilePage } from "../features/profile/SkillProfilePage";
+const EvaluationsPage = lazy(() => import("../features/profile/EvaluationsPage"));
+const InternshipsPage = lazy(() => import("../features/profile/InternshipsPage"));
+const SkillProfilePage = lazy(() => import("../features/profile/SkillProfilePage").then(m => ({ default: m.SkillProfilePage })));
 
 // DG-02: Self Assessment Pages
-import SelfAssessmentPage from "../features/profile/SelfAssessmentPage";
-import SkillComparisonPage from "../features/profile/SkillComparisonPage";
+const SelfAssessmentPage = lazy(() => import("../features/profile/SelfAssessmentPage"));
+const SkillComparisonPage = lazy(() => import("../features/profile/SkillComparisonPage"));
 
 // DG-04: Mentor Evaluation Pages
-import MentorTaskListPage from "../features/profile/MentorTaskListPage";
-import MentorEvaluationFormPage from "../features/profile/MentorEvaluationFormPage";
+const MentorTaskListPage = lazy(() => import("../features/profile/MentorTaskListPage"));
+const MentorEvaluationFormPage = lazy(() => import("../features/profile/MentorEvaluationFormPage"));
 
 // Role Dashboard Pages
-import { CandidateProfilePage } from "../pages/candidate/CandidateProfilePage";
-import CandidateJobsPage from "../pages/candidate/CandidateJobsPage";
-import CandidateLearningPage from "../pages/candidate/CandidateLearningPage";
-import { CandidateInterviewsPage } from "../pages/candidate/CandidateInterviewsPage";
-import { CandidateOffersPage } from "../pages/candidate/CandidateOffersPage";
-import { CandidateRecruitmentsPage } from "../pages/candidate/CandidateRecruitmentsPage";
-import { InterviewPracticeListPage } from "../pages/candidate/InterviewPracticeListPage";
-import { InterviewPracticePage } from "../pages/candidate/InterviewPracticePage";
-import { CareerLayout } from "../features/career/CareerLayout";
-import { OverviewPage } from "../pages/career/OverviewPage";
-import { RecommendationsPage } from "../pages/career/RecommendationsPage";
-import { SkillsPage } from "../pages/career/SkillsPage";
-import { HrCompanyPage } from "../pages/hr/HrCompanyPage";
-import { HrJobsPage } from "../pages/hr/HrJobsPage";
-import { HrJobFormPage } from "../pages/hr/HrJobFormPage";
-import { HrInterviewSchedulePage } from "../pages/hr/HrInterviewSchedulePage";
-import { MentorStudentsPage } from "../pages/mentor/MentorStudentsPage";
-import { StaffJobsPage } from "../pages/staff/StaffJobsPage";
-import { StaffCompaniesPage } from "../pages/staff/StaffCompaniesPage";
-import { StaffCompanyDetailPage } from "../pages/staff/StaffCompanyDetailPage";
-import { StaffCandidatesPage } from "../pages/staff/StaffCandidatesPage";
-import { StaffCandidateDetailPage } from "../pages/staff/StaffCandidateDetailPage";
-import { StaffRecruitmentsPage } from "../pages/staff/StaffRecruitmentsPage";
-import { RecruitmentDetailPage } from "../pages/hr/RecruitmentDetailPage";
+const CandidateProfilePage = lazy(() => import("../pages/candidate/CandidateProfilePage").then(m => ({ default: m.CandidateProfilePage })));
+const CandidateJobsPage = lazy(() => import("../pages/candidate/CandidateJobsPage").then(m => ({ default: m.default || m.CandidateJobsPage })));
+const CandidateJobDetailPage = lazy(() => import("../pages/candidate/CandidateJobDetailPage").then(m => ({ default: m.default || m.CandidateJobDetailPage })));
+const CandidateSavedJobsPage = lazy(() => import("../pages/candidate/CandidateSavedJobsPage").then(m => ({ default: m.default || m.CandidateSavedJobsPage })));
+const CandidateLearningPage = lazy(() => import("../pages/candidate/CandidateLearningPage"));
+const CandidateInterviewsPage = lazy(() => import("../pages/candidate/CandidateInterviewsPage").then(m => ({ default: m.CandidateInterviewsPage })));
+const CandidateOffersPage = lazy(() => import("../pages/candidate/CandidateOffersPage").then(m => ({ default: m.CandidateOffersPage })));
+const CandidateRecruitmentsPage = lazy(() => import("../pages/candidate/CandidateRecruitmentsPage").then(m => ({ default: m.CandidateRecruitmentsPage })));
+const CareerLayout = lazy(() => import("../features/career/CareerLayout").then(m => ({ default: m.CareerLayout })));
+const OverviewPage = lazy(() => import("../pages/career/OverviewPage").then(m => ({ default: m.OverviewPage })));
+const RecommendationsPage = lazy(() => import("../pages/career/RecommendationsPage").then(m => ({ default: m.RecommendationsPage })));
+const SkillsPage = lazy(() => import("../pages/career/SkillsPage").then(m => ({ default: m.SkillsPage })));
+const HrCompanyPage = lazy(() => import("../pages/hr/HrCompanyPage").then(m => ({ default: m.HrCompanyPage })));
+const HrJobsPage = lazy(() => import("../pages/hr/HrJobsPage").then(m => ({ default: m.HrJobsPage })));
+const HrJobFormPage = lazy(() => import("../pages/hr/HrJobFormPage").then(m => ({ default: m.HrJobFormPage })));
+const HrInterviewSchedulePage = lazy(() => import("../pages/hr/HrInterviewSchedulePage").then(m => ({ default: m.HrInterviewSchedulePage })));
+const HrApplicationsPage = lazy(() => import("../pages/hr/HrApplicationsPage").then(m => ({ default: m.HrApplicationsPage })));
+const InterviewPracticeListPage = lazy(() => import("../pages/candidate/InterviewPracticeListPage").then(m => ({ default: m.InterviewPracticeListPage })));
+const InterviewPracticePage = lazy(() => import("../pages/candidate/InterviewPracticePage").then(m => ({ default: m.InterviewPracticePage })));
+const MentorStudentsPage = lazy(() => import("../pages/mentor/MentorStudentsPage").then(m => ({ default: m.MentorStudentsPage })));
+const StaffJobsPage = lazy(() => import("../pages/staff/StaffJobsPage").then(m => ({ default: m.StaffJobsPage })));
+const StaffCompaniesPage = lazy(() => import("../pages/staff/StaffCompaniesPage").then(m => ({ default: m.StaffCompaniesPage })));
+const StaffCompanyDetailPage = lazy(() => import("../pages/staff/StaffCompanyDetailPage").then(m => ({ default: m.StaffCompanyDetailPage })));
+const StaffCandidatesPage = lazy(() => import("../pages/staff/StaffCandidatesPage").then(m => ({ default: m.StaffCandidatesPage })));
+const StaffCandidateDetailPage = lazy(() => import("../pages/staff/StaffCandidateDetailPage").then(m => ({ default: m.StaffCandidateDetailPage })));
+const StaffRecruitmentsPage = lazy(() => import("../pages/staff/StaffRecruitmentsPage").then(m => ({ default: m.StaffRecruitmentsPage })));
+const RecruitmentDetailPage = lazy(() => import("../pages/hr/RecruitmentDetailPage").then(m => ({ default: m.RecruitmentDetailPage })));
 
 // Admin Pages
-import { AdminSkillsPage } from "../pages/admin/AdminSkillsPage";
+const AdminSkillsPage = lazy(() => import("../pages/admin/AdminSkillsPage").then(m => ({ default: m.AdminSkillsPage })));
 
 // DG-03: Admin Badge Management
-import AdminBadgesPage from "../pages/admin/AdminBadgesPage";
+const AdminBadgesPage = lazy(() => import("../pages/admin/AdminBadgesPage"));
 
 // TT-02: BỔ SUNG IMPORT 2 TRANG MỚI
-import HrInternsPage from "../pages/hr/HrInternsPage";
-import StaffPlacementPage from "../pages/staff/StaffPlacementPage";
-
-function StaffPlaceholderPage({ title }: { title: string }) {
-    return (
-        <div className="mx-auto max-w-7xl space-y-6 p-4">
-            <div className="border-b border-border pb-4">
-                <h1 className="text-2xl font-bold text-foreground">{title}</h1>
-                <p className="mt-1 text-sm text-muted">Tính năng đang trong quá trình phát triển.</p>
-            </div>
-        </div>
-    );
-}
+const HrInternsPage = lazy(() => import("../pages/hr/HrInternsPage"));
+const StaffPlacementPage = lazy(() => import("../pages/staff/StaffPlacementPage"));
 
 function RootRedirect() {
     const { user, isAuthenticated } = useAuthStore();
@@ -93,13 +88,14 @@ function RootRedirect() {
 
         case "CANDIDATE":
         default:
-            return <Navigate to="/candidate/profile" replace />;
+            return <Navigate to="/candidate/jobs" replace />;
     }
 }
 
 export function AppRoutes() {
     return (
-        <Routes>
+        <Suspense fallback={<RouteLoadingFallback />}>
+            <Routes>
             {/* Authentication */}
             <Route element={<AuthLayout />}>
                 <Route path="/login" element={<LoginPage />} />
@@ -135,6 +131,16 @@ export function AppRoutes() {
                         <Route
                             path="/candidate/jobs"
                             element={<CandidateJobsPage />}
+                        />
+
+                        <Route
+                            path="/candidate/jobs/:id"
+                            element={<CandidateJobDetailPage />}
+                        />
+
+                        <Route
+                            path="/candidate/jobs/saved"
+                            element={<CandidateSavedJobsPage />}
                         />
 
                         <Route
@@ -245,8 +251,22 @@ export function AppRoutes() {
                         />
 
                         <Route
+                            path="/hr/applications"
+                            element={<HrApplicationsPage />}
+                        />
+
+                        <Route
                             path="/hr/candidates"
-                            element={<HrCompanyPage />}
+                            element={
+                                <FeaturePlaceholderPage
+                                    title="Tìm kiếm ứng viên công khai"
+                                    description="Tính năng tìm kiếm và xem hồ sơ ứng viên theo điểm số kỹ năng đã xác thực."
+                                    badge="Đang kết nối Matching Engine"
+                                    moduleName="Phân hệ Nhà Tuyển Dụng"
+                                    backPath="/hr/jobs"
+                                    icon="sparkles"
+                                />
+                            }
                         />
 
                         <Route
@@ -266,7 +286,16 @@ export function AppRoutes() {
 
                         <Route
                             path="/hr/ioc"
-                            element={<HrCompanyPage />}
+                            element={
+                                <FeaturePlaceholderPage
+                                    title="Đăng ký nhu cầu thực tập IOC"
+                                    description="Tính năng đăng ký số lượng và chỉ tiêu tuyển thực tập sinh theo các đợt IOC từ Rikkei Education."
+                                    badge="Chờ kết nối LMS-PM"
+                                    moduleName="Phân hệ Thực tập IOC"
+                                    backPath="/hr/company"
+                                    icon="layers"
+                                />
+                            }
                         />
 
                         {/* TT-02: BỔ SUNG ROUTE THỰC TẬP SINH CỦA HR */}
@@ -339,12 +368,30 @@ export function AppRoutes() {
 
                         <Route
                             path="/staff/ioc"
-                            element={<StaffPlaceholderPage title="Ghép đợt IOC" />}
+                            element={
+                                <FeaturePlaceholderPage
+                                    title="Quản lý đợt thực tập IOC"
+                                    description="Phân hệ quản trị đợt thực tập và tiến độ các nhóm dự án IOC đồng bộ từ LMS-PM."
+                                    badge="Chờ kết nối LMS-PM"
+                                    moduleName="Cán bộ Vận hành Tuyển sinh"
+                                    backPath="/staff/jobs"
+                                    icon="layers"
+                                />
+                            }
                         />
 
                         <Route
                             path="/staff/unlock-contacts"
-                            element={<StaffPlaceholderPage title="Mở khóa liên hệ PII" />}
+                            element={
+                                <FeaturePlaceholderPage
+                                    title="Mở khóa thông tin liên hệ PII"
+                                    description="Quy trình cán bộ phê duyệt mở khóa Email và Số điện thoại của ứng viên cho doanh nghiệp đối tác."
+                                    badge="Bảo vệ dữ liệu cá nhân"
+                                    moduleName="Cán bộ Tuyển sinh & Hướng nghiệp"
+                                    backPath="/staff/candidates"
+                                    icon="key"
+                                />
+                            }
                         />
 
                         <Route
@@ -387,12 +434,30 @@ export function AppRoutes() {
                         {/* Các chức năng quản trị khác */}
                         <Route
                             path="/admin/overrides"
-                            element={<AdminSkillsPage />}
+                            element={
+                                <FeaturePlaceholderPage
+                                    title="Hàng chờ báo sai bằng chứng"
+                                    description="Tiếp nhận và xử lý các khiếu nại của ứng viên về điểm số và bằng chứng năng lực."
+                                    badge="Chờ kết nối evidence-service"
+                                    moduleName="Quản trị Hệ thống"
+                                    backPath="/admin/skills"
+                                    icon="shield"
+                                />
+                            }
                         />
 
                         <Route
                             path="/admin/audit-logs"
-                            element={<AdminSkillsPage />}
+                            element={
+                                <FeaturePlaceholderPage
+                                    title="Nhật ký thao tác hệ thống (Audit Logs)"
+                                    description="Truy vấn nhật ký kiểm toán bất biến append-only ghi nhận các thao tác nhạy cảm."
+                                    badge="Chờ kết nối audit-service"
+                                    moduleName="Quản trị Hệ thống"
+                                    backPath="/admin/skills"
+                                    icon="shield"
+                                />
+                            }
                         />
                     </Route>
                 </Route>
@@ -404,5 +469,6 @@ export function AppRoutes() {
                 element={<NotFoundPage />}
             />
         </Routes>
+        </Suspense>
     );
 }
