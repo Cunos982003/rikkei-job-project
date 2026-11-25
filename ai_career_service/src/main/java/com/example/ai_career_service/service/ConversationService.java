@@ -180,16 +180,16 @@ public class ConversationService {
                         .data(ChatMessageResponse.from(userMessage), MediaType.APPLICATION_JSON));
 
                 String fullReply = generateReply(userId, conversation, content);
-                List<String> chunks = splitIntoChunks(fullReply, 24);
+                ChatMessage assistantMessage = saveMessage(conversation, MessageRole.ASSISTANT, fullReply);
+                List<String> chunks = splitIntoChunks(fullReply, 60);
 
                 for (String chunk : chunks) {
                     emitter.send(SseEmitter.event()
                             .name("delta")
                             .data(Map.of("content", chunk), MediaType.APPLICATION_JSON));
-                    Thread.sleep(20L);
+                    Thread.sleep(15L);
                 }
 
-                ChatMessage assistantMessage = saveMessage(conversation, MessageRole.ASSISTANT, fullReply);
                 emitter.send(SseEmitter.event()
                         .name("done")
                         .data(Map.of(

@@ -155,6 +155,7 @@ export const careerChatApi = {
     const reader = response.body.getReader();
     const decoder = new TextDecoder("utf-8");
     let buffer = "";
+    let receivedDone = false;
 
     const processEventBlock = (block: string) => {
       const lines = block.split(/\r?\n/);
@@ -179,8 +180,10 @@ export const careerChatApi = {
         } else if (eventName === "delta" && typeof parsed.content === "string") {
           handlers.onDelta(parsed.content);
         } else if (eventName === "done") {
+          receivedDone = true;
           handlers.onDone(parsed as SendMessageResponse);
         } else if (eventName === "error") {
+          receivedDone = true;
           handlers.onError(parsed.message || "Lỗi khi tạo phản hồi AI.");
         }
       } catch {
@@ -191,7 +194,7 @@ export const careerChatApi = {
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      buffer = (buffer + decoder.decode(value, { stream: true })).replace(/\r\n/g, "\n");
 
       let sepIndex: number;
       while ((sepIndex = buffer.indexOf("\n\n")) !== -1) {
@@ -205,6 +208,10 @@ export const careerChatApi = {
 
     if (buffer.trim()) {
       processEventBlock(buffer.trim());
+    }
+
+    if (!receivedDone) {
+      handlers.onError("Luồng phản hồi bị gián đoạn trước khi hoàn tất.");
     }
   },
 };
