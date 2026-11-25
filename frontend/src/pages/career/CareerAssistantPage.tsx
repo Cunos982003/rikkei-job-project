@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Bot,
   Briefcase,
   MessageSquarePlus,
   Send,
@@ -12,6 +11,7 @@ import {
   Clock,
 } from "lucide-react";
 import { toast } from "sonner";
+import rikkeiBuddyAvatar from "../../assets/rikkei-buddy.jpg";
 import {
   careerChatApi,
   type AiQuota,
@@ -62,7 +62,8 @@ export const CareerAssistantPage: React.FC = () => {
   const [streamingContent, setStreamingContent] = useState("");
 
   const abortControllerRef = useRef<AbortController | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const shouldAutoScrollRef = useRef(true);
 
   const activeConversation = useMemo(
     () => conversations.find((c) => c.id === activeConvId) || null,
@@ -153,7 +154,9 @@ export const CareerAssistantPage: React.FC = () => {
   }, [activeConvId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    if (!container || !shouldAutoScrollRef.current) return;
+    container.scrollTop = container.scrollHeight;
   }, [messages, streamingContent]);
 
   const handleCreateCareerChat = async () => {
@@ -480,17 +483,19 @@ export const CareerAssistantPage: React.FC = () => {
         {/* Header with Quota */}
         <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary">
-              <Bot className="h-4 w-4" />
-            </span>
+            <img
+              src={rikkeiBuddyAvatar}
+              alt="Rikkei Buddy"
+              className="h-9 w-9 shrink-0 rounded-full object-cover border border-border shadow-2xs"
+            />
             <div className="min-w-0">
               <h2 className="truncate text-sm font-bold text-foreground">
-                {activeConversation ? activeConversation.title : "Trợ lý Nghề nghiệp Rikkei Jobs"}
+                {activeConversation ? activeConversation.title : "Rikkei Buddy"}
               </h2>
               <p className="text-[11px] text-muted">
                 {activeConversation?.mode === "INTERVIEW"
-                  ? "Chế độ Luyện phỏng vấn (Chấm điểm theo chuẩn AI-03)"
-                  : "Chế độ Tư vấn nghề nghiệp, học tập & tuyển dụng"}
+                  ? "Rikkei Buddy · Luyện phỏng vấn (Chấm điểm chuẩn AI-03)"
+                  : "Rikkei Buddy · Your Learning & Career Companion."}
               </p>
             </div>
           </div>
@@ -513,20 +518,32 @@ export const CareerAssistantPage: React.FC = () => {
         </header>
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div
+          ref={messagesContainerRef}
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            shouldAutoScrollRef.current =
+              el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+          }}
+          className="flex-1 overflow-y-auto p-4 space-y-4"
+        >
           {isLoadingMsgs ? (
             <div className="py-10 text-center text-xs text-muted">Đang tải tin nhắn...</div>
           ) : messages.length === 0 && !isStreaming ? (
             <div className="mx-auto flex max-w-xl flex-col items-center justify-center py-8 text-center">
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-light text-primary">
-                <Sparkles className="h-6 w-6" />
-              </div>
+              <img
+                src={rikkeiBuddyAvatar}
+                alt="Rikkei Buddy"
+                className="mb-3 h-16 w-16 rounded-full object-cover border-2 border-primary/20 shadow-sm"
+              />
               <h3 className="text-base font-bold text-foreground">
-                Xin chào! Mình là Trợ lý Nghề nghiệp Rikkei Jobs
+                Rikkei Buddy
               </h3>
-              <p className="mt-1 text-xs text-muted">
-                Hỏi mình về lộ trình học tập, kỹ năng chuyên môn, cách viết CV hoặc chuyển sang tab{" "}
-                <strong>Luyện phỏng vấn</strong> để thực hành theo JD.
+              <p className="text-[11px] font-medium text-primary">
+                Your Learning &amp; Career Companion.
+              </p>
+              <p className="mt-2.5 whitespace-pre-line text-xs leading-relaxed text-muted">
+                {"Xin chào! Mình là Rikkei Buddy – người đồng hành cùng bạn trên hành trình học tập và phát triển sự nghiệp.\n\nBạn cần hỗ trợ học tập, tìm kiếm công việc, hoàn thiện CV hay luyện phỏng vấn? Mình luôn sẵn sàng cùng bạn tìm ra bước tiếp theo!"}
               </p>
 
               <div className="mt-5 grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
@@ -553,9 +570,11 @@ export const CareerAssistantPage: React.FC = () => {
                     className={`flex items-start gap-2.5 ${isUser ? "justify-end" : "justify-start"}`}
                   >
                     {!isUser && (
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-light text-primary">
-                        <Bot className="h-4 w-4" />
-                      </div>
+                      <img
+                        src={rikkeiBuddyAvatar}
+                        alt="Rikkei Buddy"
+                        className="h-7 w-7 shrink-0 rounded-full object-cover border border-border"
+                      />
                     )}
                     <div
                       className={`max-w-[82%] rounded-2xl px-4 py-2.5 ${
@@ -577,9 +596,11 @@ export const CareerAssistantPage: React.FC = () => {
 
               {isStreaming && (
                 <div className="flex items-start gap-2.5 justify-start">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-light text-primary">
-                    <Bot className="h-4 w-4 animate-pulse" />
-                  </div>
+                  <img
+                    src={rikkeiBuddyAvatar}
+                    alt="Rikkei Buddy"
+                    className="h-7 w-7 shrink-0 rounded-full object-cover border border-border animate-pulse"
+                  />
                   <div className="max-w-[82%] rounded-2xl border border-border bg-slate-50/90 px-4 py-2.5">
                     {streamingContent ? (
                       <MarkdownRenderer content={streamingContent} />
@@ -589,7 +610,6 @@ export const CareerAssistantPage: React.FC = () => {
                   </div>
                 </div>
               )}
-              <div ref={messagesEndRef} />
             </>
           )}
         </div>
