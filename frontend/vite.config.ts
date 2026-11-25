@@ -37,6 +37,27 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_AUTH_SERVICE_URL || env.VITE_GATEWAY_URL || 'http://localhost:8081',
           changeOrigin: true
         },
+        // 2.1 Đánh giá Mentor & Tự đánh giá -> Mock Server (:9000)
+        '^/api/v1/profiles/[^/]+/evaluations': {
+          target: env.VITE_MOCK_API_URL || 'http://localhost:9000',
+          changeOrigin: true
+        },
+        '/api/v1/profiles/me/evaluations': {
+          target: env.VITE_MOCK_API_URL || 'http://localhost:9000',
+          changeOrigin: true
+        },
+        '/api/v1/me/self-assessment': {
+          target: env.VITE_MOCK_API_URL || 'http://localhost:9000',
+          changeOrigin: true
+        },
+        '/api/v1/me/self-assessments': {
+          target: env.VITE_MOCK_API_URL || 'http://localhost:9000',
+          changeOrigin: true
+        },
+        '/api/v1/me/skill-comparison': {
+          target: env.VITE_MOCK_API_URL || 'http://localhost:9000',
+          changeOrigin: true
+        },
         // 3. Hồ sơ ứng viên, danh mục ứng viên & kỹ năng -> profile-service (:8082)
         '/api/v1/profiles': {
           target: env.VITE_PROFILE_SERVICE_URL || 'http://localhost:8082',
@@ -59,6 +80,18 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true
         },
         '/api/v1/staff/profiles': {
+          target: env.VITE_PROFILE_SERVICE_URL || 'http://localhost:8082',
+          changeOrigin: true
+        },
+        '/api/v1/staff/sync': {
+          target: env.VITE_PROFILE_SERVICE_URL || 'http://localhost:8082',
+          changeOrigin: true
+        },
+        '/api/v1/staff/sync-runs': {
+          target: env.VITE_PROFILE_SERVICE_URL || 'http://localhost:8082',
+          changeOrigin: true
+        },
+        '/api/v1/staff/external-records': {
           target: env.VITE_PROFILE_SERVICE_URL || 'http://localhost:8082',
           changeOrigin: true
         },
