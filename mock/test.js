@@ -398,6 +398,52 @@ async function runTests() {
     '34. [Candidate] Lấy danh sách khóa học LMS gợi ý hoạt động ổn định'
   );
 
+  // 35. GET /api/v1/hr/interns
+  const res35 = await simulateRequest({
+    method: 'GET',
+    url: '/api/v1/hr/interns',
+    headers: { 'x-user-id': 'hr-001', 'x-user-role': 'HR' }
+  });
+  assert(
+    res35.statusCode === 200 && res35.body.success === true &&
+    Array.isArray(res35.body.data) && res35.body.data.length >= 6,
+    '35. [HR] Lấy danh sách thực tập sinh công ty trả về HTTP 200 kèm danh sách sinh viên'
+  );
+
+  // 36. GET & POST /api/v1/staff/placements
+  const res36 = await simulateRequest({
+    method: 'GET',
+    url: '/api/v1/staff/placements',
+    headers: { 'x-user-id': 'staff-001', 'x-user-role': 'STAFF' }
+  });
+  assert(
+    res36.statusCode === 200 && res36.body.success === true &&
+    Array.isArray(res36.body.data) && res36.body.data.length >= 4,
+    '36. [Staff] Lấy danh sách nhu cầu ghép thực tập IOC trả về HTTP 200'
+  );
+
+  const res36Assign = await simulateRequest({
+    method: 'POST',
+    url: '/api/v1/staff/placements/assign',
+    headers: { 'x-user-id': 'staff-001', 'x-user-role': 'STAFF' }
+  }, { userId: 'u-1', jobId: 'job-1', batchName: 'Đợt thực tập Java K20' });
+  assert(
+    res36Assign.statusCode === 200 && res36Assign.body.success === true,
+    '37. [Staff] Ghép ứng viên vào đợt thực tập IOC hoạt động chính xác'
+  );
+
+  // 38. GET /api/v1/profiles/me/portfolio
+  const res38 = await simulateRequest({
+    method: 'GET',
+    url: '/api/v1/profiles/me/portfolio',
+    headers: { 'x-user-id': 'cand-001', 'x-user-role': 'CANDIDATE' }
+  });
+  assert(
+    res38.statusCode === 200 && res38.body.success === true &&
+    Array.isArray(res38.body.data) && res38.body.data.length >= 1,
+    '38. [HS-03] Lấy danh sách dự án Portfolio cá nhân trả về HTTP 200'
+  );
+
   console.log('\n====================================================');
   console.log(`📊 KẾT QUẢ KIỂM THỬ: ${passed} PASS, ${failed} FAIL`);
   console.log('====================================================');

@@ -96,6 +96,14 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_MOCK_API_URL || 'http://localhost:9000',
           changeOrigin: true
         },
+        '/api/v1/hr/interns': {
+          target: env.VITE_MOCK_API_URL || 'http://localhost:9000',
+          changeOrigin: true
+        },
+        '/api/v1/staff/placements': {
+          target: env.VITE_MOCK_API_URL || 'http://localhost:9000',
+          changeOrigin: true
+        },
         // 6. Tuyến chung /api/v1 (jobs, recruitment, interviews, learning...) -> API Gateway (:8080)
         '/api/v1': {
           target: env.VITE_GATEWAY_URL || 'http://localhost:8080',

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ClipboardCheck, ArrowRight, Save } from 'lucide-react';
+import { toast } from 'sonner';
 
 const MOCK_TEMPLATE = {
     id: "tpl-1",
@@ -25,19 +26,19 @@ export default function SelfAssessmentPage() {
     const handleSubmit = () => {
         setIsSubmitting(true);
         setTimeout(() => {
-            alert("Đã gửi bản tự đánh giá thành công! (Mock API)");
+            toast.success("Đã gửi bản tự đánh giá năng lực thành công!");
             setIsSubmitting(false);
             navigate('/profile/skill-comparison');
-        }, 800);
+        }, 600);
     };
 
     return (
         <div className="container mx-auto py-8 px-4 max-w-4xl space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-gradient-to-r from-red-700 to-red-600 p-6 rounded-2xl text-white shadow-md relative overflow-hidden">
+            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-primary-dark p-6 rounded-2xl text-white shadow-2xs relative overflow-hidden">
                 <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
                 <div className="relative z-10 flex items-center gap-4">
-                    <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-                        <ClipboardCheck className="w-8 h-8 text-white" />
+                    <div className="bg-white/15 p-3 rounded-xl backdrop-blur-sm border border-white/20">
+                        <ClipboardCheck className="w-8 h-8 text-primary-light" />
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold">Tự đánh giá năng lực</h1>
@@ -67,10 +68,10 @@ export default function SelfAssessmentPage() {
                             <div className="space-y-3">
                                 <input type="range" min="0" max="100" step="5" value={scores[skill.skillId] ?? 0}
                                        onChange={(e) => setScores(prev => ({ ...prev, [skill.skillId]: parseInt(e.target.value) }))}
-                                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-600"
+                                       className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary"
                                 />
                                 <input type="text" placeholder="Nhập ghi chú hoặc minh chứng..."
-                                       className="w-full p-3 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                                       className="w-full p-3 border border-border rounded-lg text-sm bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-foreground"
                                        value={notes[skill.skillId] ?? ''}
                                        onChange={(e) => setNotes(prev => ({ ...prev, [skill.skillId]: e.target.value }))}
                                 />
@@ -82,8 +83,8 @@ export default function SelfAssessmentPage() {
             </Card>
 
             <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4">
-                <button onClick={() => navigate(-1)} className="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 w-full sm:w-auto">Hủy bỏ</button>
-                <button onClick={handleSubmit} disabled={isSubmitting} className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 w-full sm:w-auto shadow-sm">
+                <button onClick={() => navigate(-1)} className="px-6 py-2.5 border border-border rounded-lg text-foreground font-medium hover:bg-slate-100 w-full sm:w-auto transition-colors">Hủy bỏ</button>
+                <button onClick={handleSubmit} disabled={isSubmitting} className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 w-full sm:w-auto shadow-2xs transition-colors">
                     {isSubmitting ? <Save className="w-4 h-4 animate-pulse" /> : <ArrowRight className="w-4 h-4" />}
                     {isSubmitting ? 'Đang gửi...' : 'Gửi tự đánh giá'}
                 </button>

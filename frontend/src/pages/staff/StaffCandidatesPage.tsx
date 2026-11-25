@@ -73,10 +73,10 @@ export function StaffCandidatesPage() {
     staleTime: 30 * 1000,
   });
 
-  const candidates: StaffPendingReview[] =
+  const candidates: StaffPendingReview[] = useMemo(() =>
     (response as any)?.items ??
     (response as any)?.content ??
-    [];
+    [], [response]);
   const totalElements =
     (response as any)?.pagination?.totalElements ??
     (response as any)?.totalElements ??

@@ -113,7 +113,7 @@ export const QuickCompetenceDrawer: React.FC<QuickCompetenceDrawerProps> = ({
       totalRequiredSkills: items.length,
       passedSkillsCount: passedCount,
       missingSkillsCount: items.length - passedCount,
-      computedAt: new Date().toISOString(),
+      computedAt: "2026-11-25T00:00:00.000Z",
       items,
     };
   }, [jobSkills, requiredSkills, jobId, jobTitle]);

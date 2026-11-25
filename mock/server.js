@@ -50,6 +50,9 @@ const mockApplications = offerStore.applications || [];
 const mockOffers = offerStore.offers || [];
 const mockEmploymentRecords = loadData('employment_records.json') || [];
 let savedJobsData = loadData('saved_jobs.json') || {};
+let internshipsData = loadData('internships.json') || [];
+let placementsData = loadData('placements.json') || [];
+let portfolioData = loadData('portfolio.json') || {};
 const candidateTargets = {};
 
 // Lịch sử duyệt hồ sơ (HS-05), chỉ tồn tại trong bộ nhớ của tiến trình mock
@@ -657,6 +660,124 @@ async function requestHandler(req, res) {
     }
     const matched = evaluationsData.filter(e => e.userId === targetId || e.candidateId === targetId);
     return sendJson(res, 200, matched.length > 0 ? matched : evaluationsData);
+  }
+
+  // 1.26 GET /api/v1/profiles/:userId/portfolio & /profiles/me/portfolio
+  const profilePortfolioMatch = pathname.match(/^\/(?:api\/v1\/)?profiles\/(me|[^\/]+)\/portfolio$/);
+  if (method === 'GET' && profilePortfolioMatch) {
+    const targetId = profilePortfolioMatch[1];
+    const key = targetId === 'me' ? getCandidateStorageKey(req) : targetId;
+    const list = portfolioData[key] || portfolioData['cand-001'] || portfolioData['std-001'] || [];
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách portfolio thành công',
+      data: list
+    });
+  }
+
+  // 1.27 POST /api/v1/profiles/me/portfolio
+  if (method === 'POST' && (pathname === '/api/v1/profiles/me/portfolio' || pathname === '/profiles/me/portfolio')) {
+    const body = await parseBody(req);
+    const key = getCandidateStorageKey(req);
+    if (!portfolioData[key]) portfolioData[key] = [];
+    const newProject = {
+      id: `port-${Date.now()}`,
+      name: body.name || 'Dự án mới',
+      role: body.role || '',
+      description: body.description || '',
+      techStack: body.techStack || '',
+      repoUrl: body.repoUrl || '',
+      demoUrl: body.demoUrl || '',
+      startDate: body.startDate || '',
+      endDate: body.endDate || '',
+      visible: body.visible !== undefined ? body.visible : true,
+      sortOrder: portfolioData[key].length + 1,
+      source: 'SELF',
+      sourceRef: 'Dự án cá nhân',
+      media: []
+    };
+    portfolioData[key].push(newProject);
+    saveData('portfolio.json', portfolioData);
+    return sendJson(res, 201, {
+      success: true,
+      statusCode: 201,
+      message: 'Tạo dự án portfolio thành công',
+      data: newProject
+    });
+  }
+
+  // 1.28 PUT /api/v1/profiles/me/portfolio/:id
+  const portfolioUpdateMatch = pathname.match(/^\/(?:api\/v1\/)?profiles\/me\/portfolio\/([^\/]+)$/);
+  if (method === 'PUT' && portfolioUpdateMatch && portfolioUpdateMatch[1] !== 'order') {
+    const projectId = portfolioUpdateMatch[1];
+    const body = await parseBody(req);
+    const key = getCandidateStorageKey(req);
+    const list = portfolioData[key] || portfolioData['cand-001'] || [];
+    const idx = list.findIndex(p => p.id === projectId);
+    if (idx === -1) {
+      return sendError(res, 404, 'Không tìm thấy dự án portfolio');
+    }
+    list[idx] = { ...list[idx], ...body, id: projectId };
+    saveData('portfolio.json', portfolioData);
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Cập nhật dự án portfolio thành công',
+      data: list[idx]
+    });
+  }
+
+  // 1.29 DELETE /api/v1/profiles/me/portfolio/:id
+  if (method === 'DELETE' && portfolioUpdateMatch && portfolioUpdateMatch[1] !== 'order') {
+    const projectId = portfolioUpdateMatch[1];
+    const key = getCandidateStorageKey(req);
+    if (portfolioData[key]) {
+      portfolioData[key] = portfolioData[key].filter(p => p.id !== projectId);
+      saveData('portfolio.json', portfolioData);
+    }
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Xóa dự án portfolio thành công',
+      data: null
+    });
+  }
+
+  // 1.30 POST /api/v1/profiles/me/portfolio/:id/media
+  const portfolioMediaMatch = pathname.match(/^\/(?:api\/v1\/)?profiles\/me\/portfolio\/([^\/]+)\/media$/);
+  if (method === 'POST' && portfolioMediaMatch) {
+    const projectId = portfolioMediaMatch[1];
+    const key = getCandidateStorageKey(req);
+    const list = portfolioData[key] || portfolioData['cand-001'] || [];
+    const proj = list.find(p => p.id === projectId);
+    const newMedia = {
+      id: `med-${Date.now()}`,
+      url: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&auto=format&fit=crop',
+      mediaType: 'IMAGE',
+      sortOrder: (proj?.media?.length || 0) + 1
+    };
+    if (proj) {
+      if (!proj.media) proj.media = [];
+      proj.media.push(newMedia);
+      saveData('portfolio.json', portfolioData);
+    }
+    return sendJson(res, 201, {
+      success: true,
+      statusCode: 201,
+      message: 'Tải ảnh lên thành công',
+      data: newMedia
+    });
+  }
+
+  // 1.31 PUT /api/v1/profiles/me/portfolio/order
+  if (method === 'PUT' && (pathname === '/api/v1/profiles/me/portfolio/order' || pathname === '/profiles/me/portfolio/order')) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Cập nhật thứ tự dự án thành công',
+      data: null
+    });
   }
 
   // 1.3 GET /api/v1/companies/me & /companies/me (Thông tin công ty của HR)
@@ -1467,6 +1588,53 @@ async function requestHandler(req, res) {
         status: 'ACTIVE',
         createdAt: new Date().toISOString(),
         steps: []
+      }
+    });
+  }
+
+  // 5.10 GET /api/v1/hr/interns (Danh sách thực tập sinh của HR)
+  if (method === 'GET' && (pathname === '/api/v1/hr/interns' || pathname === '/hr/interns')) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách thực tập sinh thành công',
+      data: internshipsData
+    });
+  }
+
+  // 5.11 GET /api/v1/staff/placements (Danh sách nhu cầu thực tập và ứng viên chờ ghép)
+  if (method === 'GET' && (pathname === '/api/v1/staff/placements' || pathname === '/staff/placements')) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách nhu cầu ghép thực tập thành công',
+      data: placementsData
+    });
+  }
+
+  // 5.12 POST /api/v1/staff/placements/assign (Ghép ứng viên vào đợt thực tập)
+  if (method === 'POST' && (pathname === '/api/v1/staff/placements/assign' || pathname === '/staff/placements/assign')) {
+    const body = await parseBody(req);
+    const { userId, jobId, batchName } = body || {};
+    if (!userId || !batchName) {
+      return sendError(res, 400, 'Thiếu thông tin userId hoặc batchName');
+    }
+    placementsData.forEach(d => {
+      if (!jobId || d.jobId === jobId) {
+        d.hiredCandidates = d.hiredCandidates.filter(c => c.userId !== userId);
+      }
+    });
+    saveData('placements.json', placementsData);
+
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: `Đã ghép thành công ứng viên vào ${batchName}`,
+      data: {
+        success: true,
+        userId,
+        batchName,
+        assignedAt: new Date().toISOString()
       }
     });
   }
