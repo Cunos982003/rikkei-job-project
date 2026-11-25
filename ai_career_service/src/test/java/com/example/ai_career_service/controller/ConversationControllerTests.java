@@ -154,6 +154,14 @@ class ConversationControllerTests {
     }
 
     @Test
+    void roleCandidateWithPrefix_isAllowed() throws Exception {
+        mockMvc.perform(get("/me/conversations")
+                        .header("X-User-Id", UUID.randomUUID().toString())
+                        .header("X-User-Role", "ROLE_CANDIDATE"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void nonCandidateRole_isForbidden() throws Exception {
         mockMvc.perform(get("/me/conversations")
                         .header("X-User-Id", UUID.randomUUID().toString())
