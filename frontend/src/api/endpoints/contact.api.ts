@@ -29,6 +29,7 @@ export interface ContactResponse {
 export interface ContactAccessLog {
   id: string;
   companyId: string;
+  companyName?: string;
   hrId: string;
   userId: string;
   via: ContactAccessVia;

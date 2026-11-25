@@ -47,7 +47,8 @@ export function StaffContactAccessLogsPage() {
     return logs.filter(log =>
       log.hrId.toLowerCase().includes(query) ||
       log.userId.toLowerCase().includes(query) ||
-      log.companyId.toLowerCase().includes(query)
+      log.companyId.toLowerCase().includes(query) ||
+      (log.companyName?.toLowerCase().includes(query) ?? false)
     );
   }, [logs, searchQuery]);
 
@@ -111,7 +112,7 @@ export function StaffContactAccessLogsPage() {
             <div className="flex gap-2 flex-wrap">
               <Input
                 type="text"
-                placeholder="Company ID"
+                placeholder="Công ty (ID hoặc tên)"
                 value={companyIdFilter}
                 onChange={(e) => { setCompanyIdFilter(e.target.value); handleFilterChange(); }}
                 className="w-48"
@@ -167,7 +168,7 @@ export function StaffContactAccessLogsPage() {
                     <tr key={log.id} className="border-b border-border/50 hover:bg-slate-50">
                       <td className="py-3 px-3">{log.hrId}</td>
                       <td className="py-3 px-3">{log.userId}</td>
-                      <td className="py-3 px-3">{log.companyId}</td>
+                      <td className="py-3 px-3">{log.companyName || log.companyId}</td>
                       <td className="py-3 px-3">
                         <Badge variant={VIA_BADGE[log.via].variant}>
                           {VIA_BADGE[log.via].label}

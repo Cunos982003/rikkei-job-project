@@ -28,32 +28,6 @@ const MentorTaskListPage = lazy(() => import("../features/profile/MentorTaskList
 const MentorEvaluationFormPage = lazy(() => import("../features/profile/MentorEvaluationFormPage"));
 
 // Role Dashboard Pages
-import { CandidateProfilePage } from "../pages/candidate/CandidateProfilePage";
-import CandidateJobsPage from "../pages/candidate/CandidateJobsPage";
-import CandidateLearningPage from "../pages/candidate/CandidateLearningPage";
-import { CandidateInterviewsPage } from "../pages/candidate/CandidateInterviewsPage";
-import { CandidateOffersPage } from "../pages/candidate/CandidateOffersPage";
-import { CandidateRecruitmentsPage } from "../pages/candidate/CandidateRecruitmentsPage";
-import { InterviewPracticeListPage } from "../pages/candidate/InterviewPracticeListPage";
-import { InterviewPracticePage } from "../pages/candidate/InterviewPracticePage";
-import { CareerLayout } from "../features/career/CareerLayout";
-import { OverviewPage } from "../pages/career/OverviewPage";
-import { RecommendationsPage } from "../pages/career/RecommendationsPage";
-import { SkillsPage } from "../pages/career/SkillsPage";
-import { HrCompanyPage } from "../pages/hr/HrCompanyPage";
-import { HrJobsPage } from "../pages/hr/HrJobsPage";
-import { HrJobFormPage } from "../pages/hr/HrJobFormPage";
-import { HrInterviewSchedulePage } from "../pages/hr/HrInterviewSchedulePage";
-import { MentorStudentsPage } from "../pages/mentor/MentorStudentsPage";
-import { StaffJobsPage } from "../pages/staff/StaffJobsPage";
-import { StaffCompaniesPage } from "../pages/staff/StaffCompaniesPage";
-import { StaffCompanyDetailPage } from "../pages/staff/StaffCompanyDetailPage";
-import { StaffCandidatesPage } from "../pages/staff/StaffCandidatesPage";
-import { StaffCandidateDetailPage } from "../pages/staff/StaffCandidateDetailPage";
-import { StaffRecruitmentsPage } from "../pages/staff/StaffRecruitmentsPage";
-import { StaffContactRequestsPage } from "../pages/staff/StaffContactRequestsPage";
-import { StaffContactAccessLogsPage } from "../pages/staff/StaffContactAccessLogsPage";
-import { RecruitmentDetailPage } from "../pages/hr/RecruitmentDetailPage";
 const CandidateProfilePage = lazy(() => import("../pages/candidate/CandidateProfilePage").then(m => ({ default: m.CandidateProfilePage })));
 const CandidateJobsPage = lazy(() => import("../pages/candidate/CandidateJobsPage").then(m => ({ default: m.default || m.CandidateJobsPage })));
 const CandidateJobDetailPage = lazy(() => import("../pages/candidate/CandidateJobDetailPage").then(m => ({ default: m.default || m.CandidateJobDetailPage })));
@@ -81,6 +55,8 @@ const StaffCandidatesPage = lazy(() => import("../pages/staff/StaffCandidatesPag
 const StaffCandidateDetailPage = lazy(() => import("../pages/staff/StaffCandidateDetailPage").then(m => ({ default: m.StaffCandidateDetailPage })));
 const StaffRecruitmentsPage = lazy(() => import("../pages/staff/StaffRecruitmentsPage").then(m => ({ default: m.StaffRecruitmentsPage })));
 const RecruitmentDetailPage = lazy(() => import("../pages/hr/RecruitmentDetailPage").then(m => ({ default: m.RecruitmentDetailPage })));
+const StaffContactRequestsPage = lazy(() => import("../pages/staff/StaffContactRequestsPage").then(m => ({ default: m.StaffContactRequestsPage })));
+const StaffContactAccessLogsPage = lazy(() => import("../pages/staff/StaffContactAccessLogsPage").then(m => ({ default: m.StaffContactAccessLogsPage })));
 
 // Admin Pages
 const AdminSkillsPage = lazy(() => import("../pages/admin/AdminSkillsPage").then(m => ({ default: m.AdminSkillsPage })));

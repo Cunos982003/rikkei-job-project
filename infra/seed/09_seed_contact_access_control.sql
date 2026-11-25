@@ -22,11 +22,12 @@ DECLARE
     v_company_viettel UUID := '44444444-4444-4444-8444-444444444444';
     v_company_vng UUID := '55555555-5555-4555-8555-555555555555';
 
-    v_candidate1 UUID := 'ed854c07-f3eb-48f1-a186-4e7135f54645';  -- Nguyễn Văn An
-    v_candidate2 UUID := '797c5663-386b-4e96-9112-6d3e414b4449';  -- Trần Thị Bình
-    v_candidate3 UUID := '4a09b051-d7ab-40a5-8322-963ec9ebdbd7';  -- Lê Hoàng Cường
-    v_candidate4 UUID := 'f848319f-9e6e-4815-a697-2fe2400fd32f';  -- Phạm Thu Dung
-    v_candidate5 UUID := '6257a31f-e618-4ec1-ad25-67574b41a04e';  -- Vũ Đức Giang
+    -- Use auth service UUIDs (matching the JWT token userId claims)
+    v_candidate1 UUID := '550e8400-e29b-41d4-a716-446655440000';  -- Nguyễn Văn An (candidate1@rikkeijobs.test)
+    v_candidate2 UUID := '660e8400-e29b-41d4-a716-446655440000';  -- Trần Thị Bình (candidate2@rikkeijobs.test)
+    v_candidate3 UUID := '770e8400-e29b-41d4-a716-446655440000';  -- Lê Hoàng Cường (candidate3@rikkeijobs.test)
+    v_candidate4 UUID := '880e8400-e29b-41d4-a716-446655440000';  -- Phạm Minh Tuấn (candidate4@rikkeijobs.test)
+    v_candidate5 UUID := '990e8400-e29b-41d4-a716-446655440000';  -- Ngô Thị Lan (candidate5@rikkeijobs.test)
 
     v_hr1 UUID := 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeee1';  -- HR at Rikkeisoft
     v_hr2 UUID := 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeee2';  -- HR at Rikkeisoft

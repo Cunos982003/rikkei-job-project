@@ -61,7 +61,7 @@ export function CandidateContactAccessLogs() {
                   <Building2 className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium text-sm">{log.companyId}</p>
+                  <p className="font-medium text-sm">{log.companyName || log.companyId}</p>
                   <p className="text-xs text-muted">Công ty đã xem thông tin liên hệ</p>
                 </div>
               </div>

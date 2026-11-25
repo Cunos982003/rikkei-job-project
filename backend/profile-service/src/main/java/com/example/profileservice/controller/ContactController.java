@@ -80,8 +80,7 @@ public class ContactController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
         }
-        List<ContactAccessLogDto> logs = contactAccessService.getMyAccessLogs(effectiveUserId).stream()
-                .map(ContactAccessLogDto::from).collect(Collectors.toList());
+        List<ContactAccessLogDto> logs = contactAccessService.getMyAccessLogsWithCompanyName(effectiveUserId);
         return ResponseEntity.ok(ApiResponse.success("Lấy nhật ký xem liên hệ thành công", logs));
     }
 
@@ -146,8 +145,7 @@ public class ContactController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
         }
-        List<ContactAccessLogDto> logs = contactAccessService.getAccessLogs(companyId, userId, from, to).stream()
-                .map(ContactAccessLogDto::from).collect(Collectors.toList());
+        List<ContactAccessLogDto> logs = contactAccessService.getAccessLogsWithCompanyName(companyId, userId, from, to);
         return ResponseEntity.ok(ApiResponse.success("Lấy nhật ký xem liên hệ thành công", logs));
     }
 

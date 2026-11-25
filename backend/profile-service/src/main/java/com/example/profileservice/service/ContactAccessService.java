@@ -1,6 +1,7 @@
 package com.example.profileservice.service;
 
 import com.example.profileservice.common.ApiResponse;
+import com.example.profileservice.dto.ContactAccessLogDto;
 import com.example.profileservice.entity.ContactAccessLog;
 import com.example.profileservice.entity.ContactRequest;
 import com.example.profileservice.entity.CandidateProfile;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,6 +28,15 @@ public class ContactAccessService {
     private final ContactAccessLogRepository logRepo;
     private final CandidateProfileRepository profileRepo;
     private final RestTemplate restTemplate;
+
+    // Static company name mapping from seed data
+    private static final Map<UUID, String> COMPANY_NAMES = Map.of(
+            UUID.fromString("11111111-1111-4111-8111-111111111111"), "Rikkeisoft",
+            UUID.fromString("22222222-2222-4222-8222-222222222222"), "Rikkeisoft Digital Solutions",
+            UUID.fromString("33333333-3333-4333-8333-333333333333"), "FPT Software",
+            UUID.fromString("44444444-4444-4444-8444-444444444444"), "Viettel Solutions",
+            UUID.fromString("55555555-5555-4555-8555-555555555555"), "VNG Corporation"
+    );
 
     // Shared function - used by ALL APIs returning candidate info
     @Transactional(readOnly = true)
@@ -159,6 +170,26 @@ public class ContactAccessService {
     @Transactional(readOnly = true)
     public List<ContactAccessLog> getMyAccessLogs(UUID userId) {
         return logRepo.findByUserId(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ContactAccessLogDto> getMyAccessLogsWithCompanyName(UUID userId) {
+        List<ContactAccessLog> logs = logRepo.findByUserId(userId);
+        return enrichWithCompanyNames(logs);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ContactAccessLogDto> getAccessLogsWithCompanyName(UUID companyId, UUID userId, OffsetDateTime from, OffsetDateTime to) {
+        List<ContactAccessLog> logs = getAccessLogs(companyId, userId, from, to);
+        return enrichWithCompanyNames(logs);
+    }
+
+    private List<ContactAccessLogDto> enrichWithCompanyNames(List<ContactAccessLog> logs) {
+        if (logs.isEmpty()) return List.of();
+
+        return logs.stream()
+                .map(log -> ContactAccessLogDto.from(log, COMPANY_NAMES.get(log.getCompanyId())))
+                .toList();
     }
 
     @Transactional(readOnly = true)
