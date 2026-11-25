@@ -50,6 +50,8 @@ function rangesOverlap(aStartIso: string, aEndIso: string, bStartIso: string, bE
   return aStart < bEnd && aEnd > bStart;
 }
 
+const EMPTY_INTERVIEWS: CandidateInterviewItem[] = [];
+
 export function CandidateInterviewsPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -80,7 +82,7 @@ export function CandidateInterviewsPage() {
     },
   });
 
-  const interviews: CandidateInterviewItem[] = res?.data ?? [];
+  const interviews: CandidateInterviewItem[] = res?.data ?? EMPTY_INTERVIEWS;
 
   const scheduledInterviews = useMemo(
     () =>

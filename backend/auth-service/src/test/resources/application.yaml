@@ -14,7 +14,7 @@ spring:
     open-in-view: false
     show-sql: false
   flyway:
-    enabled: ${SPRING_FLYWAY_ENABLED:true}
+    enabled: false
 
 app:
   jwt:

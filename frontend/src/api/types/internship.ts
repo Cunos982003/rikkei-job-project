@@ -20,4 +20,5 @@ export interface CompanyIntern {
     mentorEmail: string;
     acceptedTasksCount: number;
     currentScore: number;
+    status?: "ACTIVE" | "WARNING" | "COMPLETED" | string;
 }

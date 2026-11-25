@@ -1,9 +1,5 @@
 import { api } from "../client";
 import type { ApiResponse } from "../types/api";
-import {
-  generateMockJobGapAnalysis,
-  getSampleJobTarget,
-} from "../../features/learning/mocks/jobAnalysisMock";
 
 export const SAVED_TARGET_STORAGE_KEY = "rikkei_saved_target";
 
@@ -187,120 +183,26 @@ export const learningApi = {
 
   /**
    * Lấy mục tiêu nghề nghiệp hiện tại của ứng viên đăng nhập
-   * Hỗ trợ Transparent Fallback đọc từ bộ nhớ tạm an toàn nếu backend chưa có hoặc lỗi kết nối.
    */
-  async getMyTarget(): Promise<ApiResponse<CandidateTarget | null>> {
-    try {
-      const res = await api.get<CandidateTarget | null>("/learning/me/target", {
-        silentError: true,
-      });
-      if (res.data) {
-        localStorage.setItem(SAVED_TARGET_STORAGE_KEY, JSON.stringify(res.data));
-        return res;
-      }
-    } catch {
-      // Backend lỗi hoặc chưa kết nối, tiếp tục kiểm tra local fallback
-    }
-
-    try {
-      const saved = localStorage.getItem(SAVED_TARGET_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as CandidateTarget;
-        return {
-          success: true,
-          statusCode: 200,
-          message: "Lấy mục tiêu nghề nghiệp thành công",
-          data: parsed,
-          timestamp: new Date().toISOString(),
-        };
-      }
-    } catch {
-      // Bỏ qua lỗi parse
-    }
-
-    return {
-      success: true,
-      statusCode: 200,
-      message: "Chưa thiết lập mục tiêu",
-      data: null,
-      timestamp: new Date().toISOString(),
-    };
+  getMyTarget(): Promise<ApiResponse<CandidateTarget | null>> {
+    return api.get<CandidateTarget | null>("/learning/me/target");
   },
 
   /**
    * Thiết lập hoặc thay đổi mục tiêu nghề nghiệp (chọn Position hoặc Job ID)
-   * Tự động kích hoạt Transparent Fallback khi backend chưa đồng bộ tin tuyển dụng liên service.
    */
-  async setMyTarget(payload: SetTargetPayload): Promise<ApiResponse<CandidateTarget>> {
-    try {
-      const res = await api.put<CandidateTarget>("/learning/me/target", payload, {
-        silentError: true,
-      });
-      if (res.data) {
-        localStorage.setItem(SAVED_TARGET_STORAGE_KEY, JSON.stringify(res.data));
-        return res;
-      }
-    } catch {
-      // Backend báo lỗi (ví dụ 404 Không tìm thấy vị trí tuyển dụng do job-service)
-      // Tự động kích hoạt Transparent Mock Fallback để đảm bảo luồng ứng viên liền mạch:
-    }
-
-    const fallbackTarget = getSampleJobTarget(payload.jobId, payload.positionId);
-    localStorage.setItem(SAVED_TARGET_STORAGE_KEY, JSON.stringify(fallbackTarget));
-
-    return {
-      success: true,
-      statusCode: 200,
-      message: "Thiết lập mục tiêu nghề nghiệp theo tin tuyển dụng thành công!",
-      data: fallbackTarget,
-      timestamp: new Date().toISOString(),
-    };
+  setMyTarget(payload: SetTargetPayload): Promise<ApiResponse<CandidateTarget>> {
+    return api.put<CandidateTarget>("/learning/me/target", payload);
   },
 
   /**
    * Phân tích khoảng thiếu hụt năng lực theo mục tiêu đã lưu hoặc theo Job ID ghi đè
-   * Tự động fallback về dữ liệu mẫu phân tích chuẩn hóa nếu backend chưa có tin tuyển dụng tương ứng.
    */
-  async getGapAnalysis(jobId?: string): Promise<ApiResponse<GapAnalysisResult>> {
-    try {
-      return await api.get<GapAnalysisResult>("/learning/me/gap-analysis", {
-        params: jobId ? { jobId } : undefined,
-        silentError: true, // Im lặng để fallback xử lý mượt mà không spam Toast đỏ
-      });
-    } catch (err: any) {
-      if (jobId) {
-        const mockResult = generateMockJobGapAnalysis(jobId);
-        return {
-          success: true,
-          statusCode: 200,
-          message: "Phân tích khoảng thiếu hụt năng lực theo JD thành công",
-          data: mockResult,
-          timestamp: new Date().toISOString(),
-        };
-      }
-
-      // Khi không có jobId (đối chiếu theo mục tiêu chính đã lưu):
-      try {
-        const saved = localStorage.getItem(SAVED_TARGET_STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved) as CandidateTarget;
-          if (parsed.targetType === "JOB" && parsed.jobId) {
-            const mockResult = generateMockJobGapAnalysis(parsed.jobId, parsed.targetName);
-            return {
-              success: true,
-              statusCode: 200,
-              message: "Phân tích khoảng thiếu hụt năng lực theo mục tiêu đã lưu thành công",
-              data: mockResult,
-              timestamp: new Date().toISOString(),
-            };
-          }
-        }
-      } catch {
-        // Bỏ qua lỗi parse
-      }
-
-      throw err;
-    }
+  getGapAnalysis(jobId?: string): Promise<ApiResponse<GapAnalysisResult>> {
+    return api.get<GapAnalysisResult>("/learning/me/gap-analysis", {
+      params: jobId ? { jobId } : undefined,
+      silentError: true,
+    });
   },
 
   /**

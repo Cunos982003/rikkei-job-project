@@ -128,7 +128,7 @@ export function HrInterviewSchedulePage() {
         { replace: true }
       );
     }
-  }, []);
+  }, [rawStatus, setSearchParams]);
 
   // Save current filter state to sessionStorage
   useEffect(() => {
@@ -226,7 +226,7 @@ export function HrInterviewSchedulePage() {
       }),
   });
 
-  const schedules: CompanyInterviewItem[] = scheduleRes?.data ?? [];
+  const schedules: CompanyInterviewItem[] = useMemo(() => scheduleRes?.data ?? [], [scheduleRes?.data]);
   const appsPageData = appsRes?.data;
   const applications: RecruitmentStaffSummary[] = appsPageData?.content ?? [];
   const totalApplications = appsPageData?.totalElements ?? 0;
@@ -245,7 +245,7 @@ export function HrInterviewSchedulePage() {
     return map;
   }, [schedules, weekDays]);
 
-  const todayKey = toDayKey(new Date());
+  const [todayKey] = useState(() => toDayKey(new Date()));
 
   const handleRefreshAll = () => {
     void refetchSchedules();
