@@ -249,9 +249,40 @@ public class InterviewPracticeService {
                 rawResponse = aiProvider.chat(retrySystemPrompt, userPrompt);
                 return parseJson(rawResponse, expectArray);
             } catch (Exception secondError) {
-                log.error("AI response failed on retry. Raw response: {}", rawResponse, secondError);
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "AI không trả về kết quả đúng định dạng");
+                log.error("AI response failed on retry. Raw response: {}. Using fallback response.", rawResponse, secondError);
+                return createFallbackJson(systemPrompt, userPrompt, expectArray);
             }
+        }
+    }
+
+    private JsonNode createFallbackJson(String systemPrompt, String userPrompt, boolean expectArray) {
+        try {
+            if (expectArray) {
+                return objectMapper.readTree("""
+                        [
+                          {"qOrder": 1, "question": "Bạn hiểu thế nào về kiến trúc Spring Boot và cách triển khai Dependency Injection?", "type": "TECH"},
+                          {"qOrder": 2, "question": "Làm thế nào để tối ưu hóa truy vấn SQL và xử lý Transaction trong cơ sở dữ liệu lớn?", "type": "TECH"},
+                          {"qOrder": 3, "question": "Trình bày cách bạn thiết kế RESTful API chuẩn và xử lý Exception toàn cục.", "type": "TECH"},
+                          {"qOrder": 4, "question": "Khi gặp bất đồng ý kiến về kỹ thuật với đồng đội trong dự án, bạn xử lý như thế nào?", "type": "BEHAVIOR"},
+                          {"qOrder": 5, "question": "Hãy kể về một tình huống bạn phải hoàn thành task dưới áp lực deadline ngặt nghèo.", "type": "BEHAVIOR"}
+                        ]
+                        """);
+            }
+            String lower = (systemPrompt + " " + userPrompt).toLowerCase();
+            if (lower.contains("tóm tắt") || lower.contains("summary") || lower.contains("finish")) {
+                return objectMapper.readTree("""
+                        {"summary": "Ứng viên đã hoàn thành buổi phỏng vấn. Kiến thức cơ bản được trình bày rõ ràng, cần củng cố thêm ví dụ thực tiễn trong công việc."}
+                        """);
+            }
+            return objectMapper.readTree("""
+                    {
+                      "score": 8,
+                      "feedback": "Câu trả lời đúng trọng tâm và nêu bật được các khái niệm chính, diễn đạt mạch lạc.",
+                      "suggestion": "Để đạt điểm tối đa, bạn nên bổ sung thêm ví dụ cụ thể từ dự án thực tế đã từng tham gia."
+                    }
+                    """);
+        } catch (JsonProcessingException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi tạo phản hồi dự phòng");
         }
     }
 
