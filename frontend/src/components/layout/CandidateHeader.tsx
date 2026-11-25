@@ -108,13 +108,6 @@ const CANDIDATE_NAV_GROUPS: NavGroup[] = [
     icon: CalendarCheck,
     items: [
       {
-        title: "Luyện phỏng vấn AI",
-        description: "Mô phỏng phỏng vấn thực tế với trợ lý ảo AI",
-        path: "/candidate/interview-practice",
-        icon: Sparkles,
-        badge: "HOT",
-      },
-      {
         title: "Lịch phỏng vấn doanh nghiệp",
         description: "Quản lý ca phỏng vấn và xác nhận thời gian",
         path: "/candidate/interviews",

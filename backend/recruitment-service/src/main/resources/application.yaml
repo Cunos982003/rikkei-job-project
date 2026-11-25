@@ -13,6 +13,7 @@ spring:
   flyway:
     enabled: ${SPRING_FLYWAY_ENABLED:true}
     baseline-on-migrate: true
+    baseline-version: 3
     validate-on-migrate: false
   mail:
     host: ${SMTP_HOST:}
