@@ -46,7 +46,8 @@ public class StaffCompanyController {
             @PathVariable("id") UUID id,
             @Valid @RequestBody CreateHrAccountRequest request) {
         HrAccountResponse response = companyService.createHrAccount(id, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created("Cấp tài khoản HR thành công", response));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.created("Cấp tài khoản HR thành công", response));
 
     }
 

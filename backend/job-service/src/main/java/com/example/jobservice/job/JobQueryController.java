@@ -41,6 +41,8 @@ public class JobQueryController {
         StringBuilder where = new StringBuilder(" WHERE 1=1 ");
         List<Object> params = new ArrayList<>();
 
+        where.append(" AND COALESCE(c.status, 'ACTIVE') <> 'LOCKED' ");
+
         if (StringUtils.hasText(status)) {
             where.append(" AND UPPER(j.status) = UPPER(?) ");
             params.add(status.trim());

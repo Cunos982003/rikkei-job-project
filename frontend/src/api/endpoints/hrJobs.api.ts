@@ -35,8 +35,8 @@ export interface JobResponse {
   expiresAt?: string;
   status: JobStatus;
   rejectedReason?: string | null;
-  reviewedBy?: string;
-  reviewedAt?: string;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
   skills: JobSkillResponse[];
   jobSkills?: JobSkillResponse[];
   requiredSkills?: string[];
