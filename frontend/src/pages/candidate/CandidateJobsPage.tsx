@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { jobsApi, type JobPostingItem } from "../../api/endpoints/jobs.api";
 import { candidateJobsApi } from "../../api/endpoints/candidateJobs.api";
 import { recruitmentApi } from "../../api/endpoints/recruitment.api";
+import { candidateKeys } from "../../api/queryKeys";
 import { Button } from "../../components/common/Button";
 import { JobCardItem } from "./components/JobCardItem";
 import { JobFilterBar, type JobFilters } from "./components/JobFilterBar";
@@ -79,11 +80,10 @@ export const CandidateJobsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<JobFilters>(INITIAL_FILTERS);
   const [applyJob, setApplyJob] = useState<JobPostingItem | null>(null);
-  const [localAppliedIds, setLocalAppliedIds] = useState<Set<string>>(new Set());
 
   // 1. Lấy danh sách việc làm đã lưu
   const { data: savedJobsRes } = useQuery({
-    queryKey: ["savedJobs"],
+    queryKey: candidateKeys.jobs.saved(),
     queryFn: () =>
       candidateJobsApi.getSavedJobs().catch(() => ({ success: true, statusCode: 200, message: "", data: [] })),
     staleTime: 60 * 1000,
@@ -100,25 +100,27 @@ export const CandidateJobsPage: React.FC = () => {
 
   // 2. Lấy danh sách đơn ứng tuyển đã nộp
   const { data: myRecruitmentsRes } = useQuery({
-    queryKey: ["my-recruitments"],
+    queryKey: candidateKeys.recruitments.all(),
     queryFn: () => recruitmentApi.getMyRecruitments().catch(() => ({ data: [] } as any)),
     staleTime: 5 * 60 * 1000,
   });
 
   const appliedJobIds = useMemo(() => {
-    const set = new Set(localAppliedIds);
+    const set = new Set<string>();
     const list = (myRecruitmentsRes as any)?.data ?? myRecruitmentsRes;
     if (Array.isArray(list)) {
       list.forEach((r: any) => {
-        if (r?.jobId) set.add(r.jobId);
+        if (r?.jobId && r?.status !== "WITHDRAWN") {
+          set.add(r.jobId);
+        }
       });
     }
     return set;
-  }, [myRecruitmentsRes, localAppliedIds]);
+  }, [myRecruitmentsRes]);
 
   // 3. Lấy danh sách việc làm từ Backend / Mock API
   const { data: jobsRes, isLoading } = useQuery({
-    queryKey: ["candidateJobs"],
+    queryKey: candidateKeys.jobs.list(),
     queryFn: async () => {
       try {
         const res = await jobsApi.getJobs();
@@ -239,10 +241,10 @@ export const CandidateJobsPage: React.FC = () => {
       }
     },
     onMutate: async ({ jobId, isCurrentlySaved }) => {
-      await queryClient.cancelQueries({ queryKey: ["savedJobs"] });
-      const previousSaved = queryClient.getQueryData(["savedJobs"]);
+      await queryClient.cancelQueries({ queryKey: candidateKeys.jobs.saved() });
+      const previousSaved = queryClient.getQueryData(candidateKeys.jobs.saved());
 
-      queryClient.setQueryData(["savedJobs"], (old: any) => {
+      queryClient.setQueryData(candidateKeys.jobs.saved(), (old: any) => {
         const currentData = Array.isArray(old?.data) ? old.data : [];
         if (isCurrentlySaved) {
           return { ...old, data: currentData.filter((j: any) => j.id !== jobId) };
@@ -256,7 +258,7 @@ export const CandidateJobsPage: React.FC = () => {
     },
     onError: (_err, _variables, context) => {
       if (context?.previousSaved) {
-        queryClient.setQueryData(["savedJobs"], context.previousSaved);
+        queryClient.setQueryData(candidateKeys.jobs.saved(), context.previousSaved);
       }
       toast.error("Không thể cập nhật danh sách việc làm đã lưu!");
     },
@@ -266,7 +268,7 @@ export const CandidateJobsPage: React.FC = () => {
       } else {
         toast.success("Đã lưu việc làm vào danh sách theo dõi!");
       }
-      queryClient.invalidateQueries({ queryKey: ["savedJobs"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.jobs.saved() });
     },
   });
 
@@ -282,11 +284,10 @@ export const CandidateJobsPage: React.FC = () => {
   const applyMutation = useMutation({
     mutationFn: ({ jobId, coverLetter }: { jobId: string; coverLetter: string }) =>
       recruitmentApi.applyJob(jobId, { coverLetter: coverLetter || undefined }),
-    onSuccess: (_res, variables) => {
+    onSuccess: () => {
       toast.success("Nộp đơn ứng tuyển thành công! Doanh nghiệp sẽ liên hệ với bạn.");
-      setLocalAppliedIds((prev) => new Set(prev).add(variables.jobId));
       setApplyJob(null);
-      queryClient.invalidateQueries({ queryKey: ["my-recruitments"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.recruitments.all() });
     },
     onError: () => {
       // Toast lỗi đã có axios interceptor xử lý

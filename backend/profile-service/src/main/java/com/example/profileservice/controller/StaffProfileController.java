@@ -8,12 +8,14 @@ import com.example.profileservice.dto.StaffEditSelfDeclaredRequest;
 import com.example.profileservice.dto.StaffEditSelfDeclaredResponse;
 import com.example.profileservice.dto.StaffPreviewProfileDto;
 import com.example.profileservice.dto.StaffRejectRequest;
+import com.example.profileservice.service.ContactAccessService;
 import com.example.profileservice.service.VisibilityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
 import java.util.UUID;
@@ -30,6 +32,8 @@ import java.util.UUID;
 public class StaffProfileController {
 
     private final VisibilityService visibilityService;
+    private final ContactAccessService contactAccessService;
+    private final RestTemplate restTemplate;
 
     @GetMapping("/profile-reviews")
     public ResponseEntity<ApiResponse<PageData<PendingReviewDto>>> listProfileReviews(
@@ -67,8 +71,26 @@ public class StaffProfileController {
             return (ResponseEntity<ApiResponse<StaffPreviewProfileDto>>) denied;
         }
 
-        StaffPreviewProfileDto preview = visibilityService.getPreviewProfile(userId);
+        // Get companyId for staff user (for contact access check)
+        UUID companyId = getCompanyIdForStaff(staffId);
+
+        StaffPreviewProfileDto preview = visibilityService.getPreviewProfile(userId, companyId);
         return ResponseEntity.ok(ApiResponse.success("Lấy xem trước hồ sơ thành công", preview));
+    }
+
+    /**
+     * Get companyId for a staff user.
+     * TODO: Integrate with company-service or user-service to resolve company from staffId.
+     */
+    private UUID getCompanyIdForStaff(UUID staffId) {
+        try {
+            // Call user-service or company-service to get companyId for staff
+            String url = "http://company-service:8084/api/v1/companies/staff/" + staffId + "/company-id";
+            return restTemplate.getForObject(url, UUID.class);
+        } catch (Exception e) {
+            // Fallback: return null (contact will be masked)
+            return null;
+        }
     }
 
     @PutMapping("/profiles/{userId}/self-declared")

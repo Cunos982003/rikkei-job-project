@@ -61,6 +61,7 @@ public class GapAnalysisServiceImpl implements GapAnalysisService {
         }
 
         List<GapItemResponse> missingItems = new ArrayList<>();
+        List<GapItemResponse> allSkills = new ArrayList<>();
         int totalRequiredSkills = targetContext.getRequiredSkills().size();
         int passedSkillsCount = 0;
         int missingSkillsCount = 0;
@@ -81,6 +82,18 @@ public class GapAnalysisServiceImpl implements GapAnalysisService {
 
             int requiredScore = req.getMinScore();
             int gap = requiredScore - currentScore;
+
+            GapItemResponse fullItem = GapItemResponse.builder()
+                    .skillId(req.getSkillId())
+                    .skill(req.getSkillName())
+                    .skillName(req.getSkillName())
+                    .required(requiredScore)
+                    .current(currentScore)
+                    .gap(Math.max(0, gap))
+                    .priority(gap > 0 ? calculatePriority(req.getIsMandatory(), gap) : GapPriority.LOW)
+                    .isMandatory(req.getIsMandatory())
+                    .build();
+            allSkills.add(fullItem);
 
             if (gap <= 0) {
                 passedSkillsCount++;
@@ -136,6 +149,7 @@ public class GapAnalysisServiceImpl implements GapAnalysisService {
                 .missingSkillsCount(missingSkillsCount)
                 .computedAt(now)
                 .items(missingItems)
+                .allSkills(allSkills)
                 .build();
     }
 

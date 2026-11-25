@@ -2,7 +2,10 @@ package com.example.learningservice.client;
 
 import com.example.learningservice.exception.ResourceNotFoundException;
 import com.example.learningservice.model.dto.response.JobDetailResponse;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
@@ -14,11 +17,14 @@ public class JobServiceClient {
 
     private final RestClient restClient;
     private final String jobServiceUrl;
+    private final ObjectMapper objectMapper;
 
     public JobServiceClient(
             RestClient.Builder restClientBuilder,
+            @Autowired(required = false) ObjectMapper objectMapper,
             @Value("${app.integrations.job-service-url:http://localhost:9000}") String jobServiceUrl) {
         this.jobServiceUrl = jobServiceUrl;
+        this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper();
         this.restClient = restClientBuilder
                 .baseUrl(jobServiceUrl)
                 .build();
@@ -27,7 +33,7 @@ public class JobServiceClient {
     public JobDetailResponse getJobById(String jobId) {
         log.debug("Gọi dịch vụ việc làm tại {}/api/v1/jobs/{}", jobServiceUrl, jobId);
         try {
-            return restClient.get()
+            String rawJson = restClient.get()
                     .uri("/api/v1/jobs/{jobId}", jobId)
                     .retrieve()
                     .onStatus(status -> status.value() == 404, (req, resp) -> {
@@ -37,7 +43,16 @@ public class JobServiceClient {
                         log.error("Dịch vụ việc làm phản hồi mã lỗi {}", resp.getStatusCode());
                         throw new ResourceNotFoundException("Dịch vụ việc làm không khả dụng hoặc lỗi truy vấn mã: " + jobId);
                     })
-                    .body(JobDetailResponse.class);
+                    .body(String.class);
+
+            if (rawJson == null || rawJson.isBlank()) {
+                throw new ResourceNotFoundException("Phản hồi rỗng từ dịch vụ việc làm cho mã: " + jobId);
+            }
+
+            JsonNode root = objectMapper.readTree(rawJson);
+            // Bóc tách linh hoạt: nếu bọc trong ApiResponse thì lấy trường "data", nếu là đối tượng phẳng thì lấy root
+            JsonNode dataNode = (root.has("data") && !root.get("data").isNull()) ? root.get("data") : root;
+            return objectMapper.convertValue(dataNode, JobDetailResponse.class);
         } catch (ResourceNotFoundException e) {
             throw e;
         } catch (Exception e) {
@@ -46,4 +61,3 @@ public class JobServiceClient {
         }
     }
 }
-

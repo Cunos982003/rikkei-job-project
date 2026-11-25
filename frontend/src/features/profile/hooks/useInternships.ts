@@ -2,10 +2,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { profileApi } from "@/api/endpoints/profile.api";
 import type { Internship } from "@/api/types/evaluation";
+import { candidateKeys } from "@/api/queryKeys";
 
 export function useInternships(userId?: string) {
     return useQuery({
-        queryKey: ["internships", userId ?? "me"],
+        queryKey: candidateKeys.profile.internships(userId),
 
         queryFn: async (): Promise<Internship[]> => {
             const response = userId

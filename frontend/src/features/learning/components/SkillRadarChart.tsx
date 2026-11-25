@@ -2,10 +2,11 @@ import React, { useState, useMemo } from "react";
 import { Award, Info } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../../../components/common/Card";
 import { Badge } from "../../../components/common/Badge";
-import type { LearningPathStep } from "../../../api/endpoints/learning.api";
+import type { GapItem, LearningPathStep } from "../../../api/endpoints/learning.api";
 
 interface SkillRadarChartProps {
-  steps: LearningPathStep[];
+  steps?: LearningPathStep[];
+  radarSkills?: GapItem[];
   title?: string;
 }
 
@@ -19,13 +20,32 @@ interface RadarSkillItem {
 }
 
 export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({
-  steps,
+  steps = [],
+  radarSkills,
   title = "Biểu đồ so sánh kỹ năng (Radar Chart)",
 }) => {
   const [hoveredSkill, setHoveredSkill] = useState<RadarSkillItem | null>(null);
 
-  // Group steps by unique skillId and extract metrics
+  // Ưu tiên radarSkills (chứa đầy đủ tất cả kỹ năng của mục tiêu: đã đạt + còn thiếu), fallback sang steps
   const skills: RadarSkillItem[] = useMemo(() => {
+    if (radarSkills && radarSkills.length > 0) {
+      const map = new Map<string, RadarSkillItem>();
+      radarSkills.forEach((item) => {
+        const key = item.skillId || item.skillName;
+        if (!map.has(key)) {
+          map.set(key, {
+            skillId: item.skillId,
+            skillName: item.skillName || item.skill,
+            currentScore: Math.min(100, Math.max(0, item.current ?? 0)),
+            requiredScore: Math.min(100, Math.max(0, item.required ?? 0)),
+            gap: Math.max(0, item.gap ?? 0),
+            isMandatory: Boolean(item.isMandatory),
+          });
+        }
+      });
+      return Array.from(map.values());
+    }
+
     if (!steps || steps.length === 0) return [];
 
     const map = new Map<string, RadarSkillItem>();
@@ -34,16 +54,16 @@ export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({
         map.set(step.skillId, {
           skillId: step.skillId,
           skillName: step.skillName,
-          currentScore: Math.min(100, Math.max(0, step.currentScore)),
-          requiredScore: Math.min(100, Math.max(0, step.requiredScore)),
-          gap: Math.max(0, step.gap),
-          isMandatory: step.isMandatory,
+          currentScore: Math.min(100, Math.max(0, step.currentScore ?? 0)),
+          requiredScore: Math.min(100, Math.max(0, step.requiredScore ?? 0)),
+          gap: Math.max(0, step.gap ?? 0),
+          isMandatory: Boolean(step.isMandatory),
         });
       }
     });
 
     return Array.from(map.values());
-  }, [steps]);
+  }, [radarSkills, steps]);
 
   // Dimensions for SVG Radar
   const size = 380;
@@ -56,7 +76,7 @@ export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({
   // Calculate coordinates for a given score & angle index
   const getCoordinates = (score: number, index: number, total: number) => {
     // Start from -PI / 2 (12 o'clock)
-    const angle = -Math.PI / 2 + (index * 2 * Math.PI) / total;
+    const angle = -Math.PI / 2 + (index * 2 * Math.PI) / Math.max(total, 1);
     const r = (score / 100) * radius;
     const x = cx + r * Math.cos(angle);
     const y = cy + r * Math.sin(angle);
@@ -113,65 +133,8 @@ export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({
           <div className="py-12 text-center text-muted text-sm">
             Chưa có thông tin kỹ năng để hiển thị biểu đồ.
           </div>
-        ) : skills.length < 3 ? (
-          /* Fallback when skills count < 3 (Render clean Bar Comparison) */
-          <div className="space-y-4 py-3">
-            <p className="text-xs text-muted mb-2">
-              So sánh trực tiếp điểm hiện tại và mức sàn yêu cầu cho các kỹ năng mục tiêu:
-            </p>
-            {skills.map((skill) => (
-              <div
-                key={skill.skillId}
-                className="p-3.5 rounded-xl border border-border/80 bg-slate-50/50 space-y-2"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-foreground">{skill.skillName}</span>
-                    {skill.isMandatory && (
-                      <Badge variant="danger" size="sm">
-                        Bắt buộc
-                      </Badge>
-                    )}
-                  </div>
-                  <span className="text-xs font-semibold text-rose-700">
-                    {skill.gap > 0 ? `Thiếu ${skill.gap} điểm` : "Đã đạt chuẩn"}
-                  </span>
-                </div>
-
-                <div className="space-y-1.5 text-xs">
-                  {/* Current Score Bar */}
-                  <div className="flex items-center gap-2">
-                    <span className="w-20 text-muted">Hiện tại:</span>
-                    <div className="flex-1 bg-slate-200 rounded-full h-2 overflow-hidden">
-                      <div
-                        className="bg-sky-500 h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${skill.currentScore}%` }}
-                      />
-                    </div>
-                    <span className="w-10 text-right font-bold text-sky-700">
-                      {skill.currentScore}
-                    </span>
-                  </div>
-
-                  {/* Required Score Bar */}
-                  <div className="flex items-center gap-2">
-                    <span className="w-20 text-muted">Yêu cầu:</span>
-                    <div className="flex-1 bg-slate-200 rounded-full h-2 overflow-hidden">
-                      <div
-                        className="bg-rose-500 h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${skill.requiredScore}%` }}
-                      />
-                    </div>
-                    <span className="w-10 text-right font-bold text-rose-700">
-                      {skill.requiredScore}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
         ) : (
-          /* Pure SVG Radar Chart (numSkills >= 3) */
+          /* Đồng bộ tất cả ứng viên đều dùng Pure SVG Radar Grid */
           <div className="flex flex-col items-center">
             <div className="relative w-full max-w-[420px] aspect-square flex items-center justify-center">
               <svg
@@ -180,16 +143,28 @@ export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({
               >
                 {/* 1. Concentric Web Rings (Levels 20, 40, 60, 80, 100) */}
                 {levels.map((level) => {
-                  const points = generateGridPolygon(level);
                   const { y } = getCoordinates(level, 0, numSkills);
+                  const r = (level / 100) * radius;
+
                   return (
                     <g key={level}>
-                      <polygon
-                        points={points}
-                        fill={level === 100 ? "#f8fafc" : "none"}
-                        stroke="#e2e8f0"
-                        strokeWidth="1"
-                      />
+                      {numSkills >= 3 ? (
+                        <polygon
+                          points={generateGridPolygon(level)}
+                          fill={level === 100 ? "#f8fafc" : "none"}
+                          stroke="#e2e8f0"
+                          strokeWidth="1"
+                        />
+                      ) : (
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={r}
+                          fill={level === 100 ? "#f8fafc" : "none"}
+                          stroke="#e2e8f0"
+                          strokeWidth="1"
+                        />
+                      )}
                       <text
                         x={cx + 4}
                         y={y + 10}
@@ -206,7 +181,6 @@ export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({
                 {/* 2. Radiating Axes from Center to Vertices */}
                 {skills.map((skill, idx) => {
                   const { x: outerX, y: outerY, angle } = getCoordinates(100, idx, numSkills);
-                  // Label position slightly outside max radius
                   const labelRadius = radius + 22;
                   const labelX = cx + labelRadius * Math.cos(angle);
                   const labelY = cy + labelRadius * Math.sin(angle);
@@ -215,8 +189,7 @@ export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({
                   const textAnchor = cos > 0.3 ? "start" : cos < -0.3 ? "end" : "middle";
 
                   return (
-                    <g key={skill.skillId}>
-                      {/* Axis Line */}
+                    <g key={skill.skillId || skill.skillName}>
                       <line
                         x1={cx}
                         y1={cy}
@@ -227,7 +200,6 @@ export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({
                         strokeDasharray="2,2"
                       />
 
-                      {/* Axis Skill Name Label */}
                       <text
                         x={labelX}
                         y={labelY + 4}
@@ -245,22 +217,62 @@ export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({
                   );
                 })}
 
-                {/* 3. Layer 1: Required Score Polygon (Rose / Red Outline & Tint) */}
-                <polygon
-                  points={generatePolygonPoints("required")}
-                  fill="rgba(244, 63, 94, 0.12)"
-                  stroke="#f43f5e"
-                  strokeWidth="2"
-                  strokeDasharray="4,3"
-                />
+                {/* 3. Layer 1: Required Score Polygon/Line (Rose / Red) */}
+                {numSkills >= 3 ? (
+                  <polygon
+                    points={generatePolygonPoints("required")}
+                    fill="rgba(244, 63, 94, 0.12)"
+                    stroke="#f43f5e"
+                    strokeWidth="2"
+                    strokeDasharray="4,3"
+                  />
+                ) : numSkills === 2 ? (
+                  <line
+                    x1={getCoordinates(skills[0].requiredScore, 0, numSkills).x}
+                    y1={getCoordinates(skills[0].requiredScore, 0, numSkills).y}
+                    x2={getCoordinates(skills[1].requiredScore, 1, numSkills).x}
+                    y2={getCoordinates(skills[1].requiredScore, 1, numSkills).y}
+                    stroke="#f43f5e"
+                    strokeWidth="2.5"
+                    strokeDasharray="4,3"
+                  />
+                ) : null}
 
-                {/* 4. Layer 2: Current Score Polygon (Sky Blue / Solid) */}
-                <polygon
-                  points={generatePolygonPoints("current")}
-                  fill="rgba(14, 165, 233, 0.35)"
-                  stroke="#0284c7"
-                  strokeWidth="2.5"
-                />
+                {/* Required score markers (visible when < 3 axes) */}
+                {numSkills < 3 &&
+                  skills.map((skill, idx) => {
+                    const reqCoord = getCoordinates(skill.requiredScore, idx, numSkills);
+                    return (
+                      <circle
+                        key={`req-${skill.skillId || idx}`}
+                        cx={reqCoord.x}
+                        cy={reqCoord.y}
+                        r={5}
+                        fill="#f43f5e"
+                        stroke="#ffffff"
+                        strokeWidth="1.5"
+                      />
+                    );
+                  })}
+
+                {/* 4. Layer 2: Current Score Polygon/Line (Sky Blue) */}
+                {numSkills >= 3 ? (
+                  <polygon
+                    points={generatePolygonPoints("current")}
+                    fill="rgba(14, 165, 233, 0.35)"
+                    stroke="#0284c7"
+                    strokeWidth="2.5"
+                  />
+                ) : numSkills === 2 ? (
+                  <line
+                    x1={getCoordinates(skills[0].currentScore, 0, numSkills).x}
+                    y1={getCoordinates(skills[0].currentScore, 0, numSkills).y}
+                    x2={getCoordinates(skills[1].currentScore, 1, numSkills).x}
+                    y2={getCoordinates(skills[1].currentScore, 1, numSkills).y}
+                    stroke="#0284c7"
+                    strokeWidth="3"
+                  />
+                ) : null}
 
                 {/* 5. Vertex interactive markers for Current Score */}
                 {skills.map((skill, idx) => {
@@ -269,9 +281,10 @@ export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({
 
                   return (
                     <g
-                      key={`dot-${skill.skillId}`}
+                      key={`dot-${skill.skillId || idx}`}
                       onMouseEnter={() => setHoveredSkill(skill)}
                       onMouseLeave={() => setHoveredSkill(null)}
+                      onClick={() => setHoveredSkill(skill)}
                       className="cursor-pointer"
                     >
                       <circle
@@ -321,7 +334,13 @@ export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({
                         {hoveredSkill.requiredScore}
                       </strong>
                     </span>
-                    <span className="px-2 py-0.5 rounded font-bold bg-white text-rose-700 border border-rose-200 shadow-2xs">
+                    <span
+                      className={`px-2 py-0.5 rounded font-bold border shadow-2xs ${
+                        hoveredSkill.gap > 0
+                          ? "bg-white text-rose-700 border-rose-200"
+                          : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      }`}
+                    >
                       {hoveredSkill.gap > 0
                         ? `Thiếu -${hoveredSkill.gap} điểm`
                         : "Đã đạt chuẩn"}

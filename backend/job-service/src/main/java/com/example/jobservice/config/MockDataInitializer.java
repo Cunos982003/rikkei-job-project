@@ -79,6 +79,7 @@ public class MockDataInitializer implements ApplicationRunner {
         if (companyRepository.count() > 0) {
             log.info("Companies table is not empty, skipping mock data initialization");
             initStubAccountsIfAvailable();
+            ensureSamplePendingJob();
             return;
         }
 
@@ -107,6 +108,8 @@ public class MockDataInitializer implements ApplicationRunner {
             if (Files.isRegularFile(jobsFile)) {
                 loadJobs(jobsFile, companyIds);
             }
+
+            ensureSamplePendingJob();
 
             log.info("Successfully initialized mock data from {}", dataDirectory.toAbsolutePath());
         } catch (Exception e) {
@@ -253,6 +256,67 @@ public class MockDataInitializer implements ApplicationRunner {
                 }
             }
         }
+    }
+
+    private void ensureSamplePendingJob() {
+        JobRepository jobRepository = jobRepositoryProvider != null ? jobRepositoryProvider.getIfAvailable() : null;
+        if (jobRepository == null) {
+            return;
+        }
+
+        Optional<Company> sampleCompanyOpt = companyRepository.findByTaxCode("0101234567");
+        if (sampleCompanyOpt.isEmpty()) {
+            sampleCompanyOpt = companyRepository.findAll().stream().findFirst();
+        }
+        if (sampleCompanyOpt.isEmpty()) {
+            return;
+        }
+
+        Company company = sampleCompanyOpt.get();
+        String sampleTitle = "[MẪU] Chuyên viên phát triển Java (Chờ duyệt)";
+
+        org.springframework.data.domain.Page<Job> existingJobs = jobRepository.findByCompanyId(
+                company.getId(),
+                org.springframework.data.domain.PageRequest.of(0, 100));
+        boolean exists = existingJobs.getContent().stream()
+                .anyMatch(j -> sampleTitle.equalsIgnoreCase(j.getTitle()));
+        if (exists) {
+            return;
+        }
+
+        Clock clock = clockProvider != null ? clockProvider.getIfAvailable() : null;
+        LocalDate today = clock != null ? LocalDate.now(clock) : LocalDate.now();
+
+        Job pendingJob = new Job();
+        pendingJob.setCompanyId(company.getId());
+        pendingJob.setTitle(sampleTitle);
+        pendingJob.setPosition("Backend Java Developer");
+        pendingJob.setLevel(JobLevel.MIDDLE);
+        pendingJob.setType(JobType.FULLTIME);
+        pendingJob.setQuantity(2);
+        pendingJob.setCity(company.getCity() != null ? company.getCity() : "Hà Nội");
+        pendingJob.setAddress(company.getAddress() != null ? company.getAddress() : "Keangnam Hanoi Landmark Tower");
+        pendingJob.setWorkMode(WorkMode.HYBRID);
+        pendingJob.setSalaryMin(BigDecimal.valueOf(15000000));
+        pendingJob.setSalaryMax(BigDecimal.valueOf(25000000));
+        pendingJob.setDescription("Phát triển các module nghiệp vụ tuyển dụng và khớp lệnh.");
+        pendingJob.setRequirements("Ít nhất 2 năm kinh nghiệm Spring Boot, PostgreSQL, Docker.");
+        pendingJob.setBenefits("Lương tháng 13, BHXH đầy đủ, xét tăng lương định kỳ.");
+        pendingJob.setDeadline(today.plusDays(30));
+        pendingJob.setStatus(JobStatus.PENDING);
+        pendingJob.setCreatedBy("hr-sample");
+
+        Job saved = jobRepository.save(pendingJob);
+
+        JobSkillRepository jobSkillRepository = jobSkillRepositoryProvider != null ? jobSkillRepositoryProvider.getIfAvailable() : null;
+        if (jobSkillRepository != null) {
+            List<JobSkill> skills = List.of(
+                    new JobSkill(saved.getId(), "JAVA_CORE", "JAVA_CORE", "Java Core", true, 70),
+                    new JobSkill(saved.getId(), "SPRING_BOOT", "SPRING_BOOT", "Spring Boot", true, 60)
+            );
+            jobSkillRepository.saveAll(skills);
+        }
+        log.info("Initialized sample PENDING job for company: {}", company.getName());
     }
 
     private void initStubAccountsIfAvailable() {

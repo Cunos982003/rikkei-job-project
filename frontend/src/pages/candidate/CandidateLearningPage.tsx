@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -13,7 +13,7 @@ import {
   PlusCircle,
 } from "lucide-react";
 import { useAuthStore } from "../../store/useAuthStore";
-import { learningApi } from "../../api/endpoints/learning.api";
+import { learningApi, profileApi, candidateKeys, type GapItem } from "../../api";
 import { Button } from "../../components/common/Button";
 import { Card, CardContent } from "../../components/common/Card";
 import { ReadinessCircularGauge } from "../../features/learning/components/ReadinessCircularGauge";
@@ -57,7 +57,7 @@ export const CandidateLearningPage: React.FC = () => {
     data: positionsRes,
     isLoading: positionsLoading,
   } = useQuery({
-    queryKey: ["targetPositions"],
+    queryKey: candidateKeys.learning.targetPositions(),
     queryFn: () => learningApi.getTargetPositions(),
     staleTime: 10 * 60 * 1000,
   });
@@ -67,7 +67,7 @@ export const CandidateLearningPage: React.FC = () => {
     data: myTargetRes,
     isLoading: myTargetLoading,
   } = useQuery({
-    queryKey: ["myTarget"],
+    queryKey: candidateKeys.learning.myTarget(),
     queryFn: () => learningApi.getMyTarget(),
     staleTime: 5 * 60 * 1000,
   });
@@ -79,7 +79,7 @@ export const CandidateLearningPage: React.FC = () => {
     isRefetching: gapRefetching,
     refetch: refetchGap,
   } = useQuery({
-    queryKey: ["gapAnalysis", jobIdOverride || "default"],
+    queryKey: candidateKeys.learning.gapAnalysis(jobIdOverride),
     queryFn: () => learningApi.getGapAnalysis(jobIdOverride),
     staleTime: 5 * 60 * 1000,
     retry: false,
@@ -91,7 +91,7 @@ export const CandidateLearningPage: React.FC = () => {
     isLoading: suggestionsLoading,
     refetch: refetchSuggestions,
   } = useQuery({
-    queryKey: ["courseSuggestions"],
+    queryKey: candidateKeys.learning.courseSuggestions(),
     queryFn: () => learningApi.getCourseSuggestions(),
     staleTime: 5 * 60 * 1000,
   });
@@ -103,7 +103,7 @@ export const CandidateLearningPage: React.FC = () => {
     isRefetching: pathRefetching,
     refetch: refetchPath,
   } = useQuery({
-    queryKey: ["myLearningPath"],
+    queryKey: candidateKeys.learning.learningPath(),
     queryFn: () => learningApi.getMyLearningPath(),
     staleTime: 5 * 60 * 1000,
   });
@@ -113,9 +113,7 @@ export const CandidateLearningPage: React.FC = () => {
     mutationFn: () => learningApi.generateLearningPath(),
     onSuccess: (res) => {
       toast.success(res.message || "Đã sinh lộ trình học tập tối ưu thành công!");
-      queryClient.invalidateQueries({ queryKey: ["myLearningPath"] });
-      queryClient.invalidateQueries({ queryKey: ["gapAnalysis"] });
-      queryClient.invalidateQueries({ queryKey: ["courseSuggestions"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.learning.all() });
     },
     onError: (err: any) => {
       const msg =
@@ -131,10 +129,8 @@ export const CandidateLearningPage: React.FC = () => {
       learningApi.setMyTarget(payload),
     onSuccess: (res) => {
       toast.success(res.message || "Thiết lập mục tiêu nghề nghiệp thành công!");
-      queryClient.invalidateQueries({ queryKey: ["myTarget"] });
-      queryClient.invalidateQueries({ queryKey: ["gapAnalysis"] });
-      queryClient.invalidateQueries({ queryKey: ["courseSuggestions"] });
-      queryClient.invalidateQueries({ queryKey: ["myLearningPath"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.learning.all() });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.career.all() });
       if (jobIdOverride) {
         const nextParams = new URLSearchParams(searchParams);
         nextParams.delete("jobId");
@@ -159,9 +155,7 @@ export const CandidateLearningPage: React.FC = () => {
     },
     onSuccess: (res) => {
       toast.success(res.message || "Ghi danh khóa học thành công!");
-      queryClient.invalidateQueries({ queryKey: ["courseSuggestions"] });
-      queryClient.invalidateQueries({ queryKey: ["gapAnalysis"] });
-      queryClient.invalidateQueries({ queryKey: ["myLearningPath"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.learning.all() });
     },
     onError: (err: any) => {
       const msg =
@@ -184,10 +178,10 @@ export const CandidateLearningPage: React.FC = () => {
         res.message ||
           `Đã đồng bộ ${total} khóa học từ LMS! (${completed} môn đã hoàn thành)`
       );
-      queryClient.invalidateQueries({ queryKey: ["courseSuggestions"] });
-      queryClient.invalidateQueries({ queryKey: ["gapAnalysis"] });
-      queryClient.invalidateQueries({ queryKey: ["myProfileSkills"] });
-      queryClient.invalidateQueries({ queryKey: ["myLearningPath"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.learning.all() });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.skills.all() });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.all() });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.career.all() });
     },
     onError: (err: any) => {
       const msg =
@@ -197,10 +191,73 @@ export const CandidateLearningPage: React.FC = () => {
     },
   });
 
+  // 5b. Fetch candidate's verified skills as backup for Radar Chart completeness
+  const { data: mySkillsRes } = useQuery({
+    queryKey: candidateKeys.skills.byUser(),
+    queryFn: () => profileApi.getMySkills(),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const positions = positionsRes?.data || [];
   const myTarget = myTargetRes?.data;
   const gapAnalysis = gapAnalysisRes?.data;
   const learningPath = learningPathRes?.data;
+
+  // Tổng hợp đầy đủ kỹ năng mục tiêu (cả đạt & thiếu) cho Radar Chart
+  const computedRadarSkills: GapItem[] = useMemo(() => {
+    if (learningPath?.radarSkills && learningPath.radarSkills.length > 0) {
+      return learningPath.radarSkills;
+    }
+    if (gapAnalysis?.allSkills && gapAnalysis.allSkills.length > 0) {
+      return gapAnalysis.allSkills;
+    }
+
+    const mySkills = mySkillsRes?.data || [];
+    const targetPosId = learningPath?.targetId || myTarget?.positionId;
+    const matchedPos = (positionsRes?.data || []).find((p) => p.id === targetPosId);
+
+    if (matchedPos && matchedPos.skills && matchedPos.skills.length > 0) {
+      const gapMap = new Map<string, GapItem>();
+      (gapAnalysis?.items || []).forEach((item) => {
+        gapMap.set(item.skillId.toLowerCase(), item);
+      });
+
+      const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+      return matchedPos.skills.map((ps) => {
+        const fromGap = gapMap.get(ps.skillId.toLowerCase());
+        if (fromGap) return fromGap;
+
+        const normId = normalize(ps.skillId);
+        const normName = normalize(ps.skillName);
+        const matchedProfileSkill = mySkills.find((ms) => {
+          const msCode = normalize(ms.skillCode || "");
+          const msName = normalize(ms.skillName || "");
+          return (
+            msCode === normId ||
+            msName === normName ||
+            (normName && (msName.startsWith(normName) || normName.startsWith(msName)))
+          );
+        });
+
+        const current = matchedProfileSkill?.verifiedScore ?? 0;
+        const gap = Math.max(0, ps.minScore - current);
+
+        return {
+          skillId: ps.skillId,
+          skill: ps.skillName,
+          skillName: ps.skillName,
+          required: ps.minScore,
+          current,
+          gap,
+          priority: gap > 20 && ps.isMandatory ? "HIGH" : gap > 10 ? "MEDIUM" : "LOW",
+          isMandatory: ps.isMandatory,
+        };
+      });
+    }
+
+    return [];
+  }, [learningPath, gapAnalysis, mySkillsRes, positionsRes, myTarget]);
 
   const isInitialLoading =
     (positionsLoading || myTargetLoading || gapLoading || pathLoading) &&
@@ -396,7 +453,7 @@ export const CandidateLearningPage: React.FC = () => {
                   />
 
                   {/* 2. Pure SVG Radar Chart */}
-                  <SkillRadarChart steps={learningPath.steps} />
+                  <SkillRadarChart steps={learningPath.steps} radarSkills={computedRadarSkills} />
 
                   {/* 3. Learning Path Timeline Stepper */}
                   <LearningPathTimeline

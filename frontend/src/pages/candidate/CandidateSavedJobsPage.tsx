@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import { candidateJobsApi, type SavedJobItem } from "../../api/endpoints/candidateJobs.api";
 import { recruitmentApi } from "../../api/endpoints/recruitment.api";
+import { candidateKeys } from "../../api/queryKeys";
 import type { JobPostingItem } from "../../api/endpoints/jobs.api";
 import { Button } from "../../components/common/Button";
 import { Card, CardContent } from "../../components/common/Card";
@@ -76,7 +77,7 @@ export function CandidateSavedJobsPage() {
 
   // 1. Lấy danh sách việc làm đã lưu từ mock/backend
   const { data: savedJobsRes, isLoading } = useQuery({
-    queryKey: ["savedJobs"],
+    queryKey: candidateKeys.jobs.saved(),
     queryFn: () =>
       candidateJobsApi.getSavedJobs().catch(() => ({
         success: true,
@@ -94,7 +95,7 @@ export function CandidateSavedJobsPage() {
 
   // 2. Lấy danh sách các đơn đã nộp để hiển thị trạng thái "Đã nộp đơn"
   const { data: recruitmentsRes } = useQuery({
-    queryKey: ["my-recruitments"],
+    queryKey: candidateKeys.recruitments.all(),
     queryFn: () => recruitmentApi.getMyRecruitments().catch(() => ({ data: [] } as any)),
     staleTime: 5 * 60 * 1000,
   });
@@ -104,7 +105,9 @@ export function CandidateSavedJobsPage() {
     const list = (recruitmentsRes as any)?.data ?? recruitmentsRes;
     if (Array.isArray(list)) {
       list.forEach((r: any) => {
-        if (r?.jobId) set.add(r.jobId);
+        if (r?.jobId && r?.status !== "WITHDRAWN") {
+          set.add(r.jobId);
+        }
       });
     }
     return set;
@@ -114,10 +117,10 @@ export function CandidateSavedJobsPage() {
   const unsaveMutation = useMutation({
     mutationFn: (jobId: string) => candidateJobsApi.unsaveJob(jobId),
     onMutate: async (jobId: string) => {
-      await queryClient.cancelQueries({ queryKey: ["savedJobs"] });
-      const previous = queryClient.getQueryData(["savedJobs"]);
+      await queryClient.cancelQueries({ queryKey: candidateKeys.jobs.saved() });
+      const previous = queryClient.getQueryData(candidateKeys.jobs.saved());
 
-      queryClient.setQueryData(["savedJobs"], (old: any) => {
+      queryClient.setQueryData(candidateKeys.jobs.saved(), (old: any) => {
         const currentData = Array.isArray(old?.data) ? old.data : [];
         return {
           ...old,
@@ -129,13 +132,13 @@ export function CandidateSavedJobsPage() {
     },
     onError: (_err, _jobId, context: any) => {
       if (context?.previous) {
-        queryClient.setQueryData(["savedJobs"], context.previous);
+        queryClient.setQueryData(candidateKeys.jobs.saved(), context.previous);
       }
       toast.error("Không thể bỏ lưu việc làm. Vui lòng thử lại!");
     },
     onSuccess: () => {
       toast.info("Đã bỏ lưu việc làm khỏi danh sách theo dõi.");
-      queryClient.invalidateQueries({ queryKey: ["savedJobs"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.jobs.saved() });
     },
   });
 
@@ -148,7 +151,7 @@ export function CandidateSavedJobsPage() {
     onSuccess: () => {
       toast.success("Nộp đơn ứng tuyển thành công! Nhà tuyển dụng sẽ xem xét hồ sơ của bạn.");
       setApplyingJob(null);
-      queryClient.invalidateQueries({ queryKey: ["my-recruitments"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.recruitments.all() });
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || "Nộp đơn ứng tuyển thất bại. Vui lòng thử lại!");
