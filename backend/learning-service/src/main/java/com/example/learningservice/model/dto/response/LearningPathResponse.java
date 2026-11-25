@@ -32,5 +32,7 @@ public class LearningPathResponse {
     private Instant createdAt;
     @Builder.Default
     private List<LearningPathStepResponse> steps = new ArrayList<>();
+    @Builder.Default
+    private List<GapItemResponse> radarSkills = new ArrayList<>();
 }
 

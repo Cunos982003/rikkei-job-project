@@ -20,6 +20,7 @@ import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
 import { Skeleton } from "@/components/feedback/Skeleton";
 import { offersApi, type OfferItem, type OfferStatus } from "@/api/endpoints/offers.api";
+import { candidateKeys } from "@/api/queryKeys";
 import { useAuthStore } from "@/store/useAuthStore";
 
 const OFFER_STATUS_CONFIG: Record<
@@ -70,7 +71,7 @@ export function CandidateOffersPage() {
   }, []);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["myOffers", user?.id],
+    queryKey: candidateKeys.offers.list(user?.id),
     queryFn: () => offersApi.listMyOffers(),
   });
 
@@ -79,8 +80,13 @@ export function CandidateOffersPage() {
     onSuccess: () => {
       toast.success("Chúc mừng! Bạn đã chấp nhận Offer. Kinh nghiệm mới đã được ghi nhận vào hồ sơ của bạn.");
       setAcceptTarget(null);
-      queryClient.invalidateQueries({ queryKey: ["myOffers"] });
-      queryClient.invalidateQueries({ queryKey: ["myEmploymentRecords"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.offers.all() });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.all() });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.recruitments.all() });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.jobs.all() });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Không thể chấp nhận Offer. Vui lòng thử lại sau.");
     },
   });
 
@@ -92,7 +98,12 @@ export function CandidateOffersPage() {
       setDeclineTarget(null);
       setDeclineReason("");
       setDeclineError("");
-      queryClient.invalidateQueries({ queryKey: ["myOffers"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.offers.all() });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.recruitments.all() });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.jobs.all() });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Không thể từ chối Offer. Vui lòng thử lại sau.");
     },
   });
 
