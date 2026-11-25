@@ -147,7 +147,7 @@ export function AppRoutes() {
 
                         <Route
                             path="/candidate/interview-practice"
-                            element={<InterviewPracticeListPage />}
+                            element={<Navigate to="/candidate/career/interviews" replace />}
                         />
 
                         <Route
@@ -156,8 +156,13 @@ export function AppRoutes() {
                         />
 
                         <Route
+                            path="/candidate/career/interviews/:id"
+                            element={<InterviewPracticePage />}
+                        />
+
+                        <Route
                             path="/candidate/interview-practices"
-                            element={<Navigate to="/candidate/interview-practice" replace />}
+                            element={<Navigate to="/candidate/career/interviews" replace />}
                         />
 
                         <Route
