@@ -69,7 +69,8 @@ export const selfAssessmentApi = {
      */
     getTemplate(): Promise<ApiResponse<SelfAssessmentTemplate>> {
         return api.get<SelfAssessmentTemplate>(
-            "/me/self-assessment/template"
+            "/me/self-assessment/template",
+            { silentError: true }
         );
     },
 

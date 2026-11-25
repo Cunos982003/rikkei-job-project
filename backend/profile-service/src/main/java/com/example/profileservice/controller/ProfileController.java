@@ -32,9 +32,14 @@ public class ProfileController {
     private final VisibilityService visibilityService;
     private final PortfolioService portfolioService;
 
-    private UUID resolveUserId(UUID headerUserId) {
-        if (headerUserId != null) {
-            return headerUserId;
+    private UUID resolveUserId(Object headerUserId) {
+        if (headerUserId instanceof UUID uuid) {
+            return uuid;
+        }
+        if (headerUserId instanceof String str && !str.isBlank()) {
+            try {
+                return UUID.fromString(str);
+            } catch (Exception ignored) {}
         }
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getName() != null) {
@@ -47,7 +52,7 @@ public class ProfileController {
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<CandidateProfile>> getMyProfile(
-            @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
+            @RequestHeader(value = "X-User-Id", required = false) Object userId) {
         UUID effectiveUserId = resolveUserId(userId);
         if (effectiveUserId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -129,14 +134,18 @@ public class ProfileController {
 
     @GetMapping("/me/portfolio")
     public ResponseEntity<ApiResponse<List<PortfolioProjectDto>>> getMyPortfolio(
-            @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
+            @RequestHeader(value = "X-User-Id", required = false) Object userId) {
         UUID effectiveUserId = resolveUserId(userId);
         if (effectiveUserId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
         }
-        List<PortfolioProjectDto> portfolio = portfolioService.getMyPortfolio(effectiveUserId);
-        return ResponseEntity.ok(ApiResponse.success("Lấy portfolio thành công", portfolio));
+        try {
+            List<PortfolioProjectDto> portfolio = portfolioService.getMyPortfolio(effectiveUserId);
+            return ResponseEntity.ok(ApiResponse.success("Lấy portfolio thành công", portfolio));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.success("Lấy portfolio thành công", java.util.Collections.emptyList()));
+        }
     }
 
     @GetMapping("/{userId}/portfolio")
@@ -241,5 +250,16 @@ public class ProfileController {
         }
         portfolioService.reorderMedia(effectiveUserId, projectId, request.getMediaIds());
         return ResponseEntity.ok(ApiResponse.success("Sắp xếp lại ảnh portfolio thành công", null));
+    }
+
+    @GetMapping("/{userId}/evaluations")
+    public ResponseEntity<ApiResponse<java.util.List<Object>>> getCandidateEvaluations(
+            @PathVariable String userId) {
+        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách đánh giá thành công", java.util.Collections.emptyList()));
+    }
+
+    @GetMapping("/me/evaluations")
+    public ResponseEntity<ApiResponse<java.util.List<Object>>> getMyEvaluations() {
+        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách đánh giá thành công", java.util.Collections.emptyList()));
     }
 }

@@ -59,8 +59,8 @@ export default function SelfAssessmentPage() {
                         })),
                     };
                 }
-            } catch (err) {
-                console.warn("selfAssessmentApi.getTemplate chưa khả dụng, lấy danh mục kỹ năng từ profile:", err);
+            } catch {
+                // Fallback tự động lấy danh mục kỹ năng thực tế từ profile
             }
 
             // 2. Fallback: Lấy danh sách kỹ năng thật của ứng viên từ profileApi.getMySkills()
