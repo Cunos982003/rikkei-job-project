@@ -46,6 +46,14 @@ public class FileController {
                 .body(new FileSystemResource(path));
     }
 
+    @GetMapping("/minio/{storedName}")
+    public ResponseEntity<Resource> downloadFromMinio(@PathVariable String storedName) {
+        InputStream inputStream = minioFileUploadService.getObject("/files/" + storedName);
+        return ResponseEntity.ok()
+                .contentType(mediaTypeFor(storedName))
+                .body(new InputStreamResource(inputStream));
+    }
+
     private static MediaType mediaTypeFor(String storedName) {
         if (storedName.endsWith(".pdf")) {
             return MediaType.APPLICATION_PDF;

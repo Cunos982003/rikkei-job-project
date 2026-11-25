@@ -5,6 +5,8 @@ import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -16,6 +18,8 @@ import java.util.UUID;
 public class MinioFileUploadService {
 
     public static final long MAX_SIZE_BYTES = 5L * 1024 * 1024;
+
+    private static final Logger log = LoggerFactory.getLogger(MinioFileUploadService.class);
 
     private final MinioClient minioClient;
     private final String bucket;
@@ -68,7 +72,7 @@ public class MinioFileUploadService {
             throw new InvalidFileException("Không thể lưu tệp tải lên: " + e.getMessage());
         }
 
-        return "/files/" + storedName;
+        return "/api/v1/files/minio/" + storedName;
     }
 
     public void delete(String storedName) {
@@ -77,9 +81,17 @@ public class MinioFileUploadService {
         }
         // Remove /files/ prefix if present
         String objectName = storedName.startsWith("/files/") ? storedName.substring(7) : storedName;
-        // Validate the object name (UUID + extension)
-        if (!objectName.matches("[0-9a-fA-F-]{36}\\.(jpg|png)")) {
-            throw new InvalidFileException("Tên tệp không hợp lệ");
+        // Remove /api/v1/files/minio/ prefix if present
+        objectName = objectName.startsWith("/api/v1/files/minio/") ? objectName.substring(19) : objectName;
+        // Remove leading / if present (for URLs like "/uuid.png")
+        objectName = objectName.startsWith("/") ? objectName.substring(1) : objectName;
+
+        log.debug("Deleting file from MinIO. Input: {}, After stripping prefixes: {}", storedName, objectName);
+
+        // Validate the object name (UUID + extension) - accept both 32-char (no hyphens) and 36-char (with hyphens)
+        if (!objectName.matches("([0-9a-fA-F]{32}|[0-9a-fA-F-]{36})\\.(jpg|png)")) {
+            log.warn("Invalid filename format: {}", objectName);
+            throw new InvalidFileException("Tên tệp không hợp lệ: " + objectName);
         }
         try {
             minioClient.removeObject(
@@ -88,13 +100,14 @@ public class MinioFileUploadService {
                             .object(objectName)
                             .build());
         } catch (Exception e) {
+            log.error("Failed to delete file from MinIO: {}", objectName, e);
             throw new InvalidFileException("Không thể xóa tệp: " + e.getMessage());
         }
     }
 
     /**
      * Get an InputStream for a file stored in MinIO.
-     * @param storedName the stored name (e.g., "/files/{uuid}.jpg")
+     * @param storedName the stored name (e.g., "/files/{uuid}.jpg" or "/api/v1/files/minio/{uuid}.jpg")
      * @return InputStream of the file
      */
     public java.io.InputStream getObject(String storedName) {
@@ -103,9 +116,17 @@ public class MinioFileUploadService {
         }
         // Remove /files/ prefix if present
         String objectName = storedName.startsWith("/files/") ? storedName.substring(7) : storedName;
-        // Validate the object name (UUID + extension)
-        if (!objectName.matches("[0-9a-fA-F-]{36}\\.(jpg|png)")) {
-            throw new InvalidFileException("Tên tệp không hợp lệ");
+        // Remove /api/v1/files/minio/ prefix if present
+        objectName = objectName.startsWith("/api/v1/files/minio/") ? objectName.substring(19) : objectName;
+        // Remove leading / if present (for URLs like "/uuid.png")
+        objectName = objectName.startsWith("/") ? objectName.substring(1) : objectName;
+
+        log.debug("Getting file from MinIO. Input: {}, After stripping prefixes: {}", storedName, objectName);
+
+        // Validate the object name (UUID + extension) - accept both 32-char (no hyphens) and 36-char (with hyphens)
+        if (!objectName.matches("([0-9a-fA-F]{32}|[0-9a-fA-F-]{36})\\.(jpg|png)")) {
+            log.warn("Invalid filename format: {}", objectName);
+            throw new InvalidFileException("Tên tệp không hợp lệ: " + objectName);
         }
         try {
             return minioClient.getObject(
@@ -114,6 +135,7 @@ public class MinioFileUploadService {
                             .object(objectName)
                             .build());
         } catch (Exception e) {
+            log.error("Failed to get file from MinIO: {}", objectName, e);
             throw new InvalidFileException("Không thể đọc tệp: " + e.getMessage());
         }
     }
