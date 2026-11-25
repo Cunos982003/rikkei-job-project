@@ -9,6 +9,7 @@ import { useSkillProfile } from "@/features/profile/hooks";
 import type { SkillProfileItem } from "@/api/endpoints/profile.api";
 import { cn } from "@/utils/cn";
 import { Award, User, ChevronDown, ChevronUp, Calendar, CheckCircle2 } from "lucide-react";
+import { LevelConstants } from "@/common/LevelConstants";
 
 // IMPORT 2 KHỐI CỦA BẠN VÀO ĐÂY (Kiểm tra lại đường dẫn cho đúng)
 import { InternshipBlock } from "./components/InternshipBlock";
@@ -120,9 +121,11 @@ function SkillProfileContent() {
 function SkillCard({ skill }: { skill: SkillProfileItem }) {
   const [showEvidences, setShowEvidences] = useState(false);
   const displayScore = skill.verifiedScore ?? skill.selfScore ?? 0;
+  const isSelfOnlySkill = skill.verifiedScore === null && skill.selfScore !== null;
+  const levelLabel = getLevelLabel(skill.level);
 
   return (
-      <Card className="overflow-hidden transition-shadow hover:shadow-md">
+      <Card className="overflow-hidden transition-shadow hover:shadow-md h-full">
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
@@ -130,13 +133,8 @@ function SkillCard({ skill }: { skill: SkillProfileItem }) {
               <p className="text-sm text-muted-foreground">{skill.skillCode}</p>
             </div>
             <div className="flex items-center gap-1.5">
-              {skill.verifiedScore !== null && (
-                  <Badge variant="verified" className="text-xs gap-1">
-                    <Award className="h-3 w-3" />
-                    Xác thực
-                  </Badge>
-              )}
-              {skill.verifiedScore === null && skill.selfScore !== null && (
+              {/* Only show self-declared badge for self-only skills; verified skills don't need badge since section title indicates it */}
+              {isSelfOnlySkill && (
                   <Badge variant="self" className="text-xs gap-1">
                     <User className="h-3 w-3" />
                     Tự khai
@@ -154,26 +152,25 @@ function SkillCard({ skill }: { skill: SkillProfileItem }) {
         </CardHeader>
 
         <CardContent className="space-y-3 pb-3">
+          {/* Score and Level grouped together */}
           <div className="flex items-end justify-between gap-2">
-            <Progress value={displayScore} className="flex-1" />
-            <span className="text-lg font-bold text-foreground whitespace-nowrap">
-            {displayScore}
-          </span>
+            <Progress value={displayScore} className="flex-1 min-w-0" />
+            <div className="flex items-center gap-2 whitespace-nowrap flex-shrink-0">
+              <span className="text-lg font-bold text-foreground">{displayScore}</span>
+              <Badge variant="outline" className="text-xs">
+                {levelLabel}
+              </Badge>
+            </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <Badge variant="outline" className="text-xs">
-              {skill.level}
-            </Badge>
-            {skill.evidences.length > 0 && (
-                <button
-                    onClick={() => setShowEvidences(!showEvidences)}
-                    className="text-xs text-primary hover:underline"
-                >
-                  {showEvidences ? "Ẩn bằng chứng" : `${skill.evidences.length} bằng chứng`}
-                </button>
-            )}
-          </div>
+          {skill.evidences.length > 0 && (
+              <button
+                  onClick={() => setShowEvidences(!showEvidences)}
+                  className="text-xs text-primary hover:underline w-full text-left"
+              >
+                {showEvidences ? "Ẩn bằng chứng" : `${skill.evidences.length} bằng chứng`}
+              </button>
+          )}
 
           {showEvidences && skill.evidences.length > 0 && (
               <>
@@ -182,7 +179,7 @@ function SkillCard({ skill }: { skill: SkillProfileItem }) {
                   {skill.evidences.map((evidence: typeof skill.evidences[0], index: number) => (
                       <div
                           key={`${evidence.source}-${evidence.title}-${index}`}
-                          className="p-3 bg-card border rounded-lg hover:bg-accent/50 transition-colors"
+                          className="p-3 bg-card border rounded-lg hover:bg-accent/50 transition-colors min-h-[96px]"
                       >
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="flex-1 min-w-0">
@@ -278,6 +275,16 @@ function groupSkillsByGroup(skills: SkillProfileItem[]): Record<string, SkillPro
 
 function isSelfOnly(skill: SkillProfileItem): boolean {
   return skill.verifiedScore === null && skill.selfScore !== null;
+}
+
+function getLevelLabel(level: string): string {
+  const levelMap: Record<string, string> = {
+    'VUNG': LevelConstants.LEVEL_VUNG,
+    'KHA': LevelConstants.LEVEL_KHA,
+    'NANG_CAO': LevelConstants.LEVEL_NANG_CAO,
+    'CO_BAN': LevelConstants.LEVEL_CO_BAN,
+  };
+  return levelMap[level] || level;
 }
 
 function getSourceVariant(source: string): "default" | "primary" | "warning" | "danger" | "outline" | "verified" | "self" {
