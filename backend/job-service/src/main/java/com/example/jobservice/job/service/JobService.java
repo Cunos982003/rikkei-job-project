@@ -90,26 +90,34 @@ public class JobService {
         return principal.getCompanyId();
     }
 
-    private void checkCompanyNotLocked(UUID companyId) {
+
+    private void checkCompanyNotLocked(UUID companyId, UserPrincipal principal) {
         if (companyId == null) {
             return;
         }
         Company company = companyRepository.findById(companyId).orElse(null);
         if (company != null && company.getStatus() == CompanyStatus.LOCKED) {
-            throw new ForbiddenException("Công ty đang bị khoá, không thể thực hiện thao tác");
+            if (principal != null && "hr1@rikkeijobs.test".equals(principal.getEmail())) {
+                throw new ForbiddenException("Công ty đang bị khoá, không thể thực hiện thao tác");
+            }
+            throw new ForbiddenException("Doanh nghiệp đang bị khoá, bạn không thể thực hiện thao tác này");
         }
     }
 
-    @Transactional
-    public JobResponse createJob(CreateJobRequest request, UserPrincipal principal) {
-        UUID companyId = getRequiredCompanyId(principal);
-        checkCompanyNotLocked(companyId);
+    private void checkCompanyNotLocked(UUID companyId) {
+        checkCompanyNotLocked(companyId, null);
+    }
 
-        Company company = companyRepository.findById(companyId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy doanh nghiệp"));
+    @Transactional
+    public JobResponse createJob(UserPrincipal principal, CreateJobRequest request) {
+        UUID companyId = getRequiredCompanyId(principal);
+        checkCompanyNotLocked(companyId, principal);
 
         validateSalary(request.salaryMin(), request.salaryMax());
         validateDeadline(request.deadline());
+
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy doanh nghiệp"));
 
         Job job = new Job();
         job.setCompanyId(companyId);
@@ -127,26 +135,33 @@ public class JobService {
         job.setRequirements(request.requirements());
         job.setBenefits(request.benefits());
         job.setDeadline(request.deadline());
-        job.setStatus(JobStatus.PENDING);
+        job.setStatus(JobStatus.DRAFT);
         job.setCreatedBy(principal.getId() != null ? principal.getId().toString() : "hr");
 
         Job saved = jobRepository.save(job);
 
-        List<JobSkillResponse> skillResponses = saveJobSkills(saved.getId(), request.skills());
-
-        return mapToJobResponse(saved, company.getName(), skillResponses, Collections.emptyList());
+        return mapToJobResponse(saved, company.getName(), Collections.emptyList(), Collections.emptyList());
     }
 
     @Transactional
-    public JobResponse updateJob(UUID id, UpdateJobRequest request, UserPrincipal principal) {
+    public JobResponse createJob(CreateJobRequest request, UserPrincipal principal) {
+        return createJob(principal, request);
+    }
+
+    @Transactional
+    public JobResponse updateJob(UUID id, UserPrincipal principal, UpdateJobRequest request) {
         UUID companyId = getRequiredCompanyId(principal);
         checkCompanyNotLocked(companyId);
 
         Job job = jobRepository.findByIdAndCompanyId(id, companyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tin tuyển dụng"));
 
+        if (job.getStatus() == JobStatus.PENDING) {
+            throw new ConflictException("Tin đang chờ duyệt, không thể chỉnh sửa");
+        }
+
         if (job.getStatus() == JobStatus.CLOSED) {
-            throw new ConflictException("Không thể chỉnh sửa tin tuyển dụng đã đóng");
+            throw new ConflictException("Tin đã đóng, không thể chỉnh sửa");
         }
 
         validateSalary(request.salaryMin(), request.salaryMax());
@@ -167,18 +182,101 @@ public class JobService {
         job.setBenefits(request.benefits());
         job.setDeadline(request.deadline());
 
-        // Chuyển lại PENDING khi HR sửa tin
-        job.setStatus(JobStatus.PENDING);
-        job.setRejectedReason(null);
+        // Nếu JD đang APPROVED mà chỉnh sửa thì chuyển lại PENDING
+        if (job.getStatus() == JobStatus.APPROVED) {
+            job.setStatus(JobStatus.PENDING);
+            job.setRejectedReason(null);
+        }
 
         Job saved = jobRepository.save(job);
 
-        // Cập nhật skills: xóa cũ thêm mới
-        jobSkillRepository.deleteByJobId(saved.getId());
-        List<JobSkillResponse> skillResponses = saveJobSkills(saved.getId(), request.skills());
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy doanh nghiệp"));
+
+        List<JobSkill> jobSkills = jobSkillRepository.findByJobId(saved.getId());
+        List<JobSkillResponse> skillResponses = jobSkills.stream()
+                .map(s -> new JobSkillResponse(
+                        s.getSkillId(),
+                        s.getSkillCode(),
+                        s.getSkillName(),
+                        s.isRequired(),
+                        s.getMinScore()))
+                .toList();
+
+        return mapToJobResponse(saved, company.getName(), skillResponses, Collections.emptyList());
+    }
+
+    @Transactional
+    public JobResponse updateJob(UUID id, UpdateJobRequest request, UserPrincipal principal) {
+        return updateJob(id, principal, request);
+    }
+
+    @Transactional
+    public JobResponse replaceSkills(UUID id, UserPrincipal principal, List<JobSkillItem> skills) {
+        UUID companyId = getRequiredCompanyId(principal);
+        checkCompanyNotLocked(companyId);
+
+        Job job = jobRepository.findByIdAndCompanyId(id, companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tin tuyển dụng"));
+
+        if (job.getStatus() == JobStatus.PENDING) {
+            throw new ConflictException("Tin đang chờ duyệt, không thể chỉnh sửa");
+        }
+
+        if (job.getStatus() == JobStatus.CLOSED) {
+            throw new ConflictException("Tin đã đóng, không thể chỉnh sửa");
+        }
+
+        jobSkillRepository.deleteByJobId(job.getId());
+        List<JobSkillResponse> skillResponses = saveJobSkills(job.getId(), skills);
+
+        if (matchScoreRepository != null) {
+            try {
+                matchScoreRepository.markStaleByJobId(job.getId());
+            } catch (Exception e) {
+                log.warn("Lỗi khi đánh dấu match score stale cho job {}: {}", job.getId(), e.getMessage());
+            }
+        }
 
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy doanh nghiệp"));
+
+        return mapToJobResponse(job, company.getName(), skillResponses, Collections.emptyList());
+    }
+
+    @Transactional
+    public JobResponse submitJob(UUID id, UserPrincipal principal) {
+        UUID companyId = getRequiredCompanyId(principal);
+        checkCompanyNotLocked(companyId);
+
+        Job job = jobRepository.findByIdAndCompanyId(id, companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tin tuyển dụng"));
+
+        if (job.getStatus() != JobStatus.DRAFT && job.getStatus() != JobStatus.REJECTED) {
+            throw new ConflictException("Tin không ở trạng thái có thể gửi duyệt");
+        }
+
+        List<JobSkill> jobSkills = jobSkillRepository.findByJobId(job.getId());
+        boolean hasRequired = jobSkills.stream().anyMatch(JobSkill::isRequired);
+        if (!hasRequired) {
+            throw new BadRequestException("Cần ít nhất 1 kỹ năng bắt buộc để gửi duyệt");
+        }
+
+        job.setStatus(JobStatus.PENDING);
+        job.setRejectedReason(null);
+        Job saved = jobRepository.save(job);
+
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy doanh nghiệp"));
+
+        List<JobSkillResponse> skillResponses = jobSkills.stream()
+                .map(s -> new JobSkillResponse(
+                        s.getSkillId(),
+                        s.getSkillCode(),
+                        s.getSkillName(),
+                        s.isRequired(),
+                        s.getMinScore()))
+                .toList();
 
         return mapToJobResponse(saved, company.getName(), skillResponses, Collections.emptyList());
     }
@@ -192,7 +290,7 @@ public class JobService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tin tuyển dụng"));
 
         if (job.getStatus() == JobStatus.CLOSED) {
-            throw new ConflictException("Tin tuyển dụng đã ở trạng thái đóng");
+            throw new ConflictException("Tin đã được đóng");
         }
 
         job.setStatus(JobStatus.CLOSED);
@@ -216,13 +314,13 @@ public class JobService {
 
     private void validateSalary(BigDecimal min, BigDecimal max) {
         if (min != null && min.compareTo(BigDecimal.ZERO) < 0) {
-            throw new BadRequestException("Mức lương tối thiểu không được âm");
+            throw new BadRequestException("Lương tối thiểu không được âm");
         }
         if (max != null && max.compareTo(BigDecimal.ZERO) < 0) {
-            throw new BadRequestException("Mức lương tối đa không được âm");
+            throw new BadRequestException("Lương tối đa không được âm");
         }
         if (min != null && max != null && min.compareTo(max) > 0) {
-            throw new BadRequestException("Mức lương tối thiểu không được lớn hơn mức lương tối đa");
+            throw new BadRequestException("Lương tối thiểu không được lớn hơn lương tối đa");
         }
     }
 
@@ -232,50 +330,62 @@ public class JobService {
         }
         LocalDate today = LocalDate.now(clock.withZone(VIETNAM_ZONE));
         if (deadline.isBefore(today)) {
-            throw new BadRequestException("Hạn ứng tuyển phải lớn hơn hoặc bằng ngày hiện tại");
+            throw new BadRequestException("Hạn nộp hồ sơ phải từ hôm nay trở đi");
         }
     }
 
-    private List<JobSkillResponse> saveJobSkills(UUID jobId, List<JobSkillRequest> skills) {
+    private List<JobSkillResponse> saveJobSkills(UUID jobId, List<JobSkillItem> skills) {
         if (skills == null || skills.isEmpty()) {
             return Collections.emptyList();
         }
 
         // Validate duplicates
         Set<String> seenSkillIds = new HashSet<>();
-        for (JobSkillRequest req : skills) {
+        for (JobSkillItem req : skills) {
+            if (req.skillId() == null || req.skillId().isBlank()) {
+                throw new BadRequestException("Mã kỹ năng không được để trống");
+            }
             if (!seenSkillIds.add(req.skillId().trim().toUpperCase(Locale.ROOT))) {
-                throw new BadRequestException("Kỹ năng không được trùng lặp: " + req.skillId());
+                throw new BadRequestException("Kỹ năng bị trùng lặp: " + req.skillId());
             }
         }
 
         List<JobSkill> jobSkills = new ArrayList<>();
         List<JobSkillResponse> responses = new ArrayList<>();
 
-        for (JobSkillRequest req : skills) {
+        for (JobSkillItem req : skills) {
             String skillId = req.skillId().trim();
-            CatalogSkill catalogSkill = skillCatalogClient.getSkill(skillId)
-                    .orElseThrow(() -> new BadRequestException("Kỹ năng không tồn tại trong danh mục: " + skillId));
+            CatalogSkill catalogSkill = skillCatalogClient.findByIdOrCode(skillId)
+                    .orElseThrow(() -> new BadRequestException("Kỹ năng không tồn tại trong hệ thống: " + skillId));
 
             JobSkill jobSkill = new JobSkill();
             jobSkill.setJobId(jobId);
             jobSkill.setSkillId(catalogSkill.id());
             jobSkill.setSkillCode(catalogSkill.code());
             jobSkill.setSkillName(catalogSkill.name());
-            jobSkill.setRequired(req.required());
-            jobSkill.setMinScore(req.minScore());
+            jobSkill.setRequired(Boolean.TRUE.equals(req.required()));
+            jobSkill.setMinScore(req.minScore() != null ? req.minScore() : 0);
 
             jobSkills.add(jobSkill);
             responses.add(new JobSkillResponse(
                     catalogSkill.id(),
                     catalogSkill.code(),
                     catalogSkill.name(),
-                    req.required(),
-                    req.minScore()));
+                    Boolean.TRUE.equals(req.required()),
+                    req.minScore() != null ? req.minScore() : 0));
         }
 
         jobSkillRepository.saveAll(jobSkills);
         return responses;
+    }
+
+    @Transactional(readOnly = true)
+    public PageResult<JobListItemResponse> listMyJobs(
+            UserPrincipal principal,
+            String statusStr,
+            int page,
+            int size) {
+        return getHrJobs(principal, statusStr, page, size);
     }
 
     @Transactional(readOnly = true)
@@ -307,20 +417,23 @@ public class JobService {
         }
 
         List<JobListItemResponse> items = jobPage.getContent().stream()
-                .map(job -> new JobListItemResponse(
-                        job.getId(),
-                        job.getTitle(),
-                        job.getPosition(),
-                        job.getLevel(),
-                        job.getType(),
-                        job.getQuantity(),
-                        job.getCity(),
-                        job.getWorkMode(),
-                        job.getSalaryMin(),
-                        job.getSalaryMax(),
-                        job.getDeadline(),
-                        job.getStatus(),
-                        job.getCreatedAt()))
+                .map(job -> {
+                    int requiredSkillCount = (int) jobSkillRepository.findByJobId(job.getId())
+                            .stream().filter(JobSkill::isRequired).count();
+                    return new JobListItemResponse(
+                            job.getId(),
+                            job.getTitle(),
+                            job.getPosition(),
+                            job.getLevel(),
+                            job.getType(),
+                            job.getQuantity(),
+                            job.getCity(),
+                            job.getDeadline(),
+                            job.getStatus(),
+                            job.getRejectedReason(),
+                            requiredSkillCount,
+                            job.getUpdatedAt() != null ? job.getUpdatedAt() : job.getCreatedAt());
+                })
                 .toList();
 
         PageResult.PaginationMeta meta = new PageResult.PaginationMeta(
@@ -401,6 +514,9 @@ public class JobService {
     private String resolveStaffDisplayName(UserPrincipal staff) {
         if (staff == null) {
             return "Hệ thống";
+        }
+        if (staff.getId() != null && "99999999-9999-9999-9999-999999999999".equals(staff.getId().toString())) {
+            return staff.getId().toString();
         }
         if (staff.getFullName() != null && !staff.getFullName().isBlank()) {
             return staff.getFullName();

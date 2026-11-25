@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,14 +33,14 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
     Page<Job> findByStatusAndCompanyIdFiltered(@Param("status") JobStatus status, @Param("companyId") UUID companyId, Pageable pageable);
 
     @Modifying
-    @Query("UPDATE Job j SET j.status = 'CLOSED', j.updatedAt = :now WHERE j.status = 'APPROVED' AND j.deadline < :today")
+    @Query("UPDATE Job j SET j.status = com.example.jobservice.job.domain.JobStatus.CLOSED, j.updatedAt = :now WHERE j.status = com.example.jobservice.job.domain.JobStatus.APPROVED AND j.deadline < :today")
     int closeExpiredJobs(@Param("today") LocalDate today, @Param("now") OffsetDateTime now);
 
-    @Modifying
-    @Query("UPDATE Job j SET j.status = com.example.jobservice.job.domain.JobStatus.CLOSED, j.updatedAt = CURRENT_TIMESTAMP WHERE j.status = com.example.jobservice.job.domain.JobStatus.APPROVED AND j.deadline < :today")
-    int closeExpiredJobs(@Param("today") LocalDate today);
+    default int closeExpiredJobs(LocalDate today) {
+        return closeExpiredJobs(today, OffsetDateTime.now(ZoneOffset.UTC));
+    }
 
-    @Query("SELECT j.id FROM Job j WHERE j.status = 'APPROVED' AND j.deadline < :today")
+    @Query("SELECT j.id FROM Job j WHERE j.status = com.example.jobservice.job.domain.JobStatus.APPROVED AND j.deadline < :today")
     List<UUID> findExpiredApprovedJobIds(@Param("today") LocalDate today);
 
     List<Job> findByIdIn(List<UUID> ids);
