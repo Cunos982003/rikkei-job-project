@@ -6,64 +6,9 @@ import type {
   Internship,
 } from "../types/evaluation";
 
-// ===== HS-03 Portfolio Types =====
-
-export type PortfolioSource = "PM" | "SELF" | "IOC" | "MANUAL";
-
-export interface PortfolioMedia {
-  id: string;
-  url: string;
-  mediaType: "IMAGE";
-  sortOrder: number;
-}
-
-export interface PortfolioProject {
-  id: string;
-  name: string;
-  role?: string;
-  description?: string;
-  techStack?: string;
-  repoUrl?: string;
-  demoUrl?: string;
-  startDate?: string;
-  endDate?: string;
-  visible: boolean;
-  sortOrder: number;
-  internshipId?: string;
-  source: PortfolioSource;
-  sourceRef: string;
-  media: PortfolioMedia[];
-}
-
-export interface CreatePortfolioProjectRequest {
-  name: string;
-  role?: string;
-  description?: string;
-  techStack?: string;
-  repoUrl?: string;
-  demoUrl?: string;
-  startDate?: string;
-  endDate?: string;
-  visible?: boolean;
-  sortOrder?: number;
-}
-
-export type UpdatePortfolioProjectRequest = CreatePortfolioProjectRequest;
-
-export interface ReorderPortfolioProjectsRequest {
-  projectIds: string[];
-}
-
-export interface ReorderPortfolioMediaRequest {
-  mediaIds: string[];
-}
-
-export interface UploadPortfolioMediaResponse {
-  id: string;
-  url: string;
-  mediaType: "IMAGE";
-  sortOrder: number;
-}
+// ======================================================
+// SKILLS
+// ======================================================
 
 export interface SkillEvidenceItem {
   source: string;
@@ -85,6 +30,15 @@ export interface SkillProfileItem {
   evidences: SkillEvidenceItem[];
 }
 
+export interface SelfSkillItem {
+  skillId: string;
+  selfScore: number;
+}
+
+// ======================================================
+// EDUCATION
+// ======================================================
+
 /**
  * Khớp EducationDto của profile-service.
  */
@@ -98,6 +52,10 @@ export interface EducationItem {
   gpa?: number;
   note?: string;
 }
+
+// ======================================================
+// CERTIFICATES
+// ======================================================
 
 /**
  * Khớp CertificateDto của profile-service.
@@ -113,14 +71,22 @@ export interface CertificateItem {
   fileType?: string;
 }
 
-export type Visibility =
-  | "PRIVATE"
-  | "PENDING"
-  | "PUBLIC"
-  | "REJECTED"
-  | "RECRUITER";
+// ======================================================
+// PROFILE
+// ======================================================
 
-export type ReviewAction = "SUBMIT" | "APPROVE" | "REJECT" | "WITHDRAW";
+export type Visibility =
+    | "PRIVATE"
+    | "PENDING"
+    | "PUBLIC"
+    | "REJECTED"
+    | "RECRUITER";
+
+export type ReviewAction =
+    | "SUBMIT"
+    | "APPROVE"
+    | "REJECT"
+    | "WITHDRAW";
 
 /**
  * Khớp ReviewHistoryItemDto của profile-service (HS-05).
@@ -135,8 +101,8 @@ export interface ReviewHistoryItem {
 
 /**
  * Khớp CandidateProfile entity của profile-service.
- * Các trường đồng bộ từ LMS (fullName, email, program, classCode, courseName)
- * do backend quản lý, không gửi lên khi cập nhật.
+ * Các trường đồng bộ từ LMS do backend quản lý,
+ * không gửi lên khi cập nhật.
  */
 export interface CandidateProfile {
   userId: string;
@@ -156,18 +122,85 @@ export interface CandidateProfile {
   updatedAt?: string;
 }
 
+// ======================================================
+// PORTFOLIO
+// ======================================================
+
 /**
- * Khớp SelfSkillDto của profile-service.
+ * Thông tin ảnh/tệp đính kèm của một dự án Portfolio.
  */
-export interface SelfSkillItem {
-  skillId: string;
-  selfScore: number;
+export interface PortfolioMedia {
+  id: string;
+  projectId?: string;
+  fileName?: string;
+  fileUrl?: string;
+  url?: string;
+  contentType?: string;
+  fileType?: string;
+  sortOrder?: number;
+  createdAt?: string;
 }
 
-// ===== HS-06 Staff Profile Review Types =====
+/**
+ * Thông tin một dự án trong Portfolio của ứng viên.
+ */
+
+export interface PortfolioProject {
+  id: string;
+  userId?: string;
+
+  name: string;
+  role?: string;
+  description?: string;
+  techStack?: string;
+
+  repoUrl?: string;
+  demoUrl?: string;
+
+  startDate?: string;
+  endDate?: string;
+
+  visible: boolean;
+  sortOrder?: number;
+
+  // Nguồn gốc dự án và mã tham chiếu
+  source?: string;
+  sourceRef?: string;
+
+  media?: PortfolioMedia[];
+
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 /**
- * Staff preview profile - full profile with masked contact info
+ * Request tạo dự án Portfolio.
+ */
+export interface CreatePortfolioProjectRequest {
+  name: string;
+  role?: string;
+  description?: string;
+  techStack?: string;
+  repoUrl?: string;
+  demoUrl?: string;
+  startDate?: string;
+  endDate?: string;
+  visible: boolean;
+  sortOrder?: number;
+}
+
+/**
+ * Request cập nhật dự án Portfolio.
+ */
+export interface UpdatePortfolioProjectRequest
+    extends Partial<CreatePortfolioProjectRequest> {}
+
+// ======================================================
+// HS-06 STAFF PROFILE REVIEW TYPES
+// ======================================================
+
+/**
+ * Staff preview profile - full profile with masked contact info.
  */
 export interface StaffPreviewProfile {
   userId: string;
@@ -245,7 +278,7 @@ export interface StaffReviewHistoryItem {
 }
 
 /**
- * Enhanced PendingReviewDto for staff queue
+ * Enhanced PendingReviewDto for staff queue.
  */
 export interface StaffPendingReview {
   userId: string;
@@ -259,7 +292,7 @@ export interface StaffPendingReview {
 }
 
 /**
- * Request for editing self-declared fields
+ * Request for editing self-declared fields.
  */
 export interface StaffEditSelfDeclaredRequest {
   field: "HEADLINE" | "SUMMARY" | "SELF_SKILLS";
@@ -275,7 +308,7 @@ export interface StaffEditSelfDeclaredResponse {
 }
 
 /**
- * Query params for staff profile reviews
+ * Query params for staff profile reviews.
  */
 export interface StaffProfileReviewsParams {
   status?: Visibility;
@@ -285,12 +318,21 @@ export interface StaffProfileReviewsParams {
   size?: number;
 }
 
+// ======================================================
+// PROFILE API
+// ======================================================
+
 /**
- * Endpoints hồ sơ năng lực ứng viên (profile-service :8082 hoặc Mock :9000)
+ * Endpoints hồ sơ năng lực ứng viên.
+ * profile-service :8082 hoặc Mock :9000.
  */
 export const profileApi = {
+  // ====================================================
+  // SKILLS
+  // ====================================================
+
   /**
-   * Lấy danh sách kỹ năng của chính mình (Candidate)
+   * Lấy danh sách kỹ năng của chính mình (Candidate).
    */
   getMySkills(): Promise<ApiResponse<SkillProfileItem[]>> {
     return api.get<SkillProfileItem[]>("/profiles/me/skills", {
@@ -299,16 +341,29 @@ export const profileApi = {
   },
 
   /**
-   * Lấy danh sách kỹ năng của ứng viên khác (nếu đã công khai)
+   * Lấy danh sách kỹ năng của ứng viên khác.
    */
-  getUserSkills(userId: string): Promise<ApiResponse<SkillProfileItem[]>> {
+  getUserSkills(
+      userId: string
+  ): Promise<ApiResponse<SkillProfileItem[]>> {
     return api.get<SkillProfileItem[]>(`/profiles/${userId}/skills`);
   },
 
-  // ===== Thực tập IOC (TT-01) =====
+  /**
+   * Ghi đè danh sách kỹ năng tự đánh giá.
+   */
+  upsertSelfSkills(
+      skills: SelfSkillItem[]
+  ): Promise<ApiResponse<null>> {
+    return api.put<null>("/profiles/me/self-skills", skills);
+  },
+
+  // ====================================================
+  // INTERNSHIPS - TT-01
+  // ====================================================
 
   /**
-   * Lấy danh sách thực tập của chính ứng viên đang đăng nhập.
+   * Lấy danh sách thực tập của ứng viên đang đăng nhập.
    */
   getMyInternships(): Promise<ApiResponse<Internship[]>> {
     return api.get<Internship[]>("/profiles/me/internships");
@@ -317,26 +372,31 @@ export const profileApi = {
   /**
    * Lấy danh sách thực tập của ứng viên khác.
    */
-  getUserInternships(userId: string): Promise<ApiResponse<Internship[]>> {
+  getUserInternships(
+      userId: string
+  ): Promise<ApiResponse<Internship[]>> {
     return api.get<Internship[]>(`/profiles/${userId}/internships`);
   },
 
   /**
-   * Lấy danh sách đánh giá của Mentor dành cho ứng viên
-   * @param userId ID của ứng viên (hoặc để trống/undefined nếu lấy của chính mình)
+   * Lấy danh sách đánh giá của Mentor dành cho ứng viên.
    */
-  getEvaluations(userId?: string): Promise<ApiResponse<MentorEvaluation[]>> {
+  getEvaluations(
+      userId?: string
+  ): Promise<ApiResponse<MentorEvaluation[]>> {
     const url = userId
-      ? `/profiles/${userId}/evaluations`
-      : "/profiles/me/evaluations";
+        ? `/profiles/${userId}/evaluations`
+        : "/profiles/me/evaluations";
 
     return api.get<MentorEvaluation[]>(url);
   },
 
-  // ===== Hồ sơ cá nhân =====
+  // ====================================================
+  // PERSONAL PROFILE
+  // ====================================================
 
   /**
-   * Lấy chi tiết hồ sơ cá nhân (tự tạo từ LMS nếu chưa có)
+   * Lấy chi tiết hồ sơ cá nhân.
    */
   getMyProfile(): Promise<ApiResponse<CandidateProfile>> {
     return api.get<CandidateProfile>("/profiles/me", {
@@ -345,117 +405,232 @@ export const profileApi = {
   },
 
   /**
-   * Cập nhật hồ sơ cá nhân. Backend bỏ qua các trường LMS.
+   * Cập nhật hồ sơ cá nhân.
+   * Backend bỏ qua các trường đồng bộ từ LMS.
    */
   updateMyProfile(
-    data: Partial<CandidateProfile>
+      data: Partial<CandidateProfile>
   ): Promise<ApiResponse<CandidateProfile>> {
     return api.put<CandidateProfile>("/profiles/me", data);
   },
 
-  // ===== Công khai hồ sơ (HS-05) =====
+  // ====================================================
+  // PROFILE VISIBILITY - HS-05
+  // ====================================================
 
   /**
-   * Gửi hồ sơ cho cán bộ duyệt. Bắt buộc tick đồng ý điều khoản, nếu thiếu backend trả 400.
-   * Chỉ gọi được khi hồ sơ đang PRIVATE hoặc REJECTED.
+   * Gửi hồ sơ cho cán bộ duyệt.
    */
-  publishProfile(consent: boolean): Promise<ApiResponse<CandidateProfile>> {
-    return api.post<CandidateProfile>("/profiles/me/publish", { consent });
+  publishProfile(
+      consent: boolean
+  ): Promise<ApiResponse<CandidateProfile>> {
+    return api.post<CandidateProfile>("/profiles/me/publish", {
+      consent,
+    });
   },
 
   /**
-   * Rút hồ sơ khỏi trạng thái công khai. Có hiệu lực ngay.
-   * Chỉ gọi được khi hồ sơ đang PENDING hoặc PUBLIC.
+   * Rút hồ sơ khỏi trạng thái công khai.
    */
   withdrawProfile(): Promise<ApiResponse<CandidateProfile>> {
     return api.post<CandidateProfile>("/profiles/me/withdraw");
   },
 
   /**
-   * Lịch sử duyệt hồ sơ của chính mình, mới nhất trước.
+   * Lịch sử duyệt hồ sơ của chính mình.
    */
   getReviewHistory(): Promise<ApiResponse<ReviewHistoryItem[]>> {
     return api.get<ReviewHistoryItem[]>("/profiles/me/review-history");
   },
 
-  // ===== Kỹ năng tự đánh giá (HS-01 skill_evidences, source=SELF) =====
+  // ====================================================
+  // EDUCATION
+  // ====================================================
 
   /**
-   * Ghi đè danh sách kỹ năng tự đánh giá trong một lần gọi.
+   * Lấy danh sách học vấn.
    */
-  upsertSelfSkills(skills: SelfSkillItem[]): Promise<ApiResponse<null>> {
-    return api.put<null>("/profiles/me/self-skills", skills);
-  },
-
-  // ===== Học vấn =====
-
   getEducations(): Promise<ApiResponse<EducationItem[]>> {
     return api.get<EducationItem[]>("/profiles/me/educations", {
       silentError: true,
     });
   },
 
+  /**
+   * Thêm học vấn.
+   */
   createEducation(
-    data: EducationItem
+      data: EducationItem
   ): Promise<ApiResponse<EducationItem>> {
     return api.post<EducationItem>("/profiles/me/educations", data);
   },
 
+  /**
+   * Cập nhật học vấn.
+   */
   updateEducation(
-    id: string,
-    data: EducationItem
+      id: string,
+      data: EducationItem
   ): Promise<ApiResponse<EducationItem>> {
-    return api.put<EducationItem>(`/profiles/me/educations/${id}`, data);
+    return api.put<EducationItem>(
+        `/profiles/me/educations/${id}`,
+        data
+    );
   },
 
+  /**
+   * Xóa học vấn.
+   */
   deleteEducation(id: string): Promise<ApiResponse<null>> {
     return api.delete<null>(`/profiles/me/educations/${id}`);
   },
 
-  // ===== Chứng chỉ =====
+  // ====================================================
+  // CERTIFICATES
+  // ====================================================
 
+  /**
+   * Lấy danh sách chứng chỉ.
+   */
   getCertificates(): Promise<ApiResponse<CertificateItem[]>> {
     return api.get<CertificateItem[]>("/profiles/me/certificates", {
       silentError: true,
     });
   },
 
+  /**
+   * Thêm chứng chỉ.
+   */
   createCertificate(
-    data: CertificateItem
+      data: CertificateItem
   ): Promise<ApiResponse<CertificateItem>> {
-    return api.post<CertificateItem>("/profiles/me/certificates", data);
+    return api.post<CertificateItem>(
+        "/profiles/me/certificates",
+        data
+    );
   },
 
+  /**
+   * Cập nhật chứng chỉ.
+   */
   updateCertificate(
-    id: string,
-    data: CertificateItem
+      id: string,
+      data: CertificateItem
   ): Promise<ApiResponse<CertificateItem>> {
-    return api.put<CertificateItem>(`/profiles/me/certificates/${id}`, data);
+    return api.put<CertificateItem>(
+        `/profiles/me/certificates/${id}`,
+        data
+    );
   },
 
+  /**
+   * Xóa chứng chỉ.
+   */
   deleteCertificate(id: string): Promise<ApiResponse<null>> {
     return api.delete<null>(`/profiles/me/certificates/${id}`);
   },
 
-  // ===== Tệp đính kèm =====
+  // ====================================================
+  // FILE UPLOAD
+  // ====================================================
 
   /**
-   * Tải tệp lên (PDF, JPG, PNG — tối đa 5MB, kiểm tra bằng magic bytes).
-   * @returns URL tương đối của tệp đã lưu
+   * Tải tệp lên (PDF, JPG, PNG — tối đa 5MB).
    */
-  uploadFile(file: File): Promise<ApiResponse<{ url: string }>> {
+  uploadFile(
+      file: File
+  ): Promise<ApiResponse<{ url: string }>> {
     const formData = new FormData();
     formData.append("file", file);
 
     return api.post<{ url: string }>("/files", formData);
   },
 
-  // ===== HS-06 Staff Profile Review =====
+  // ====================================================
+  // PORTFOLIO
+  // ====================================================
 
   /**
-   * Lấy danh sách hồ sơ chờ duyệt cho staff (có filter q, classCode, rejectionCount)
+   * Lấy danh sách dự án Portfolio của ứng viên hiện tại.
    */
-  getStaffProfileReviews(params: StaffProfileReviewsParams = {}): Promise<ApiResponse<{
+  getMyPortfolio(): Promise<ApiResponse<PortfolioProject[]>> {
+    return api.get<PortfolioProject[]>("/profiles/me/portfolio");
+  },
+
+  /**
+   * Tạo dự án Portfolio.
+   */
+  createPortfolioProject(
+      data: CreatePortfolioProjectRequest
+  ): Promise<ApiResponse<PortfolioProject>> {
+    return api.post<PortfolioProject>(
+        "/profiles/me/portfolio/projects",
+        data
+    );
+  },
+
+  /**
+   * Cập nhật dự án Portfolio.
+   */
+  updatePortfolioProject(
+      projectId: string,
+      data: UpdatePortfolioProjectRequest
+  ): Promise<ApiResponse<PortfolioProject>> {
+    return api.put<PortfolioProject>(
+        `/profiles/me/portfolio/projects/${projectId}`,
+        data
+    );
+  },
+
+  /**
+   * Xóa dự án Portfolio.
+   */
+  deletePortfolioProject(
+      projectId: string
+  ): Promise<ApiResponse<null>> {
+    return api.delete<null>(
+        `/profiles/me/portfolio/projects/${projectId}`
+    );
+  },
+
+  /**
+   * Tải ảnh minh chứng cho dự án Portfolio.
+   */
+  uploadPortfolioMedia(
+      projectId: string,
+      file: File
+  ): Promise<ApiResponse<PortfolioMedia>> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    return api.post<PortfolioMedia>(
+        `/profiles/me/portfolio/projects/${projectId}/media`,
+        formData
+    );
+  },
+
+  /**
+   * Xóa ảnh minh chứng khỏi dự án Portfolio.
+   */
+  deletePortfolioMedia(
+      projectId: string,
+      mediaId: string
+  ): Promise<ApiResponse<null>> {
+    return api.delete<null>(
+        `/profiles/me/portfolio/projects/${projectId}/media/${mediaId}`
+    );
+  },
+
+  // ====================================================
+  // HS-06 STAFF PROFILE REVIEW
+  // ====================================================
+
+  /**
+   * Lấy danh sách hồ sơ chờ duyệt cho Staff.
+   */
+  getStaffProfileReviews(
+      params: StaffProfileReviewsParams = {}
+  ): Promise<ApiResponse<{
     items?: StaffPendingReview[];
     content?: StaffPendingReview[];
     totalElements?: number;
@@ -471,58 +646,90 @@ export const profileApi = {
   }>> {
     const searchParams = new URLSearchParams();
 
-    if (params.status) searchParams.set("status", params.status);
-    if (params.q) searchParams.set("q", params.q);
-    if (params.classCode) searchParams.set("classCode", params.classCode);
-    if (params.page !== undefined) searchParams.set("page", String(params.page));
-    if (params.size !== undefined) searchParams.set("size", String(params.size));
-    return api.get(`/staff/profile-reviews?${searchParams.toString()}`);
+    if (params.status) {
+      searchParams.set("status", params.status);
+    }
+
+    if (params.q) {
+      searchParams.set("q", params.q);
+    }
+
+    if (params.classCode) {
+      searchParams.set("classCode", params.classCode);
+    }
+
+    if (params.page !== undefined) {
+      searchParams.set("page", String(params.page));
+    }
+
+    if (params.size !== undefined) {
+      searchParams.set("size", String(params.size));
+    }
+
+    const queryString = searchParams.toString();
+    const url = queryString
+        ? `/staff/profile-reviews?${queryString}`
+        : "/staff/profile-reviews";
+
+    return api.get(url);
   },
 
   /**
-   * Lấy preview hồ sơ ứng viên cho staff (che email/phone)
+   * Lấy preview hồ sơ ứng viên cho Staff.
+   * Email và số điện thoại được che theo backend.
    */
   getStaffPreviewProfile(
-    userId: string
+      userId: string
   ): Promise<ApiResponse<StaffPreviewProfile>> {
-    return api.get<StaffPreviewProfile>(`/staff/profiles/${userId}/preview`);
+    return api.get<StaffPreviewProfile>(
+        `/staff/profiles/${userId}/preview`
+    );
   },
 
   /**
-   * Sửa phần tự khai (headline, summary, self_skills) bởi staff
+   * Sửa phần tự khai bởi Staff.
    */
   editStaffSelfDeclared(
-    userId: string,
-    data: StaffEditSelfDeclaredRequest
+      userId: string,
+      data: StaffEditSelfDeclaredRequest
   ): Promise<ApiResponse<StaffEditSelfDeclaredResponse>> {
     return api.put<StaffEditSelfDeclaredResponse>(
-      `/staff/profiles/${userId}/self-declared`,
-      data
+        `/staff/profiles/${userId}/self-declared`,
+        data
     );
   },
 
   /**
-   * Duyệt hồ sơ ứng viên (PENDING → PUBLIC) - Staff only
+   * Duyệt hồ sơ ứng viên (PENDING → PUBLIC).
    */
   approveProfile(
-    userId: string
-  ): Promise<ApiResponse<{ userId: string; visibility: string }>> {
-    return api.post<{ userId: string; visibility: string }>(
-      `/staff/profiles/${userId}/approve`
-    );
+      userId: string
+  ): Promise<ApiResponse<{
+    userId: string;
+    visibility: string;
+  }>> {
+    return api.post<{
+      userId: string;
+      visibility: string;
+    }>(`/staff/profiles/${userId}/approve`);
   },
 
   /**
-   * Trả lại hồ sơ ứng viên (PENDING → REJECTED) - Staff only
+   * Trả lại hồ sơ ứng viên (PENDING → REJECTED).
    */
   rejectProfile(
-    userId: string,
-    reason: string
-  ): Promise<ApiResponse<{ userId: string; visibility: string }>> {
-    return api.post<{ userId: string; visibility: string }>(
-      `/staff/profiles/${userId}/reject`,
-      { reason }
-    );
+      userId: string,
+      reason: string
+  ): Promise<ApiResponse<{
+    userId: string;
+    visibility: string;
+  }>> {
+    return api.post<{
+      userId: string;
+      visibility: string;
+    }>(`/staff/profiles/${userId}/reject`, {
+      reason,
+    });
   },
 
   // ===== HS-03 Portfolio =====
