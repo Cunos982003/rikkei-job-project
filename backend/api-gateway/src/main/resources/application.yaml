@@ -90,7 +90,7 @@ spring:
             - id: profile
               uri: ${GATEWAY_PROFILE_URL:http://localhost:8082}
               predicates:
-                - Path=/api/v1/profiles/**,/api/v1/files/**,/api/v1/candidates,/api/v1/candidates/**,/api/v1/skills,/api/v1/staff/profile-reviews,/api/v1/staff/profiles/**
+                - Path=/api/v1/profiles/**,/api/v1/files/**,/api/v1/candidates,/api/v1/candidates/**,/api/v1/candidate-directory/**,/api/v1/staff/profile-reviews,/api/v1/staff/profiles/**
               filters: *cors-response-filters
             - id: recruitment
               uri: ${GATEWAY_RECRUITMENT_URL:http://localhost:8086}
@@ -101,7 +101,14 @@ spring:
               uri: ${GATEWAY_PROFILE_URL:http://localhost:8082}
               predicates:
                 - Path=/api/v1/skills,/api/v1/skills/**
-              filters: *cors-response-filters
+              filters:
+                - RewritePath=/api/v1/skills(?<segment>.*), /api/v1/skill-catalog${segment}
+                - RemoveResponseHeader=Access-Control-Allow-Origin
+                - RemoveResponseHeader=Access-Control-Allow-Credentials
+                - RemoveResponseHeader=Access-Control-Expose-Headers
+                - RemoveResponseHeader=Access-Control-Allow-Methods
+                - RemoveResponseHeader=Access-Control-Allow-Headers
+                - RemoveResponseHeader=Access-Control-Max-Age
             - id: job
               uri: ${GATEWAY_JOB_URL:http://localhost:8085}
               predicates:
