@@ -237,12 +237,12 @@ services:
       AI_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.prod}
       AI_PROVIDER: ${AI_PROVIDER:?Set AI_PROVIDER in .env.prod}
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?Set INTERNAL_SERVICE_TOKEN in .env.prod}
-      AI_OPENAI_API_KEY: ${AI_PROVIDER_API_KEY:-}
+      AI_OPENAI_API_KEY: ${AI_OPENAI_API_KEY:-${AI_PROVIDER_API_KEY:-}}
       AI_OPENAI_ENDPOINT: ${AI_OPENAI_ENDPOINT:-https://api.openai.com/v1/chat/completions}
       AI_OPENAI_MODEL: ${AI_OPENAI_MODEL:-gpt-4o-mini}
-      AI_GEMINI_API_KEY: ${AI_PROVIDER_API_KEY:-}
+      AI_GEMINI_API_KEY: ${AI_GEMINI_API_KEY:-${AI_PROVIDER_API_KEY:-}}
       AI_GEMINI_ENDPOINT: ${AI_GEMINI_ENDPOINT:-https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent}
-      AI_CLAUDE_API_KEY: ${AI_PROVIDER_API_KEY:-}
+      AI_CLAUDE_API_KEY: ${AI_CLAUDE_API_KEY:-${AI_PROVIDER_API_KEY:-}}
       AI_CLAUDE_ENDPOINT: ${AI_CLAUDE_ENDPOINT:-https://api.anthropic.com/v1/messages}
       AI_CLAUDE_MODEL: ${AI_CLAUDE_MODEL:-claude-3-5-haiku-latest}
       PROFILE_SERVICE_URL: http://profile-service:8082
