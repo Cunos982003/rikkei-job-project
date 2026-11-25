@@ -1,6 +1,7 @@
 package com.example.profileservice.service;
 
 import com.example.profileservice.exception.InvalidFileException;
+import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
@@ -88,6 +89,32 @@ public class MinioFileUploadService {
                             .build());
         } catch (Exception e) {
             throw new InvalidFileException("Không thể xóa tệp: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get an InputStream for a file stored in MinIO.
+     * @param storedName the stored name (e.g., "/files/{uuid}.jpg")
+     * @return InputStream of the file
+     */
+    public java.io.InputStream getObject(String storedName) {
+        if (storedName == null) {
+            throw new InvalidFileException("Tên tệp không hợp lệ");
+        }
+        // Remove /files/ prefix if present
+        String objectName = storedName.startsWith("/files/") ? storedName.substring(7) : storedName;
+        // Validate the object name (UUID + extension)
+        if (!objectName.matches("[0-9a-fA-F-]{36}\\.(jpg|png)")) {
+            throw new InvalidFileException("Tên tệp không hợp lệ");
+        }
+        try {
+            return minioClient.getObject(
+                    GetObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(objectName)
+                            .build());
+        } catch (Exception e) {
+            throw new InvalidFileException("Không thể đọc tệp: " + e.getMessage());
         }
     }
 }
