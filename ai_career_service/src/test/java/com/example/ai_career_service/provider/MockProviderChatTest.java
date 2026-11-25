@@ -17,5 +17,15 @@ class MockProviderChatTest {
         assertNotNull(gradingResponse);
         assertFalse(gradingResponse.isBlank());
         assertTrue(gradingResponse.contains("score") || gradingResponse.contains("feedback"));
+
+        // Test with real prompt structure containing 'Câu hỏi:' and 'Câu trả lời của ứng viên:'
+        String realSubmitPrompt = provider.chat(
+                "Bạn là một chuyên gia phỏng vấn tuyển dụng CNTT giàu kinh nghiệm. Hãy chấm điểm câu trả lời...",
+                "Vị trí tuyển dụng: Backend Java\nLoại câu hỏi: TECH\nCâu hỏi: Spring Boot là gì?\nCâu trả lời của ứng viên: Em dùng Spring Boot để làm API."
+        );
+        assertNotNull(realSubmitPrompt);
+        assertTrue(realSubmitPrompt.contains("score"));
+        assertTrue(realSubmitPrompt.contains("feedback"));
+        assertFalse(realSubmitPrompt.trim().startsWith("["));
     }
 }

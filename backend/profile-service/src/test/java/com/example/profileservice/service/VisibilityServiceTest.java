@@ -6,6 +6,7 @@ import com.example.profileservice.entity.ProfileReview;
 import com.example.profileservice.repository.CandidateProfileRepository;
 import com.example.profileservice.repository.ProfileEditRepository;
 import com.example.profileservice.repository.ProfileReviewRepository;
+import com.example.profileservice.service.ContactAccessService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -46,11 +47,14 @@ class VisibilityServiceTest {
     @Mock
     ProfileQueryService profileQueryService;
 
+    @Mock
+    ContactAccessService contactAccessService;
+
     VisibilityService service;
 
     @BeforeEach
     void setup() {
-        service = new VisibilityService(profileRepo, reviewRepo, profileEditRepo, skillProfileService, profileQueryService);
+        service = new VisibilityService(profileRepo, reviewRepo, profileEditRepo, skillProfileService, profileQueryService, contactAccessService);
     }
 
     private CandidateProfile profileWith(Visibility visibility) {

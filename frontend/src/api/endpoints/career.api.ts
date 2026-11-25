@@ -10,6 +10,8 @@ export interface SkillGap {
 
 export interface JobRecommendation {
   jobId: string;
+  jobTitle?: string;
+  companyName?: string;
   score: number;
   explanation: string;
   createdAt: string;

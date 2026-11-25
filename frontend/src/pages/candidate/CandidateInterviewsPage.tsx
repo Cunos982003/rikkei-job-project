@@ -26,6 +26,7 @@ import {
   type CandidateInterviewItem,
   type InterviewSlotItem,
 } from "@/api/endpoints/interviews.api";
+import { candidateKeys } from "@/api/queryKeys";
 import { useAuthStore } from "@/store/useAuthStore";
 
 function formatRange(startIso: string, endIso: string): string {
@@ -50,6 +51,8 @@ function rangesOverlap(aStartIso: string, aEndIso: string, bStartIso: string, bE
   return aStart < bEnd && aEnd > bStart;
 }
 
+const EMPTY_INTERVIEWS: CandidateInterviewItem[] = [];
+
 export function CandidateInterviewsPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -57,7 +60,7 @@ export function CandidateInterviewsPage() {
   const [selectedSlotByRound, setSelectedSlotByRound] = useState<Record<string, string>>({});
 
   const { data: res, isLoading, isError, refetch, isFetching } = useQuery({
-    queryKey: ["myInterviews", user?.id],
+    queryKey: candidateKeys.interviews.list(user?.id),
     queryFn: () => interviewsApi.listMyInterviews(),
     enabled: Boolean(user?.id),
   });
@@ -69,7 +72,7 @@ export function CandidateInterviewsPage() {
       toast.success(
         `Đã chốt lịch phỏng vấn! Link phòng họp: ${response.data.meetUrl}`
       );
-      queryClient.invalidateQueries({ queryKey: ["myInterviews"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.interviews.all() });
     },
     onError: (err: any) => {
       toast.error(
@@ -80,7 +83,7 @@ export function CandidateInterviewsPage() {
     },
   });
 
-  const interviews: CandidateInterviewItem[] = res?.data ?? [];
+  const interviews: CandidateInterviewItem[] = res?.data ?? EMPTY_INTERVIEWS;
 
   const scheduledInterviews = useMemo(
     () =>

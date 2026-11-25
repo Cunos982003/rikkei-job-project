@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping("/staff/companies")
+@RequestMapping({"/api/v1/staff/companies", "/staff/companies"})
 @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
 @Tag(name = "Staff Companies", description = "API quản lý doanh nghiệp và cấp tài khoản HR dành cho cán bộ")
 public class StaffCompanyController {

@@ -54,13 +54,15 @@ public class CareerService {
             RecommendationPrompt prompt = RecommendationExplanation.createPrompt(snapshot, job);
             boolean aiExplanation = index < AI_EXPLANATION_LIMIT;
             String inputHash = inputHash(snapshot, job, aiExplanation);
-            var cached = repository.findByUserIdAndJobId(userId, job.jobId())
+            var existingOpt = repository.findByUserIdAndJobId(userId, job.jobId());
+            boolean cacheValid = existingOpt
                     .filter(item -> item.getCreatedAt().isAfter(now.minus(CACHE_TTL)))
-                    .filter(item -> item.getInputHash().equals(inputHash));
+                    .filter(item -> item.getInputHash().equals(inputHash))
+                    .isPresent();
 
-            if (cached.isPresent()) {
-                JobRecommendation recommendation = cached.get();
-                results[index] = toResponse(recommendation, scoredJob.match());
+            if (cacheValid) {
+                JobRecommendation recommendation = existingOpt.get();
+                results[index] = toResponse(recommendation, scoredJob.match(), job);
                 continue;
             }
 
@@ -82,17 +84,20 @@ public class CareerService {
                     : CompletableFuture.completedFuture(fallback);
 
             pending.add(new PendingRecommendation(
-                    index, job, scoredJob.match(), inputHash, cached.orElse(null), explanation, now));
+                    index, job, scoredJob.match(), inputHash, existingOpt.orElse(null), explanation, now));
         }
         for (PendingRecommendation item : pending) {
-            JobRecommendation recommendation = item.cached() == null ? new JobRecommendation() : item.cached();
+            JobRecommendation recommendation = item.cached() != null
+                    ? item.cached()
+                    : repository.findByUserIdAndJobId(userId, item.job().jobId())
+                            .orElseGet(JobRecommendation::new);
             recommendation.setUserId(userId);
             recommendation.setJobId(item.job().jobId());
             recommendation.setScore(item.match().score());
             recommendation.setExplanation(RecommendationExplanation.limitWords(item.explanation().join()));
             recommendation.setCreatedAt(item.createdAt());
             recommendation.setInputHash(item.inputHash());
-            results[item.index()] = toResponse(repository.save(recommendation), item.match());
+            results[item.index()] = toResponse(repository.save(recommendation), item.match(), item.job());
         }
         return java.util.Arrays.asList(results);
     }
@@ -122,9 +127,12 @@ public class CareerService {
 
     private JobRecommendationResponse toResponse(
             JobRecommendation recommendation,
-            JobMatchScorer.MatchResult match) {
+            JobMatchScorer.MatchResult match,
+            RecommendationSnapshot.EligibleJob job) {
         return new JobRecommendationResponse(
                 recommendation.getJobId(),
+                job != null ? job.title() : null,
+                job != null ? job.companyName() : null,
                 recommendation.getScore(),
                 recommendation.getExplanation(),
                 recommendation.getCreatedAt(),

@@ -35,7 +35,7 @@ export const InterviewPracticePage: React.FC = () => {
         <p className="text-sm font-semibold text-foreground">
           Không tìm thấy buổi luyện phỏng vấn
         </p>
-        <Button variant="outline" size="sm" onClick={() => navigate("/candidate/interview-practice")}>
+        <Button variant="outline" size="sm" onClick={() => navigate("/candidate/career/interviews")}>
           Quay lại danh sách
         </Button>
       </div>
@@ -80,7 +80,7 @@ export const InterviewPracticePage: React.FC = () => {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => navigate("/candidate/interview-practice")}
+          onClick={() => navigate("/candidate/career/interviews")}
           leftIcon={<ArrowLeft className="w-4 h-4" />}
         >
           Quay lại
@@ -106,7 +106,7 @@ export const InterviewPracticePage: React.FC = () => {
       </div>
 
       {isFinished ? (
-        <PracticeSummary practice={practice} onBackToList={() => navigate("/candidate/interview-practice")} />
+        <PracticeSummary practice={practice} onBackToList={() => navigate("/candidate/career/interviews")} />
       ) : (
         <div className="space-y-6">
           {/* Question pagination steps */}

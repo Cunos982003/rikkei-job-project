@@ -27,7 +27,7 @@ export function StaffCandidatesPage() {
   const [status, setStatus] = useState(() => searchParams.get("status") || "PENDING");
   const [currentPage, setCurrentPage] = useState(() => {
     const pg = searchParams.get("page");
-    return pg ? parseInt(pg, 10) : 0;
+    return pg ? parseInt(pg, 10) || 0 : 0;
   });
   const pageSize = 10;
 
@@ -73,10 +73,10 @@ export function StaffCandidatesPage() {
     staleTime: 30 * 1000,
   });
 
-  const candidates: StaffPendingReview[] =
-    response?.items ??
-    response?.content ??
-    [];
+  const candidates: StaffPendingReview[] = useMemo(() =>
+    (response as any)?.items ??
+    (response as any)?.content ??
+    [], [response]);
   const totalElements =
     response?.pagination?.totalElements ??
     response?.totalElements ??
@@ -234,7 +234,7 @@ export function StaffCandidatesPage() {
                 candidates={candidates}
                 sortBy="submittedAt"
                 sortOrder="asc"
-                onSort={() => {}} // Sorting handled by API
+                onSort={() => { }} // Sorting handled by API
                 onRowClick={handleRowClick}
                 isLoading={false}
                 emptyMessage="Không có hồ sơ nào trong hàng chờ duyệt"

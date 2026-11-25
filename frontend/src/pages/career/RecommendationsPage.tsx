@@ -6,7 +6,8 @@ import { z } from 'zod'
 import { Badge } from '../../components/common/Badge'
 import { Card, CardContent } from '../../components/common/Card'
 import { Input } from '../../components/common/Input'
-import { DataPanel, EmptyRecommendations, PageIntro, RecommendationList, RequestState, useCareerData } from '../../features/career/components/CareerShared'
+import { DataPanel, EmptyRecommendations, PageIntro, RecommendationList, RequestState } from '../../features/career/components/CareerShared'
+import { useCareerData } from '../../features/career/careerUtils'
 
 const searchSchema = z.object({ search: z.string() })
 type SearchForm = z.infer<typeof searchSchema>
@@ -22,7 +23,7 @@ export function RecommendationsPage() {
     const needle = search.trim().toLocaleLowerCase('vi')
     if (!needle) return recommendations
     return recommendations.filter((item) =>
-      [item.jobId, item.explanation, ...item.skillGaps.map((skill) => skill.skillName)]
+      [item.jobId, item.jobTitle || '', item.companyName || '', item.explanation, ...item.skillGaps.map((skill) => skill.skillName)]
         .join(' ')
         .toLocaleLowerCase('vi')
         .includes(needle),
@@ -48,7 +49,7 @@ export function RecommendationsPage() {
                 <Input
                   aria-label="Tìm trong đề xuất"
                   className="pl-9"
-                  placeholder="Tìm theo mã vị trí, kỹ năng..."
+                  placeholder="Tìm theo tên vị trí, kỹ năng, công ty..."
                   {...register('search')}
                 />
               </label>

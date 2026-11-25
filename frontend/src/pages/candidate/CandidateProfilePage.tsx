@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/useAuthStore";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../../components/common/Card";
+import { cn } from "../../utils/cn";
 import { Badge } from "../../components/common/Badge";
 import { Button } from "../../components/common/Button";
 import { Input } from "../../components/common/Input";
@@ -29,18 +30,32 @@ import {
   CheckCircle2,
   Gift,
   RefreshCw,
+  Image,
+  Upload,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  Link2,
+  Calendar,
+  Code2,
+  History,
 } from "lucide-react";
 import { offersApi } from "../../api/endpoints/offers.api";
+import { candidateKeys } from "../../api/queryKeys";
 import {
   profileApi,
   type CandidateProfile,
   type EducationItem,
   type CertificateItem,
+  type PortfolioProject,
+  type CreatePortfolioProjectRequest,
+  type UpdatePortfolioProjectRequest,
 } from "../../api/endpoints/profile.api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { VisibilitySection } from "../../features/profile/components/VisibilitySection";
 // BỔ SUNG: Import component DG-03
 import { OverallCompetencyBlock } from "../../features/profile/components/OverallCompetencyBlock";
+import { CandidateContactAccessLogs } from "../../components/candidate/CandidateContactAccessLogs";
 
 const VN_PHONE_REGEX = /^(03|05|07|08|09)[0-9]{8}$/;
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -60,8 +75,109 @@ function emptyCertificate(): CertificateItem {
   return { name: "", issuer: "", issuedAt: "", expiresAt: "", fileUrl: "", fileType: "" };
 }
 
+// MediaDropzone component for drag & drop image upload
+interface MediaDropzoneProps {
+  projectId: string;
+  isIOC: boolean;
+  isUploading: boolean;
+  currentMediaCount: number;
+  onUpload: (projectId: string, file: File) => void;
+}
+
+function MediaDropzone({
+  projectId,
+  isIOC,
+  isUploading,
+  currentMediaCount,
+  onUpload,
+}: MediaDropzoneProps) {
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) onUpload(projectId, file);
+  };
+
+  const handleClick = () => {
+    if (isUploading) return;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/jpeg,image/png";
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) onUpload(projectId, file);
+    };
+    input.click();
+  };
+
+  if (isIOC) {
+    return (
+      <div className="aspect-square rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-slate-50/50 min-h-[160px]">
+        <div className="text-center text-muted px-4">
+          <Image className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">Dự án IOC không hỗ trợ tải ảnh</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "aspect-square rounded-xl border-2 border-dashed flex items-center justify-center bg-slate-50/50 min-h-[160px] cursor-pointer transition-all",
+        isDragOver && "border-primary bg-primary/5",
+        !isDragOver && "border-border hover:border-primary/50 hover:bg-primary/5"
+      )}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      onClick={handleClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
+    >
+      <div className="text-center px-4 py-8">
+        <div className={cn(
+          "mx-auto mb-3 transition-transform",
+          isDragOver && "scale-110 text-primary",
+          !isDragOver && "text-muted"
+        )}>
+          <Upload className="h-10 w-10" />
+        </div>
+        <p className="text-sm font-medium text-foreground whitespace-nowrap">
+          Kéo thả hoặc click để tải ảnh
+        </p>
+        <p className="text-xs text-muted mt-1">JPG, PNG — tối đa 5MB</p>
+        {currentMediaCount > 0 && (
+          <p className="text-xs text-muted mt-1">Đã có {currentMediaCount}/6 ảnh</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function CandidateProfilePage() {
-  const { user, isCandidate } = useAuthStore();
+  const { user, isCandidate, updateUser } = useAuthStore();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -71,7 +187,7 @@ export function CandidateProfilePage() {
     }
   }, [isCandidate, navigate]);
 
-  const [activeTab, setActiveTab] = useState<"info" | "education" | "certificate" | "skills">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "education" | "certificate" | "skills" | "portfolio" | "contact-logs">("info");
 
   const [isEducationModalOpen, setIsEducationModalOpen] = useState(false);
   const [editingEducation, setEditingEducation] = useState<EducationItem | null>(null);
@@ -93,7 +209,26 @@ export function CandidateProfilePage() {
   const [certificateForm, setCertificateForm] = useState<CertificateItem>(emptyCertificate);
   const [skillScore, setSkillScore] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [portfolioErrors, setPortfolioErrors] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
+
+  // Portfolio state
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<PortfolioProject | null>(null);
+  const [uploadingMedia, setUploadingMedia] = useState<{ projectId: string; file: File } | null>(null);
+  const [deleteMediaConfirm, setDeleteMediaConfirm] = useState<{ projectId: string; mediaId: string } | null>(null);
+  const [projectForm, setProjectForm] = useState<CreatePortfolioProjectRequest>({
+    name: "",
+    role: "",
+    description: "",
+    techStack: "",
+    repoUrl: "",
+    demoUrl: "",
+    startDate: "",
+    endDate: "",
+    visible: true,
+    sortOrder: 0,
+  });
 
   const {
     data: profileData,
@@ -101,7 +236,7 @@ export function CandidateProfilePage() {
     error: profileError,
     refetch: refetchProfile,
   } = useQuery({
-    queryKey: ["myProfile", user?.id],
+    queryKey: candidateKeys.profile.detail(user?.id),
     queryFn: () => profileApi.getMyProfile(),
     enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
@@ -109,27 +244,40 @@ export function CandidateProfilePage() {
   });
 
   const { data: educationsData, isLoading: educationsLoading } = useQuery({
-    queryKey: ["myEducations", user?.id],
+    queryKey: candidateKeys.profile.educations(user?.id),
     queryFn: () => profileApi.getEducations(),
     enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: certificatesData, isLoading: certificatesLoading } = useQuery({
-    queryKey: ["myCertificates", user?.id],
+    queryKey: candidateKeys.profile.certificates(user?.id),
     queryFn: () => profileApi.getCertificates(),
     enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: skillsData, isLoading: skillsLoading } = useQuery({
-    queryKey: ["mySkills", user?.id],
+    queryKey: candidateKeys.skills.byUser(user?.id),
     queryFn: () => profileApi.getMySkills(),
     staleTime: 5 * 60 * 1000,
   });
 
+  const {
+    data: portfolioData,
+    isLoading: portfolioLoading,
+    isError: portfolioError,
+    refetch: refetchPortfolio,
+  } = useQuery({
+    queryKey: candidateKeys.profile.portfolio(user?.id),
+    queryFn: () => profileApi.getMyPortfolio(),
+    enabled: Boolean(user?.id),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
   const { data: employmentRecordsData } = useQuery({
-    queryKey: ["myEmploymentRecords", user?.id],
+    queryKey: candidateKeys.profile.employment(user?.id),
     queryFn: () => offersApi.listMyEmploymentRecords(),
     staleTime: 60 * 1000,
   });
@@ -138,31 +286,66 @@ export function CandidateProfilePage() {
   useEffect(() => {
     const p = profileData?.data;
     if (p) {
-      setProfileForm({
-        phone: p.phone ?? "",
-        dob: p.dob ?? "",
-        gender: p.gender ?? "",
-        address: p.address ?? "",
-        avatarUrl: p.avatarUrl ?? "",
-        headline: p.headline ?? "",
-        summary: p.summary ?? "",
+      // Đồng bộ avatar / fullName sang user authStore nếu authStore khác hoặc chưa có
+      if (p.avatarUrl && p.avatarUrl !== user?.avatarUrl) {
+        updateUser({ avatarUrl: p.avatarUrl });
+      }
+      if (p.fullName && p.fullName !== user?.fullName) {
+        updateUser({ fullName: p.fullName });
+      }
+
+      setProfileForm((prev) => {
+        if (
+          prev.phone === (p.phone ?? "") &&
+          prev.dob === (p.dob ?? "") &&
+          prev.gender === (p.gender ?? "") &&
+          prev.address === (p.address ?? "") &&
+          prev.avatarUrl === (p.avatarUrl ?? "") &&
+          prev.headline === (p.headline ?? "") &&
+          prev.summary === (p.summary ?? "")
+        ) {
+          return prev;
+        }
+        return {
+          phone: p.phone ?? "",
+          dob: p.dob ?? "",
+          gender: p.gender ?? "",
+          address: p.address ?? "",
+          avatarUrl: p.avatarUrl ?? "",
+          headline: p.headline ?? "",
+          summary: p.summary ?? "",
+        };
       });
     }
-  }, [profileData]);
+  }, [profileData, user?.avatarUrl, user?.fullName, updateUser]);
 
   // ========== Mutations ==========
 
   const updateProfileMutation = useMutation({
     mutationFn: (data: Partial<CandidateProfile>) => profileApi.updateMyProfile(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["myProfile"] });
+    onSuccess: (res, variables) => {
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.all() });
+      // Cập nhật ngay avatarUrl và fullName vào AuthStore để thanh Header cập nhật tức thì
+      const patch: { avatarUrl?: string; fullName?: string } = {};
+      if (variables.avatarUrl !== undefined) {
+        patch.avatarUrl = variables.avatarUrl;
+      }
+      if (res?.data?.avatarUrl) {
+        patch.avatarUrl = res.data.avatarUrl;
+      }
+      if (res?.data?.fullName) {
+        patch.fullName = res.data.fullName;
+      }
+      if (Object.keys(patch).length > 0) {
+        updateUser(patch);
+      }
     },
   });
 
   const createEducationMutation = useMutation({
     mutationFn: (data: EducationItem) => profileApi.createEducation(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["myEducations"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.educations() });
       closeEducationModal();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -174,7 +357,7 @@ export function CandidateProfilePage() {
     mutationFn: ({ id, data }: { id: string; data: EducationItem }) =>
         profileApi.updateEducation(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["myEducations"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.educations() });
       closeEducationModal();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -184,13 +367,13 @@ export function CandidateProfilePage() {
 
   const deleteEducationMutation = useMutation({
     mutationFn: (id: string) => profileApi.deleteEducation(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["myEducations"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: candidateKeys.profile.educations() }),
   });
 
   const createCertificateMutation = useMutation({
     mutationFn: (data: CertificateItem) => profileApi.createCertificate(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["myCertificates"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.certificates() });
       closeCertificateModal();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -202,7 +385,7 @@ export function CandidateProfilePage() {
     mutationFn: ({ id, data }: { id: string; data: CertificateItem }) =>
         profileApi.updateCertificate(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["myCertificates"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.certificates() });
       closeCertificateModal();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -212,17 +395,69 @@ export function CandidateProfilePage() {
 
   const deleteCertificateMutation = useMutation({
     mutationFn: (id: string) => profileApi.deleteCertificate(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["myCertificates"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: candidateKeys.profile.certificates() }),
   });
 
   const upsertSelfSkillsMutation = useMutation({
     mutationFn: (skills: { skillId: string; selfScore: number }[]) =>
         profileApi.upsertSelfSkills(skills),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["mySkills"] });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.skills.all() });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.learning.all() });
+      queryClient.invalidateQueries({ queryKey: candidateKeys.career.all() });
       setIsSkillModalOpen(false);
       setEditingSkill(null);
     },
+  });
+
+  // Portfolio mutations
+  const createProjectMutation = useMutation({
+    mutationFn: (data: CreatePortfolioProjectRequest) => profileApi.createPortfolioProject(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.portfolio() });
+      closeProjectModal();
+    },
+    onError: (error: { response?: { data?: { message?: string } } }) => {
+      setErrors({ form: error?.response?.data?.message || "Tạo dự án portfolio thất bại" });
+    },
+  });
+
+  const updateProjectMutation = useMutation({
+    mutationFn: ({ projectId, data }: { projectId: string; data: UpdatePortfolioProjectRequest }) =>
+        profileApi.updatePortfolioProject(projectId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.portfolio() });
+      closeProjectModal();
+    },
+    onError: (error: { response?: { data?: { message?: string } } }) => {
+      setErrors({ form: error?.response?.data?.message || "Cập nhật dự án portfolio thất bại" });
+    },
+  });
+
+  const deleteProjectMutation = useMutation({
+    mutationFn: (projectId: string) => profileApi.deletePortfolioProject(projectId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: candidateKeys.profile.portfolio() }),
+    onError: (error: { response?: { data?: { message?: string } } }) => {
+      setErrors({ form: error?.response?.data?.message || "Xóa dự án portfolio thất bại" });
+    },
+  });
+
+  const uploadMediaMutation = useMutation({
+    mutationFn: ({ projectId, file }: { projectId: string; file: File }) => profileApi.uploadPortfolioMedia(projectId, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.portfolio() });
+      setUploadingMedia(null);
+    },
+    onError: (error: { response?: { data?: { message?: string } } }) => {
+      setErrors({ form: error?.response?.data?.message || "Tải ảnh lên thất bại" });
+      setUploadingMedia(null);
+    },
+  });
+
+  const deleteMediaMutation = useMutation({
+    mutationFn: ({ projectId, mediaId }: { projectId: string; mediaId: string }) =>
+        profileApi.deletePortfolioMedia(projectId, mediaId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: candidateKeys.profile.portfolio() }),
   });
 
   // ========== Handlers ==========
@@ -395,6 +630,131 @@ export function CandidateProfilePage() {
     ]);
   };
 
+  // Portfolio handlers
+  function emptyProjectForm(): CreatePortfolioProjectRequest {
+    return {
+      name: "",
+      role: "",
+      description: "",
+      techStack: "",
+      repoUrl: "",
+      demoUrl: "",
+      startDate: "",
+      endDate: "",
+      visible: true,
+      sortOrder: 0,
+    };
+  }
+
+  const closeProjectModal = () => {
+    setIsProjectModalOpen(false);
+    setEditingProject(null);
+    setProjectForm(emptyProjectForm());
+    setErrors({});
+  };
+
+  const openProjectModal = (project?: PortfolioProject) => {
+    setErrors({});
+    if (project) {
+      setEditingProject(project);
+      setProjectForm({
+        name: project.name,
+        role: project.role ?? "",
+        description: project.description ?? "",
+        techStack: project.techStack ?? "",
+        repoUrl: project.repoUrl ?? "",
+        demoUrl: project.demoUrl ?? "",
+        startDate: project.startDate ?? "",
+        endDate: project.endDate ?? "",
+        visible: project.visible,
+        sortOrder: project.sortOrder,
+      });
+    } else {
+      setEditingProject(null);
+      setProjectForm(emptyProjectForm());
+    }
+    setIsProjectModalOpen(true);
+  };
+
+  const handleProjectSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const nextErrors: Record<string, string> = {};
+    if (!projectForm.name.trim()) nextErrors.name = "Tên dự án không được để trống";
+
+    // URL validation for repoUrl and demoUrl
+    const urlRegex = /^https?:\/\/.+/;
+    if (projectForm.repoUrl && !urlRegex.test(projectForm.repoUrl)) {
+      nextErrors.repoUrl = "Repo URL phải bắt đầu bằng http:// hoặc https://";
+    }
+    if (projectForm.demoUrl && !urlRegex.test(projectForm.demoUrl)) {
+      nextErrors.demoUrl = "Demo URL phải bắt đầu bằng http:// hoặc https://";
+    }
+
+    // Date validation: startDate <= endDate
+    if (projectForm.startDate && projectForm.endDate) {
+      const start = new Date(projectForm.startDate);
+      const end = new Date(projectForm.endDate);
+      if (start > end) {
+        nextErrors.endDate = "Ngày kết thúc phải sau ngày bắt đầu";
+      }
+    }
+
+    setPortfolioErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    const payload: CreatePortfolioProjectRequest = {
+      ...projectForm,
+      role: projectForm.role || undefined,
+      description: projectForm.description || undefined,
+      techStack: projectForm.techStack || undefined,
+      repoUrl: projectForm.repoUrl || undefined,
+      demoUrl: projectForm.demoUrl || undefined,
+      startDate: projectForm.startDate || undefined,
+      endDate: projectForm.endDate || undefined,
+    };
+
+    if (editingProject?.id) {
+      updateProjectMutation.mutate({ projectId: editingProject.id, data: payload });
+    } else {
+      createProjectMutation.mutate(payload);
+    }
+  };
+
+  const handleDeleteProject = (project: PortfolioProject) => {
+    if (project.source === "IOC") {
+      setPortfolioErrors({ form: "Không thể xóa dự án thực tập (IOC)" });
+      return;
+    }
+    if (confirm("Bạn có chắc chắn muốn xóa dự án này?")) {
+      deleteProjectMutation.mutate(project.id);
+    }
+  };
+
+  const handleMediaUpload = (projectId: string, file: File) => {
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setPortfolioErrors({ form: "Ảnh vượt quá dung lượng cho phép (tối đa 5MB)" });
+      return;
+    }
+    const validTypes = ["image/jpeg", "image/png"];
+    if (!validTypes.includes(file.type)) {
+      setPortfolioErrors({ form: "Chỉ chấp nhận file JPG, PNG" });
+      return;
+    }
+    setUploadingMedia({ projectId, file });
+    uploadMediaMutation.mutate({ projectId, file });
+  };
+
+  const handleDeleteMedia = (projectId: string, mediaId: string) => {
+    setDeleteMediaConfirm({ projectId, mediaId });
+  };
+
+  const confirmDeleteMedia = () => {
+    if (deleteMediaConfirm) {
+      deleteMediaMutation.mutate(deleteMediaConfirm);
+      setDeleteMediaConfirm(null);
+    }
+  };
+
   // ========== Render ==========
 
   if (profileLoading) {
@@ -439,12 +799,15 @@ export function CandidateProfilePage() {
   const educations = educationsData?.data ?? [];
   const certificates = certificatesData?.data ?? [];
   const skills = skillsData?.data ?? [];
+  const portfolio = portfolioData?.data ?? [];
 
   const tabs = [
     { id: "info", label: "Thông tin", icon: User },
     { id: "education", label: "Học vấn", icon: GraduationCap },
     { id: "certificate", label: "Chứng chỉ", icon: FileText },
     { id: "skills", label: "Kỹ năng", icon: Star },
+    { id: "portfolio", label: "Portfolio", icon: Briefcase },
+    { id: "contact-logs", label: "Nhật ký liên hệ", icon: History },
   ] as const;
 
   return (
@@ -919,6 +1282,412 @@ export function CandidateProfilePage() {
                 )}
               </div>
           )}
+
+          {/* ===== Portfolio ===== */}
+          {activeTab === "portfolio" && (
+              <div className="space-y-8">
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-xl bg-primary/10">
+                      <Briefcase className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-foreground">Portfolio dự án</h2>
+                      <p className="text-sm text-muted mt-0.5">
+                        Trình bày các dự án tiêu biểu để nhà tuyển dụng đánh giá năng lực
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={() => openProjectModal()}
+                      leftIcon={<Plus className="h-4 w-4" />}
+                      className="gap-2"
+                  >
+                    <span className="hidden sm:inline">Thêm dự án</span>
+                    <span className="sm:hidden">Thêm</span>
+                  </Button>
+                </div>
+
+                <div className="h-px bg-border my-4" />
+
+                {/* Stats bar */}
+                {portfolio.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-4 text-sm text-muted bg-slate-50 rounded-lg p-4">
+                      <span className="flex items-center gap-1">
+                        <Briefcase className="h-4 w-4" />
+                        <strong className="text-foreground">{portfolio.length}</strong> dự án
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Image className="h-4 w-4" />
+                        <strong className="text-foreground">
+                          {portfolio.reduce((acc, p) => acc + (p.media?.length || 0), 0)}
+                        </strong> ảnh
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Eye className="h-4 w-4" />
+                        <strong className="text-foreground">
+                          {portfolio.filter(p => p.visible).length}
+                        </strong> công khai
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Code2 className="h-4 w-4" />
+                        <strong className="text-foreground">
+                          {portfolio.filter(p => p.source === "IOC").length}
+                        </strong> IOC
+                      </span>
+                    </div>
+                )}
+
+                {/* Loading State */}
+                {portfolioLoading && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {[1, 2, 3].map((i) => (
+                          <Card key={i} className="animate-pulse">
+                            <CardContent className="p-5 space-y-3">
+                              <div className="h-4 bg-slate-200 rounded w-3/4" />
+                              <div className="h-3 bg-slate-200 rounded w-1/2" />
+                              <div className="h-3 bg-slate-200 rounded w-1/3" />
+                              <div className="h-3 bg-slate-200 rounded w-2/3" />
+                              <div className="h-3 bg-slate-200 rounded w-1/4" />
+                              <div className="grid grid-cols-3 gap-2 mt-2">
+                                <div className="aspect-square bg-slate-200 rounded-lg" />
+                                <div className="aspect-square bg-slate-200 rounded-lg" />
+                                <div className="aspect-square bg-slate-200 rounded-lg" />
+                              </div>
+                            </CardContent>
+                          </Card>
+                      ))}
+                    </div>
+                )}
+
+                {/* Error State */}
+                {!portfolioLoading && portfolioError && (
+                    <div className="flex flex-col items-center justify-center py-12 px-4 border border-dashed border-amber-300 bg-amber-50/60 rounded-2xl text-center">
+                      <div className="p-3 bg-amber-100 rounded-full mb-3 text-amber-600">
+                        <AlertCircle className="h-6 w-6" />
+                      </div>
+                      <h3 className="font-semibold text-foreground text-base">
+                        Chưa thể tải dữ liệu Portfolio
+                      </h3>
+                      <p className="text-sm text-muted mt-1 max-w-md">
+                        Hệ thống đang gặp sự cố khi tải danh sách dự án. Vui lòng kiểm tra lại dịch vụ hoặc thử lại.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void refetchPortfolio()}
+                        className="mt-4 gap-2 border-amber-300 text-amber-800 hover:bg-amber-100"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Thử lại
+                      </Button>
+                    </div>
+                )}
+
+                {/* Empty State */}
+                {!portfolioLoading && !portfolioError && portfolio.length === 0 && (
+                    <Card className="border-dashed border-primary/20 bg-primary/5">
+                      <CardContent className="py-16 text-center">
+                        <div className="mx-auto mb-4 p-4 rounded-full bg-primary/10 w-20 h-20 flex items-center justify-center">
+                          <Briefcase className="h-10 w-10 text-primary" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-foreground mb-2">Chưa có dự án nào</h3>
+                        <p className="text-muted text-sm mb-6 max-w-sm mx-auto">
+                          Hãy thêm dự án đầu tiên để thể hiện kỹ năng thực tế và kinh nghiệm của bạn
+                        </p>
+                        <Button
+                            variant="primary"
+                            onClick={() => openProjectModal()}
+                            leftIcon={<Plus className="h-4 w-4" />}
+                            size="lg"
+                            className="gap-2"
+                        >
+                          Tạo dự án đầu tiên
+                        </Button>
+                      </CardContent>
+                    </Card>
+                )}
+
+                {/* Project Grid */}
+                {!portfolioLoading && portfolio.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {portfolio.map((project, index) => (
+                          <Card
+                              key={project.id}
+                              hoverable
+                              className="h-full flex flex-col relative overflow-hidden transition-all duration-300 group"
+                              style={{ animationDelay: `${index * 50}ms` }}
+                          >
+                            <CardContent className="p-5 flex flex-1 flex-col gap-3">
+                              {/* Project Header */}
+                              <div className="flex flex-col gap-2">
+                                {/* Row 1: Title + Visibility badge */}
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <h4 className="font-semibold text-foreground truncate min-w-0 group-hover:text-primary transition-colors"
+                                        title={project.name}>
+                                      {project.name}
+                                    </h4>
+                                    {/* Visibility badge - always on same line as title */}
+                                    {project.visible ? (
+                                        <Badge variant="verified" size="sm" showIcon className="gap-1 whitespace-nowrap shrink-0">
+                                          <Eye className="h-2.5 w-2.5" />
+                                          Công khai
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="outline" size="sm" showIcon className="gap-1 whitespace-nowrap shrink-0">
+                                          <EyeOff className="h-2.5 w-2.5" />
+                                          Riêng tư
+                                        </Badge>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Row 2: Role badge (if exists) + Source badge + SourceRef + Actions */}
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    {project.role && (
+                                        <Badge variant="default" size="sm" className="whitespace-nowrap shrink-0">
+                                          {project.role}
+                                        </Badge>
+                                    )}
+                                    {/* Source Badge */}
+                                    {project.source === "IOC" ? (
+                                        <Badge variant="primary" size="sm" className="gap-1 shrink-0" title={`Source: IOC${project.sourceRef ? ` | Ref: ${project.sourceRef}` : ''}`}>
+                                          <Code2 className="h-2.5 w-2.5" />
+                                          IOC
+                                        </Badge>
+                                    ) : (
+                                        <>
+                                          <Badge variant="outline" size="sm" className="gap-1 shrink-0 bg-white/90 backdrop-blur" title={`Source: ${project.source || "MANUAL"}${project.sourceRef ? ` | Ref: ${project.sourceRef}` : ''}`}>
+                                            <Code2 className="h-2.5 w-2.5" />
+                                            {project.source || "MANUAL"}
+                                          </Badge>
+                                          {project.sourceRef && (
+                                              <span className="text-[10px] text-muted font-mono px-1.5 py-0.5 rounded bg-white/90 backdrop-blur shadow-sm max-w-[110px] truncate shrink-0"
+                                                    title={`Source Ref: ${project.sourceRef}`}>
+                                                {project.sourceRef}
+                                              </span>
+                                          )}
+                                        </>
+                                    )}
+                                  </div>
+                                  {/* Actions - always visible */}
+                                  {project.source !== "IOC" && (
+                                      <div className="flex items-center gap-1 flex-shrink-0">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8"
+                                            onClick={() => openProjectModal(project)}
+                                            title="Chỉnh sửa"
+                                        >
+                                          <Edit2 className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8 text-rose-500 hover:bg-rose-50"
+                                            onClick={() => handleDeleteProject(project)}
+                                            title="Xóa"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Description - only render when exists */}
+                              {project.description && (
+                                  <p className="text-sm text-muted line-clamp-3 leading-relaxed">
+                                    {project.description}
+                                  </p>
+                              )}
+
+                              {/* Tech Stack - only render when exists */}
+                              {project.techStack && (
+                                  <div className="flex flex-wrap gap-2">
+                                    {project.techStack.split(',').slice(0, 5).map((tech, i) => (
+                                        <Badge key={i} variant="outline" size="sm" className="gap-1 text-xs">
+                                          <Code2 className="h-2.5 w-2.5" />
+                                          {tech.trim()}
+                                        </Badge>
+                                    ))}
+                                    {project.techStack.split(',').length > 5 && (
+                                        <Badge variant="outline" size="sm" className="text-xs">
+                                          +{project.techStack.split(',').length - 5} nữa
+                                        </Badge>
+                                    )}
+                                  </div>
+                              )}
+
+                              {/* Meta Info - divider only when there's description or techStack above */}
+                              {(project.description || project.techStack) && (
+                                  <div className="pt-2 border-t border-border" />
+                              )}
+
+                              {/* Meta Info */}
+                              <div className="flex flex-wrap items-center gap-4 text-xs text-muted">
+                                {project.startDate && (
+                                    <span className="flex items-center gap-1">
+                                      <Calendar className="h-3.5 w-3.5" />
+                                      {formatDate(project.startDate)}
+                                      {project.endDate ? ` - ${formatDate(project.endDate)}` : " - Hiện tại"}
+                                    </span>
+                                )}
+                                {project.repoUrl && (
+                                    <a
+                                        href={project.repoUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1 text-primary hover:underline hover:text-primary/80 transition-colors"
+                                        title="Xem repository"
+                                    >
+                                      <Link2 className="h-3.5 w-3.5" />
+                                      Repo
+                                    </a>
+                                )}
+                                {project.demoUrl && (
+                                    <a
+                                        href={project.demoUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1 text-primary hover:underline hover:text-primary/80 transition-colors"
+                                        title="Xem demo"
+                                    >
+                                      <ExternalLink className="h-3.5 w-3.5" />
+                                      Demo
+                                    </a>
+                                )}
+                              </div>
+
+                              {/* Media Gallery */}
+                              <div className="pt-2">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-medium text-muted flex items-center gap-1">
+                                    <Image className="h-3.5 w-3.5" />
+                                    Ảnh dự án
+                                    <span className="text-foreground font-semibold">
+                                      {project.media?.length || 0}/6
+                                    </span>
+                                  </span>
+                                  {/* Only show "Tải ảnh" button in header when there ARE already images */}
+                                  {(project.media?.length || 0) > 0 && project.source !== "IOC" && (
+                                      <Button
+                                          variant="outline"
+                                          size="sm"
+                                          leftIcon={<Upload className="h-3 w-3" />}
+                                          disabled={(project.media?.length || 0) >= 6 || uploadingMedia?.projectId === project.id}
+                                          onClick={() => {
+                                            if ((project.media?.length || 0) >= 6 || uploadingMedia?.projectId === project.id) return;
+                                            const input = document.createElement("input");
+                                            input.type = "file";
+                                            input.accept = "image/jpeg,image/png";
+                                            input.onchange = (e) => {
+                                              const file = (e.target as HTMLInputElement).files?.[0];
+                                              if (file) handleMediaUpload(project.id, file);
+                                            };
+                                            input.click();
+                                          }}
+                                      >
+                                        {uploadingMedia?.projectId === project.id ? (
+                                            <> <Loader2 className="h-3 w-3 animate-spin" /> Đang tải... </> ) : ( 'Tải ảnh' )}
+                                      </Button>
+                                  )}
+                                </div>
+
+                                {(project.media?.length || 0) > 0 ? (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                      {project.media.map((media) => (
+                                          <div key={media.id} className="relative group aspect-square rounded-xl overflow-hidden bg-slate-50">
+                                            <img
+                                                src={media.url}
+                                                alt={`Project media ${media.sortOrder + 1}`}
+                                                className="w-full h-full object-cover transition-all duration-300 group-hover:scale-105 group-hover:brightness-110"
+                                                loading="lazy"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex items-end justify-between p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                              <span className="text-xs bg-black/60 text-white px-1.5 py-0.5 rounded">
+                                                #{media.sortOrder + 1}
+                                              </span>
+                                              <div className="flex gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 w-7 bg-white/90 backdrop-blur"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      window.open(media.url, "_blank");
+                                                    }}
+                                                    title="Xem ảnh lớn"
+                                                >
+                                                  <Eye className="h-3.5 w-3.5" />
+                                                </Button>
+                                                {project.source !== "IOC" && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 w-7 bg-rose-500/90 text-white backdrop-blur hover:bg-rose-600"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          handleDeleteMedia(project.id, media.id);
+                                                        }}
+                                                        title="Xóa ảnh"
+                                                    >
+                                                      <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                )}
+                                              </div>
+                                            </div>
+                                            {/* Sort order indicator */}
+                                            <div className="absolute top-1 left-1">
+                                              <span className="text-[10px] bg-black/50 text-white px-1 py-0.5 rounded">
+                                                {media.sortOrder + 1}
+                                              </span>
+                                            </div>
+                                          </div>
+                                      ))}
+                                      {uploadingMedia?.projectId === project.id && (
+                                          <div className="relative aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 animate-pulse flex items-center justify-center">
+                                            <div className="text-center">
+                                              <Loader2 className="h-8 w-8 text-primary mx-auto mb-1" />
+                                              <span className="text-xs text-muted">Đang tải...</span>
+                                            </div>
+                                            <span className="absolute bottom-1 right-1 text-xs bg-black/60 text-white px-1.5 py-0.5 rounded">
+                                              #{(project.media?.length || 0) + 1}
+                                            </span>
+                                          </div>
+                                      )}
+                                    </div>
+                                ) : (
+                                    <MediaDropzone
+                                      projectId={project.id}
+                                      isIOC={project.source === "IOC"}
+                                      isUploading={uploadingMedia?.projectId === project.id}
+                                      currentMediaCount={project.media?.length || 0}
+                                      onUpload={handleMediaUpload}
+                                    />
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                      ))}
+                    </div>
+                )}
+              </div>
+          )}
+
+          {/* ===== Nhật ký liên hệ ===== */}
+          {activeTab === "contact-logs" && (
+            <div className="space-y-6">
+              <CandidateContactAccessLogs />
+            </div>
+          )}
+
         </div>
 
         {/* ===== Education Modal ===== */}
@@ -1131,6 +1900,137 @@ export function CandidateProfilePage() {
               <Button variant="primary" onClick={handleSkillSubmit} isLoading={upsertSelfSkillsMutation.isPending}>
                 <Save className="h-4 w-4" />
                 Lưu đánh giá
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
+        {/* ===== Project Modal ===== */}
+        <Modal
+            isOpen={isProjectModalOpen}
+            onClose={closeProjectModal}
+            title={editingProject ? "Chỉnh sửa dự án portfolio" : "Thêm dự án portfolio mới"}
+            size="lg"
+        >
+          <form onSubmit={handleProjectSubmit} className="space-y-4">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Input
+                  label="Tên dự án *"
+                  value={projectForm.name}
+                  onChange={(e) => setProjectForm({ ...projectForm, name: e.target.value })}
+                  placeholder="Ví dụ: Hệ thống quản lý tuyển dụng"
+                  error={portfolioErrors.name}
+              />
+              <Input
+                  label="Vai trò"
+                  value={projectForm.role}
+                  onChange={(e) => setProjectForm({ ...projectForm, role: e.target.value })}
+                  placeholder="Ví dụ: Fullstack Developer"
+              />
+            </div>
+            <div className="w-full space-y-1.5">
+              <label htmlFor="description" className="block text-sm font-medium text-foreground">
+                Mô tả dự án
+              </label>
+              <textarea
+                  id="description"
+                  rows={3}
+                  value={projectForm.description}
+                  onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
+                  placeholder="Mô tả ngắn về dự án, công nghệ sử dụng, vai trò của bạn..."
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <Input
+                label="Tech Stack"
+                value={projectForm.techStack}
+                onChange={(e) => setProjectForm({ ...projectForm, techStack: e.target.value })}
+                placeholder="Ví dụ: React, Node.js, PostgreSQL, Docker"
+            />
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Input
+                  label="Repo URL"
+                  type="url"
+                  value={projectForm.repoUrl}
+                  onChange={(e) => setProjectForm({ ...projectForm, repoUrl: e.target.value })}
+                  placeholder="https://github.com/username/repo"
+              />
+              <Input
+                  label="Demo URL"
+                  type="url"
+                  value={projectForm.demoUrl}
+                  onChange={(e) => setProjectForm({ ...projectForm, demoUrl: e.target.value })}
+                  placeholder="https://demo.example.com"
+              />
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Input
+                  label="Ngày bắt đầu"
+                  type="date"
+                  value={projectForm.startDate}
+                  onChange={(e) => setProjectForm({ ...projectForm, startDate: e.target.value })}
+              />
+              <Input
+                  label="Ngày kết thúc"
+                  type="date"
+                  value={projectForm.endDate}
+                  onChange={(e) => setProjectForm({ ...projectForm, endDate: e.target.value })}
+                  hint="Để trống nếu đang thực hiện"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                  type="checkbox"
+                  id="visible"
+                  checked={projectForm.visible}
+                  onChange={(e) => setProjectForm({ ...projectForm, visible: e.target.checked })}
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+              />
+              <label htmlFor="visible" className="text-sm text-foreground">
+                Hiển thị công khai trên hồ sơ
+              </label>
+            </div>
+            {portfolioErrors.form && <p className="text-xs text-danger font-medium">{portfolioErrors.form}</p>}
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={closeProjectModal}>
+                <X className="h-4 w-4" />
+                Hủy
+              </Button>
+              <Button
+                  type="submit"
+                  variant="primary"
+                  isLoading={createProjectMutation.isPending || updateProjectMutation.isPending}
+              >
+                <Save className="h-4 w-4" />
+                {editingProject ? "Cập nhật" : "Thêm"}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* ===== Delete Media Confirmation Modal ===== */}
+        <Modal
+            isOpen={!!deleteMediaConfirm}
+            onClose={() => setDeleteMediaConfirm(null)}
+            title="Xác nhận xóa ảnh"
+            size="sm"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-foreground">
+              Bạn có chắc chắn muốn xóa ảnh này? Hành động này không thể hoàn tác.
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={() => setDeleteMediaConfirm(null)}>
+                <X className="h-4 w-4" />
+                Hủy
+              </Button>
+              <Button
+                  variant="danger"
+                  onClick={confirmDeleteMedia}
+                  isLoading={deleteMediaMutation.isPending}
+              >
+                <Trash2 className="h-4 w-4" />
+                Xóa
               </Button>
             </div>
           </div>

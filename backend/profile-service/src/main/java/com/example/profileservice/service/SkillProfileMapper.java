@@ -28,7 +28,7 @@ public interface SkillProfileMapper {
     @Mapping(target = "group", source = "skill.group")
     @Mapping(target = "verifiedScore", source = "skillScore.verifiedScore")
     @Mapping(target = "selfScore", source = "skillScore.selfScore")
-    @Mapping(target = "level", source = "skillScore.level")
+    @Mapping(target = "level", expression = "java(skillScore.getLevel().label())")
     SkillProfileResponse toDto(Skill skill, SkillScore skillScore, List<SkillEvidence> evidences);
 
     default UUID map(SkillId skillId) {

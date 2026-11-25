@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { profileApi, type SkillProfileItem } from "@/api";
+import { profileApi, type SkillProfileItem, candidateKeys } from "@/api";
 
 /**
  * Hook quản lý truy vấn hồ sơ kỹ năng ứng viên
@@ -7,7 +7,7 @@ import { profileApi, type SkillProfileItem } from "@/api";
  */
 export function useSkillProfile(userId?: string) {
   return useQuery<SkillProfileItem[]>({
-    queryKey: ["skill-profile", userId ?? "me"],
+    queryKey: candidateKeys.skills.byUser(userId),
     queryFn: async () => {
       const res = userId
         ? await profileApi.getUserSkills(userId)

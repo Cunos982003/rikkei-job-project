@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
 import java.time.*;
+import java.time.LocalDate;
 import java.util.*;
 
 @RestController
@@ -62,9 +63,20 @@ public class InternshipController {
             upsertTasks(internshipId, item.path("tasks"));
             String topic = item.path("topicName").asText();
             String group = item.path("groupName").asText();
-            jdbc.update("INSERT INTO portfolio_projects(user_id,source,source_ref,name,role) VALUES (?, 'IOC', ?, ?, ?) " +
-                    "ON CONFLICT(user_id,source,source_ref) DO UPDATE SET name=EXCLUDED.name, role=EXCLUDED.role",
-                    userId, batchId, topic, "Thực tập sinh – " + group);
+            String description = item.path("description").isMissingNode() ? null : item.path("description").asText();
+            String techStack = item.path("techStack").isMissingNode() ? null : item.path("techStack").asText();
+            String repoUrl = item.path("repoUrl").isMissingNode() ? null : item.path("repoUrl").asText();
+            String demoUrl = item.path("demoUrl").isMissingNode() ? null : item.path("demoUrl").asText();
+            LocalDate startDate = item.path("startDate").isMissingNode() || item.path("startDate").isNull() ? null : LocalDate.parse(item.path("startDate").asText());
+            LocalDate endDate = item.path("endDate").isMissingNode() || item.path("endDate").isNull() ? null : LocalDate.parse(item.path("endDate").asText());
+
+            jdbc.update("INSERT INTO portfolio_projects(user_id,source,source_ref,name,role,description,tech_stack,repo_url,demo_url,start_date,end_date,visible,sort_order,internship_id) " +
+                    "VALUES (?, 'IOC', ?, ?, ?, ?, ?, ?, ?, ?, ?, true, 0, ?) " +
+                    "ON CONFLICT(user_id,source,source_ref) DO UPDATE SET " +
+                    "name=EXCLUDED.name, role=EXCLUDED.role, description=EXCLUDED.description, tech_stack=EXCLUDED.tech_stack, " +
+                    "repo_url=EXCLUDED.repo_url, demo_url=EXCLUDED.demo_url, start_date=EXCLUDED.start_date, end_date=EXCLUDED.end_date, " +
+                    "visible=EXCLUDED.visible, sort_order=EXCLUDED.sort_order, internship_id=EXCLUDED.internship_id",
+                    userId, batchId, topic, "Thực tập sinh – " + group, description, techStack, repoUrl, demoUrl, startDate, endDate, internshipId);
             if (item.hasNonNull("finalScore")) {
                 short score = (short) Math.min(100, Math.max(0, Math.round(item.path("finalScore").floatValue() * 10)));
                 String normalizedTopic = topic.toLowerCase(Locale.ROOT);

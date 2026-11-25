@@ -23,6 +23,8 @@ spring:
   flyway:
     enabled: ${SPRING_FLYWAY_ENABLED:true}
     validate-on-migrate: ${SPRING_FLYWAY_VALIDATE_ON_MIGRATE:false}
+    baseline-on-migrate: true
+    baseline-version: 5
   mail:
     host: ${SPRING_MAIL_HOST:smtp.gmail.com}
     port: ${SPRING_MAIL_PORT:587}

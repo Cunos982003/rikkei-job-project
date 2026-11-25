@@ -24,12 +24,21 @@ public record RecommendationSnapshot(
 
     public record EligibleJob(
             UUID jobId,
+            String title,
+            String companyName,
             String jobRevision,
             List<SkillRequirement> requirements) {
         public EligibleJob {
             jobId = Objects.requireNonNull(jobId, "jobId");
             jobRevision = Objects.requireNonNull(jobRevision, "jobRevision");
             requirements = List.copyOf(requirements);
+        }
+
+        public EligibleJob(
+                UUID jobId,
+                String jobRevision,
+                List<SkillRequirement> requirements) {
+            this(jobId, null, null, jobRevision, requirements);
         }
     }
 

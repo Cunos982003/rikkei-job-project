@@ -257,7 +257,7 @@ export function AdminBadgesPage() {
         }
 
         void loadHistory(selectedCandidate.userId);
-    }, [selectedCandidate?.userId, loadHistory]);
+    }, [selectedCandidate, loadHistory]);
 
     // =====================================
     // SELECT CANDIDATE

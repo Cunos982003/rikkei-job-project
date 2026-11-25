@@ -1,9 +1,12 @@
 package com.example.learningservice.client;
 
 import com.example.learningservice.model.dto.response.ProfileSkillResponse;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
@@ -19,11 +22,14 @@ public class ProfileServiceClient {
 
     private final RestClient restClient;
     private final String profileServiceUrl;
+    private final ObjectMapper objectMapper;
 
     public ProfileServiceClient(
             RestClient.Builder restClientBuilder,
+            @Autowired(required = false) ObjectMapper objectMapper,
             @Value("${app.integrations.profile-service-url:http://localhost:8082}") String profileServiceUrl) {
         this.profileServiceUrl = profileServiceUrl;
+        this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper();
         this.restClient = restClientBuilder
                 .baseUrl(profileServiceUrl)
                 .build();
@@ -32,7 +38,7 @@ public class ProfileServiceClient {
     public List<ProfileSkillResponse> getCandidateSkills(UUID userId, String authorizationHeader) {
         log.debug("Gọi dịch vụ hồ sơ tại {}/api/v1/profiles/me/skills cho userId: {}", profileServiceUrl, userId);
         try {
-            List<ProfileSkillResponse> skills = restClient.get()
+            String rawJson = restClient.get()
                     .uri("/api/v1/profiles/me/skills")
                     .header("X-User-Id", userId.toString())
                     .headers(headers -> {
@@ -44,11 +50,30 @@ public class ProfileServiceClient {
                     .onStatus(HttpStatusCode::isError, (req, resp) -> {
                         log.warn("Dịch vụ hồ sơ trả về trạng thái lỗi {} cho userId: {}", resp.getStatusCode(), userId);
                     })
-                    .body(new ParameterizedTypeReference<List<ProfileSkillResponse>>() {});
+                    .body(String.class);
 
-            return skills != null ? skills : Collections.emptyList();
+            if (rawJson == null || rawJson.isBlank()) {
+                log.warn("Dịch vụ hồ sơ trả về phản hồi rỗng cho userId: {}", userId);
+                return Collections.emptyList();
+            }
+
+            JsonNode root = objectMapper.readTree(rawJson);
+            // Bóc tách linh hoạt: nếu bọc trong ApiResponse thì lấy trường "data", nếu là mảng thô thì lấy root
+            JsonNode dataNode = (root.has("data") && !root.get("data").isNull()) ? root.get("data") : root;
+
+            if (dataNode != null && dataNode.isArray()) {
+                List<ProfileSkillResponse> skills = objectMapper.convertValue(
+                        dataNode,
+                        new TypeReference<List<ProfileSkillResponse>>() {}
+                );
+                log.info("Lấy thành công {} kỹ năng từ dịch vụ hồ sơ cho userId: {}", skills != null ? skills.size() : 0, userId);
+                return skills != null ? skills : Collections.emptyList();
+            }
+
+            log.warn("Dữ liệu kỹ năng từ dịch vụ hồ sơ không phải là mảng hợp lệ cho userId: {}", userId);
+            return Collections.emptyList();
         } catch (Exception e) {
-            log.warn("Không thể kết nối đến dịch vụ hồ sơ tại {} cho userId {}: {}", profileServiceUrl, userId, e.getMessage());
+            log.warn("Không thể kết nối hoặc phân tích dữ liệu từ dịch vụ hồ sơ tại {} cho userId {}: {}", profileServiceUrl, userId, e.getMessage());
             return Collections.emptyList();
         }
     }
@@ -76,4 +101,3 @@ public class ProfileServiceClient {
         }
     }
 }
-

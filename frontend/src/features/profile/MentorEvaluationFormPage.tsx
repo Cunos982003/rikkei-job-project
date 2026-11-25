@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { MOCK_FORM_DATAS, MOCK_MENTOR_TASKS } from './mocks/mentorTasksMock';
 import { UserCircle, ChevronDown } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function MentorEvaluationFormPage() {
     const { id: _id } = useParams();
@@ -70,7 +71,7 @@ export default function MentorEvaluationFormPage() {
 
     const handleSubmit = () => {
         if (window.confirm("Gửi phiếu xong sẽ KHÔNG THỂ SỬA. Bạn có chắc chắn muốn gửi?")) {
-            alert("Đã gửi phiếu đánh giá thành công! (Mock API)");
+            toast.success("Đã gửi phiếu đánh giá năng lực thành công!");
             setIsDirty(false);
             navigate('/mentor/evaluations');
         }
