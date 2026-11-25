@@ -1,0 +1,43 @@
+{
+  "cand-001": [
+    {
+      "id": "port-001",
+      "name": "Dự án Nền tảng Tuyển dụng & Đánh giá Năng lực Sinh viên",
+      "role": "Fullstack Developer",
+      "description": "Phát triển hệ thống kết nối sinh viên học viện CNTT với doanh nghiệp tuyển dụng, đồng bộ bảng điểm và chứng chỉ kỹ năng từ LMS, hỗ trợ gợi ý việc làm dựa trên AI.",
+      "techStack": "Spring Boot, ReactJS, TypeScript, Tailwind CSS, PostgreSQL, Docker",
+      "repoUrl": "https://github.com/rikkei-jobs/student-platform",
+      "demoUrl": "https://jobs.rikkei.edu.vn",
+      "startDate": "2026-06-01",
+      "endDate": "2026-11-20",
+      "visible": true,
+      "sortOrder": 1,
+      "source": "IOC",
+      "sourceRef": "Dự án thực chiến IOC K20",
+      "media": [
+        {
+          "id": "med-001",
+          "url": "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&auto=format&fit=crop",
+          "mediaType": "IMAGE",
+          "sortOrder": 1
+        }
+      ]
+    },
+    {
+      "id": "port-002",
+      "name": "Hệ thống Quản lý Bán lẻ Trực tuyến Mini",
+      "role": "Backend Lead",
+      "description": "Dự án cá nhân xây dựng RESTful API xử lý giao dịch đơn hàng, thanh toán qua cổng điện tử và quản lý kho hàng với Redis Caching.",
+      "techStack": "Java, Spring Boot, MySQL, Redis, JWT",
+      "repoUrl": "https://github.com/candidate1/retail-api-service",
+      "demoUrl": "https://demo-retail.rikkeijobs.test",
+      "startDate": "2026-01-15",
+      "endDate": "2026-05-10",
+      "visible": true,
+      "sortOrder": 2,
+      "source": "SELF",
+      "sourceRef": "Dự án đồ án cá nhân",
+      "media": []
+    }
+  ]
+}

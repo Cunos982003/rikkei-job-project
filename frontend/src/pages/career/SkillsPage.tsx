@@ -3,7 +3,8 @@ import { lazy, Suspense, useMemo, useState } from 'react'
 import { Badge } from '../../components/common/Badge'
 import { Button } from '../../components/common/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/common/Card'
-import { ChartLoading, EmptyRecommendations, getSkillGaps, MetricCard, PageIntro, RequestState, useCareerData } from '../../features/career/components/CareerShared'
+import { ChartLoading, EmptyRecommendations, MetricCard, PageIntro, RequestState } from '../../features/career/components/CareerShared'
+import { getSkillGaps, useCareerData } from '../../features/career/careerUtils'
 
 const SkillComparisonChart = lazy(() => import('../../features/career/charts').then((module) => ({ default: module.SkillComparisonChart })))
 
