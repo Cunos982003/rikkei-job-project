@@ -69,6 +69,7 @@ ALTER TABLE portfolio_projects ADD COLUMN IF NOT EXISTS start_date DATE;
 ALTER TABLE portfolio_projects ADD COLUMN IF NOT EXISTS end_date DATE;
 ALTER TABLE portfolio_projects ADD COLUMN IF NOT EXISTS visible BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE portfolio_projects ADD COLUMN IF NOT EXISTS sort_order INT NOT NULL DEFAULT 0;
+ALTER TABLE portfolio_projects ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT transaction_timestamp();
 
 CREATE INDEX IF NOT EXISTS idx_portfolio_projects_user_id ON portfolio_projects(user_id);
 CREATE INDEX IF NOT EXISTS idx_portfolio_projects_internship_id ON portfolio_projects(internship_id);
