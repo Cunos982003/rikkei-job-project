@@ -48,6 +48,8 @@ import { StaffCompanyDetailPage } from "../pages/staff/StaffCompanyDetailPage";
 import { StaffCandidatesPage } from "../pages/staff/StaffCandidatesPage";
 import { StaffCandidateDetailPage } from "../pages/staff/StaffCandidateDetailPage";
 import { StaffRecruitmentsPage } from "../pages/staff/StaffRecruitmentsPage";
+import { StaffContactRequestsPage } from "../pages/staff/StaffContactRequestsPage";
+import { StaffContactAccessLogsPage } from "../pages/staff/StaffContactAccessLogsPage";
 import { RecruitmentDetailPage } from "../pages/hr/RecruitmentDetailPage";
 
 // Admin Pages
@@ -360,6 +362,17 @@ export function AppRoutes() {
                         <Route
                             path="/staff/placements"
                             element={<StaffPlacementPage />}
+                        />
+
+                        {/* UT-03: Contact Access Control */}
+                        <Route
+                            path="/staff/contact-requests"
+                            element={<StaffContactRequestsPage />}
+                        />
+
+                        <Route
+                            path="/staff/contact-access-logs"
+                            element={<StaffContactAccessLogsPage />}
                         />
                     </Route>
 
