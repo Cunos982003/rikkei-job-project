@@ -20,8 +20,8 @@ public interface ContactRequestRepository extends JpaRepository<ContactRequest, 
 
     List<ContactRequest> findByStatus(ContactRequest.ContactRequestStatus status);
 
-    @Query("SELECT cr FROM ContactRequest cr WHERE cr.companyId = :companyId AND cr.userId = :userId AND cr.status = 'APPROVED'")
-    boolean existsApprovedRequest(@Param("companyId") UUID companyId, @Param("userId") UUID userId);
+    @Query("SELECT COUNT(cr) FROM ContactRequest cr WHERE cr.companyId = :companyId AND cr.userId = :userId AND cr.status = 'APPROVED'")
+    Long countApprovedRequest(@Param("companyId") UUID companyId, @Param("userId") UUID userId);
 
     @Query("SELECT cr FROM ContactRequest cr WHERE cr.userId = :userId AND cr.status = 'PENDING' ORDER BY cr.createdAt DESC")
     List<ContactRequest> findPendingByUserId(@Param("userId") UUID userId);

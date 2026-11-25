@@ -46,7 +46,7 @@ public class ContactAccessService {
             return true;
         }
         // Check 2: STAFF approved contact request
-        return requestRepo.existsApprovedRequest(companyId, userId);
+        return requestRepo.countApprovedRequest(companyId, userId) > 0;
     }
 
     private boolean hasApplication(UUID companyId, UUID userId) {
