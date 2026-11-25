@@ -165,6 +165,7 @@ export function AppRoutes() {
                             <Route index element={<OverviewPage />} />
                             <Route path="recommendations" element={<RecommendationsPage />} />
                             <Route path="skills" element={<SkillsPage />} />
+                            <Route path="interviews" element={<InterviewPracticeListPage />} />
                         </Route>
 
                         <Route
