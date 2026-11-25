@@ -107,8 +107,14 @@ public class ConversationController {
     }
 
     private UUID resolveCandidateId(Principal principal, String headerUserId, String headerRole) {
-        if (headerRole != null && !headerRole.isBlank() && !"CANDIDATE".equalsIgnoreCase(headerRole.trim())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chức năng này chỉ dành cho ứng viên (CANDIDATE)");
+        if (headerRole != null && !headerRole.isBlank()) {
+            String normalizedRole = headerRole.trim().toUpperCase(java.util.Locale.ROOT);
+            if (normalizedRole.startsWith("ROLE_")) {
+                normalizedRole = normalizedRole.substring(5);
+            }
+            if (!"CANDIDATE".equals(normalizedRole)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chức năng này chỉ dành cho ứng viên (CANDIDATE)");
+            }
         }
         String rawId = (principal != null && principal.getName() != null && !principal.getName().isBlank())
                 ? principal.getName()

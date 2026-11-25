@@ -20,6 +20,7 @@ import {
   Star,
   FileEdit,
   UserCheck, // <-- BỔ SUNG IMPORT ICON
+  RefreshCw,
 } from "lucide-react";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useUiStore } from "../../store/useUiStore";
@@ -94,6 +95,9 @@ const ROLE_NAV_ITEMS: Record<Role, { groupTitle: string; items: NavItem[] }> = {
 
       // TT-02: BỔ SUNG NÚT GHÉP THỰC TẬP CHO STAFF
       { title: "Ghép thực tập", path: "/staff/placements", icon: UserCheck },
+
+      // NT-05: ĐỒNG BỘ DỮ LIỆU CHO STAFF
+      { title: "Đồng bộ dữ liệu", path: "/staff/sync", icon: RefreshCw },
     ],
   },
 

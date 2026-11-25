@@ -59,6 +59,7 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    binaryResultsDirectory.set(file("${layout.buildDirectory.asFile.get()}/test-bin"))
     // Exclude integration tests that require Testcontainers/Docker
     exclude '**/integration/**'
     exclude '**/*IntegrationTest*.class'

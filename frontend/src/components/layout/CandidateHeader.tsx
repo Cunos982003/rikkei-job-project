@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -153,12 +153,16 @@ export function CandidateHeader() {
     queryKey: candidateKeys.jobs.saved(),
     queryFn: () =>
       candidateJobsApi.getSavedJobs().catch(() => ({ success: true, statusCode: 200, message: "", data: [] })),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 1000,
     retry: false,
     enabled: isAuthenticated,
   });
 
-  const savedCount = Array.isArray(savedJobsRes?.data) ? savedJobsRes.data.length : 0;
+  const savedCount = useMemo(() => {
+    if (Array.isArray(savedJobsRes?.data)) return savedJobsRes.data.length;
+    if (Array.isArray(savedJobsRes)) return savedJobsRes.length;
+    return 0;
+  }, [savedJobsRes]);
 
   // Prefetch dữ liệu khi người dùng hover vào menu để trang tải tức thì
   const prefetchSavedJobs = useCallback(() => {
@@ -166,7 +170,7 @@ export function CandidateHeader() {
       queryKey: candidateKeys.jobs.saved(),
       queryFn: () =>
         candidateJobsApi.getSavedJobs().catch(() => ({ success: true, statusCode: 200, message: "", data: [] })),
-      staleTime: 5 * 60 * 1000,
+      staleTime: 30 * 1000,
     });
   }, [queryClient]);
 
@@ -311,7 +315,7 @@ export function CandidateHeader() {
 
         {/* 3. Right: Quick Actions (Saved Jobs, Notifications, User Profile) */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Nút Việc làm đã lưu với Badge số lượng */}
+          {/* Nút Việc làm đã lưu */}
           <Link
             to="/candidate/jobs/saved"
             aria-label="Việc làm đã lưu"
@@ -319,17 +323,21 @@ export function CandidateHeader() {
             className={cn(
               "relative p-2 rounded-lg transition-colors cursor-pointer flex items-center justify-center",
               location.pathname === "/candidate/jobs/saved"
-                ? "bg-rose-50 text-rose-600"
-                : "text-muted hover:text-rose-600 hover:bg-rose-50/70"
+                ? "bg-primary-light text-primary"
+                : savedCount > 0
+                  ? "text-primary hover:bg-primary-light/70"
+                  : "text-muted hover:text-foreground hover:bg-slate-100"
             )}
-            title="Việc làm đã lưu"
+            title={savedCount > 0 ? `Việc làm đã lưu (${savedCount})` : "Việc làm đã lưu"}
           >
-            <Heart className={cn("h-5 w-5", location.pathname === "/candidate/jobs/saved" ? "fill-rose-600 text-rose-600" : "")} />
-            {savedCount > 0 && (
-              <span className="absolute -top-1 -right-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-rose-600 text-white min-w-[18px] text-center shadow-xs">
-                {savedCount > 99 ? "99+" : savedCount}
-              </span>
-            )}
+            <Heart
+              className={cn(
+                "h-5 w-5 transition-colors",
+                savedCount > 0
+                  ? "fill-primary text-primary"
+                  : ""
+              )}
+            />
           </Link>
 
           {/* Chuông thông báo */}

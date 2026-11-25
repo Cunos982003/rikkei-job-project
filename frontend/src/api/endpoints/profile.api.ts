@@ -330,7 +330,7 @@ export const profileApi = {
       ? `/profiles/${userId}/evaluations`
       : "/profiles/me/evaluations";
 
-    return api.get<MentorEvaluation[]>(url);
+    return api.get<MentorEvaluation[]>(url, { silentError: true });
   },
 
   // ===== Hồ sơ cá nhân =====
@@ -553,7 +553,7 @@ export const profileApi = {
    * Lấy danh sách dự án portfolio của chính mình
    */
   getMyPortfolio(): Promise<ApiResponse<PortfolioProject[]>> {
-    return api.get<PortfolioProject[]>("/profiles/me/portfolio");
+    return api.get<PortfolioProject[]>("/profiles/me/portfolio", { silentError: true });
   },
 
   /**

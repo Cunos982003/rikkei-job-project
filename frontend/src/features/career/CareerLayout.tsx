@@ -84,7 +84,7 @@ export function CareerLayout() {
         <nav aria-label="AI Career" className="flex flex-wrap gap-2">
           {[
             { to: "/candidate/career", label: "Tổng quan", end: true },
-            { to: "/candidate/career/assistant", label: "Trợ lý AI", end: false },
+            { to: "/candidate/career/assistant", label: "Rikkei Buddy", end: false },
             { to: "/candidate/career/recommendations", label: "Việc làm phù hợp", end: false },
             { to: "/candidate/career/skills", label: "Phân tích kỹ năng", end: false },
             { to: "/candidate/career/interviews", label: "Thực hành phỏng vấn", end: false },

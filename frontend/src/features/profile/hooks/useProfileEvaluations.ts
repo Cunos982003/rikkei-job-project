@@ -10,8 +10,7 @@ export function useProfileEvaluations(userId: string | undefined) {
       try {
         const response = await profileApi.getEvaluations(userId);
         return response.data || [];
-      } catch (err) {
-        console.warn("Không thể tải đánh giá từ mentor (có thể backend chưa triển khai endpoint):", err);
+      } catch {
         return [];
       }
     },
