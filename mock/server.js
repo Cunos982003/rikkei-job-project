@@ -416,7 +416,9 @@ async function requestHandler(req, res) {
   const examMatch = pathname.match(/^\/exam\/students\/([^\/]+)\/results$/);
   if (method === 'GET' && examMatch) {
     const studentId = examMatch[1];
-    const results = examData[studentId];
+    const student = resolveStudent(studentId);
+    const key = student ? (student.lmsUserId || studentId) : (UUID_TO_LMS[studentId] || studentId);
+    const results = examData[key] || examData[studentId];
     if (!results) {
       return sendError(res, 404, `Không tìm thấy kết quả thi của thí sinh ${studentId}`);
     }
@@ -431,7 +433,9 @@ async function requestHandler(req, res) {
   const pmInternMatch = pathname.match(/^\/pm\/students\/([^\/]+)\/internships$/);
   if (method === 'GET' && pmInternMatch) {
     const studentId = pmInternMatch[1];
-    const internships = pmData.internships[studentId];
+    const student = resolveStudent(studentId);
+    const key = student ? (student.lmsUserId || studentId) : (UUID_TO_LMS[studentId] || studentId);
+    const internships = pmData.internships ? (pmData.internships[key] || pmData.internships[studentId]) : null;
     if (!internships) {
       return sendError(res, 404, `Không tìm thấy lịch sử thực tập IOC của ứng viên ${studentId}`);
     }
@@ -656,10 +660,51 @@ async function requestHandler(req, res) {
   if (method === 'GET' && profileEvaluationsMatch) {
     const targetId = profileEvaluationsMatch[1];
     if (targetId === 'me') {
-      return sendJson(res, 200, evaluationsData);
+      return sendJson(res, 200, { success: true, statusCode: 200, message: "OK", data: evaluationsData });
     }
     const matched = evaluationsData.filter(e => e.userId === targetId || e.candidateId === targetId);
-    return sendJson(res, 200, matched.length > 0 ? matched : evaluationsData);
+    return sendJson(res, 200, { success: true, statusCode: 200, message: "OK", data: matched.length > 0 ? matched : evaluationsData });
+  }
+
+  // 1.25.1 GET /api/v1/me/self-assessment/template
+  if (method === 'GET' && (pathname === '/api/v1/me/self-assessment/template' || pathname === '/me/self-assessment/template')) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      data: {
+        templateId: "tpl-default-01",
+        name: "Khung năng lực tự đánh giá chuẩn Rikkei",
+        skills: [
+          { skillId: "sk-01", skillName: "REST API", description: "Thiết kế và triển khai RESTful API chuẩn" },
+          { skillId: "sk-02", skillName: "Git", description: "Quản lý mã nguồn với Git & GitHub" },
+          { skillId: "sk-03", skillName: "React", description: "Xây dựng ứng dụng frontend với ReactJS" },
+          { skillId: "sk-04", skillName: "SQL", description: "Truy vấn và thiết kế cơ sở dữ liệu quan hệ" }
+        ]
+      }
+    });
+  }
+
+  // 1.25.2 POST /api/v1/me/self-assessments
+  if (method === 'POST' && (pathname === '/api/v1/me/self-assessments' || pathname === '/me/self-assessments')) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: "Gửi bản tự đánh giá thành công"
+    });
+  }
+
+  // 1.25.3 GET /api/v1/me/skill-comparison
+  if (method === 'GET' && (pathname === '/api/v1/me/skill-comparison' || pathname === '/me/skill-comparison')) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      data: [
+        { skillId: "sk-01", skillName: "REST API", measured: 74, self: 80, gap: 6, flag: "NORMAL" },
+        { skillId: "sk-02", skillName: "Git", measured: 82, self: 85, gap: 3, flag: "NORMAL" },
+        { skillId: "sk-03", skillName: "React", measured: 70, self: 88, gap: 18, flag: "OVERRATED" },
+        { skillId: "sk-04", skillName: "SQL", measured: 65, self: 60, gap: -5, flag: "UNDERRATED" }
+      ]
+    });
   }
 
   // 1.26 GET /api/v1/profiles/:userId/portfolio & /profiles/me/portfolio
