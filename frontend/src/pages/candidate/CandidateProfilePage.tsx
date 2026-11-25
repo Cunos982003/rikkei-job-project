@@ -262,11 +262,17 @@ export function CandidateProfilePage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: portfolioData, isLoading: portfolioLoading } = useQuery({
+  const {
+    data: portfolioData,
+    isLoading: portfolioLoading,
+    isError: portfolioError,
+    refetch: refetchPortfolio,
+  } = useQuery({
     queryKey: ["myPortfolio", user?.id],
     queryFn: () => profileApi.getMyPortfolio(),
     enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 
   const { data: employmentRecordsData } = useQuery({
@@ -279,14 +285,27 @@ export function CandidateProfilePage() {
   useEffect(() => {
     const p = profileData?.data;
     if (p) {
-      setProfileForm({
-        phone: p.phone ?? "",
-        dob: p.dob ?? "",
-        gender: p.gender ?? "",
-        address: p.address ?? "",
-        avatarUrl: p.avatarUrl ?? "",
-        headline: p.headline ?? "",
-        summary: p.summary ?? "",
+      setProfileForm((prev) => {
+        if (
+          prev.phone === (p.phone ?? "") &&
+          prev.dob === (p.dob ?? "") &&
+          prev.gender === (p.gender ?? "") &&
+          prev.address === (p.address ?? "") &&
+          prev.avatarUrl === (p.avatarUrl ?? "") &&
+          prev.headline === (p.headline ?? "") &&
+          prev.summary === (p.summary ?? "")
+        ) {
+          return prev;
+        }
+        return {
+          phone: p.phone ?? "",
+          dob: p.dob ?? "",
+          gender: p.gender ?? "",
+          address: p.address ?? "",
+          avatarUrl: p.avatarUrl ?? "",
+          headline: p.headline ?? "",
+          summary: p.summary ?? "",
+        };
       });
     }
   }, [profileData]);
@@ -1319,8 +1338,32 @@ export function CandidateProfilePage() {
                     </div>
                 )}
 
+                {/* Error State */}
+                {!portfolioLoading && portfolioError && (
+                    <div className="flex flex-col items-center justify-center py-12 px-4 border border-dashed border-amber-300 bg-amber-50/60 rounded-2xl text-center">
+                      <div className="p-3 bg-amber-100 rounded-full mb-3 text-amber-600">
+                        <AlertCircle className="h-6 w-6" />
+                      </div>
+                      <h3 className="font-semibold text-foreground text-base">
+                        Chưa thể tải dữ liệu Portfolio
+                      </h3>
+                      <p className="text-sm text-muted mt-1 max-w-md">
+                        Hệ thống đang gặp sự cố khi tải danh sách dự án. Vui lòng kiểm tra lại dịch vụ hoặc thử lại.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void refetchPortfolio()}
+                        className="mt-4 gap-2 border-amber-300 text-amber-800 hover:bg-amber-100"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Thử lại
+                      </Button>
+                    </div>
+                )}
+
                 {/* Empty State */}
-                {!portfolioLoading && portfolio.length === 0 && (
+                {!portfolioLoading && !portfolioError && portfolio.length === 0 && (
                     <Card className="border-dashed border-primary/20 bg-primary/5">
                       <CardContent className="py-16 text-center">
                         <div className="mx-auto mb-4 p-4 rounded-full bg-primary/10 w-20 h-20 flex items-center justify-center">

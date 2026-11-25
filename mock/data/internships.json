@@ -1,0 +1,56 @@
+[
+  {
+    "id": "int-1",
+    "candidateName": "Nguyễn Văn A",
+    "batchName": "Đợt thực tập Java K20",
+    "mentorEmail": "mentor1@rikkeijobs.test",
+    "acceptedTasksCount": 8,
+    "currentScore": 8.5,
+    "status": "ACTIVE"
+  },
+  {
+    "id": "int-2",
+    "candidateName": "Trần Thị B",
+    "batchName": "Đợt thực tập Java K20",
+    "mentorEmail": "mentor2@rikkeijobs.test",
+    "acceptedTasksCount": 10,
+    "currentScore": 9.0,
+    "status": "ACTIVE"
+  },
+  {
+    "id": "int-3",
+    "candidateName": "Lê Hoàng Cường",
+    "batchName": "Đợt thực tập Frontend K21",
+    "mentorEmail": "mentor3@rikkeijobs.test",
+    "acceptedTasksCount": 6,
+    "currentScore": 7.8,
+    "status": "ACTIVE"
+  },
+  {
+    "id": "int-4",
+    "candidateName": "Phạm Minh Dũng",
+    "batchName": "Đợt thực tập Frontend K21",
+    "mentorEmail": "mentor1@rikkeijobs.test",
+    "acceptedTasksCount": 5,
+    "currentScore": 7.0,
+    "status": "WARNING"
+  },
+  {
+    "id": "int-5",
+    "candidateName": "Vũ Thị Hương",
+    "batchName": "Đợt thực tập DevOps K20",
+    "mentorEmail": "mentor2@rikkeijobs.test",
+    "acceptedTasksCount": 9,
+    "currentScore": 8.8,
+    "status": "ACTIVE"
+  },
+  {
+    "id": "int-6",
+    "candidateName": "Hoàng Anh Tuấn",
+    "batchName": "Đợt thực tập DevOps K20",
+    "mentorEmail": "mentor4@rikkeijobs.test",
+    "acceptedTasksCount": 7,
+    "currentScore": 8.2,
+    "status": "ACTIVE"
+  }
+]

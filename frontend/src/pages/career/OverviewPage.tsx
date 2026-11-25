@@ -3,7 +3,8 @@ import { lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge } from '../../components/common/Badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/common/Card'
-import { ChartLoading, EmptyRecommendations, formatScore, getSkillGaps, MetricCard, PageIntro, RecommendationCard, RequestState, useCareerData } from '../../features/career/components/CareerShared'
+import { ChartLoading, EmptyRecommendations, MetricCard, PageIntro, RecommendationCard, RequestState } from '../../features/career/components/CareerShared'
+import { formatScore, getSkillGaps, useCareerData } from '../../features/career/careerUtils'
 
 const ScoreChart = lazy(() => import('../../features/career/charts').then((module) => ({ default: module.ScoreChart })))
 

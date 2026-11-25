@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -126,6 +126,7 @@ export function RecruitmentDetailPage() {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const isHr = user?.role === "HR";
+  const minDateTime = useMemo(() => toLocal(), []);
 
   const handleBack = () => {
     if (location.state && (location.state as any).from) {
@@ -953,7 +954,7 @@ export function RecruitmentDetailPage() {
                     <Input
                       label="Hạn ứng viên trả lời *"
                       type="datetime-local"
-                      min={toLocal(new Date())}
+                      min={minDateTime}
                       value={offerDeadline}
                       onChange={(e) => setOfferDeadline(e.target.value)}
                       required
@@ -1123,7 +1124,7 @@ export function RecruitmentDetailPage() {
           <Input
             label="Thời gian dự kiến"
             type="datetime-local"
-            min={toLocal(new Date())}
+            min={minDateTime}
             value={newRoundDate}
             onChange={(e) => setNewRoundDate(e.target.value)}
           />
@@ -1245,7 +1246,7 @@ export function RecruitmentDetailPage() {
                   <Input
                     label={`Khung #${index + 1} — Bắt đầu *`}
                     type="datetime-local"
-                    min={toLocal(new Date())}
+                    min={minDateTime}
                     value={slot.startAt}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -1262,7 +1263,7 @@ export function RecruitmentDetailPage() {
                   <Input
                     label="Kết thúc *"
                     type="datetime-local"
-                    min={slot.startAt || toLocal(new Date())}
+                    min={slot.startAt || minDateTime}
                     value={slot.endAt}
                     onChange={(e) => {
                       const val = e.target.value;

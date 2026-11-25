@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -54,7 +54,7 @@ const getRoleHomePath = (role: string): string => {
       return "/admin/skills";
     case "CANDIDATE":
     default:
-      return "/candidate/profile";
+      return "/candidate/jobs";
   }
 };
 
@@ -86,7 +86,7 @@ export function LoginPage() {
 
   const emailValue = watch("email");
 
-  const handleRedirectAfterLogin = (role: string) => {
+  const handleRedirectAfterLogin = useCallback((role: string) => {
     // Đợi microtask để auth store cập nhật xong (token, userId, user role)
     setTimeout(() => {
       const fromPath = (location.state as { from?: { pathname: string } })?.from?.pathname;
@@ -98,7 +98,7 @@ export function LoginPage() {
         navigate(getRoleHomePath(role), { replace: true });
       }
     }, 0);
-  };
+  }, [location.state, navigate]);
 
   // Tự động nhận diện vé SSO và tham số auto=true khi chuyển hướng từ Cổng LMS (:9000)
   useEffect(() => {
@@ -143,7 +143,7 @@ export function LoginPage() {
           });
       }
     }
-  }, [location.search]);
+  }, [location.search, handleRedirectAfterLogin, ssoLogin]);
 
   const onSubmit = async (values: LoginFormValues) => {
     setIsSubmitting(true);
