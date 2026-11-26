@@ -30,7 +30,7 @@ import {
   CheckCircle2,
   Gift,
   RefreshCw,
-  Image,
+  Image as ImageIcon, // Đổi tên để tránh xung đột với DOM Image
   Upload,
   Eye,
   EyeOff,
@@ -38,10 +38,8 @@ import {
   Link2,
   Calendar,
   Code2,
-  History,
 } from "lucide-react";
 import { offersApi } from "../../api/endpoints/offers.api";
-import { candidateKeys } from "../../api/queryKeys";
 import {
   profileApi,
   type CandidateProfile,
@@ -55,7 +53,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { VisibilitySection } from "../../features/profile/components/VisibilitySection";
 // BỔ SUNG: Import component DG-03
 import { OverallCompetencyBlock } from "../../features/profile/components/OverallCompetencyBlock";
-import { CandidateContactAccessLogs } from "../../components/candidate/CandidateContactAccessLogs";
+// BỔ SUNG: Import component TT-03
+import { InternshipBlock } from "../../features/profile/components/InternshipBlock";
 
 const VN_PHONE_REGEX = /^(03|05|07|08|09)[0-9]{8}$/;
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -85,12 +84,12 @@ interface MediaDropzoneProps {
 }
 
 function MediaDropzone({
-  projectId,
-  isIOC,
-  isUploading,
-  currentMediaCount,
-  onUpload,
-}: MediaDropzoneProps) {
+                         projectId,
+                         isIOC,
+                         isUploading,
+                         currentMediaCount,
+                         onUpload,
+                       }: MediaDropzoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -127,57 +126,57 @@ function MediaDropzone({
 
   if (isIOC) {
     return (
-      <div className="aspect-square rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-slate-50/50 min-h-[160px]">
-        <div className="text-center text-muted px-4">
-          <Image className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">Dự án IOC không hỗ trợ tải ảnh</p>
+        <div className="aspect-square rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-slate-50/50 min-h-[160px]">
+          <div className="text-center text-muted px-4">
+            <ImageIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">Dự án IOC không hỗ trợ tải ảnh</p>
+          </div>
         </div>
-      </div>
     );
   }
 
   return (
-    <div
-      className={cn(
-        "aspect-square rounded-xl border-2 border-dashed flex items-center justify-center bg-slate-50/50 min-h-[160px] cursor-pointer transition-all",
-        isDragOver && "border-primary bg-primary/5",
-        !isDragOver && "border-border hover:border-primary/50 hover:bg-primary/5"
-      )}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      onClick={handleClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          handleClick();
-        }
-      }}
-    >
-      <div className="text-center px-4 py-8">
-        <div className={cn(
-          "mx-auto mb-3 transition-transform",
-          isDragOver && "scale-110 text-primary",
-          !isDragOver && "text-muted"
-        )}>
-          <Upload className="h-10 w-10" />
+      <div
+          className={cn(
+              "aspect-square rounded-xl border-2 border-dashed flex items-center justify-center bg-slate-50/50 min-h-[160px] cursor-pointer transition-all",
+              isDragOver && "border-primary bg-primary/5",
+              !isDragOver && "border-border hover:border-primary/50 hover:bg-primary/5"
+          )}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={handleClick}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handleClick();
+            }
+          }}
+      >
+        <div className="text-center px-4 py-8">
+          <div className={cn(
+              "mx-auto mb-3 transition-transform",
+              isDragOver && "scale-110 text-primary",
+              !isDragOver && "text-muted"
+          )}>
+            <Upload className="h-10 w-10" />
+          </div>
+          <p className="text-sm font-medium text-foreground whitespace-nowrap">
+            Kéo thả hoặc click để tải ảnh
+          </p>
+          <p className="text-xs text-muted mt-1">JPG, PNG — tối đa 5MB</p>
+          {currentMediaCount > 0 && (
+              <p className="text-xs text-muted mt-1">Đã có {currentMediaCount}/6 ảnh</p>
+          )}
         </div>
-        <p className="text-sm font-medium text-foreground whitespace-nowrap">
-          Kéo thả hoặc click để tải ảnh
-        </p>
-        <p className="text-xs text-muted mt-1">JPG, PNG — tối đa 5MB</p>
-        {currentMediaCount > 0 && (
-          <p className="text-xs text-muted mt-1">Đã có {currentMediaCount}/6 ảnh</p>
-        )}
       </div>
-    </div>
   );
 }
 
 export function CandidateProfilePage() {
-  const { user, isCandidate, updateUser } = useAuthStore();
+  const { user, isCandidate } = useAuthStore();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -187,7 +186,7 @@ export function CandidateProfilePage() {
     }
   }, [isCandidate, navigate]);
 
-  const [activeTab, setActiveTab] = useState<"info" | "education" | "certificate" | "skills" | "portfolio" | "contact-logs">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "education" | "certificate" | "skills" | "portfolio">("info");
 
   const [isEducationModalOpen, setIsEducationModalOpen] = useState(false);
   const [editingEducation, setEditingEducation] = useState<EducationItem | null>(null);
@@ -236,7 +235,7 @@ export function CandidateProfilePage() {
     error: profileError,
     refetch: refetchProfile,
   } = useQuery({
-    queryKey: candidateKeys.profile.detail(user?.id),
+    queryKey: ["myProfile", user?.id],
     queryFn: () => profileApi.getMyProfile(),
     enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
@@ -244,21 +243,21 @@ export function CandidateProfilePage() {
   });
 
   const { data: educationsData, isLoading: educationsLoading } = useQuery({
-    queryKey: candidateKeys.profile.educations(user?.id),
+    queryKey: ["myEducations", user?.id],
     queryFn: () => profileApi.getEducations(),
     enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: certificatesData, isLoading: certificatesLoading } = useQuery({
-    queryKey: candidateKeys.profile.certificates(user?.id),
+    queryKey: ["myCertificates", user?.id],
     queryFn: () => profileApi.getCertificates(),
     enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: skillsData, isLoading: skillsLoading } = useQuery({
-    queryKey: candidateKeys.skills.byUser(user?.id),
+    queryKey: ["mySkills", user?.id],
     queryFn: () => profileApi.getMySkills(),
     staleTime: 5 * 60 * 1000,
   });
@@ -269,7 +268,7 @@ export function CandidateProfilePage() {
     isError: portfolioError,
     refetch: refetchPortfolio,
   } = useQuery({
-    queryKey: candidateKeys.profile.portfolio(user?.id),
+    queryKey: ["myPortfolio", user?.id],
     queryFn: () => profileApi.getMyPortfolio(),
     enabled: Boolean(user?.id),
     staleTime: 5 * 60 * 1000,
@@ -277,7 +276,7 @@ export function CandidateProfilePage() {
   });
 
   const { data: employmentRecordsData } = useQuery({
-    queryKey: candidateKeys.profile.employment(user?.id),
+    queryKey: ["myEmploymentRecords", user?.id],
     queryFn: () => offersApi.listMyEmploymentRecords(),
     staleTime: 60 * 1000,
   });
@@ -286,23 +285,15 @@ export function CandidateProfilePage() {
   useEffect(() => {
     const p = profileData?.data;
     if (p) {
-      // Đồng bộ avatar / fullName sang user authStore nếu authStore khác hoặc chưa có
-      if (p.avatarUrl && p.avatarUrl !== user?.avatarUrl) {
-        updateUser({ avatarUrl: p.avatarUrl });
-      }
-      if (p.fullName && p.fullName !== user?.fullName) {
-        updateUser({ fullName: p.fullName });
-      }
-
       setProfileForm((prev) => {
         if (
-          prev.phone === (p.phone ?? "") &&
-          prev.dob === (p.dob ?? "") &&
-          prev.gender === (p.gender ?? "") &&
-          prev.address === (p.address ?? "") &&
-          prev.avatarUrl === (p.avatarUrl ?? "") &&
-          prev.headline === (p.headline ?? "") &&
-          prev.summary === (p.summary ?? "")
+            prev.phone === (p.phone ?? "") &&
+            prev.dob === (p.dob ?? "") &&
+            prev.gender === (p.gender ?? "") &&
+            prev.address === (p.address ?? "") &&
+            prev.avatarUrl === (p.avatarUrl ?? "") &&
+            prev.headline === (p.headline ?? "") &&
+            prev.summary === (p.summary ?? "")
         ) {
           return prev;
         }
@@ -317,35 +308,21 @@ export function CandidateProfilePage() {
         };
       });
     }
-  }, [profileData, user?.avatarUrl, user?.fullName, updateUser]);
+  }, [profileData]);
 
   // ========== Mutations ==========
 
   const updateProfileMutation = useMutation({
     mutationFn: (data: Partial<CandidateProfile>) => profileApi.updateMyProfile(data),
-    onSuccess: (res, variables) => {
-      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.all() });
-      // Cập nhật ngay avatarUrl và fullName vào AuthStore để thanh Header cập nhật tức thì
-      const patch: { avatarUrl?: string; fullName?: string } = {};
-      if (variables.avatarUrl !== undefined) {
-        patch.avatarUrl = variables.avatarUrl;
-      }
-      if (res?.data?.avatarUrl) {
-        patch.avatarUrl = res.data.avatarUrl;
-      }
-      if (res?.data?.fullName) {
-        patch.fullName = res.data.fullName;
-      }
-      if (Object.keys(patch).length > 0) {
-        updateUser(patch);
-      }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["myProfile"] });
     },
   });
 
   const createEducationMutation = useMutation({
     mutationFn: (data: EducationItem) => profileApi.createEducation(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.educations() });
+      queryClient.invalidateQueries({ queryKey: ["myEducations"] });
       closeEducationModal();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -357,7 +334,7 @@ export function CandidateProfilePage() {
     mutationFn: ({ id, data }: { id: string; data: EducationItem }) =>
         profileApi.updateEducation(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.educations() });
+      queryClient.invalidateQueries({ queryKey: ["myEducations"] });
       closeEducationModal();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -367,13 +344,13 @@ export function CandidateProfilePage() {
 
   const deleteEducationMutation = useMutation({
     mutationFn: (id: string) => profileApi.deleteEducation(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: candidateKeys.profile.educations() }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["myEducations"] }),
   });
 
   const createCertificateMutation = useMutation({
     mutationFn: (data: CertificateItem) => profileApi.createCertificate(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.certificates() });
+      queryClient.invalidateQueries({ queryKey: ["myCertificates"] });
       closeCertificateModal();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -385,7 +362,7 @@ export function CandidateProfilePage() {
     mutationFn: ({ id, data }: { id: string; data: CertificateItem }) =>
         profileApi.updateCertificate(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.certificates() });
+      queryClient.invalidateQueries({ queryKey: ["myCertificates"] });
       closeCertificateModal();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -395,16 +372,14 @@ export function CandidateProfilePage() {
 
   const deleteCertificateMutation = useMutation({
     mutationFn: (id: string) => profileApi.deleteCertificate(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: candidateKeys.profile.certificates() }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["myCertificates"] }),
   });
 
   const upsertSelfSkillsMutation = useMutation({
     mutationFn: (skills: { skillId: string; selfScore: number }[]) =>
         profileApi.upsertSelfSkills(skills),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: candidateKeys.skills.all() });
-      queryClient.invalidateQueries({ queryKey: candidateKeys.learning.all() });
-      queryClient.invalidateQueries({ queryKey: candidateKeys.career.all() });
+      queryClient.invalidateQueries({ queryKey: ["mySkills"] });
       setIsSkillModalOpen(false);
       setEditingSkill(null);
     },
@@ -414,7 +389,7 @@ export function CandidateProfilePage() {
   const createProjectMutation = useMutation({
     mutationFn: (data: CreatePortfolioProjectRequest) => profileApi.createPortfolioProject(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.portfolio() });
+      queryClient.invalidateQueries({ queryKey: ["myPortfolio"] });
       closeProjectModal();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -426,7 +401,7 @@ export function CandidateProfilePage() {
     mutationFn: ({ projectId, data }: { projectId: string; data: UpdatePortfolioProjectRequest }) =>
         profileApi.updatePortfolioProject(projectId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.portfolio() });
+      queryClient.invalidateQueries({ queryKey: ["myPortfolio"] });
       closeProjectModal();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -436,7 +411,7 @@ export function CandidateProfilePage() {
 
   const deleteProjectMutation = useMutation({
     mutationFn: (projectId: string) => profileApi.deletePortfolioProject(projectId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: candidateKeys.profile.portfolio() }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["myPortfolio"] }),
     onError: (error: { response?: { data?: { message?: string } } }) => {
       setErrors({ form: error?.response?.data?.message || "Xóa dự án portfolio thất bại" });
     },
@@ -445,7 +420,7 @@ export function CandidateProfilePage() {
   const uploadMediaMutation = useMutation({
     mutationFn: ({ projectId, file }: { projectId: string; file: File }) => profileApi.uploadPortfolioMedia(projectId, file),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.portfolio() });
+      queryClient.invalidateQueries({ queryKey: ["myPortfolio"] });
       setUploadingMedia(null);
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -457,7 +432,7 @@ export function CandidateProfilePage() {
   const deleteMediaMutation = useMutation({
     mutationFn: ({ projectId, mediaId }: { projectId: string; mediaId: string }) =>
         profileApi.deletePortfolioMedia(projectId, mediaId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: candidateKeys.profile.portfolio() }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["myPortfolio"] }),
   });
 
   // ========== Handlers ==========
@@ -767,31 +742,31 @@ export function CandidateProfilePage() {
 
   if (profileError && !profileData?.data) {
     return (
-      <div className="text-center py-12 p-6 rounded-2xl border border-dashed border-border bg-surface max-w-md mx-auto my-12 shadow-xs">
-        <AlertCircle className="h-12 w-12 text-rose-500 mx-auto mb-3" />
-        <h3 className="text-base font-bold text-foreground">Không thể kết nối đến máy chủ hồ sơ</h3>
-        <p className="text-muted text-xs mt-1 leading-relaxed">
-          Dịch vụ hồ sơ tạm thời chưa phản hồi hoặc đang trong quá trình khởi động. Vui lòng thử lại sau ít giây.
-        </p>
-        <div className="pt-4 flex justify-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetchProfile()}
-            leftIcon={<RefreshCw className="h-4 w-4" />}
-          >
-            Thử tải lại
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => navigate("/candidate/jobs")}
-            leftIcon={<Briefcase className="h-4 w-4" />}
-          >
-            Xem việc làm
-          </Button>
+        <div className="text-center py-12 p-6 rounded-2xl border border-dashed border-border bg-surface max-w-md mx-auto my-12 shadow-xs">
+          <AlertCircle className="h-12 w-12 text-rose-500 mx-auto mb-3" />
+          <h3 className="text-base font-bold text-foreground">Không thể kết nối đến máy chủ hồ sơ</h3>
+          <p className="text-muted text-xs mt-1 leading-relaxed">
+            Dịch vụ hồ sơ tạm thời chưa phản hồi hoặc đang trong quá trình khởi động. Vui lòng thử lại sau ít giây.
+          </p>
+          <div className="pt-4 flex justify-center gap-3">
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchProfile()}
+                leftIcon={<RefreshCw className="h-4 w-4" />}
+            >
+              Thử tải lại
+            </Button>
+            <Button
+                variant="primary"
+                size="sm"
+                onClick={() => navigate("/candidate/jobs")}
+                leftIcon={<Briefcase className="h-4 w-4" />}
+            >
+              Xem việc làm
+            </Button>
+          </div>
         </div>
-      </div>
     );
   }
 
@@ -807,7 +782,6 @@ export function CandidateProfilePage() {
     { id: "certificate", label: "Chứng chỉ", icon: FileText },
     { id: "skills", label: "Kỹ năng", icon: Star },
     { id: "portfolio", label: "Portfolio", icon: Briefcase },
-    { id: "contact-logs", label: "Nhật ký liên hệ", icon: History },
   ] as const;
 
   return (
@@ -897,6 +871,9 @@ export function CandidateProfilePage() {
                     <Input label="Tên khóa học" value={profile?.courseName ?? ""} disabled leftIcon={<BookOpen className="h-4 w-4" />} hint="Đồng bộ từ LMS" />
                   </CardContent>
                 </Card>
+
+                {/* BỔ SUNG TT-03: Khối Thực tập IOC */}
+                <InternshipBlock userId={user?.id} />
 
                 {/* [UT-07] Kinh nghiệm nhận việc từ Offer */}
                 <Card>
@@ -1321,7 +1298,7 @@ export function CandidateProfilePage() {
                         <strong className="text-foreground">{portfolio.length}</strong> dự án
                       </span>
                       <span className="flex items-center gap-1">
-                        <Image className="h-4 w-4" />
+                        <ImageIcon className="h-4 w-4" />
                         <strong className="text-foreground">
                           {portfolio.reduce((acc, p) => acc + (p.media?.length || 0), 0)}
                         </strong> ảnh
@@ -1376,10 +1353,10 @@ export function CandidateProfilePage() {
                         Hệ thống đang gặp sự cố khi tải danh sách dự án. Vui lòng kiểm tra lại dịch vụ hoặc thử lại.
                       </p>
                       <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => void refetchPortfolio()}
-                        className="mt-4 gap-2 border-amber-300 text-amber-800 hover:bg-amber-100"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void refetchPortfolio()}
+                          className="mt-4 gap-2 border-amber-300 text-amber-800 hover:bg-amber-100"
                       >
                         <RefreshCw className="h-4 w-4" />
                         Thử lại
@@ -1569,7 +1546,7 @@ export function CandidateProfilePage() {
                               <div className="pt-2">
                                 <div className="flex items-center justify-between mb-2">
                                   <span className="text-xs font-medium text-muted flex items-center gap-1">
-                                    <Image className="h-3.5 w-3.5" />
+                                    <ImageIcon className="h-3.5 w-3.5" />
                                     Ảnh dự án
                                     <span className="text-foreground font-semibold">
                                       {project.media?.length || 0}/6
@@ -1665,11 +1642,11 @@ export function CandidateProfilePage() {
                                     </div>
                                 ) : (
                                     <MediaDropzone
-                                      projectId={project.id}
-                                      isIOC={project.source === "IOC"}
-                                      isUploading={uploadingMedia?.projectId === project.id}
-                                      currentMediaCount={project.media?.length || 0}
-                                      onUpload={handleMediaUpload}
+                                        projectId={project.id}
+                                        isIOC={project.source === "IOC"}
+                                        isUploading={uploadingMedia?.projectId === project.id}
+                                        currentMediaCount={project.media?.length || 0}
+                                        onUpload={handleMediaUpload}
                                     />
                                 )}
                               </div>
@@ -1679,13 +1656,6 @@ export function CandidateProfilePage() {
                     </div>
                 )}
               </div>
-          )}
-
-          {/* ===== Nhật ký liên hệ ===== */}
-          {activeTab === "contact-logs" && (
-            <div className="space-y-6">
-              <CandidateContactAccessLogs />
-            </div>
           )}
 
         </div>
