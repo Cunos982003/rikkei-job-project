@@ -3,8 +3,10 @@ package com.example.profileservice.controller;
 import com.example.profileservice.common.ApiResponse;
 import com.example.profileservice.exception.InvalidFileException;
 import com.example.profileservice.service.FileUploadService;
+import com.example.profileservice.service.MinioFileUploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -12,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.nio.file.Path;
 
 @RestController
@@ -20,6 +23,7 @@ import java.nio.file.Path;
 public class FileController {
 
     private final FileUploadService fileUploadService;
+    private final MinioFileUploadService minioFileUploadService;
 
     public record FileUploadResponse(String url) {}
 
@@ -40,6 +44,14 @@ public class FileController {
         return ResponseEntity.ok()
                 .contentType(mediaTypeFor(storedName))
                 .body(new FileSystemResource(path));
+    }
+
+    @GetMapping("/minio/{storedName}")
+    public ResponseEntity<Resource> downloadFromMinio(@PathVariable String storedName) {
+        InputStream inputStream = minioFileUploadService.getObject("/files/" + storedName);
+        return ResponseEntity.ok()
+                .contentType(mediaTypeFor(storedName))
+                .body(new InputStreamResource(inputStream));
     }
 
     private static MediaType mediaTypeFor(String storedName) {

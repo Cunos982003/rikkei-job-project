@@ -127,10 +127,10 @@ function MediaDropzone({
 
   if (isIOC) {
     return (
-      <div className="aspect-square rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-slate-50/50 min-h-[160px]">
+      <div className="aspect-square rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-slate-50/50 min-h-[100px]">
         <div className="text-center text-muted px-4">
-          <Image className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">Dự án IOC không hỗ trợ tải ảnh</p>
+          <Image className="h-6 w-6 mx-auto mb-1.5 opacity-50" />
+          <p className="text-xs">Dự án IOC không hỗ trợ tải ảnh</p>
         </div>
       </div>
     );
@@ -1413,7 +1413,7 @@ export function CandidateProfilePage() {
 
                 {/* Project Grid */}
                 {!portfolioLoading && portfolio.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                       {portfolio.map((project, index) => (
                           <Card
                               key={project.id}
@@ -1424,29 +1424,29 @@ export function CandidateProfilePage() {
                             <CardContent className="p-5 flex flex-1 flex-col gap-3">
                               {/* Project Header */}
                               <div className="flex flex-col gap-2">
-                                {/* Row 1: Title + Visibility badge */}
-                                <div className="flex items-center justify-between gap-2">
+                                {/* Row 1: Title */}
+                                <div className="flex items-start justify-between gap-2">
                                   <div className="flex items-center gap-2 min-w-0 flex-1">
                                     <h4 className="font-semibold text-foreground truncate min-w-0 group-hover:text-primary transition-colors"
                                         title={project.name}>
                                       {project.name}
                                     </h4>
-                                    {/* Visibility badge - always on same line as title */}
-                                    {project.visible ? (
-                                        <Badge variant="verified" size="sm" showIcon className="gap-1 whitespace-nowrap shrink-0">
-                                          <Eye className="h-2.5 w-2.5" />
-                                          Công khai
-                                        </Badge>
-                                    ) : (
-                                        <Badge variant="outline" size="sm" showIcon className="gap-1 whitespace-nowrap shrink-0">
-                                          <EyeOff className="h-2.5 w-2.5" />
-                                          Riêng tư
-                                        </Badge>
-                                    )}
                                   </div>
+                                  {/* Visibility badge - top right, separate from title */}
+                                  {project.visible ? (
+                                      <Badge variant="verified" size="sm" showIcon className="gap-1 whitespace-nowrap shrink-0 self-start">
+                                        <Eye className="h-2.5 w-2.5" />
+                                        Công khai
+                                      </Badge>
+                                  ) : (
+                                      <Badge variant="outline" size="sm" showIcon className="gap-1 whitespace-nowrap shrink-0 self-start">
+                                        <EyeOff className="h-2.5 w-2.5" />
+                                        Riêng tư
+                                      </Badge>
+                                  )}
                                 </div>
 
-                                {/* Row 2: Role badge (if exists) + Source badge + SourceRef + Actions */}
+                                {/* Row 2: Role + Source badges */}
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     {project.role && (
@@ -1475,7 +1475,7 @@ export function CandidateProfilePage() {
                                         </>
                                     )}
                                   </div>
-                                  {/* Actions - always visible */}
+                                  {/* Actions - always visible, grouped on right */}
                                   {project.source !== "IOC" && (
                                       <div className="flex items-center gap-1 flex-shrink-0">
                                         <Button
@@ -1601,7 +1601,7 @@ export function CandidateProfilePage() {
                                 </div>
 
                                 {(project.media?.length || 0) > 0 ? (
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
                                       {project.media.map((media) => (
                                           <div key={media.id} className="relative group aspect-square rounded-xl overflow-hidden bg-slate-50">
                                             <img
@@ -1610,6 +1610,7 @@ export function CandidateProfilePage() {
                                                 className="w-full h-full object-cover transition-all duration-300 group-hover:scale-105 group-hover:brightness-110"
                                                 loading="lazy"
                                             />
+                                            {/* Overlay with actions - visible on hover, with delete always accessible */}
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex items-end justify-between p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                               <span className="text-xs bg-black/60 text-white px-1.5 py-0.5 rounded">
                                                 #{media.sortOrder + 1}
@@ -1643,6 +1644,23 @@ export function CandidateProfilePage() {
                                                 )}
                                               </div>
                                             </div>
+                                            {/* Always-visible delete button for non-IOC projects (top-right) */}
+                                            {project.source !== "IOC" && (
+                                                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 w-7 bg-rose-500/90 text-white backdrop-blur hover:bg-rose-600 shadow-lg"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          handleDeleteMedia(project.id, media.id);
+                                                        }}
+                                                        title="Xóa ảnh"
+                                                    >
+                                                      <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                            )}
                                             {/* Sort order indicator */}
                                             <div className="absolute top-1 left-1">
                                               <span className="text-[10px] bg-black/50 text-white px-1 py-0.5 rounded">
