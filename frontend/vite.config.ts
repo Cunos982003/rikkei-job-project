@@ -125,17 +125,17 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_MOCK_API_URL || 'http://localhost:9000',
           changeOrigin: true
         },
-        // 5.1. Phân hệ Đào tạo bổ sung LMS -> learning-service (:8089) hoặc API Gateway (:8080)
+        // 5.1. Phân hệ Đào tạo bổ sung LMS -> learning-service (:8089), API Gateway (:8080), hoặc Mock Server (:9000)
         '/api/v1/learning': {
-          target: env.VITE_LEARNING_SERVICE_URL || env.VITE_GATEWAY_URL || 'http://localhost:8089',
+          target: env.VITE_LEARNING_SERVICE_URL || env.VITE_GATEWAY_URL || env.VITE_BACKEND_URL || 'http://localhost:8089',
           changeOrigin: true
         },
         '/api/v1/staff/upskilling': {
-          target: env.VITE_LEARNING_SERVICE_URL || env.VITE_GATEWAY_URL || 'http://localhost:8089',
+          target: env.VITE_LEARNING_SERVICE_URL || env.VITE_GATEWAY_URL || env.VITE_BACKEND_URL || env.VITE_MOCK_API_URL || 'http://localhost:9000',
           changeOrigin: true
         },
         '/staff/upskilling': {
-          target: env.VITE_LEARNING_SERVICE_URL || env.VITE_GATEWAY_URL || 'http://localhost:8089',
+          target: env.VITE_LEARNING_SERVICE_URL || env.VITE_GATEWAY_URL || env.VITE_BACKEND_URL || env.VITE_MOCK_API_URL || 'http://localhost:9000',
           changeOrigin: true
         },
         '/api/v1/hr/interns': {

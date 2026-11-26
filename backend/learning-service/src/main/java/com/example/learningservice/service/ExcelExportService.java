@@ -142,14 +142,21 @@ public class ExcelExportService {
                       <alignment vertical="top" wrapText="1"/>
                     </xf>
                   </cellXfs>
+                  <cellStyles count="1">
+                    <cellStyle name="Normal" xfId="0" builtinId="0"/>
+                  </cellStyles>
                 </styleSheet>
                 """;
     }
 
     private String buildSheet1Xml(List<UpskillingCandidateDto> candidates) {
+        int totalRows = (candidates != null ? candidates.size() : 0) + 1;
         StringBuilder sb = new StringBuilder(4096);
         sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n");
         sb.append("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">\n");
+        sb.append("  <dimension ref=\"A1:K").append(totalRows).append("\"/>\n");
+        sb.append("  <sheetViews><sheetView tabSelected=\"1\" workbookViewId=\"0\"/></sheetViews>\n");
+        sb.append("  <sheetFormatPr defaultRowHeight=\"15\"/>\n");
 
         // Column widths
         sb.append("  <cols>\n");
@@ -276,6 +283,7 @@ public class ExcelExportService {
                 case '>' -> out.append("&gt;");
                 case '"' -> out.append("&quot;");
                 case '\'' -> out.append("&apos;");
+                case '\n' -> out.append("&#10;");
                 default -> out.append(c);
             }
         }

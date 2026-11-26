@@ -69,6 +69,17 @@ export function StaffUpskillingPage() {
         return;
       }
 
+      if (blob.type === "application/json" || blob.type.includes("json")) {
+        const text = await blob.text();
+        try {
+          const errJson = JSON.parse(text);
+          toast.error(errJson.message || "Không thể xuất tệp Excel.");
+        } catch {
+          toast.error("Không thể xuất tệp Excel.");
+        }
+        return;
+      }
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

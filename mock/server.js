@@ -9,6 +9,7 @@ const http = require('http');
 const url = require('url');
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 const { renderLmsPortalHtml } = require('./portal');
 
 const PORT = Number(process.env.PORT || 9000);
@@ -1667,6 +1668,207 @@ async function requestHandler(req, res) {
       });
     }
 
+    function generateOpenXmlXlsx(items) {
+      function crc32(buf) {
+        let table = new Int32Array(256);
+        for (let i = 0; i < 256; i++) {
+          let c = i;
+          for (let k = 0; k < 8; k++) c = ((c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1));
+          table[i] = c;
+        }
+        let crc = -1;
+        for (let i = 0; i < buf.length; i++) {
+          crc = (crc >>> 8) ^ table[(crc ^ buf[i]) & 0xFF];
+        }
+        return (crc ^ (-1)) >>> 0;
+      }
+
+      function createZip(files) {
+        const localHeaders = [];
+        const centralDirs = [];
+        let offset = 0;
+
+        for (const f of files) {
+          const dataBuf = Buffer.isBuffer(f.data) ? f.data : Buffer.from(f.data, 'utf8');
+          const compData = zlib.deflateRawSync(dataBuf);
+          const nameBuf = Buffer.from(f.name, 'utf8');
+          const crc = crc32(dataBuf);
+
+          const localHeader = Buffer.alloc(30 + nameBuf.length);
+          localHeader.writeUInt32LE(0x04034b50, 0);
+          localHeader.writeUInt16LE(20, 4);
+          localHeader.writeUInt16LE(0x0800, 6);
+          localHeader.writeUInt16LE(8, 8);
+          localHeader.writeUInt16LE(0, 10);
+          localHeader.writeUInt16LE(0, 12);
+          localHeader.writeUInt32LE(crc, 14);
+          localHeader.writeUInt32LE(compData.length, 18);
+          localHeader.writeUInt32LE(dataBuf.length, 22);
+          localHeader.writeUInt16LE(nameBuf.length, 26);
+          localHeader.writeUInt16LE(0, 28);
+          nameBuf.copy(localHeader, 30);
+
+          const cdHeader = Buffer.alloc(46 + nameBuf.length);
+          cdHeader.writeUInt32LE(0x02014b50, 0);
+          cdHeader.writeUInt16LE(20, 4);
+          cdHeader.writeUInt16LE(20, 6);
+          cdHeader.writeUInt16LE(0x0800, 8);
+          cdHeader.writeUInt16LE(8, 10);
+          cdHeader.writeUInt16LE(0, 12);
+          cdHeader.writeUInt16LE(0, 14);
+          cdHeader.writeUInt32LE(crc, 16);
+          cdHeader.writeUInt32LE(compData.length, 20);
+          cdHeader.writeUInt32LE(dataBuf.length, 24);
+          cdHeader.writeUInt16LE(nameBuf.length, 28);
+          cdHeader.writeUInt16LE(0, 30);
+          cdHeader.writeUInt16LE(0, 32);
+          cdHeader.writeUInt16LE(0, 34);
+          cdHeader.writeUInt16LE(0, 36);
+          cdHeader.writeUInt32LE(0, 38);
+          cdHeader.writeUInt32LE(offset, 42);
+          nameBuf.copy(cdHeader, 46);
+
+          localHeaders.push(localHeader, compData);
+          centralDirs.push(cdHeader);
+          offset += localHeader.length + compData.length;
+        }
+
+        const cdStart = offset;
+        let cdSize = 0;
+        for (const cd of centralDirs) cdSize += cd.length;
+
+        const eocd = Buffer.alloc(22);
+        eocd.writeUInt32LE(0x06054b50, 0);
+        eocd.writeUInt16LE(0, 4);
+        eocd.writeUInt16LE(0, 6);
+        eocd.writeUInt16LE(files.length, 8);
+        eocd.writeUInt16LE(files.length, 10);
+        eocd.writeUInt32LE(cdSize, 12);
+        eocd.writeUInt32LE(cdStart, 16);
+        eocd.writeUInt16LE(0, 20);
+
+        return Buffer.concat([...localHeaders, ...centralDirs, eocd]);
+      }
+
+      const escapeXml = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+
+      const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`;
+
+      const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+
+      const workbook = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="Dao tao bo sung" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>`;
+
+      const wbRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+
+      const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="2">
+    <font><sz val="11"/><name val="Calibri"/></font>
+    <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+  </fonts>
+  <fills count="3">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF1E3A8A"/><bgColor indexed="64"/></patternFill></fill>
+  </fills>
+  <borders count="2">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top style="thin"><color rgb="FFD1D5DB"/></top><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>
+  </borders>
+  <cellStyleXfs count="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+  </cellStyleXfs>
+  <cellXfs count="3">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
+    </xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1">
+      <alignment vertical="top" wrapText="1"/>
+    </xf>
+  </cellXfs>
+  <cellStyles count="1">
+    <cellStyle name="Normal" xfId="0" builtinId="0"/>
+  </cellStyles>
+</styleSheet>`;
+
+      const totalRows = items.length + 1;
+      const headers = ['STT', 'Họ và tên', 'Email', 'Mã lớp', 'Khoá đào tạo', 'Mục tiêu', 'Kỹ năng còn thiếu', 'Khoá học & Tiến độ', 'Độ sẵn sàng (%)', 'Trạng thái'];
+      let sheetRows = '    <row r="1" ht="28" customHeight="1">\n';
+      headers.forEach((h, idx) => {
+        const colLetter = String.fromCharCode(65 + idx);
+        sheetRows += '      <c r="' + colLetter + '1" s="1" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(h) + '</t></is></c>\n';
+      });
+      sheetRows += '    </row>\n';
+
+      items.forEach((item, i) => {
+        const r = i + 2;
+        const miss = (item.missingSkills || []).map(s => s.skillName + ' (thiếu ' + s.gap + 'đ)').join('; ');
+        const enr = (item.enrollments || []).map(e => e.course + ' (' + e.progress + '% - ' + e.status + ')').join('&#10;');
+        sheetRows += '    <row r="' + r + '">\n';
+        sheetRows += '      <c r="A' + r + '" s="2" t="n"><v>' + (i + 1) + '</v></c>\n';
+        sheetRows += '      <c r="B' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(item.candidate?.fullName) + '</t></is></c>\n';
+        sheetRows += '      <c r="C' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(item.candidate?.email) + '</t></is></c>\n';
+        sheetRows += '      <c r="D' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(item.classCode) + '</t></is></c>\n';
+        sheetRows += '      <c r="E' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(item.courseName) + '</t></is></c>\n';
+        sheetRows += '      <c r="F' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(item.target) + '</t></is></c>\n';
+        sheetRows += '      <c r="G' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(miss) + '</t></is></c>\n';
+        sheetRows += '      <c r="H' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(enr) + '</t></is></c>\n';
+        sheetRows += '      <c r="I' + r + '" s="2" t="n"><v>' + (item.readiness || 0) + '</v></c>\n';
+        sheetRows += '      <c r="J' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(item.status) + '</t></is></c>\n';
+        sheetRows += '    </row>\n';
+      });
+
+      const sheet1 = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <dimension ref="A1:J${totalRows}"/>
+  <sheetViews><sheetView tabSelected="1" workbookViewId="0"/></sheetViews>
+  <sheetFormatPr defaultRowHeight="15"/>
+  <cols>
+    <col min="1" max="1" width="6" customWidth="1"/>
+    <col min="2" max="2" width="22" customWidth="1"/>
+    <col min="3" max="3" width="26" customWidth="1"/>
+    <col min="4" max="4" width="16" customWidth="1"/>
+    <col min="5" max="5" width="34" customWidth="1"/>
+    <col min="6" max="6" width="24" customWidth="1"/>
+    <col min="7" max="7" width="30" customWidth="1"/>
+    <col min="8" max="8" width="40" customWidth="1"/>
+    <col min="9" max="9" width="16" customWidth="1"/>
+    <col min="10" max="10" width="16" customWidth="1"/>
+  </cols>
+  <sheetData>
+${sheetRows}  </sheetData>
+</worksheet>`;
+
+      return createZip([
+        { name: '[Content_Types].xml', data: contentTypes },
+        { name: '_rels/.rels', data: rels },
+        { name: 'xl/workbook.xml', data: workbook },
+        { name: 'xl/_rels/workbook.xml.rels', data: wbRels },
+        { name: 'xl/styles.xml', data: styles },
+        { name: 'xl/worksheets/sheet1.xml', data: sheet1 }
+      ]);
+    }
+
     const mockUpskillingItems = [
       {
         candidate: {
@@ -1812,20 +2014,7 @@ async function requestHandler(req, res) {
     });
 
     if (isStaffUpskillingExport) {
-      const csvRows = [
-        ['STT', 'Ho va ten', 'Email', 'Ma lop', 'Khoa dao tao', 'Muc tieu', 'Do san sang (%)', 'Trang thai'].join(','),
-        ...filtered.map((item, idx) => [
-          idx + 1,
-          `"${item.candidate.fullName}"`,
-          item.candidate.email,
-          item.classCode,
-          `"${item.courseName}"`,
-          `"${item.target}"`,
-          item.readiness,
-          item.status
-        ].join(','))
-      ];
-      const buffer = Buffer.from('\uFEFF' + csvRows.join('\n'), 'utf8');
+      const buffer = generateOpenXmlXlsx(filtered);
       res.writeHead(200, {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': 'attachment; filename="bao-cao-dao-tao-bo-sung-mock.xlsx"',
