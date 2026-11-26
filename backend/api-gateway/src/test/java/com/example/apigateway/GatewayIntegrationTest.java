@@ -125,6 +125,25 @@ class GatewayIntegrationTest {
     }
 
     @Test
+    void actuatorPrometheusAndHealthProbesReturn200WithTags() throws Exception {
+        // 1. /actuator/health/liveness
+        HttpResponse<String> liveness = send("GET", "/actuator/health/liveness", null);
+        assertThat(liveness.statusCode()).isEqualTo(200);
+        assertThat(liveness.body()).contains("\"status\":\"UP\"");
+
+        // 2. /actuator/health/readiness
+        HttpResponse<String> readiness = send("GET", "/actuator/health/readiness", null);
+        assertThat(readiness.statusCode()).isEqualTo(200);
+        assertThat(readiness.body()).contains("\"status\":\"UP\"");
+
+        // 3. /actuator/prometheus
+        HttpResponse<String> prometheus = send("GET", "/actuator/prometheus", null);
+        assertThat(prometheus.statusCode()).isEqualTo(200);
+        assertThat(prometheus.body()).contains("application=\"api-gateway\"");
+        assertThat(prometheus.body()).contains("env=\"");
+    }
+
+    @Test
     void permitsPublicLoginButRejectsMissingInvalidAndExpiredTokensElsewhere() throws Exception {
         assertThat(send("POST", "/api/v1/auth/login", null).statusCode()).isEqualTo(200);
         assertThat(send("POST", "/api/services/job/api/v1/auth/login", null).statusCode()).isEqualTo(200);

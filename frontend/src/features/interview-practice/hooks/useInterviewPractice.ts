@@ -91,14 +91,14 @@ export function useFinishPractice(practiceId: string) {
 export function useDeletePractice() {
   const queryClient = useQueryClient();
 
-  return useMutation<ApiResponse<null>, any, string>({
+  return useMutation<ApiResponse<void>, any, string>({
     mutationFn: (practiceId: string) => interviewPracticeApi.deletePractice(practiceId),
     onSuccess: (res) => {
-      toast.success(res.message || "Đã xóa buổi luyện phỏng vấn!");
+      toast.success(res.message || "Xóa bài luyện phỏng vấn thành công!");
       queryClient.invalidateQueries({ queryKey: INTERVIEW_QUERY_KEYS.all });
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.message || "Không thể xóa buổi luyện phỏng vấn.";
+      const msg = err.response?.data?.message || "Không thể xóa bài phỏng vấn. Vui lòng thử lại.";
       toast.error(msg);
     },
   });

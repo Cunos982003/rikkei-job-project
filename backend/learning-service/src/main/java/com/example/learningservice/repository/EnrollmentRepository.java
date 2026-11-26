@@ -15,6 +15,8 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
 
     List<Enrollment> findByUserId(UUID userId);
 
+    List<Enrollment> findByUserIdIn(Collection<UUID> userIds);
+
     List<Enrollment> findByUserIdOrderByEnrolledAtDesc(UUID userId);
 
     List<Enrollment> findByUserIdAndStatus(UUID userId, EnrollmentStatus status);

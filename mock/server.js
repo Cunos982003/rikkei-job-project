@@ -9,6 +9,7 @@ const http = require('http');
 const url = require('url');
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 const { renderLmsPortalHtml } = require('./portal');
 
 const PORT = Number(process.env.PORT || 9000);
@@ -53,6 +54,7 @@ let savedJobsData = loadData('saved_jobs.json') || {};
 let internshipsData = loadData('internships.json') || [];
 let placementsData = loadData('placements.json') || [];
 let portfolioData = loadData('portfolio.json') || {};
+let notificationsData = loadData('notifications.json') || {};
 const candidateTargets = {};
 
 // Lịch sử duyệt hồ sơ (HS-05), chỉ tồn tại trong bộ nhớ của tiến trình mock
@@ -1145,6 +1147,109 @@ async function requestHandler(req, res) {
     });
   }
 
+  // 6.1. GET /api/v1/notifications & /api/v1/notifications/me (Danh sách thông báo in-app)
+  const isNotificationsRoute = pathname === '/api/v1/notifications' || pathname === '/api/v1/notifications/me' || pathname === '/notifications/me';
+  if (method === 'GET' && isNotificationsRoute) {
+    const key = getCandidateStorageKey(req);
+    const list = notificationsData[key] || notificationsData['ed854c07-f3eb-48f1-a186-4e7135f54645'] || notificationsData['cand-001'] || notificationsData['std-001'] || [];
+    const unreadOnly = parsedUrl.searchParams.get('unreadOnly') === 'true';
+    const filtered = unreadOnly ? list.filter(n => !n.readAt) : list;
+    const page = parseInt(parsedUrl.searchParams.get('page') || '0', 10);
+    const size = parseInt(parsedUrl.searchParams.get('size') || '10', 10);
+    const start = page * size;
+    const items = filtered.slice(start, start + size);
+
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách thông báo thành công',
+      data: {
+        items,
+        pagination: {
+          page,
+          size,
+          totalElements: filtered.length,
+          totalPages: Math.ceil(filtered.length / size) || 1,
+          isFirst: page === 0,
+          isLast: start + size >= filtered.length,
+          hasNext: start + size < filtered.length,
+          hasPrevious: page > 0
+        }
+      }
+    });
+  }
+
+  // 6.2. GET /api/v1/notifications/unread-count (Số lượng thông báo chưa đọc cho chuông)
+  if (method === 'GET' && (pathname === '/api/v1/notifications/unread-count' || pathname === '/notifications/unread-count')) {
+    const key = getCandidateStorageKey(req);
+    const list = notificationsData[key] || notificationsData['ed854c07-f3eb-48f1-a186-4e7135f54645'] || notificationsData['cand-001'] || notificationsData['std-001'] || [];
+    const unreadCount = list.filter(n => !n.readAt).length;
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy số lượng thông báo chưa đọc thành công',
+      data: { unreadCount }
+    });
+  }
+
+  // 6.3. PUT /api/v1/notifications/:id/read (Đánh dấu 1 thông báo đã đọc)
+  const notificationReadMatch = pathname.match(/^\/(?:api\/v1\/)?notifications\/([a-zA-Z0-9-]+)\/read$/);
+  if (method === 'PUT' && notificationReadMatch) {
+    const notifId = notificationReadMatch[1];
+    const key = getCandidateStorageKey(req);
+    const list = notificationsData[key] || notificationsData['ed854c07-f3eb-48f1-a186-4e7135f54645'] || notificationsData['cand-001'] || [];
+    const item = list.find(n => n.id === notifId);
+    if (item) {
+      item.readAt = new Date().toISOString();
+      saveData('notifications.json', notificationsData);
+      return sendJson(res, 200, {
+        success: true,
+        statusCode: 200,
+        message: 'Đánh dấu thông báo đã đọc thành công',
+        data: item
+      });
+    }
+    return sendError(res, 404, 'Không tìm thấy thông báo');
+  }
+
+  // 6.4. PUT /api/v1/notifications/read-all (Đánh dấu tất cả thông báo đã đọc)
+  if (method === 'PUT' && (pathname === '/api/v1/notifications/read-all' || pathname === '/notifications/read-all')) {
+    const key = getCandidateStorageKey(req);
+    const list = notificationsData[key] || notificationsData['ed854c07-f3eb-48f1-a186-4e7135f54645'] || notificationsData['cand-001'] || [];
+    const now = new Date().toISOString();
+    let updatedCount = 0;
+    list.forEach(n => {
+      if (!n.readAt) {
+        n.readAt = now;
+        updatedCount++;
+      }
+    });
+    saveData('notifications.json', notificationsData);
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Đánh dấu tất cả thông báo đã đọc thành công',
+      data: { updatedCount }
+    });
+  }
+
+  // 6.5. DELETE /api/v1/notifications/:id (Xóa thông báo)
+  const notificationDeleteMatch = pathname.match(/^\/(?:api\/v1\/)?notifications\/([a-zA-Z0-9-]+)$/);
+  if (method === 'DELETE' && notificationDeleteMatch) {
+    const notifId = notificationDeleteMatch[1];
+    const key = getCandidateStorageKey(req);
+    if (notificationsData[key]) {
+      notificationsData[key] = notificationsData[key].filter(n => n.id !== notifId);
+      saveData('notifications.json', notificationsData);
+    }
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Xóa thông báo thành công',
+      data: null
+    });
+  }
+
   // 5.4. GET /api/v1/jobs/:id (Chi tiết một tin tuyển dụng)
   const jobDetailMatch = (pathname || '').match(/^(?:\/api\/v1)?\/jobs\/([^/?]+)$/);
   if (method === 'GET' && jobDetailMatch && jobDetailMatch[1] !== 'undefined' && jobDetailMatch[1] !== 'me') {
@@ -1635,6 +1740,415 @@ async function requestHandler(req, res) {
         steps: []
       }
     });
+  }
+
+  // 5.13. DT-04: Cán bộ theo dõi đào tạo bổ sung theo lớp, khoá (/api/v1/staff/upskilling, /summary, /export)
+  const isStaffUpskillingBase = cleanPath === '/api/v1/staff/upskilling' || cleanPath === '/staff/upskilling';
+  const isStaffUpskillingSummary = cleanPath === '/api/v1/staff/upskilling/summary' || cleanPath === '/staff/upskilling/summary';
+  const isStaffUpskillingExport = cleanPath === '/api/v1/staff/upskilling/export' || cleanPath === '/staff/upskilling/export';
+
+  if (method === 'GET' && (isStaffUpskillingBase || isStaffUpskillingSummary || isStaffUpskillingExport)) {
+    const hasAuth = req.headers['authorization'] || req.headers['x-user-id'] || req.headers['x-user-role'];
+    if (!hasAuth) {
+      return sendJson(res, 401, {
+        success: false,
+        statusCode: 401,
+        message: 'Vui lòng đăng nhập với quyền Cán bộ để thực hiện thao tác này.',
+        data: null,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const headerRole = (req.headers['x-user-role'] || '').toUpperCase().replace('ROLE_', '');
+    const reqUser = resolveUserFromRequest(req);
+    const effectiveRole = headerRole || (reqUser && reqUser.role ? reqUser.role.toUpperCase().replace('ROLE_', '') : '');
+    if (effectiveRole !== 'STAFF' && effectiveRole !== 'ADMIN') {
+      return sendJson(res, 403, {
+        success: false,
+        statusCode: 403,
+        message: 'Bạn không có quyền thực hiện thao tác này. Chức năng chỉ dành cho Cán bộ (STAFF).',
+        data: null,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    function generateOpenXmlXlsx(items) {
+      function crc32(buf) {
+        let table = new Int32Array(256);
+        for (let i = 0; i < 256; i++) {
+          let c = i;
+          for (let k = 0; k < 8; k++) c = ((c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1));
+          table[i] = c;
+        }
+        let crc = -1;
+        for (let i = 0; i < buf.length; i++) {
+          crc = (crc >>> 8) ^ table[(crc ^ buf[i]) & 0xFF];
+        }
+        return (crc ^ (-1)) >>> 0;
+      }
+
+      function createZip(files) {
+        const localHeaders = [];
+        const centralDirs = [];
+        let offset = 0;
+
+        for (const f of files) {
+          const dataBuf = Buffer.isBuffer(f.data) ? f.data : Buffer.from(f.data, 'utf8');
+          const compData = zlib.deflateRawSync(dataBuf);
+          const nameBuf = Buffer.from(f.name, 'utf8');
+          const crc = crc32(dataBuf);
+
+          const localHeader = Buffer.alloc(30 + nameBuf.length);
+          localHeader.writeUInt32LE(0x04034b50, 0);
+          localHeader.writeUInt16LE(20, 4);
+          localHeader.writeUInt16LE(0x0800, 6);
+          localHeader.writeUInt16LE(8, 8);
+          localHeader.writeUInt16LE(0, 10);
+          localHeader.writeUInt16LE(0, 12);
+          localHeader.writeUInt32LE(crc, 14);
+          localHeader.writeUInt32LE(compData.length, 18);
+          localHeader.writeUInt32LE(dataBuf.length, 22);
+          localHeader.writeUInt16LE(nameBuf.length, 26);
+          localHeader.writeUInt16LE(0, 28);
+          nameBuf.copy(localHeader, 30);
+
+          const cdHeader = Buffer.alloc(46 + nameBuf.length);
+          cdHeader.writeUInt32LE(0x02014b50, 0);
+          cdHeader.writeUInt16LE(20, 4);
+          cdHeader.writeUInt16LE(20, 6);
+          cdHeader.writeUInt16LE(0x0800, 8);
+          cdHeader.writeUInt16LE(8, 10);
+          cdHeader.writeUInt16LE(0, 12);
+          cdHeader.writeUInt16LE(0, 14);
+          cdHeader.writeUInt32LE(crc, 16);
+          cdHeader.writeUInt32LE(compData.length, 20);
+          cdHeader.writeUInt32LE(dataBuf.length, 24);
+          cdHeader.writeUInt16LE(nameBuf.length, 28);
+          cdHeader.writeUInt16LE(0, 30);
+          cdHeader.writeUInt16LE(0, 32);
+          cdHeader.writeUInt16LE(0, 34);
+          cdHeader.writeUInt16LE(0, 36);
+          cdHeader.writeUInt32LE(0, 38);
+          cdHeader.writeUInt32LE(offset, 42);
+          nameBuf.copy(cdHeader, 46);
+
+          localHeaders.push(localHeader, compData);
+          centralDirs.push(cdHeader);
+          offset += localHeader.length + compData.length;
+        }
+
+        const cdStart = offset;
+        let cdSize = 0;
+        for (const cd of centralDirs) cdSize += cd.length;
+
+        const eocd = Buffer.alloc(22);
+        eocd.writeUInt32LE(0x06054b50, 0);
+        eocd.writeUInt16LE(0, 4);
+        eocd.writeUInt16LE(0, 6);
+        eocd.writeUInt16LE(files.length, 8);
+        eocd.writeUInt16LE(files.length, 10);
+        eocd.writeUInt32LE(cdSize, 12);
+        eocd.writeUInt32LE(cdStart, 16);
+        eocd.writeUInt16LE(0, 20);
+
+        return Buffer.concat([...localHeaders, ...centralDirs, eocd]);
+      }
+
+      const escapeXml = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+
+      const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`;
+
+      const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+
+      const workbook = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="Dao tao bo sung" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>`;
+
+      const wbRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+
+      const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="2">
+    <font><sz val="11"/><name val="Calibri"/></font>
+    <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+  </fonts>
+  <fills count="3">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF1E3A8A"/><bgColor indexed="64"/></patternFill></fill>
+  </fills>
+  <borders count="2">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top style="thin"><color rgb="FFD1D5DB"/></top><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>
+  </borders>
+  <cellStyleXfs count="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+  </cellStyleXfs>
+  <cellXfs count="3">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
+    </xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1">
+      <alignment vertical="top" wrapText="1"/>
+    </xf>
+  </cellXfs>
+  <cellStyles count="1">
+    <cellStyle name="Normal" xfId="0" builtinId="0"/>
+  </cellStyles>
+</styleSheet>`;
+
+      const totalRows = items.length + 1;
+      const headers = ['STT', 'Họ và tên', 'Email', 'Mã lớp', 'Khoá đào tạo', 'Mục tiêu', 'Kỹ năng còn thiếu', 'Khoá học & Tiến độ', 'Độ sẵn sàng (%)', 'Trạng thái'];
+      let sheetRows = '    <row r="1" ht="28" customHeight="1">\n';
+      headers.forEach((h, idx) => {
+        const colLetter = String.fromCharCode(65 + idx);
+        sheetRows += '      <c r="' + colLetter + '1" s="1" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(h) + '</t></is></c>\n';
+      });
+      sheetRows += '    </row>\n';
+
+      items.forEach((item, i) => {
+        const r = i + 2;
+        const miss = (item.missingSkills || []).map(s => s.skillName + ' (thiếu ' + s.gap + 'đ)').join('; ');
+        const enr = (item.enrollments || []).map(e => e.course + ' (' + e.progress + '% - ' + e.status + ')').join('&#10;');
+        sheetRows += '    <row r="' + r + '">\n';
+        sheetRows += '      <c r="A' + r + '" s="2" t="n"><v>' + (i + 1) + '</v></c>\n';
+        sheetRows += '      <c r="B' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(item.candidate?.fullName) + '</t></is></c>\n';
+        sheetRows += '      <c r="C' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(item.candidate?.email) + '</t></is></c>\n';
+        sheetRows += '      <c r="D' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(item.classCode) + '</t></is></c>\n';
+        sheetRows += '      <c r="E' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(item.courseName) + '</t></is></c>\n';
+        sheetRows += '      <c r="F' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(item.target) + '</t></is></c>\n';
+        sheetRows += '      <c r="G' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(miss) + '</t></is></c>\n';
+        sheetRows += '      <c r="H' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(enr) + '</t></is></c>\n';
+        sheetRows += '      <c r="I' + r + '" s="2" t="n"><v>' + (item.readiness || 0) + '</v></c>\n';
+        sheetRows += '      <c r="J' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(item.status) + '</t></is></c>\n';
+        sheetRows += '    </row>\n';
+      });
+
+      const sheet1 = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <dimension ref="A1:J${totalRows}"/>
+  <sheetViews><sheetView tabSelected="1" workbookViewId="0"/></sheetViews>
+  <sheetFormatPr defaultRowHeight="15"/>
+  <cols>
+    <col min="1" max="1" width="6" customWidth="1"/>
+    <col min="2" max="2" width="22" customWidth="1"/>
+    <col min="3" max="3" width="26" customWidth="1"/>
+    <col min="4" max="4" width="16" customWidth="1"/>
+    <col min="5" max="5" width="34" customWidth="1"/>
+    <col min="6" max="6" width="24" customWidth="1"/>
+    <col min="7" max="7" width="30" customWidth="1"/>
+    <col min="8" max="8" width="40" customWidth="1"/>
+    <col min="9" max="9" width="16" customWidth="1"/>
+    <col min="10" max="10" width="16" customWidth="1"/>
+  </cols>
+  <sheetData>
+${sheetRows}  </sheetData>
+</worksheet>`;
+
+      return createZip([
+        { name: '[Content_Types].xml', data: contentTypes },
+        { name: '_rels/.rels', data: rels },
+        { name: 'xl/workbook.xml', data: workbook },
+        { name: 'xl/_rels/workbook.xml.rels', data: wbRels },
+        { name: 'xl/styles.xml', data: styles },
+        { name: 'xl/worksheets/sheet1.xml', data: sheet1 }
+      ]);
+    }
+
+    const mockUpskillingItems = [
+      {
+        candidate: {
+          userId: 'ed854c07-f3eb-48f1-a186-4e7135f54645',
+          fullName: 'Nguyễn Văn An',
+          email: 'candidate1@rikkeijobs.test',
+          phone: '0912345600'
+        },
+        classCode: 'RA-HN-JV-01',
+        courseName: 'Khóa đào tạo Kỹ sư Phần mềm Java Fresher (2026)',
+        target: 'Java Backend Fresher',
+        missingSkills: [
+          { skillId: 'JAVA_CORE', skillName: 'Java Core', required: 80, current: 55, gap: 25, priority: 'HIGH' },
+          { skillId: 'SPRING_BOOT', skillName: 'Spring Boot', required: 80, current: 66, gap: 14, priority: 'MEDIUM' },
+          { skillId: 'SQL', skillName: 'SQL', required: 80, current: 77, gap: 3, priority: 'LOW' }
+        ],
+        enrollments: [
+          { course: 'Lập trình Spring Boot nâng cao & Microservices', progress: 100, score: 80, status: 'COMPLETED' },
+          { course: 'Java Core & Cấu trúc dữ liệu giải thuật', progress: 45, score: null, status: 'IN_PROGRESS' }
+        ],
+        readiness: 68.5,
+        status: 'IN_PROGRESS'
+      },
+      {
+        candidate: {
+          userId: '797c5663-386b-4e96-9112-6d3e414b4449',
+          fullName: 'Trần Thị Bình',
+          email: 'candidate2@rikkeijobs.test',
+          phone: '0912345737'
+        },
+        classCode: 'RA-DN-FE-01',
+        courseName: 'Khóa đào tạo Chuyên viên Frontend React Fresher (2026)',
+        target: 'Frontend ReactJS Fresher',
+        missingSkills: [
+          { skillId: 'REACT', skillName: 'React', required: 80, current: 62, gap: 18, priority: 'MEDIUM' },
+          { skillId: 'TYPESCRIPT', skillName: 'TypeScript', required: 80, current: 73, gap: 7, priority: 'LOW' }
+        ],
+        enrollments: [
+          { course: 'React 19 & Next.js Fullstack Architecture', progress: 100, score: 92, status: 'COMPLETED' },
+          { course: 'TypeScript nâng cao & Design Patterns', progress: 100, score: 88, status: 'COMPLETED' }
+        ],
+        readiness: 100.0,
+        status: 'COMPLETED'
+      },
+      {
+        candidate: {
+          userId: '4a09b051-d7ab-40a5-8322-963ec9ebdbd7',
+          fullName: 'Lê Hoàng Cường',
+          email: 'candidate3@rikkeijobs.test',
+          phone: '0912345874'
+        },
+        classCode: 'RA-SG-FS-01',
+        courseName: 'Khóa đào tạo Kỹ sư Phần mềm Fullstack Web Fresher (2026)',
+        target: 'Fullstack',
+        missingSkills: [
+          { skillId: 'JAVA_CORE', skillName: 'Java Core', required: 80, current: 69, gap: 11, priority: 'MEDIUM' },
+          { skillId: 'REACT', skillName: 'React', required: 80, current: 61, gap: 19, priority: 'MEDIUM' }
+        ],
+        enrollments: [
+          { course: 'Node.js & Express RESTful API', progress: 0, score: null, status: 'ENROLLED' },
+          { course: 'JavaScript ES6+ & TypeScript nền tảng', progress: 61, score: null, status: 'IN_PROGRESS' }
+        ],
+        readiness: 48.0,
+        status: 'IN_PROGRESS'
+      },
+      {
+        candidate: {
+          userId: '6f7d791c-8ef0-4404-ab53-5871eb562621',
+          fullName: 'Đặng Quốc Khánh',
+          email: 'candidate9@rikkeijobs.test',
+          phone: '0912346696'
+        },
+        classCode: 'RA-HN-JV-01',
+        courseName: 'Khóa đào tạo Kỹ sư Phần mềm Java Fresher (2026)',
+        target: 'Java Backend Fresher',
+        missingSkills: [
+          { skillId: 'SPRING_BOOT', skillName: 'Spring Boot', required: 80, current: 62, gap: 18, priority: 'MEDIUM' },
+          { skillId: 'SQL', skillName: 'SQL', required: 80, current: 73, gap: 7, priority: 'LOW' }
+        ],
+        enrollments: [
+          { course: 'Tối ưu hóa CSDL quan hệ PostgreSQL', progress: 84, score: null, status: 'IN_PROGRESS' }
+        ],
+        readiness: 72.0,
+        status: 'IN_PROGRESS'
+      },
+      {
+        candidate: {
+          userId: '1c1cae0c-2691-4876-a05e-e1c133a1f013',
+          fullName: 'Ngô Mai Linh',
+          email: 'candidate10@rikkeijobs.test',
+          phone: '0912346833'
+        },
+        classCode: 'RA-DN-FE-01',
+        courseName: 'Khóa đào tạo Chuyên viên Frontend React Fresher (2026)',
+        target: 'Frontend ReactJS Fresher',
+        missingSkills: [
+          { skillId: 'REACT', skillName: 'React', required: 80, current: 58, gap: 22, priority: 'HIGH' },
+          { skillId: 'TYPESCRIPT', skillName: 'TypeScript', required: 80, current: 69, gap: 11, priority: 'MEDIUM' }
+        ],
+        enrollments: [
+          { course: 'Quản trị CSDL MySQL nâng cao', progress: 100, score: 89, status: 'COMPLETED' },
+          { course: 'Lập trình Frontend với Vue.js 3', progress: 42, score: null, status: 'IN_PROGRESS' }
+        ],
+        readiness: 54.0,
+        status: 'IN_PROGRESS'
+      }
+    ];
+
+    if (isStaffUpskillingSummary) {
+      return sendJson(res, 200, {
+        success: true,
+        statusCode: 200,
+        message: 'Lấy báo cáo tổng hợp đào tạo bổ sung thành công',
+        data: {
+          totalStudying: 18,
+          totalCompleted: 12,
+          inProgressCount: 18,
+          completedCount: 12,
+          topMissingSkills: [
+            { skillId: 'TYPESCRIPT', skillName: 'TypeScript', missingCount: 10, percentage: 25.0 },
+            { skillId: 'JAVA_CORE', skillName: 'Java Core', missingCount: 8, percentage: 20.0 },
+            { skillId: 'REACT', skillName: 'React', missingCount: 7, percentage: 17.5 },
+            { skillId: 'SPRING_BOOT', skillName: 'Spring Boot', missingCount: 7, percentage: 17.5 },
+            { skillId: 'SQL', skillName: 'SQL', missingCount: 5, percentage: 12.5 }
+          ]
+        },
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Lọc theo query params cho cả list & export
+    const qClassCode = (query.classCode || '').trim();
+    const qCourseName = (query.courseName || '').trim().toLowerCase();
+    const qStatus = (query.status || '').trim().toUpperCase();
+    const qSkillId = (query.skillId || '').trim().toUpperCase();
+
+    const filtered = mockUpskillingItems.filter((item) => {
+      if (qClassCode && item.classCode !== qClassCode) return false;
+      if (qCourseName && !item.courseName.toLowerCase().includes(qCourseName)) return false;
+      if (qStatus && item.status !== qStatus && !item.enrollments.some((e) => e.status === qStatus)) return false;
+      if (qSkillId && !item.missingSkills.some((s) => s.skillId.toUpperCase() === qSkillId)) return false;
+      return true;
+    });
+
+    if (isStaffUpskillingExport) {
+      const buffer = generateOpenXmlXlsx(filtered);
+      res.writeHead(200, {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': 'attachment; filename="bao-cao-dao-tao-bo-sung-mock.xlsx"',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Expose-Headers': 'Content-Disposition'
+      });
+      return res.end(buffer);
+    }
+
+    const page = Number(query.page || 0);
+    const size = Number(query.size || 10);
+    const total = filtered.length;
+    const paged = filtered.slice(page * size, page * size + size);
+
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Expose-Headers': 'X-Total-Count, X-Page-Number, X-Page-Size, X-Total-Pages',
+      'X-Total-Count': String(total),
+      'X-Page-Number': String(page),
+      'X-Page-Size': String(size),
+      'X-Total-Pages': String(Math.max(1, Math.ceil(total / size)))
+    });
+    return res.end(JSON.stringify({
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách đào tạo bổ sung thành công',
+      data: paged,
+      timestamp: new Date().toISOString()
+    }, null, 2));
   }
 
   // 5.10 GET /api/v1/hr/interns (Danh sách thực tập sinh của HR)
@@ -2419,6 +2933,28 @@ async function requestHandler(req, res) {
     const candidate = resolveMockActor(req);
     const records = mockEmploymentRecords.filter(e => e.userId === candidate.id);
     return sendJson(res, 200, records);
+  }
+
+  // 5.13 AI Career - DELETE Conversation
+  const convDeleteMatch = (pathname || '').match(/^(?:\/api\/v1)?(?:\/ai-career)?\/me\/conversations\/([^/?]+)$/);
+  if (method === 'DELETE' && convDeleteMatch) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Xóa cuộc trò chuyện thành công',
+      data: null
+    });
+  }
+
+  // 5.14 AI Career - DELETE Interview Practice
+  const practiceDeleteMatch = (pathname || '').match(/^(?:\/api\/v1)?(?:\/ai-career)?\/me\/interview-practices\/([^/?]+)$/);
+  if (method === 'DELETE' && practiceDeleteMatch) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Xóa buổi luyện phỏng vấn thành công',
+      data: null
+    });
   }
 
   // Health check endpoint

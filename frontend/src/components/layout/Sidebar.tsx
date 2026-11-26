@@ -96,6 +96,9 @@ const ROLE_NAV_ITEMS: Record<Role, { groupTitle: string; items: NavItem[] }> = {
       // TT-02: BỔ SUNG NÚT GHÉP THỰC TẬP CHO STAFF
       { title: "Ghép thực tập", path: "/staff/placements", icon: UserCheck },
 
+      // DT-04: ĐÀO TẠO BỔ SUNG THEO LỚP, KHOÁ
+      { title: "Đào tạo bổ sung", path: "/staff/upskilling", icon: GraduationCap },
+
       // NT-05: ĐỒNG BỘ DỮ LIỆU CHO STAFF
       { title: "Đồng bộ dữ liệu", path: "/staff/sync", icon: RefreshCw },
     ],

@@ -25,7 +25,7 @@ public class AiCareerServiceClient {
     public AiCareerServiceClient(
             @Value("${app.integrations.ai-career-service-url}") String baseUrl,
             @Value("${app.integrations.internal-service-token:}") String internalServiceToken) {
-        this(baseUrl, internalServiceToken, RestClient.builder());
+        this(baseUrl, internalServiceToken, RestClient.builder().requestInterceptor(new com.example.common.logging.TracingClientHttpRequestInterceptor()));
     }
 
     AiCareerServiceClient(String baseUrl, String internalServiceToken, RestClient.Builder builder) {

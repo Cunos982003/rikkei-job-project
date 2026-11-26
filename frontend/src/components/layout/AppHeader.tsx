@@ -9,7 +9,6 @@ import {
   Award,
   Gift,
   Heart,
-  Bell,
   LogOut,
   ChevronDown,
   User as UserIcon,
@@ -38,6 +37,7 @@ import { candidateKeys } from "../../api/queryKeys";
 import { candidateJobsApi } from "../../api/endpoints/candidateJobs.api";
 import { jobsApi } from "../../api/endpoints/jobs.api";
 import { ChangePasswordModal } from "../auth/ChangePasswordModal";
+import { NotificationBell } from "../notification/NotificationBell";
 import { cn } from "../../utils/cn";
 import type { Role } from "../../api/endpoints/auth.api";
 
@@ -374,6 +374,12 @@ const ROLE_NAV_CONFIGS: Record<Role, RoleConfig> = {
             description: "Ghép nối sinh viên thực tập vào các doanh nghiệp",
             path: "/staff/placements",
             icon: UserCheck,
+          },
+          {
+            title: "Đào tạo bổ sung",
+            description: "Theo dõi tiến độ học bổ sung theo lớp, khoá",
+            path: "/staff/upskilling",
+            icon: GraduationCap,
           },
           {
             title: "Đồng bộ dữ liệu LMS/EXAM/PM",
@@ -753,14 +759,7 @@ export function AppHeader() {
           )}
 
           {/* Chuông thông báo */}
-          <button
-            type="button"
-            aria-label="Thông báo hệ thống"
-            className="relative p-2 text-muted hover:text-foreground hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-          >
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary" />
-          </button>
+          <NotificationBell />
 
           {/* User Account Dropdown */}
           {isAuthenticated && user ? (

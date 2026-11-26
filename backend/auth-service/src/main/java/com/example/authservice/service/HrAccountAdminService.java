@@ -91,10 +91,7 @@ public class HrAccountAdminService {
 
         User saved = userRepository.save(user);
 
-        log.info("==================================================");
-        log.info("🔑 CẤP TÀI KHOẢN HR THÀNH CÔNG CHO: {}", email);
-        log.info("👉 Mật khẩu ngẫu nhiên tạm thời: {}", temporaryPassword);
-        log.info("==================================================");
+        log.info("Cấp tài khoản HR thành công cho userId: {}", saved.getId());
 
         boolean emailConfigured = mailSenderProvider.getIfAvailable() != null;
         if (emailConfigured) {

@@ -295,9 +295,49 @@ services:
       - localstackdata:/var/lib/localstack
     restart: unless-stopped
 
+  # Centralized Logging — Loki (:3100) & Promtail (:9080) (OBS-PLAT-02 / OBS-PLAT-03)
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: rikkei_loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/local-config.yaml
+      - lokidata:/tmp/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    container_name: rikkei_promtail
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/config.yml
+      - shared-logs:/var/log/rikkei
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  # Distributed Tracing — Grafana Tempo (:4317 gRPC, :4318 HTTP, :3200 query) (COMMON-04 / INFRA-03)
+  tempo:
+    image: grafana/tempo:2.4.1
+    container_name: rikkei_tempo
+    command: [ "-config.file=/etc/tempo.yml" ]
+    volumes:
+      - ./tempo/tempo.yml:/etc/tempo.yml
+      - tempodata:/tmp/tempo
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "3200:3200"
+    restart: unless-stopped
+
 volumes:
   pgdata:
   profile-uploads:
   job-uploads:
   recruitment-uploads:
   localstackdata:
+  lokidata:
+  shared-logs:
+  tempodata:

@@ -248,5 +248,106 @@ export const learningApi = {
   generateLearningPath(): Promise<ApiResponse<LearningPathResponse>> {
     return api.post<LearningPathResponse>("/learning/me/learning-path");
   },
+
+  // ============================================================================
+  // DT-04: CÁN BỘ THEO DÕI ĐÀO TẠO BỔ SUNG THEO LỚP, KHOÁ
+  // ============================================================================
+
+  /**
+   * DT-04: Lấy danh sách ứng viên đào tạo bổ sung kèm bộ lọc lớp, khoá, trạng thái, kỹ năng
+   */
+  getStaffUpskillingList(
+    params?: StaffUpskillingFilterParams
+  ): Promise<ApiResponse<UpskillingCandidateItem[]>> {
+    return api.get<UpskillingCandidateItem[]>("/staff/upskilling", {
+      params,
+    });
+  },
+
+  /**
+   * DT-04: Lấy thống kê tổng hợp đào tạo bổ sung (số đang học, hoàn thành, Top 5 kỹ năng thiếu)
+   */
+  getStaffUpskillingSummary(): Promise<ApiResponse<UpskillingSummaryData>> {
+    return api.get<UpskillingSummaryData>("/staff/upskilling/summary");
+  },
+
+  /**
+   * DT-04: Xuất báo cáo danh sách đào tạo bổ sung ra tệp Excel (.xlsx) theo bộ lọc hiện tại
+   */
+  exportStaffUpskillingExcel(
+    params?: StaffUpskillingFilterParams
+  ): Promise<ApiResponse<Blob>> {
+    return api.get<Blob>("/staff/upskilling/export", {
+      params,
+      responseType: "blob",
+    });
+  },
 };
+
+// ==============================================================================
+// DT-04: TYPESCRIPT INTERFACES CHO CÁN BỘ THEO DÕI ĐÀO TẠO BỔ SUNG
+// ==============================================================================
+
+export interface CandidateInfo {
+  userId: string;
+  fullName: string;
+  email: string;
+  phone: string;
+}
+
+export interface MissingSkillItem {
+  skillId: string;
+  skillName: string;
+  required: number;
+  current: number;
+  gap: number;
+  priority: string;
+}
+
+export interface EnrollmentProgressItem {
+  course: string;
+  progress: number;
+  score: number | null;
+  status: string;
+}
+
+export type UpskillingOverallStatus =
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "ENROLLED"
+  | "NOT_STARTED"
+  | "FAILED";
+
+export interface UpskillingCandidateItem {
+  candidate: CandidateInfo;
+  classCode: string;
+  courseName: string;
+  target: string;
+  missingSkills: MissingSkillItem[];
+  enrollments: EnrollmentProgressItem[];
+  readiness: number;
+  status: UpskillingOverallStatus;
+}
+
+export interface TopMissingSkillItem {
+  skillId: string;
+  skillName: string;
+  missingCount: number;
+  percentage: number;
+}
+
+export interface UpskillingSummaryData {
+  inProgressCount: number;
+  completedCount: number;
+  topMissingSkills: TopMissingSkillItem[];
+}
+
+export interface StaffUpskillingFilterParams {
+  courseName?: string;
+  classCode?: string;
+  status?: string;
+  skillId?: string;
+  page?: number;
+  size?: number;
+}
 

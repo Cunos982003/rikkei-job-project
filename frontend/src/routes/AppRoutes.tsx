@@ -73,6 +73,9 @@ const AdminBadgesPage = lazy(() => import("../pages/admin/AdminBadgesPage"));
 const HrInternsPage = lazy(() => import("../pages/hr/HrInternsPage"));
 const StaffPlacementPage = lazy(() => import("../pages/staff/StaffPlacementPage"));
 
+// DT-04: Cán bộ theo dõi đào tạo bổ sung theo lớp, khoá
+const StaffUpskillingPage = lazy(() => import("../pages/staff/StaffUpskillingPage"));
+
 function RootRedirect() {
     const { user, isAuthenticated } = useAuthStore();
 
@@ -429,6 +432,12 @@ export function AppRoutes() {
                         <Route
                             path="/staff/placements"
                             element={<StaffPlacementPage />}
+                        />
+
+                        {/* DT-04: Cán bộ theo dõi đào tạo bổ sung theo lớp, khoá */}
+                        <Route
+                            path="/staff/upskilling"
+                            element={<StaffUpskillingPage />}
                         />
 
                         {/* UT-03: Contact Access Control */}
