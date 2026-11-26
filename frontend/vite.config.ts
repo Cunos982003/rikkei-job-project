@@ -130,6 +130,14 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_LEARNING_SERVICE_URL || env.VITE_GATEWAY_URL || 'http://localhost:8089',
           changeOrigin: true
         },
+        '/api/v1/staff/upskilling': {
+          target: env.VITE_LEARNING_SERVICE_URL || env.VITE_GATEWAY_URL || 'http://localhost:8089',
+          changeOrigin: true
+        },
+        '/staff/upskilling': {
+          target: env.VITE_LEARNING_SERVICE_URL || env.VITE_GATEWAY_URL || 'http://localhost:8089',
+          changeOrigin: true
+        },
         '/api/v1/hr/interns': {
           target: env.VITE_MOCK_API_URL || 'http://localhost:9000',
           changeOrigin: true

@@ -4,6 +4,8 @@ import com.example.learningservice.model.entity.CandidateTarget;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -11,5 +13,7 @@ import java.util.UUID;
 public interface CandidateTargetRepository extends JpaRepository<CandidateTarget, UUID> {
 
     Optional<CandidateTarget> findByUserId(UUID userId);
+
+    List<CandidateTarget> findByUserIdIn(Collection<UUID> userIds);
 }
 

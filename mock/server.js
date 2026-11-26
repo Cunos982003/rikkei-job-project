@@ -1637,6 +1637,227 @@ async function requestHandler(req, res) {
     });
   }
 
+  // 5.13. DT-04: Cán bộ theo dõi đào tạo bổ sung theo lớp, khoá (/api/v1/staff/upskilling, /summary, /export)
+  const isStaffUpskillingBase = cleanPath === '/api/v1/staff/upskilling' || cleanPath === '/staff/upskilling';
+  const isStaffUpskillingSummary = cleanPath === '/api/v1/staff/upskilling/summary' || cleanPath === '/staff/upskilling/summary';
+  const isStaffUpskillingExport = cleanPath === '/api/v1/staff/upskilling/export' || cleanPath === '/staff/upskilling/export';
+
+  if (method === 'GET' && (isStaffUpskillingBase || isStaffUpskillingSummary || isStaffUpskillingExport)) {
+    const hasAuth = req.headers['authorization'] || req.headers['x-user-id'] || req.headers['x-user-role'];
+    if (!hasAuth) {
+      return sendJson(res, 401, {
+        success: false,
+        statusCode: 401,
+        message: 'Vui lòng đăng nhập với quyền Cán bộ để thực hiện thao tác này.',
+        data: null,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const headerRole = (req.headers['x-user-role'] || '').toUpperCase().replace('ROLE_', '');
+    const reqUser = resolveUserFromRequest(req);
+    const effectiveRole = headerRole || (reqUser && reqUser.role ? reqUser.role.toUpperCase().replace('ROLE_', '') : '');
+    if (effectiveRole !== 'STAFF' && effectiveRole !== 'ADMIN') {
+      return sendJson(res, 403, {
+        success: false,
+        statusCode: 403,
+        message: 'Bạn không có quyền thực hiện thao tác này. Chức năng chỉ dành cho Cán bộ (STAFF).',
+        data: null,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const mockUpskillingItems = [
+      {
+        candidate: {
+          userId: 'ed854c07-f3eb-48f1-a186-4e7135f54645',
+          fullName: 'Nguyễn Văn An',
+          email: 'candidate1@rikkeijobs.test',
+          phone: '0912345600'
+        },
+        classCode: 'RA-HN-JV-01',
+        courseName: 'Khóa đào tạo Kỹ sư Phần mềm Java Fresher (2026)',
+        target: 'Java Backend Fresher',
+        missingSkills: [
+          { skillId: 'JAVA_CORE', skillName: 'Java Core', required: 80, current: 55, gap: 25, priority: 'HIGH' },
+          { skillId: 'SPRING_BOOT', skillName: 'Spring Boot', required: 80, current: 66, gap: 14, priority: 'MEDIUM' },
+          { skillId: 'SQL', skillName: 'SQL', required: 80, current: 77, gap: 3, priority: 'LOW' }
+        ],
+        enrollments: [
+          { course: 'Lập trình Spring Boot nâng cao & Microservices', progress: 100, score: 80, status: 'COMPLETED' },
+          { course: 'Java Core & Cấu trúc dữ liệu giải thuật', progress: 45, score: null, status: 'IN_PROGRESS' }
+        ],
+        readiness: 68.5,
+        status: 'IN_PROGRESS'
+      },
+      {
+        candidate: {
+          userId: '797c5663-386b-4e96-9112-6d3e414b4449',
+          fullName: 'Trần Thị Bình',
+          email: 'candidate2@rikkeijobs.test',
+          phone: '0912345737'
+        },
+        classCode: 'RA-DN-FE-01',
+        courseName: 'Khóa đào tạo Chuyên viên Frontend React Fresher (2026)',
+        target: 'Frontend ReactJS Fresher',
+        missingSkills: [
+          { skillId: 'REACT', skillName: 'React', required: 80, current: 62, gap: 18, priority: 'MEDIUM' },
+          { skillId: 'TYPESCRIPT', skillName: 'TypeScript', required: 80, current: 73, gap: 7, priority: 'LOW' }
+        ],
+        enrollments: [
+          { course: 'React 19 & Next.js Fullstack Architecture', progress: 100, score: 92, status: 'COMPLETED' },
+          { course: 'TypeScript nâng cao & Design Patterns', progress: 100, score: 88, status: 'COMPLETED' }
+        ],
+        readiness: 100.0,
+        status: 'COMPLETED'
+      },
+      {
+        candidate: {
+          userId: '4a09b051-d7ab-40a5-8322-963ec9ebdbd7',
+          fullName: 'Lê Hoàng Cường',
+          email: 'candidate3@rikkeijobs.test',
+          phone: '0912345874'
+        },
+        classCode: 'RA-SG-FS-01',
+        courseName: 'Khóa đào tạo Kỹ sư Phần mềm Fullstack Web Fresher (2026)',
+        target: 'Fullstack',
+        missingSkills: [
+          { skillId: 'JAVA_CORE', skillName: 'Java Core', required: 80, current: 69, gap: 11, priority: 'MEDIUM' },
+          { skillId: 'REACT', skillName: 'React', required: 80, current: 61, gap: 19, priority: 'MEDIUM' }
+        ],
+        enrollments: [
+          { course: 'Node.js & Express RESTful API', progress: 0, score: null, status: 'ENROLLED' },
+          { course: 'JavaScript ES6+ & TypeScript nền tảng', progress: 61, score: null, status: 'IN_PROGRESS' }
+        ],
+        readiness: 48.0,
+        status: 'IN_PROGRESS'
+      },
+      {
+        candidate: {
+          userId: '6f7d791c-8ef0-4404-ab53-5871eb562621',
+          fullName: 'Đặng Quốc Khánh',
+          email: 'candidate9@rikkeijobs.test',
+          phone: '0912346696'
+        },
+        classCode: 'RA-HN-JV-01',
+        courseName: 'Khóa đào tạo Kỹ sư Phần mềm Java Fresher (2026)',
+        target: 'Java Backend Fresher',
+        missingSkills: [
+          { skillId: 'SPRING_BOOT', skillName: 'Spring Boot', required: 80, current: 62, gap: 18, priority: 'MEDIUM' },
+          { skillId: 'SQL', skillName: 'SQL', required: 80, current: 73, gap: 7, priority: 'LOW' }
+        ],
+        enrollments: [
+          { course: 'Tối ưu hóa CSDL quan hệ PostgreSQL', progress: 84, score: null, status: 'IN_PROGRESS' }
+        ],
+        readiness: 72.0,
+        status: 'IN_PROGRESS'
+      },
+      {
+        candidate: {
+          userId: '1c1cae0c-2691-4876-a05e-e1c133a1f013',
+          fullName: 'Ngô Mai Linh',
+          email: 'candidate10@rikkeijobs.test',
+          phone: '0912346833'
+        },
+        classCode: 'RA-DN-FE-01',
+        courseName: 'Khóa đào tạo Chuyên viên Frontend React Fresher (2026)',
+        target: 'Frontend ReactJS Fresher',
+        missingSkills: [
+          { skillId: 'REACT', skillName: 'React', required: 80, current: 58, gap: 22, priority: 'HIGH' },
+          { skillId: 'TYPESCRIPT', skillName: 'TypeScript', required: 80, current: 69, gap: 11, priority: 'MEDIUM' }
+        ],
+        enrollments: [
+          { course: 'Quản trị CSDL MySQL nâng cao', progress: 100, score: 89, status: 'COMPLETED' },
+          { course: 'Lập trình Frontend với Vue.js 3', progress: 42, score: null, status: 'IN_PROGRESS' }
+        ],
+        readiness: 54.0,
+        status: 'IN_PROGRESS'
+      }
+    ];
+
+    if (isStaffUpskillingSummary) {
+      return sendJson(res, 200, {
+        success: true,
+        statusCode: 200,
+        message: 'Lấy báo cáo tổng hợp đào tạo bổ sung thành công',
+        data: {
+          totalStudying: 18,
+          totalCompleted: 12,
+          inProgressCount: 18,
+          completedCount: 12,
+          topMissingSkills: [
+            { skillId: 'TYPESCRIPT', skillName: 'TypeScript', missingCount: 10, percentage: 25.0 },
+            { skillId: 'JAVA_CORE', skillName: 'Java Core', missingCount: 8, percentage: 20.0 },
+            { skillId: 'REACT', skillName: 'React', missingCount: 7, percentage: 17.5 },
+            { skillId: 'SPRING_BOOT', skillName: 'Spring Boot', missingCount: 7, percentage: 17.5 },
+            { skillId: 'SQL', skillName: 'SQL', missingCount: 5, percentage: 12.5 }
+          ]
+        },
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Lọc theo query params cho cả list & export
+    const qClassCode = (query.classCode || '').trim();
+    const qCourseName = (query.courseName || '').trim().toLowerCase();
+    const qStatus = (query.status || '').trim().toUpperCase();
+    const qSkillId = (query.skillId || '').trim().toUpperCase();
+
+    const filtered = mockUpskillingItems.filter((item) => {
+      if (qClassCode && item.classCode !== qClassCode) return false;
+      if (qCourseName && !item.courseName.toLowerCase().includes(qCourseName)) return false;
+      if (qStatus && item.status !== qStatus && !item.enrollments.some((e) => e.status === qStatus)) return false;
+      if (qSkillId && !item.missingSkills.some((s) => s.skillId.toUpperCase() === qSkillId)) return false;
+      return true;
+    });
+
+    if (isStaffUpskillingExport) {
+      const csvRows = [
+        ['STT', 'Ho va ten', 'Email', 'Ma lop', 'Khoa dao tao', 'Muc tieu', 'Do san sang (%)', 'Trang thai'].join(','),
+        ...filtered.map((item, idx) => [
+          idx + 1,
+          `"${item.candidate.fullName}"`,
+          item.candidate.email,
+          item.classCode,
+          `"${item.courseName}"`,
+          `"${item.target}"`,
+          item.readiness,
+          item.status
+        ].join(','))
+      ];
+      const buffer = Buffer.from('\uFEFF' + csvRows.join('\n'), 'utf8');
+      res.writeHead(200, {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': 'attachment; filename="bao-cao-dao-tao-bo-sung-mock.xlsx"',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Expose-Headers': 'Content-Disposition'
+      });
+      return res.end(buffer);
+    }
+
+    const page = Number(query.page || 0);
+    const size = Number(query.size || 10);
+    const total = filtered.length;
+    const paged = filtered.slice(page * size, page * size + size);
+
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Expose-Headers': 'X-Total-Count, X-Page-Number, X-Page-Size, X-Total-Pages',
+      'X-Total-Count': String(total),
+      'X-Page-Number': String(page),
+      'X-Page-Size': String(size),
+      'X-Total-Pages': String(Math.max(1, Math.ceil(total / size)))
+    });
+    return res.end(JSON.stringify({
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách đào tạo bổ sung thành công',
+      data: paged,
+      timestamp: new Date().toISOString()
+    }, null, 2));
+  }
+
   // 5.10 GET /api/v1/hr/interns (Danh sách thực tập sinh của HR)
   if (method === 'GET' && (pathname === '/api/v1/hr/interns' || pathname === '/hr/interns')) {
     return sendJson(res, 200, {

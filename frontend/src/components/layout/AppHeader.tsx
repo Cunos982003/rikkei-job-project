@@ -370,6 +370,12 @@ const ROLE_NAV_CONFIGS: Record<Role, RoleConfig> = {
             icon: UserCheck,
           },
           {
+            title: "Đào tạo bổ sung",
+            description: "Theo dõi tiến độ học bổ sung theo lớp, khoá",
+            path: "/staff/upskilling",
+            icon: GraduationCap,
+          },
+          {
             title: "Đồng bộ dữ liệu LMS/EXAM/PM",
             description: "Kéo dữ liệu học tập, thi cử và can thiệp sửa tay",
             path: "/staff/sync",

@@ -1,0 +1,374 @@
+openapi: 3.0.3
+info:
+  title: Rikkei Jobs - Learning Service & Staff Upskilling Tracking API (DT-04)
+  description: >
+    API Cán bộ theo dõi đào tạo bổ sung theo lớp, khoá (Task DT-04).
+    Bao gồm các endpoint tra cứu tiến độ ứng viên, báo cáo tổng hợp (KPI thẻ số tổng, Top 5 kỹ năng thiếu) và phân quyền chặt chẽ (ROLE_STAFF, ROLE_ADMIN).
+  version: 1.0.0
+  contact:
+    name: Rikkei Jobs Team - Learning Module (DT-04)
+    email: dev@rikkei.vn
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: API Gateway (Cổng chính thức)
+  - url: http://localhost:8089/api/v1
+    description: Local Learning Service (Nội bộ)
+
+paths:
+  /staff/upskilling:
+    get:
+      tags:
+        - Staff Upskilling Tracking
+      summary: Cán bộ theo dõi danh sách đào tạo bổ sung theo lớp, khoá (DT-04)
+      description: >
+        Trả về danh sách ứng viên kèm thông tin lớp, khoá, mục tiêu nghề nghiệp, kỹ năng thiếu, tiến độ môn học và tỷ lệ sẵn sàng.
+        Hỗ trợ lọc theo mã lớp, tên khoá, trạng thái học tập, kỹ năng thiếu và phân trang.
+      parameters:
+        - name: courseName
+          in: query
+          required: false
+          description: Tên khoá đào tạo (tìm kiếm không phân biệt hoa thường)
+          schema:
+            type: string
+            example: "Java"
+        - name: classCode
+          in: query
+          required: false
+          description: Mã lớp đào tạo (khớp chính xác, AC-1)
+          schema:
+            type: string
+            example: "RA-JAVA-2026"
+        - name: status
+          in: query
+          required: false
+          description: Trạng thái học tập (IN_PROGRESS, COMPLETED, ENROLLED, FAILED)
+          schema:
+            type: string
+            enum: [IN_PROGRESS, COMPLETED, ENROLLED, FAILED]
+            example: "IN_PROGRESS"
+        - name: skillId
+          in: query
+          required: false
+          description: Mã kỹ năng đang thiếu (JAVA_CORE, SPRING_BOOT, REACT, SQL...)
+          schema:
+            type: string
+            example: "JAVA_CORE"
+        - name: page
+          in: query
+          required: false
+          description: Số trang (0-indexed)
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          description: Kích thước trang
+          schema:
+            type: integer
+            default: 10
+        - name: X-User-Id
+          in: header
+          required: false
+          description: ID cán bộ thực hiện thao tác
+          schema:
+            type: string
+            example: "staff-001"
+        - name: X-User-Role
+          in: header
+          required: false
+          description: Vai trò người gọi (bắt buộc ROLE_STAFF hoặc ROLE_ADMIN)
+          schema:
+            type: string
+            example: "ROLE_STAFF"
+      responses:
+        '200':
+          description: Lấy danh sách đào tạo bổ sung thành công
+          headers:
+            X-Total-Count:
+              schema:
+                type: integer
+              description: Tổng số bản ghi khớp bộ lọc
+            X-Page-Number:
+              schema:
+                type: integer
+              description: Trang hiện tại
+            X-Page-Size:
+              schema:
+                type: integer
+              description: Kích thước trang
+            X-Total-Pages:
+              schema:
+                type: integer
+              description: Tổng số trang
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpskillingListApiResponse'
+        '401':
+          description: Chưa xác thực danh tính
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '403':
+          description: Quyền truy cập bị từ chối - HR hoặc CANDIDATE gọi API (AC-4)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+
+  /staff/upskilling/summary:
+    get:
+      tags:
+        - Staff Upskilling Tracking
+      summary: Lấy báo cáo tổng hợp đào tạo bổ sung (DT-04)
+      description: >
+        Trả về thẻ số tổng (số ứng viên đang học, đã hoàn thành) và Top 5 kỹ năng bị thiếu nhiều nhất từ dữ liệu phân tích Gap.
+      parameters:
+        - name: X-User-Id
+          in: header
+          required: false
+          schema:
+            type: string
+            example: "staff-001"
+        - name: X-User-Role
+          in: header
+          required: false
+          schema:
+            type: string
+            example: "ROLE_STAFF"
+      responses:
+        '200':
+          description: Lấy báo cáo tổng hợp thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpskillingSummaryApiResponse'
+        '401':
+          description: Chưa xác thực danh tính
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '403':
+          description: Quyền truy cập bị từ chối (HR/CANDIDATE gọi) (AC-4)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+
+  /staff/upskilling/export:
+    get:
+      tags:
+        - Staff Upskilling Tracking
+      summary: Xuất báo cáo danh sách đào tạo bổ sung ra file Excel (.xlsx) (DT-04)
+      description: >
+        Xuất toàn bộ danh sách ứng viên khớp với bộ lọc hiện tại (classCode, courseName, status, skillId) ra tệp Excel (.xlsx) chuẩn OpenXML (AC-3).
+      parameters:
+        - name: courseName
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: classCode
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [IN_PROGRESS, COMPLETED, ENROLLED, FAILED]
+        - name: skillId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: X-User-Id
+          in: header
+          required: false
+          schema:
+            type: string
+            example: "staff-001"
+        - name: X-User-Role
+          in: header
+          required: false
+          schema:
+            type: string
+            example: "ROLE_STAFF"
+      responses:
+        '200':
+          description: Tệp Excel (.xlsx) chứa dữ liệu theo đúng bộ lọc
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="bao-cao-dao-tao-bo-sung-2026-11-26.xlsx"'
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Chưa xác thực danh tính
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+        '403':
+          description: Quyền truy cập bị từ chối (HR/CANDIDATE gọi) (AC-4)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorApiResponse'
+
+components:
+  schemas:
+    CandidateInfo:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+
+    MissingSkill:
+      type: object
+      properties:
+        skillId:
+          type: string
+        skillName:
+          type: string
+        required:
+          type: integer
+        current:
+          type: integer
+        gap:
+          type: integer
+        priority:
+          type: string
+          enum: [HIGH, MEDIUM, LOW]
+
+    EnrollmentProgress:
+      type: object
+      properties:
+        course:
+          type: string
+        progress:
+          type: number
+        score:
+          type: number
+          nullable: true
+        status:
+          type: string
+
+    UpskillingCandidateItem:
+      type: object
+      properties:
+        candidate:
+          $ref: '#/components/schemas/CandidateInfo'
+        classCode:
+          type: string
+        courseName:
+          type: string
+        target:
+          type: string
+        missingSkills:
+          type: array
+          items:
+            $ref: '#/components/schemas/MissingSkill'
+        enrollments:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnrollmentProgress'
+        readiness:
+          type: number
+        status:
+          type: string
+
+    TopMissingSkill:
+      type: object
+      properties:
+        skillId:
+          type: string
+        skillName:
+          type: string
+        missingCount:
+          type: integer
+        percentage:
+          type: number
+
+    UpskillingSummaryData:
+      type: object
+      properties:
+        inProgressCount:
+          type: integer
+        completedCount:
+          type: integer
+        topMissingSkills:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopMissingSkill'
+
+    UpskillingListApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        statusCode:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "Lấy danh sách đào tạo bổ sung thành công"
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UpskillingCandidateItem'
+        timestamp:
+          type: string
+
+    UpskillingSummaryApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        statusCode:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "Lấy báo cáo tổng hợp đào tạo bổ sung thành công"
+        data:
+          $ref: '#/components/schemas/UpskillingSummaryData'
+        timestamp:
+          type: string
+
+    ErrorApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        statusCode:
+          type: integer
+          example: 403
+        message:
+          type: string
+          example: "Bạn không có quyền thực hiện thao tác này. Chức năng chỉ dành cho Cán bộ (STAFF)."
+        data:
+          type: object
+          nullable: true
+        timestamp:
+          type: string
