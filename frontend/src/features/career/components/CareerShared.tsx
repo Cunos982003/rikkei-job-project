@@ -1,4 +1,4 @@
-import { AlertCircle, BriefcaseBusiness, CircleCheck, Clock3, RefreshCw, Search, Target } from 'lucide-react'
+import { AlertCircle, BriefcaseBusiness, CircleCheck, Clock3, RefreshCw, Search, Sparkles, Target } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { getCareerApiError, type JobRecommendation } from '../../../api/endpoints/career.api'
 import { Badge } from '../../../components/common/Badge'
@@ -178,7 +178,12 @@ export function RecommendationCard({ item }: { item: JobRecommendation }) {
               {item.companyName && <span className="font-medium text-slate-600">{item.companyName} • </span>}
               Mã vị trí: {item.jobId}
             </p>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{item.explanation}</p>
+            <div className="mt-3 max-w-3xl space-y-1.5">
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-medium text-primary">
+                <Sparkles size={11} /> Do AI tạo
+              </span>
+              <p className="text-sm leading-6 text-slate-600">{item.explanation}</p>
+            </div>
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-400">
               <span className="inline-flex items-center gap-1.5"><Clock3 size={13} /> Cập nhật {formatDate(item.createdAt)}</span>
               {item.skillGaps.length > 0 && (
