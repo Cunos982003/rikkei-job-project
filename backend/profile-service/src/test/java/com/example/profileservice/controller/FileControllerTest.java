@@ -1,6 +1,7 @@
 package com.example.profileservice.controller;
 
 import com.example.profileservice.service.FileUploadService;
+import com.example.profileservice.service.MinioFileUploadService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -9,8 +10,12 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -26,8 +31,10 @@ class FileControllerTest {
 
     @BeforeEach
     void setup() {
-        FileUploadService service = new FileUploadService(uploadDir.toString());
-        mockMvc = MockMvcBuilders.standaloneSetup(new FileController(service)).build();
+        FileUploadService fileUploadService = new FileUploadService(uploadDir.toString());
+        MinioFileUploadService minioFileUploadService = mock(MinioFileUploadService.class);
+        when(minioFileUploadService.getObject("/files/" + "test.pdf")).thenThrow(new IOException("Not found"));
+        mockMvc = MockMvcBuilders.standaloneSetup(new FileController(fileUploadService, minioFileUploadService)).build();
     }
 
     private static byte[] pdfOfSize(int size) {
