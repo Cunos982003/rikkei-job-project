@@ -80,10 +80,11 @@ public class ConversationService {
 
             ## Nguyên tắc phản hồi & Giới hạn phạm vi
             1. Hiểu đúng mục đích của người dùng trước khi trả lời và đi thẳng vào câu hỏi chính với hướng dẫn thực tế, áp dụng được ngay.
-            2. Chỉ hỏi lại để làm rõ khi thực sự cần thiết; luôn hỗ trợ với thái độ tôn trọng, không kẻ cả.
-            3. Tôn trọng quyền riêng tư: không yêu cầu thông tin liên hệ cá nhân không cần thiết và không tiết lộ hay suy đoán thông tin liên hệ (email, số điện thoại, địa chỉ).
-            4. Nếu chưa chắc chắn về thông tin nào, hãy nêu rõ sự chưa chắc chắn đó; không bao giờ giả vờ đã thực hiện một hành động mà bạn chưa thực hiện.
-            5. GIỚI HẠN PHẠM VI BẮT BUỘC: Chỉ trả lời các chủ đề về nghề nghiệp, học tập, kỹ năng, CV, phỏng vấn và tuyển dụng. Nếu người dùng hỏi chủ đề ngoài phạm vi (giải trí, nấu ăn, chính trị, y tế, thời tiết, v.v.), hãy từ chối lịch sự bằng giọng văn thân thiện của Rikkei Buddy và gợi ý quay lại chủ đề học tập hoặc nghề nghiệp.
+            2. KHÔNG lặp lại lời chào ("Xin chào", "Chào bạn", "Mình là Rikkei Buddy...") trong các lượt trả lời tiếp theo. Giao diện đã hiển thị lời chào sẵn rồi, nên bạn hãy đi thẳng vào nội dung trả lời câu hỏi của người dùng.
+            3. Chỉ hỏi lại để làm rõ khi thực sự cần thiết; luôn hỗ trợ với thái độ tôn trọng, không kẻ cả.
+            4. Tôn trọng quyền riêng tư: không yêu cầu thông tin liên hệ cá nhân không cần thiết và không tiết lộ hay suy đoán thông tin liên hệ (email, số điện thoại, địa chỉ).
+            5. Nếu chưa chắc chắn về thông tin nào, hãy nêu rõ sự chưa chắc chắn đó; không bao giờ giả vờ đã thực hiện một hành động mà bạn chưa thực hiện.
+            6. GIỚI HẠN PHẠM VI BẮT BUỘC: Chỉ trả lời các chủ đề về nghề nghiệp, học tập, kỹ năng, CV, phỏng vấn và tuyển dụng. Nếu người dùng hỏi chủ đề ngoài phạm vi (giải trí, nấu ăn, chính trị, y tế, thời tiết, v.v.), hãy từ chối lịch sự bằng giọng văn thân thiện của Rikkei Buddy và gợi ý quay lại chủ đề học tập hoặc nghề nghiệp.
             """;
 
     private final ChatConversationRepository conversationRepository;
@@ -143,6 +144,13 @@ public class ConversationService {
                 .stream()
                 .map(ChatMessageResponse::from)
                 .toList();
+    }
+
+    @Transactional
+    public void deleteConversation(UUID userId, UUID conversationId) {
+        ChatConversation conversation = findOwnedConversation(userId, conversationId);
+        messageRepository.deleteByConversationId(conversation.getId());
+        conversationRepository.delete(conversation);
     }
 
     @Transactional
@@ -237,12 +245,20 @@ public class ConversationService {
                 .append(profileSummary)
                 .append("\n\n### Lịch sử hội thoại gần nhất (tối đa 10 tin):\n");
 
+        boolean hasPriorAssistantReply = recentAsc.stream()
+                .anyMatch(msg -> msg.getRole() == MessageRole.ASSISTANT);
+
         for (ChatMessage msg : recentAsc) {
             userPrompt.append(msg.getRole() == MessageRole.USER ? "Ứng viên: " : "Trợ lý: ")
                     .append(msg.getContent())
                     .append("\n");
         }
         userPrompt.append("\nHãy trả lời câu hỏi mới nhất của ứng viên: ").append(latestUserContent);
+        if (hasPriorAssistantReply) {
+            userPrompt.append("\n(Lưu ý: Cuộc hội thoại đã bắt đầu trước đó, KHÔNG chào lại hay tự giới thiệu lại bản thân; hãy đi thẳng vào câu trả lời.)");
+        } else {
+            userPrompt.append("\n(Lưu ý: Giao diện đã hiển thị lời chào mở đầu, không cần chào dài dòng hay tự giới thiệu lại; hãy đi thẳng vào câu trả lời.)");
+        }
 
         return aiProvider.chat(CAREER_SYSTEM_PROMPT, userPrompt.toString());
     }

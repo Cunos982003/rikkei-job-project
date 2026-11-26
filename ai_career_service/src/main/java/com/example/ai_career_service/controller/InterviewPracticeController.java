@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -74,6 +75,15 @@ public class InterviewPracticeController {
         UUID userId = extractUserId(principal);
         InterviewPracticeResponse practice = practiceService.finishPractice(userId, id);
         return ResponseEntity.ok(ApiResponse.success("Hoàn thành buổi luyện phỏng vấn", practice));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deletePractice(
+            Principal principal,
+            @PathVariable("id") UUID id) {
+        UUID userId = extractUserId(principal);
+        practiceService.deletePractice(userId, id);
+        return ResponseEntity.ok(ApiResponse.success("Xóa buổi luyện phỏng vấn thành công", null));
     }
 
     private UUID extractUserId(Principal principal) {

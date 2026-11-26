@@ -2,6 +2,7 @@ package com.example.ai_career_service.controller;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -159,6 +160,33 @@ class ConversationControllerTests {
                         .header("X-User-Id", UUID.randomUUID().toString())
                         .header("X-User-Role", "ROLE_CANDIDATE"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void deleteConversation_removesOwnedConversation() throws Exception {
+        UUID userId = UUID.randomUUID();
+        MvcResult createResult = mockMvc.perform(post("/me/conversations")
+                        .header("X-User-Id", userId.toString())
+                        .header("X-User-Role", "CANDIDATE")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"mode\":\"CAREER\"}"))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String conversationId = objectMapper.readTree(createResult.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+
+        mockMvc.perform(delete("/me/conversations/" + conversationId)
+                        .header("X-User-Id", userId.toString())
+                        .header("X-User-Role", "CANDIDATE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/me/conversations")
+                        .header("X-User-Id", userId.toString())
+                        .header("X-User-Role", "CANDIDATE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(0)));
     }
 
     @Test

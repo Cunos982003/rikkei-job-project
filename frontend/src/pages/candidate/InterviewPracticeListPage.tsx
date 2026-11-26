@@ -9,12 +9,14 @@ import {
   Briefcase,
   ChevronRight,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { jobsApi, type JobPostingItem } from "../../api/endpoints/jobs.api";
 import {
   useInterviewPracticeList,
   useCreatePractice,
+  useDeletePractice,
 } from "../../features/interview-practice/hooks/useInterviewPractice";
 import type { InterviewPracticeItem } from "../../api/endpoints/interviewPractice.api";
 import { Card, CardContent } from "../../components/common/Card";
@@ -29,6 +31,7 @@ export const InterviewPracticeListPage: React.FC = () => {
 
   const { data: practices, isLoading: isPracticesLoading } = useInterviewPracticeList();
   const createPracticeMutation = useCreatePractice();
+  const deletePracticeMutation = useDeletePractice();
 
   const { data: jobsRes, isLoading: isJobsLoading } = useQuery({
     queryKey: ["approvedJobsForInterview"],
@@ -198,6 +201,21 @@ export const InterviewPracticeListPage: React.FC = () => {
                   >
                     {item.status === "DONE" ? "Xem kết quả" : "Tiếp tục làm"}
                   </Button>
+                  <button
+                    type="button"
+                    title="Xóa buổi luyện phỏng vấn"
+                    aria-label="Xóa buổi luyện phỏng vấn"
+                    disabled={deletePracticeMutation.isPending}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm(`Bạn có chắc muốn xóa buổi luyện phỏng vấn "${item.jobTitle}"?`)) {
+                        deletePracticeMutation.mutate(item.id);
+                      }
+                    }}
+                    className="rounded-lg p-2 text-muted transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
               </CardContent>
             </Card>

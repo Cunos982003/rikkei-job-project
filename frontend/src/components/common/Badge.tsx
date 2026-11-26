@@ -49,7 +49,7 @@ export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
       <span
         ref={ref}
         className={cn(
-          "inline-flex items-center rounded-md transition-colors select-none",
+          "inline-flex items-center whitespace-nowrap rounded-md transition-colors select-none",
           sizeStyles[size],
           variantStyles[variant],
           className
@@ -57,7 +57,7 @@ export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
         {...props}
       >
         {showIcon && icons[variant]}
-        <span>{children}</span>
+        <span className="inline-flex items-center gap-1.5">{children}</span>
       </span>
     );
   }
