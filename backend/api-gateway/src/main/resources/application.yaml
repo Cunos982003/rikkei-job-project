@@ -92,6 +92,16 @@ spring:
               predicates:
                 - Path=/me/conversations,/me/conversations/**
               filters: *cors-response-filters
+            - id: ai-career-direct
+              uri: ${GATEWAY_AI_URL:http://localhost:8090}
+              predicates:
+                - Path=/me/job-recommendations,/me/job-recommendations/**
+              filters: *cors-response-filters
+            - id: ai-interview-practice
+              uri: ${GATEWAY_AI_URL:http://localhost:8090}
+              predicates:
+                - Path=/me/interview-practices,/me/interview-practices/**
+              filters: *cors-response-filters
             - id: profile
               uri: ${GATEWAY_PROFILE_URL:http://localhost:8082}
               predicates:
@@ -148,16 +158,6 @@ spring:
                 - RemoveResponseHeader=Access-Control-Allow-Methods
                 - RemoveResponseHeader=Access-Control-Allow-Headers
                 - RemoveResponseHeader=Access-Control-Max-Age
-            - id: ai-career-direct
-              uri: ${GATEWAY_AI_URL:http://localhost:8090}
-              predicates:
-                - Path=/me/job-recommendations,/me/job-recommendations/**
-              filters: *cors-response-filters
-            - id: ai-interview-practice
-              uri: ${GATEWAY_AI_URL:http://localhost:8090}
-              predicates:
-                - Path=/me/interview-practices,/me/interview-practices/**
-              filters: *cors-response-filters
             - id: learning
               uri: ${GATEWAY_LEARNING_URL:http://localhost:8089}
               predicates:

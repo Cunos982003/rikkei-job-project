@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { BriefcaseBusiness, Search, Sparkles } from 'lucide-react'
+import { BriefcaseBusiness, RefreshCw, Search } from 'lucide-react'
 import { useMemo } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 import { Badge } from '../../components/common/Badge'
+import { Button } from '../../components/common/Button'
 import { Card, CardContent } from '../../components/common/Card'
 import { Input } from '../../components/common/Input'
 import { DataPanel, EmptyRecommendations, PageIntro, RecommendationList, RequestState } from '../../features/career/components/CareerShared'
@@ -13,7 +14,7 @@ const searchSchema = z.object({ search: z.string() })
 type SearchForm = z.infer<typeof searchSchema>
 
 export function RecommendationsPage() {
-  const { recommendations, isSuccess } = useCareerData()
+  const { recommendations, isLoading, isSuccess, refetch } = useCareerData()
   const { register, control } = useForm<SearchForm>({
     resolver: zodResolver(searchSchema),
     defaultValues: { search: '' },
@@ -36,7 +37,21 @@ export function RecommendationsPage() {
         eyebrow="Cơ hội dành cho bạn"
         title="Việc làm phù hợp"
         description="Thứ tự đề xuất dựa trên mức độ đáp ứng các kỹ năng yêu cầu của từng vị trí."
-        action={<Badge variant="default"><BriefcaseBusiness size={13} /> {recommendations.length} vị trí</Badge>}
+        action={
+          <div className="flex items-center gap-2">
+            <Badge variant="default"><BriefcaseBusiness size={13} /> {recommendations.length} vị trí</Badge>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={refetch}
+              disabled={isLoading}
+              leftIcon={<RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />}
+            >
+              Làm mới
+            </Button>
+          </div>
+        }
       />
       <RequestState />
       {recommendations.length === 0 && isSuccess && <EmptyRecommendations />}
@@ -53,10 +68,6 @@ export function RecommendationsPage() {
                   {...register('search')}
                 />
               </label>
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span className="hidden sm:inline">Sắp xếp theo</span>
-                <Badge variant="primary"><Sparkles size={12} /> Điểm phù hợp</Badge>
-              </div>
             </CardContent>
           </Card>
           <p className="mb-3 text-xs text-slate-500">

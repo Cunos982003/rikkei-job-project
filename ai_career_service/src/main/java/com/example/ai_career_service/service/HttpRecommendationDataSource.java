@@ -1,5 +1,8 @@
 package com.example.ai_career_service.service;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -126,7 +129,7 @@ private List<RecommendationSnapshot.VerifiedSkill> fetchVerifiedSkills(UUID user
                 String idStr = stringOrNull(item.get("id"));
                 String title = stringOrNull(item.get("title"));
                 String companyName = stringOrNull(item.get("companyName"));
-                if (idStr == null) {
+                if (idStr == null || isExpired(item.get("deadline"))) {
                     continue;
                 }
                 UUID jobId;
@@ -168,6 +171,25 @@ private List<RecommendationSnapshot.VerifiedSkill> fetchVerifiedSkills(UUID user
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "Unable to load approved jobs from job-service",
                     ex);
+        }
+    }
+
+    private static boolean isExpired(Object deadlineObj) {
+        if (deadlineObj == null) {
+            return false;
+        }
+        String raw = deadlineObj.toString().trim();
+        if (raw.isBlank()) {
+            return false;
+        }
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+        try {
+            if (raw.length() >= 10) {
+                return LocalDate.parse(raw.substring(0, 10)).isBefore(today);
+            }
+            return Instant.parse(raw).atZone(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDate().isBefore(today);
+        } catch (Exception ignored) {
+            return false;
         }
     }
 
