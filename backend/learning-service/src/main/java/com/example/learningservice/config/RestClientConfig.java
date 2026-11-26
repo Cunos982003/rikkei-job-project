@@ -17,6 +17,7 @@ public class RestClientConfig {
         requestFactory.setReadTimeout(Duration.ofSeconds(10));
 
         return RestClient.builder()
+                .requestInterceptor(new com.example.common.logging.TracingClientHttpRequestInterceptor())
                 .requestFactory(requestFactory);
     }
 }

@@ -301,6 +301,11 @@ khi khởi chạy. Bốn service `assessment`, `audit`, `evidence`, `notificatio
 hiện chưa có web starter; `backend/ai-service` cũng chưa có mã ứng dụng/build
 file nên chưa được đưa vào stack chạy.
 
+##### Quy ước AI chung (`ai_career_service`)
+
+- Biến môi trường `AI_PROVIDER` nhận một trong các giá trị: `openai | gemini | claude | mock` (mặc định `mock`). Chế độ `mock` trả về câu cố định để mentor/dev chạy thử đầy đủ luồng mà không cần khóa API.
+- Mọi lời gọi AI trong hệ thống đều đi qua một service dùng chung là `ai_career_service` (thông qua interface `AIProvider`).
+
 ##### Triển khai VPS (production)
 
 Stack production chạy frontend, gateway, các service hiện có, PostgreSQL và

@@ -7,12 +7,16 @@ import {
   Building2,
   TrendingUp,
   RotateCcw,
+  RefreshCw,
+  ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { jobsApi, type JobPostingItem } from "../../api/endpoints/jobs.api";
 import { candidateJobsApi } from "../../api/endpoints/candidateJobs.api";
 import { recruitmentApi } from "../../api/endpoints/recruitment.api";
 import { candidateKeys } from "../../api/queryKeys";
+import { useRecommendations } from "../../features/career/hooks/useRecommendations";
+import { formatScore } from "../../features/career/careerUtils";
 import { Button } from "../../components/common/Button";
 import { JobCardItem } from "./components/JobCardItem";
 import { JobFilterBar, type JobFilters } from "./components/JobFilterBar";
@@ -80,6 +84,12 @@ export const CandidateJobsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<JobFilters>(INITIAL_FILTERS);
   const [applyJob, setApplyJob] = useState<JobPostingItem | null>(null);
+
+  const {
+    data: aiRecommendations = [],
+    isFetching: isAiFetching,
+    refetch: refetchAiRecommendations,
+  } = useRecommendations(5);
 
   // 1. Lấy danh sách việc làm đã lưu
   const { data: savedJobsRes } = useQuery({
@@ -358,6 +368,85 @@ export const CandidateJobsPage: React.FC = () => {
         {/* Trang trí background */}
         <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-radial from-primary/20 to-transparent pointer-events-none" />
       </div>
+
+      {/* 1.5. Khối Việc làm phù hợp với bạn (AI-01) */}
+      {aiRecommendations.length > 0 && (
+        <section className="rounded-2xl border border-border bg-surface p-5 shadow-2xs space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary-light text-primary">
+                  <Sparkles className="h-4 w-4" />
+                </span>
+                <h2 className="text-base font-bold text-foreground">
+                  Việc làm phù hợp với bạn
+                </h2>
+              </div>
+              <p className="mt-0.5 text-xs text-muted">
+                Gợi ý dựa trên kỹ năng đã xác thực trong hồ sơ năng lực của bạn
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void refetchAiRecommendations()}
+                disabled={isAiFetching}
+                leftIcon={<RefreshCw className={`h-3.5 w-3.5 ${isAiFetching ? "animate-spin" : ""}`} />}
+              >
+                Làm mới
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/candidate/career/recommendations")}
+                rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
+              >
+                Xem tất cả
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {aiRecommendations.slice(0, 3).map((rec) => {
+              const matchedJob = jobs.find((j) => j.id === rec.jobId);
+              const title = rec.jobTitle || matchedJob?.title || "Cơ hội việc làm";
+              const company = rec.companyName || matchedJob?.companyName;
+              return (
+                <div
+                  key={rec.jobId}
+                  onClick={() => navigate(`/candidate/jobs/${rec.jobId}`)}
+                  className="cursor-pointer rounded-xl border border-border bg-slate-50/70 p-4 transition-all hover:border-primary hover:bg-surface hover:shadow-xs flex flex-col justify-between gap-3"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-sm font-bold text-foreground">{title}</h3>
+                        {company && (
+                          <p className="truncate text-xs text-muted">{company}</p>
+                        )}
+                      </div>
+                      <span className="shrink-0 rounded-full bg-primary-light px-2.5 py-0.5 text-xs font-bold text-primary">
+                        {formatScore(rec.score)}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-primary-light/70 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                        <Sparkles className="h-2.5 w-2.5" /> Do AI tạo
+                      </span>
+                      <p className="line-clamp-3 text-xs leading-relaxed text-slate-600">
+                        {rec.explanation}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* 2. Hero Search & Filter Bar */}
       <JobFilterBar

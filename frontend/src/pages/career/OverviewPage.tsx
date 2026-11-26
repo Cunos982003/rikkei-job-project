@@ -2,7 +2,7 @@ import { ArrowRight, BriefcaseBusiness, ChartNoAxesColumnIncreasing, CircleCheck
 import { lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/common/Card'
-import { ChartLoading, EmptyRecommendations, MetricCard, PageIntro, RecommendationCard, RequestState } from '../../features/career/components/CareerShared'
+import { ChartLoading, EmptyRecommendations, MetricCard, PageIntro, RecommendationCard, RecommendationLimitForm, RequestState } from '../../features/career/components/CareerShared'
 import { formatScore, getSkillGaps, useCareerData } from '../../features/career/careerUtils'
 
 const ScoreChart = lazy(() => import('../../features/career/charts').then((module) => ({ default: module.ScoreChart })))
@@ -24,9 +24,12 @@ export function OverviewPage() {
         title="Chào bạn, sẵn sàng cho bước tiếp theo?"
         description="Khám phá cơ hội phù hợp với năng lực đã được xác thực và xem kỹ năng nào sẽ giúp bạn tiến xa hơn."
         action={
-          <Link to="/candidate/career/recommendations" className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-slate-50">
-            Khám phá việc làm <ArrowRight size={15} />
-          </Link>
+          <div className="flex flex-wrap items-end gap-3">
+            <RecommendationLimitForm />
+            <Link to="/candidate/career/recommendations" className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-slate-50">
+              Khám phá việc làm <ArrowRight size={15} />
+            </Link>
+          </div>
         }
       />
       <RequestState />

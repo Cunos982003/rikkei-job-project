@@ -1,5 +1,6 @@
-import { AlertCircle, BriefcaseBusiness, CircleCheck, Clock3, RefreshCw, Search, Target } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { AlertCircle, BriefcaseBusiness, CircleCheck, Clock3, RefreshCw, Search, Sparkles, Target } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { getCareerApiError, type JobRecommendation } from '../../../api/endpoints/career.api'
 import { Badge } from '../../../components/common/Badge'
 import { Button } from '../../../components/common/Button'
@@ -152,22 +153,62 @@ export function MetricCard({
   )
 }
 
+export function RecommendationLimitForm() {
+  const { limit, setLimit } = useCareerData()
+  const [draftLimit, setDraftLimit] = useState(String(limit))
+  const [limitError, setLimitError] = useState('')
+
+  return (
+    <form
+      className="flex items-end gap-2"
+      onSubmit={(event) => {
+        event.preventDefault()
+        const value = Number(draftLimit)
+        if (!Number.isInteger(value) || value < 1 || value > 50) {
+          setLimitError('Nhập số nguyên từ 1 đến 50.')
+          return
+        }
+        setLimitError('')
+        setLimit(value)
+      }}
+    >
+      <div>
+        <label htmlFor="career-limit" className="block text-xs text-muted">Số gợi ý</label>
+        <input
+          id="career-limit"
+          type="number"
+          min={1}
+          max={50}
+          value={draftLimit}
+          onChange={(event) => setDraftLimit(event.target.value)}
+          aria-invalid={Boolean(limitError)}
+          aria-describedby={limitError ? 'career-limit-error' : undefined}
+          className="mt-1 w-20 rounded-lg border border-border bg-surface px-2 py-2 text-sm focus:border-primary focus:outline-none"
+        />
+        {limitError && <p id="career-limit-error" role="alert" className="mt-1 text-xs text-danger">{limitError}</p>}
+      </div>
+      <Button type="submit" size="sm">Cập nhật</Button>
+    </form>
+  )
+}
+
 export function RecommendationCard({ item }: { item: JobRecommendation }) {
   const missing = item.missingRequiredSkills.length
   const jobTitle = item.jobTitle || 'Cơ hội việc làm'
 
   return (
-    <Card className="group transition-all hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-md hover:shadow-primary-100/60">
-      <CardContent className="p-5 sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-          <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary-50 to-primary-50 text-primary">
-            <BriefcaseBusiness size={19} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-sm font-semibold text-slate-900" title={jobTitle}>
-                {jobTitle}
-              </h3>
+    <Link to={`/candidate/jobs/${item.jobId}`} className="block">
+      <Card className="group cursor-pointer transition-all hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-md hover:shadow-primary-100/60">
+        <CardContent className="p-5 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary-50 to-primary-50 text-primary">
+              <BriefcaseBusiness size={19} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-900 transition-colors group-hover:text-primary" title={jobTitle}>
+                  {jobTitle}
+                </h3>
               {missing === 0 ? (
                 <Badge variant="verified"><CircleCheck size={12} /> Đủ kỹ năng bắt buộc</Badge>
               ) : (
@@ -178,7 +219,12 @@ export function RecommendationCard({ item }: { item: JobRecommendation }) {
               {item.companyName && <span className="font-medium text-slate-600">{item.companyName} • </span>}
               Mã vị trí: {item.jobId}
             </p>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{item.explanation}</p>
+            <div className="mt-3 max-w-3xl space-y-1.5">
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-medium text-primary">
+                <Sparkles size={11} /> Do AI tạo
+              </span>
+              <p className="text-sm leading-6 text-slate-600">{item.explanation}</p>
+            </div>
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-400">
               <span className="inline-flex items-center gap-1.5"><Clock3 size={13} /> Cập nhật {formatDate(item.createdAt)}</span>
               {item.skillGaps.length > 0 && (
@@ -207,6 +253,7 @@ export function RecommendationCard({ item }: { item: JobRecommendation }) {
         </div>
       </CardContent>
     </Card>
+    </Link>
   )
 }
 

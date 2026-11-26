@@ -25,7 +25,7 @@ public class RikkeiMeetClient {
     public RikkeiMeetClient(
             @Value("${app.integrations.meet-service-url:http://localhost:9000}") String baseUrl,
             @Value("${app.integrations.meet-service-key:}") String serviceKey) {
-        this(baseUrl, serviceKey, RestClient.builder());
+        this(baseUrl, serviceKey, RestClient.builder().requestInterceptor(new com.example.common.logging.TracingClientHttpRequestInterceptor()));
     }
 
     RikkeiMeetClient(String baseUrl, String serviceKey, RestClient.Builder builder) {
