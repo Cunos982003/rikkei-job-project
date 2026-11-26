@@ -26,9 +26,18 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                        "/actuator/**")
+                                "/actuator/health",
+                                "/actuator/health/**")
                         .permitAll()
                         .requestMatchers("/error").permitAll()
+
+                        // --- BẮT ĐẦU PHẦN THÊM MỚI CHO TT-04 ---
+                        // Cho phép API lms-pm gọi sang (X-Service-Key sẽ được check ở Controller)
+                        .requestMatchers(HttpMethod.POST, "/integrations/pm/evaluation-links").permitAll()
+                        // Cho phép mở link đánh giá (token tự xác thực, không cần JWT)
+                        .requestMatchers(HttpMethod.GET, "/evaluate/**").permitAll()
+                        // --- KẾT THÚC PHẦN THÊM MỚI CHO TT-04 ---
+
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/v1/jobs/*/recruit",
