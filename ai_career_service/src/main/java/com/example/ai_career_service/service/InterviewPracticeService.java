@@ -315,7 +315,7 @@ public class InterviewPracticeService {
 
     private JobDetails fetchJobDetails(UUID jobId) {
         try {
-            RestClient restClient = RestClient.builder().baseUrl(jobServiceUrl).build();
+            RestClient restClient = RestClient.builder().requestInterceptor(new com.example.common.logging.TracingClientHttpRequestInterceptor()).baseUrl(jobServiceUrl).build();
             Map<String, Object> jobResponse = restClient.get()
                     .uri("/jobs/" + jobId)
                     .retrieve()

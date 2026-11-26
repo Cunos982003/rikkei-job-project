@@ -42,8 +42,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(
-                                "/actuator/health",
-                                "/actuator/health/**",
+                                "/actuator/**",
                                 "/error")
                         .permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
@@ -88,7 +87,11 @@ public class SecurityConfig {
         cors.setAllowedHeaders(List.of(
                 "Authorization", "Content-Type", "Accept",
                 "X-User-Id", "X-User-Role", "X-PM-Student-Id",
-                "X-Service-Key", "X-Internal-Service-Token"
+                "X-Service-Key", "X-Internal-Service-Token",
+                "X-Correlation-Id", "x-correlation-id", "X-Request-Id", "traceparent"
+        ));
+        cors.setExposedHeaders(List.of(
+                "X-Correlation-Id", "traceparent"
         ));
         cors.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

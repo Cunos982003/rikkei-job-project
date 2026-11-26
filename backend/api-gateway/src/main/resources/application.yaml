@@ -163,6 +163,11 @@ spring:
               predicates:
                 - Path=/api/v1/learning/**,/api/v1/staff/upskilling,/api/v1/staff/upskilling/**,/staff/upskilling,/staff/upskilling/**,/api/v1/me/target,/api/v1/me/gap-analysis,/api/v1/me/course-suggestions,/api/v1/me/enrollments/**,/api/v1/me/learning-path,/api/v1/me/learning-path/**,/me/target,/me/gap-analysis,/me/course-suggestions,/me/enrollments/**,/me/learning-path,/me/learning-path/**
               filters: *cors-response-filters
+            - id: notification-direct
+              uri: ${GATEWAY_NOTIFICATION_URL:http://localhost:8087}
+              predicates:
+                - Path=/api/v1/notifications,/api/v1/notifications/**
+              filters: *cors-response-filters
 
 app:
   jwt:
@@ -177,17 +182,35 @@ management:
     web:
       exposure:
         include: health,info,prometheus
-
   endpoint:
     health:
-      show-details: when-authorized
+      show-details: always
       probes:
         enabled: true
-
     info:
       env:
         enabled: false
-
-  health:
-    db:
-      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      env: ${SPRING_PROFILES_ACTIVE:${spring.profiles.active:default}}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5, 0.95, 0.99
+  tracing:
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}
+  otlp:
+    tracing:
+      endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}}
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+management:
+  tracing:
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:0.1}
