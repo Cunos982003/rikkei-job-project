@@ -1,0 +1,107 @@
+{
+  "cand-001": [
+    {
+      "id": "c0000000-0000-0000-0000-000000000001",
+      "userId": "cand-001",
+      "recipientRole": "CANDIDATE",
+      "type": "OFFER_RECEIVED",
+      "title": "Thư mời nhận việc từ VNG Cloud",
+      "body": "Chúc mừng bạn đã nhận được thư mời làm việc cho vị trí Java Backend Developer (FRESHER) #25. Vui lòng phản hồi trước ngày 30/11/2026.",
+      "actionUrl": "/candidate/offers",
+      "readAt": null,
+      "createdAt": "2026-11-26T07:15:00.000Z"
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000002",
+      "userId": "cand-001",
+      "recipientRole": "CANDIDATE",
+      "type": "INTERVIEW_SCHEDULED",
+      "title": "Lịch phỏng vấn kỹ thuật trực tuyến",
+      "body": "Bạn có ca phỏng vấn kỹ thuật trực tuyến vào lúc 14:00 ngày 28/11/2026 trên phòng họp Rikkei Meet.",
+      "actionUrl": "/candidate/interviews",
+      "readAt": null,
+      "createdAt": "2026-11-26T05:30:00.000Z"
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000003",
+      "userId": "cand-001",
+      "recipientRole": "CANDIDATE",
+      "type": "PROFILE_REVIEWED",
+      "title": "Hồ sơ năng lực đã được duyệt công khai",
+      "body": "Cán bộ tuyển sinh & hướng nghiệp đã phê duyệt hồ sơ năng lực của bạn. Hồ sơ hiện đã sẵn sàng để các doanh nghiệp tìm kiếm.",
+      "actionUrl": "/candidate/profile",
+      "readAt": "2026-11-25T08:00:00.000Z",
+      "createdAt": "2026-11-24T10:00:00.000Z"
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000004",
+      "userId": "cand-001",
+      "recipientRole": "CANDIDATE",
+      "type": "LMS_SYNC",
+      "title": "Đồng bộ kết quả học tập Rikkei LMS",
+      "body": "Hệ thống vừa cập nhật 2 chứng chỉ hoàn thành học phần và bảng điểm Khảo thí mới nhất vào hồ sơ của bạn.",
+      "actionUrl": "/candidate/profile",
+      "readAt": "2026-11-23T14:20:00.000Z",
+      "createdAt": "2026-11-23T14:15:00.000Z"
+    }
+  ],
+  "std-001": [
+    {
+      "id": "c0000000-0000-0000-0000-000000000005",
+      "userId": "std-001",
+      "recipientRole": "CANDIDATE",
+      "type": "OFFER_RECEIVED",
+      "title": "Thư mời nhận việc từ VNG Cloud",
+      "body": "Chúc mừng bạn đã nhận được thư mời làm việc cho vị trí Java Backend Developer (FRESHER) #25.",
+      "actionUrl": "/candidate/offers",
+      "readAt": "2026-11-26T02:11:23.563Z",
+      "createdAt": "2026-11-26T07:45:00.000Z"
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000006",
+      "userId": "std-001",
+      "recipientRole": "CANDIDATE",
+      "type": "INTERVIEW_SCHEDULED",
+      "title": "Lịch phỏng vấn kỹ thuật trực tuyến",
+      "body": "Bạn có ca phỏng vấn kỹ thuật trực tuyến vào lúc 14:00 ngày 28/11/2026 trên phòng họp Rikkei Meet.",
+      "actionUrl": "/candidate/interviews",
+      "readAt": "2026-11-26T02:11:26.853Z",
+      "createdAt": "2026-11-26T06:10:00.000Z"
+    }
+  ],
+  "ed854c07-f3eb-48f1-a186-4e7135f54645": [
+    {
+      "id": "c0000000-0000-0000-0000-000000000007",
+      "userId": "ed854c07-f3eb-48f1-a186-4e7135f54645",
+      "recipientRole": "CANDIDATE",
+      "type": "OFFER_RECEIVED",
+      "title": "Thư mời nhận việc từ VNG Cloud",
+      "body": "Chúc mừng bạn đã nhận được thư mời làm việc cho vị trí Java Backend Developer (FRESHER) #25. Vui lòng phản hồi trước ngày 30/11/2026.",
+      "actionUrl": "/candidate/offers",
+      "readAt": null,
+      "createdAt": "2026-11-26T07:45:00.000Z"
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000008",
+      "userId": "ed854c07-f3eb-48f1-a186-4e7135f54645",
+      "recipientRole": "CANDIDATE",
+      "type": "INTERVIEW_SCHEDULED",
+      "title": "Lịch phỏng vấn kỹ thuật trực tuyến",
+      "body": "Bạn có ca phỏng vấn kỹ thuật trực tuyến vào lúc 14:00 ngày 28/11/2026 trên phòng họp Rikkei Meet.",
+      "actionUrl": "/candidate/interviews",
+      "readAt": null,
+      "createdAt": "2026-11-26T06:10:00.000Z"
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000009",
+      "userId": "ed854c07-f3eb-48f1-a186-4e7135f54645",
+      "recipientRole": "CANDIDATE",
+      "type": "PROFILE_REVIEWED",
+      "title": "Hồ sơ năng lực đã được duyệt công khai",
+      "body": "Cán bộ tuyển sinh & hướng nghiệp đã phê duyệt hồ sơ năng lực của bạn.",
+      "actionUrl": "/candidate/profile",
+      "readAt": "2026-11-25T08:00:00.000Z",
+      "createdAt": "2026-11-24T10:00:00.000Z"
+    }
+  ]
+}

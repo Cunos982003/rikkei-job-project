@@ -54,6 +54,7 @@ let savedJobsData = loadData('saved_jobs.json') || {};
 let internshipsData = loadData('internships.json') || [];
 let placementsData = loadData('placements.json') || [];
 let portfolioData = loadData('portfolio.json') || {};
+let notificationsData = loadData('notifications.json') || {};
 const candidateTargets = {};
 
 // Lịch sử duyệt hồ sơ (HS-05), chỉ tồn tại trong bộ nhớ của tiến trình mock
@@ -1143,6 +1144,109 @@ async function requestHandler(req, res) {
       statusCode: 200,
       message: 'Bỏ lưu việc làm thành công',
       data: { jobId, saved: false }
+    });
+  }
+
+  // 6.1. GET /api/v1/notifications & /api/v1/notifications/me (Danh sách thông báo in-app)
+  const isNotificationsRoute = pathname === '/api/v1/notifications' || pathname === '/api/v1/notifications/me' || pathname === '/notifications/me';
+  if (method === 'GET' && isNotificationsRoute) {
+    const key = getCandidateStorageKey(req);
+    const list = notificationsData[key] || notificationsData['ed854c07-f3eb-48f1-a186-4e7135f54645'] || notificationsData['cand-001'] || notificationsData['std-001'] || [];
+    const unreadOnly = parsedUrl.searchParams.get('unreadOnly') === 'true';
+    const filtered = unreadOnly ? list.filter(n => !n.readAt) : list;
+    const page = parseInt(parsedUrl.searchParams.get('page') || '0', 10);
+    const size = parseInt(parsedUrl.searchParams.get('size') || '10', 10);
+    const start = page * size;
+    const items = filtered.slice(start, start + size);
+
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách thông báo thành công',
+      data: {
+        items,
+        pagination: {
+          page,
+          size,
+          totalElements: filtered.length,
+          totalPages: Math.ceil(filtered.length / size) || 1,
+          isFirst: page === 0,
+          isLast: start + size >= filtered.length,
+          hasNext: start + size < filtered.length,
+          hasPrevious: page > 0
+        }
+      }
+    });
+  }
+
+  // 6.2. GET /api/v1/notifications/unread-count (Số lượng thông báo chưa đọc cho chuông)
+  if (method === 'GET' && (pathname === '/api/v1/notifications/unread-count' || pathname === '/notifications/unread-count')) {
+    const key = getCandidateStorageKey(req);
+    const list = notificationsData[key] || notificationsData['ed854c07-f3eb-48f1-a186-4e7135f54645'] || notificationsData['cand-001'] || notificationsData['std-001'] || [];
+    const unreadCount = list.filter(n => !n.readAt).length;
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy số lượng thông báo chưa đọc thành công',
+      data: { unreadCount }
+    });
+  }
+
+  // 6.3. PUT /api/v1/notifications/:id/read (Đánh dấu 1 thông báo đã đọc)
+  const notificationReadMatch = pathname.match(/^\/(?:api\/v1\/)?notifications\/([a-zA-Z0-9-]+)\/read$/);
+  if (method === 'PUT' && notificationReadMatch) {
+    const notifId = notificationReadMatch[1];
+    const key = getCandidateStorageKey(req);
+    const list = notificationsData[key] || notificationsData['ed854c07-f3eb-48f1-a186-4e7135f54645'] || notificationsData['cand-001'] || [];
+    const item = list.find(n => n.id === notifId);
+    if (item) {
+      item.readAt = new Date().toISOString();
+      saveData('notifications.json', notificationsData);
+      return sendJson(res, 200, {
+        success: true,
+        statusCode: 200,
+        message: 'Đánh dấu thông báo đã đọc thành công',
+        data: item
+      });
+    }
+    return sendError(res, 404, 'Không tìm thấy thông báo');
+  }
+
+  // 6.4. PUT /api/v1/notifications/read-all (Đánh dấu tất cả thông báo đã đọc)
+  if (method === 'PUT' && (pathname === '/api/v1/notifications/read-all' || pathname === '/notifications/read-all')) {
+    const key = getCandidateStorageKey(req);
+    const list = notificationsData[key] || notificationsData['ed854c07-f3eb-48f1-a186-4e7135f54645'] || notificationsData['cand-001'] || [];
+    const now = new Date().toISOString();
+    let updatedCount = 0;
+    list.forEach(n => {
+      if (!n.readAt) {
+        n.readAt = now;
+        updatedCount++;
+      }
+    });
+    saveData('notifications.json', notificationsData);
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Đánh dấu tất cả thông báo đã đọc thành công',
+      data: { updatedCount }
+    });
+  }
+
+  // 6.5. DELETE /api/v1/notifications/:id (Xóa thông báo)
+  const notificationDeleteMatch = pathname.match(/^\/(?:api\/v1\/)?notifications\/([a-zA-Z0-9-]+)$/);
+  if (method === 'DELETE' && notificationDeleteMatch) {
+    const notifId = notificationDeleteMatch[1];
+    const key = getCandidateStorageKey(req);
+    if (notificationsData[key]) {
+      notificationsData[key] = notificationsData[key].filter(n => n.id !== notifId);
+      saveData('notifications.json', notificationsData);
+    }
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Xóa thông báo thành công',
+      data: null
     });
   }
 
@@ -2829,6 +2933,28 @@ ${sheetRows}  </sheetData>
     const candidate = resolveMockActor(req);
     const records = mockEmploymentRecords.filter(e => e.userId === candidate.id);
     return sendJson(res, 200, records);
+  }
+
+  // 5.13 AI Career - DELETE Conversation
+  const convDeleteMatch = (pathname || '').match(/^(?:\/api\/v1)?(?:\/ai-career)?\/me\/conversations\/([^/?]+)$/);
+  if (method === 'DELETE' && convDeleteMatch) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Xóa cuộc trò chuyện thành công',
+      data: null
+    });
+  }
+
+  // 5.14 AI Career - DELETE Interview Practice
+  const practiceDeleteMatch = (pathname || '').match(/^(?:\/api\/v1)?(?:\/ai-career)?\/me\/interview-practices\/([^/?]+)$/);
+  if (method === 'DELETE' && practiceDeleteMatch) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Xóa buổi luyện phỏng vấn thành công',
+      data: null
+    });
   }
 
   // Health check endpoint

@@ -22,6 +22,7 @@ import {
 } from "../../api/endpoints/careerChat.api";
 import { jobsApi, type JobPostingItem } from "../../api/endpoints/jobs.api";
 import { Button } from "../../components/common/Button";
+import { Modal } from "../../components/common/Modal";
 import { MarkdownRenderer } from "../../components/common/MarkdownRenderer";
 
 const SAMPLE_QUESTIONS = [
@@ -61,6 +62,8 @@ export const CareerAssistantPage: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [conversationToDelete, setConversationToDelete] = useState<ConversationItem | null>(null);
+  const [isDeletingConv, setIsDeletingConv] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
@@ -202,23 +205,41 @@ export const CareerAssistantPage: React.FC = () => {
     }
   };
 
-  const handleDeleteConversation = async (convId: string) => {
-    if (isStreaming) return;
-    if (!window.confirm("Bạn có chắc muốn xóa cuộc trò chuyện này?")) return;
+  const handleOpenDeleteModal = (conv: ConversationItem, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    setConversationToDelete(conv);
+  };
+
+  const handleConfirmDeleteConversation = async () => {
+    if (!conversationToDelete) return;
+    setIsDeletingConv(true);
     try {
-      await careerChatApi.deleteConversation(convId);
-      setConversations((prev) => {
-        const next = prev.filter((c) => c.id !== convId);
-        if (activeConvId === convId) {
-          const sameTab = next.find((c) => c.mode === sidebarTab) || next[0];
-          setActiveConvId(sameTab ? sameTab.id : null);
-          if (!sameTab) setMessages([]);
+      await careerChatApi.deleteConversation(conversationToDelete.id);
+      toast.success("Đã xóa đoạn chat thành công!");
+
+      const updated = conversations.filter((c) => c.id !== conversationToDelete.id);
+      setConversations(updated);
+
+      if (activeConvId === conversationToDelete.id) {
+        const sameModeRemaining = updated.filter((c) => c.mode === sidebarTab);
+        if (sameModeRemaining.length > 0) {
+          setActiveConvId(sameModeRemaining[0].id);
+        } else if (updated.length > 0) {
+          setActiveConvId(updated[0].id);
+          setSidebarTab(updated[0].mode);
+        } else {
+          setActiveConvId(null);
+          setMessages([]);
         }
-        return next;
-      });
-      toast.success("Đã xóa cuộc trò chuyện.");
-    } catch {
-      toast.error("Không thể xóa cuộc trò chuyện.");
+      }
+      setConversationToDelete(null);
+    } catch (err: any) {
+      const msg = err.response?.data?.message || "Không thể xóa đoạn chat. Vui lòng thử lại.";
+      toast.error(msg);
+    } finally {
+      setIsDeletingConv(false);
     }
   };
 
@@ -472,22 +493,29 @@ export const CareerAssistantPage: React.FC = () => {
               return (
                 <div
                   key={conv.id}
-                  className={`group flex items-center gap-1.5 rounded-xl px-2.5 py-2 transition-colors ${
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    if (!isStreaming && conv.id !== activeConvId) {
+                      setIsLoadingMsgs(true);
+                      setActiveConvId(conv.id);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      if (!isStreaming && conv.id !== activeConvId) {
+                        setIsLoadingMsgs(true);
+                        setActiveConvId(conv.id);
+                      }
+                    }
+                  }}
+                  className={`group relative flex items-center justify-between rounded-xl px-3 py-2.5 text-left transition-colors cursor-pointer ${
                     isActive
                       ? "border border-primary-border bg-primary-light text-primary"
                       : "hover:bg-slate-200/60 text-foreground"
                   }`}
                 >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!isStreaming && conv.id !== activeConvId) {
-                        setIsLoadingMsgs(true);
-                        setActiveConvId(conv.id);
-                      }
-                    }}
-                    className="min-w-0 flex-1 text-left"
-                  >
+                  <div className="min-w-0 flex-1 pr-2">
                     <div className="truncate text-xs font-semibold">{conv.title}</div>
                     <div className="mt-1 flex items-center justify-between text-[11px] text-muted">
                       <span>{conv.mode === "INTERVIEW" ? "Phỏng vấn AI" : "Tư vấn"}</span>
@@ -498,19 +526,14 @@ export const CareerAssistantPage: React.FC = () => {
                         })}
                       </span>
                     </div>
-                  </button>
+                  </div>
                   <button
                     type="button"
-                    title="Xóa cuộc trò chuyện"
-                    aria-label="Xóa cuộc trò chuyện"
-                    disabled={isStreaming}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void handleDeleteConversation(conv.id);
-                    }}
-                    className="shrink-0 rounded-lg p-1.5 text-muted transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                    title="Xóa đoạn chat này"
+                    onClick={(e) => handleOpenDeleteModal(conv, e)}
+                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1.5 rounded-lg text-muted hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all shrink-0"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               );
@@ -541,20 +564,35 @@ export const CareerAssistantPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Remaining Quota Badge */}
-          <div
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${
-              quota && quota.remaining <= 5
-                ? "border-amber-300 bg-amber-50 text-amber-800"
-                : "border-border bg-slate-50 text-foreground"
-            }`}
-            title={quota ? `Đặt lại lúc ${formatResetTime(quota.resetAt)}` : undefined}
-          >
-            <Clock className="h-3.5 w-3.5 text-primary" />
-            <span>
-              Còn{" "}
-              <strong>{quota ? quota.remaining : 30}</strong>/{quota ? quota.limit : 30} lượt hôm nay
-            </span>
+          {/* Actions & Quota */}
+          <div className="flex items-center gap-2">
+            {activeConversation && (
+              <button
+                type="button"
+                title="Xóa đoạn chat hiện tại"
+                onClick={(e) => handleOpenDeleteModal(activeConversation, e)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border text-muted hover:text-red-500 hover:border-red-200 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all text-xs font-medium cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Xóa chat</span>
+              </button>
+            )}
+
+            {/* Remaining Quota Badge */}
+            <div
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${
+                quota && quota.remaining <= 5
+                  ? "border-amber-300 bg-amber-50 text-amber-800"
+                  : "border-border bg-slate-50 text-foreground"
+              }`}
+              title={quota ? `Đặt lại lúc ${formatResetTime(quota.resetAt)}` : undefined}
+            >
+              <Clock className="h-3.5 w-3.5 text-primary" />
+              <span>
+                Còn{" "}
+                <strong>{quota ? quota.remaining : 30}</strong>/{quota ? quota.limit : 30} lượt hôm nay
+              </span>
+            </div>
           </div>
         </header>
 
@@ -714,6 +752,56 @@ export const CareerAssistantPage: React.FC = () => {
           </div>
         </form>
       </section>
+
+      {/* Modal Confirm Delete Conversation */}
+      <Modal
+        isOpen={Boolean(conversationToDelete)}
+        onClose={() => !isDeletingConv && setConversationToDelete(null)}
+        title="Xác nhận xóa đoạn chat"
+        size="sm"
+        footer={
+          <div className="flex items-center justify-end gap-2 w-full">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isDeletingConv}
+              onClick={() => setConversationToDelete(null)}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              isLoading={isDeletingConv}
+              disabled={isDeletingConv}
+              onClick={handleConfirmDeleteConversation}
+              leftIcon={<Trash2 className="w-4 h-4" />}
+            >
+              Xác nhận xóa
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-full bg-rose-50 text-rose-600 shrink-0">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-foreground">
+                Bạn có chắc chắn muốn xóa đoạn chat{" "}
+                <strong className="text-foreground font-semibold">
+                  &quot;{conversationToDelete?.title}&quot;
+                </strong>{" "}
+                không?
+              </p>
+              <p className="text-xs text-muted">
+                Toàn bộ lịch sử các câu hỏi và câu trả lời trong cuộc trò chuyện này sẽ bị xóa vĩnh viễn và không thể khôi phục.
+              </p>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

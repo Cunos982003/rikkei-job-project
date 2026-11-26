@@ -163,37 +163,48 @@ class ConversationControllerTests {
     }
 
     @Test
-    void deleteConversation_removesOwnedConversation() throws Exception {
-        UUID userId = UUID.randomUUID();
-        MvcResult createResult = mockMvc.perform(post("/me/conversations")
-                        .header("X-User-Id", userId.toString())
-                        .header("X-User-Role", "CANDIDATE")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"mode\":\"CAREER\"}"))
-                .andExpect(status().isCreated())
-                .andReturn();
-
-        String conversationId = objectMapper.readTree(createResult.getResponse().getContentAsString())
-                .path("data").path("id").asText();
-
-        mockMvc.perform(delete("/me/conversations/" + conversationId)
-                        .header("X-User-Id", userId.toString())
-                        .header("X-User-Role", "CANDIDATE"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
-
-        mockMvc.perform(get("/me/conversations")
-                        .header("X-User-Id", userId.toString())
-                        .header("X-User-Role", "CANDIDATE"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data", hasSize(0)));
-    }
-
-    @Test
     void nonCandidateRole_isForbidden() throws Exception {
         mockMvc.perform(get("/me/conversations")
                         .header("X-User-Id", UUID.randomUUID().toString())
                         .header("X-User-Role", "HR"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void deleteConversation_success() throws Exception {
+        UUID userId = UUID.randomUUID();
+        MvcResult createResult = mockMvc.perform(post("/me/conversations")
+                        .header("X-User-Id", userId.toString())
+                        .header("X-User-Role", "CANDIDATE")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"mode\":\"CAREER\",\"title\":\"Test Conversation\"}"))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String body = createResult.getResponse().getContentAsString();
+        String convId = objectMapper.readTree(body).path("data").path("id").asText();
+
+        // Send a message first
+        mockMvc.perform(post("/me/conversations/" + convId + "/messages")
+                        .header("X-User-Id", userId.toString())
+                        .header("X-User-Role", "CANDIDATE")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"Hello AI\"}"))
+                .andExpect(status().isOk());
+
+        // Delete conversation
+        mockMvc.perform(delete("/me/conversations/" + convId)
+                        .header("X-User-Id", userId.toString())
+                        .header("X-User-Role", "CANDIDATE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message", containsString("thành công")));
+
+        // Verify conversation no longer in list
+        mockMvc.perform(get("/me/conversations")
+                        .header("X-User-Id", userId.toString())
+                        .header("X-User-Role", "CANDIDATE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(0)));
     }
 }

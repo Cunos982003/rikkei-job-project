@@ -29,7 +29,7 @@ public class CvServiceClient {
         if (maxPdfBytes < PDF_SIGNATURE.length || maxPdfBytes == Integer.MAX_VALUE) {
             throw new IllegalArgumentException("app.cv.max-pdf-bytes must be a positive, bounded size");
         }
-        this.restClient = RestClient.builder().baseUrl(baseUrl).build();
+        this.restClient = RestClient.builder().requestInterceptor(new com.example.common.logging.TracingClientHttpRequestInterceptor()).baseUrl(baseUrl).build();
         this.cvPdfPath = cvPdfPath;
         this.maxPdfBytes = maxPdfBytes;
     }

@@ -20,7 +20,7 @@ public class JobServiceClient {
     public JobServiceClient(
             @Value("${app.integrations.job-service-url}") String baseUrl,
             @Value("${app.integrations.job-details-path:/jobs/{jobId}}") String jobPath) {
-        this.restClient = RestClient.builder().baseUrl(baseUrl).build();
+        this.restClient = RestClient.builder().requestInterceptor(new com.example.common.logging.TracingClientHttpRequestInterceptor()).baseUrl(baseUrl).build();
         this.jobPath = jobPath;
     }
 

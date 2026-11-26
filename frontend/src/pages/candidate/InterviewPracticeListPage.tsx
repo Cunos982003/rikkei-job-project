@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Sparkles,
   Trash2,
+  AlertCircle,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { jobsApi, type JobPostingItem } from "../../api/endpoints/jobs.api";
@@ -32,6 +33,7 @@ export const InterviewPracticeListPage: React.FC = () => {
   const { data: practices, isLoading: isPracticesLoading } = useInterviewPracticeList();
   const createPracticeMutation = useCreatePractice();
   const deletePracticeMutation = useDeletePractice();
+  const [practiceToDelete, setPracticeToDelete] = useState<InterviewPracticeItem | null>(null);
 
   const { data: jobsRes, isLoading: isJobsLoading } = useQuery({
     queryKey: ["approvedJobsForInterview"],
@@ -198,23 +200,23 @@ export const InterviewPracticeListPage: React.FC = () => {
                     variant="outline"
                     size="sm"
                     rightIcon={<ChevronRight className="w-4 h-4" />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/candidate/career/interviews/${item.id}`);
+                    }}
                   >
                     {item.status === "DONE" ? "Xem kết quả" : "Tiếp tục làm"}
                   </Button>
                   <button
                     type="button"
-                    title="Xóa buổi luyện phỏng vấn"
-                    aria-label="Xóa buổi luyện phỏng vấn"
-                    disabled={deletePracticeMutation.isPending}
+                    title="Xóa bài thực hành này"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (window.confirm(`Bạn có chắc muốn xóa buổi luyện phỏng vấn "${item.jobTitle}"?`)) {
-                        deletePracticeMutation.mutate(item.id);
-                      }
+                      setPracticeToDelete(item);
                     }}
-                    className="rounded-lg p-2 text-muted transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                    className="p-2 rounded-lg text-muted hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all border border-transparent hover:border-red-200 cursor-pointer"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </CardContent>
@@ -292,6 +294,63 @@ export const InterviewPracticeListPage: React.FC = () => {
               ))}
             </div>
           )}
+        </div>
+      </Modal>
+
+      {/* Modal Confirm Delete Practice */}
+      <Modal
+        isOpen={Boolean(practiceToDelete)}
+        onClose={() => !deletePracticeMutation.isPending && setPracticeToDelete(null)}
+        title="Xác nhận xóa bài thực hành"
+        size="sm"
+        footer={
+          <div className="flex items-center justify-end gap-2 w-full">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={deletePracticeMutation.isPending}
+              onClick={() => setPracticeToDelete(null)}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              isLoading={deletePracticeMutation.isPending}
+              disabled={deletePracticeMutation.isPending}
+              onClick={() => {
+                if (!practiceToDelete) return;
+                deletePracticeMutation.mutate(practiceToDelete.id, {
+                  onSuccess: () => {
+                    setPracticeToDelete(null);
+                  },
+                });
+              }}
+              leftIcon={<Trash2 className="w-4 h-4" />}
+            >
+              Xác nhận xóa
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-full bg-rose-50 text-rose-600 shrink-0">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-foreground">
+                Bạn có chắc chắn muốn xóa bài thực hành cho vị trí{" "}
+                <strong className="text-foreground font-semibold">
+                  &quot;{practiceToDelete?.jobTitle}&quot;
+                </strong>{" "}
+                không?
+              </p>
+              <p className="text-xs text-muted">
+                Toàn bộ câu hỏi, câu trả lời, nhận xét và điểm số của buổi luyện tập này sẽ bị xóa vĩnh viễn và không thể khôi phục.
+              </p>
+            </div>
+          </div>
         </div>
       </Modal>
     </div>
