@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -81,6 +82,17 @@ public class ConversationController {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy lịch sử tin nhắn thành công",
                 conversationService.getMessages(userId, id)));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteConversation(
+            Principal principal,
+            @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
+            @RequestHeader(value = "X-User-Role", required = false) String headerRole,
+            @PathVariable("id") UUID id) {
+        UUID userId = resolveCandidateId(principal, headerUserId, headerRole);
+        conversationService.deleteConversation(userId, id);
+        return ResponseEntity.ok(ApiResponse.success("Xóa cuộc hội thoại thành công", null));
     }
 
     @PostMapping(value = "/{id}/messages", produces = MediaType.APPLICATION_JSON_VALUE)

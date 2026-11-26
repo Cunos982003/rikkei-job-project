@@ -10,4 +10,6 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
     List<ChatMessage> findByConversationIdOrderByCreatedAtAsc(UUID conversationId);
 
     List<ChatMessage> findByConversationIdOrderByCreatedAtDesc(UUID conversationId, Pageable pageable);
+
+    void deleteByConversationId(UUID conversationId);
 }

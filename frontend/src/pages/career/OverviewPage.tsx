@@ -1,7 +1,6 @@
 import { ArrowRight, BriefcaseBusiness, ChartNoAxesColumnIncreasing, CircleCheck, ShieldCheck, Target, TrendingUp } from 'lucide-react'
 import { lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
-import { Badge } from '../../components/common/Badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/common/Card'
 import { ChartLoading, EmptyRecommendations, MetricCard, PageIntro, RecommendationCard, RequestState } from '../../features/career/components/CareerShared'
 import { formatScore, getSkillGaps, useCareerData } from '../../features/career/careerUtils'
@@ -49,7 +48,6 @@ export function OverviewPage() {
                   <CardTitle>Điểm phù hợp theo vị trí</CardTitle>
                   <CardDescription className="mt-1">Mức độ đáp ứng kỹ năng cho từng cơ hội</CardDescription>
                 </div>
-                <Badge><TrendingUp size={13} /> DN-06</Badge>
               </CardHeader>
               <CardContent>
                 <Suspense fallback={<ChartLoading />}>

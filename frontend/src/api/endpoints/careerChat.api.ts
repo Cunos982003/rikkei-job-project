@@ -93,6 +93,10 @@ export const careerChatApi = {
     return chatAxios.get("/quota");
   },
 
+  deleteConversation: async (conversationId: string): Promise<ApiResponse<null>> => {
+    return chatAxios.delete(`/${conversationId}`);
+  },
+
   streamMessage: async (
     conversationId: string,
     content: string,

@@ -237,6 +237,13 @@ public class InterviewPracticeService {
         return InterviewPracticeResponse.from(practice);
     }
 
+    @Transactional
+    public void deletePractice(UUID userId, UUID practiceId) {
+        InterviewPractice practice = practiceRepository.findByIdAndUserId(practiceId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phiên luyện phỏng vấn"));
+        practiceRepository.delete(practice);
+    }
+
     private JsonNode callAiWithRetry(String systemPrompt, String userPrompt, boolean expectArray) {
         String rawResponse = null;
         try {

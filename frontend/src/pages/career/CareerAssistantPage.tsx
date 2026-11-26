@@ -9,6 +9,7 @@ import {
   User,
   AlertCircle,
   Clock,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import rikkeiBuddyAvatar from "../../assets/rikkei-buddy.jpg";
@@ -198,6 +199,26 @@ export const CareerAssistantPage: React.FC = () => {
       toast.error("Không thể khởi tạo buổi luyện phỏng vấn.");
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleDeleteConversation = async (convId: string) => {
+    if (isStreaming) return;
+    if (!window.confirm("Bạn có chắc muốn xóa cuộc trò chuyện này?")) return;
+    try {
+      await careerChatApi.deleteConversation(convId);
+      setConversations((prev) => {
+        const next = prev.filter((c) => c.id !== convId);
+        if (activeConvId === convId) {
+          const sameTab = next.find((c) => c.mode === sidebarTab) || next[0];
+          setActiveConvId(sameTab ? sameTab.id : null);
+          if (!sameTab) setMessages([]);
+        }
+        return next;
+      });
+      toast.success("Đã xóa cuộc trò chuyện.");
+    } catch {
+      toast.error("Không thể xóa cuộc trò chuyện.");
     }
   };
 
@@ -449,32 +470,49 @@ export const CareerAssistantPage: React.FC = () => {
             filteredConversations.map((conv) => {
               const isActive = conv.id === activeConvId;
               return (
-                <button
+                <div
                   key={conv.id}
-                  type="button"
-                  onClick={() => {
-                    if (!isStreaming && conv.id !== activeConvId) {
-                      setIsLoadingMsgs(true);
-                      setActiveConvId(conv.id);
-                    }
-                  }}
-                  className={`w-full rounded-xl px-3 py-2.5 text-left transition-colors ${
+                  className={`group flex items-center gap-1.5 rounded-xl px-2.5 py-2 transition-colors ${
                     isActive
                       ? "border border-primary-border bg-primary-light text-primary"
                       : "hover:bg-slate-200/60 text-foreground"
                   }`}
                 >
-                  <div className="truncate text-xs font-semibold">{conv.title}</div>
-                  <div className="mt-1 flex items-center justify-between text-[11px] text-muted">
-                    <span>{conv.mode === "INTERVIEW" ? "Phỏng vấn AI" : "Tư vấn"}</span>
-                    <span>
-                      {new Date(conv.createdAt).toLocaleDateString("vi-VN", {
-                        day: "2-digit",
-                        month: "2-digit",
-                      })}
-                    </span>
-                  </div>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isStreaming && conv.id !== activeConvId) {
+                        setIsLoadingMsgs(true);
+                        setActiveConvId(conv.id);
+                      }
+                    }}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <div className="truncate text-xs font-semibold">{conv.title}</div>
+                    <div className="mt-1 flex items-center justify-between text-[11px] text-muted">
+                      <span>{conv.mode === "INTERVIEW" ? "Phỏng vấn AI" : "Tư vấn"}</span>
+                      <span>
+                        {new Date(conv.createdAt).toLocaleDateString("vi-VN", {
+                          day: "2-digit",
+                          month: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    title="Xóa cuộc trò chuyện"
+                    aria-label="Xóa cuộc trò chuyện"
+                    disabled={isStreaming}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleDeleteConversation(conv.id);
+                    }}
+                    className="shrink-0 rounded-lg p-1.5 text-muted transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               );
             })
           )}
