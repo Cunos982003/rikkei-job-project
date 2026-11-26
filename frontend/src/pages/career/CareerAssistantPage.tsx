@@ -326,6 +326,9 @@ export const CareerAssistantPage: React.FC = () => {
             setStreamingContent("");
             abortControllerRef.current = null;
             toast.error(message);
+            void careerChatApi.getMessages(targetConvId).then((res) => {
+              if (res.data) setMessages(res.data);
+            }).catch(() => {});
           },
         },
         controller.signal
