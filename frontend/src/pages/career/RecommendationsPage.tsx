@@ -7,7 +7,7 @@ import { Badge } from '../../components/common/Badge'
 import { Button } from '../../components/common/Button'
 import { Card, CardContent } from '../../components/common/Card'
 import { Input } from '../../components/common/Input'
-import { DataPanel, EmptyRecommendations, PageIntro, RecommendationList, RequestState } from '../../features/career/components/CareerShared'
+import { DataPanel, EmptyRecommendations, PageIntro, RecommendationLimitForm, RecommendationList, RequestState } from '../../features/career/components/CareerShared'
 import { useCareerData } from '../../features/career/careerUtils'
 
 const searchSchema = z.object({ search: z.string() })
@@ -38,18 +38,21 @@ export function RecommendationsPage() {
         title="Việc làm phù hợp"
         description="Thứ tự đề xuất dựa trên mức độ đáp ứng các kỹ năng yêu cầu của từng vị trí."
         action={
-          <div className="flex items-center gap-2">
-            <Badge variant="default"><BriefcaseBusiness size={13} /> {recommendations.length} vị trí</Badge>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={refetch}
-              disabled={isLoading}
-              leftIcon={<RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />}
-            >
-              Làm mới
-            </Button>
+          <div className="flex flex-wrap items-end gap-3">
+            <RecommendationLimitForm />
+            <div className="flex items-center gap-2">
+              <Badge variant="default"><BriefcaseBusiness size={13} /> {recommendations.length} vị trí</Badge>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={refetch}
+                disabled={isLoading}
+                leftIcon={<RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />}
+              >
+                Làm mới
+              </Button>
+            </div>
           </div>
         }
       />

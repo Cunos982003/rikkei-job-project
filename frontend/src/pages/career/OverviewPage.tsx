@@ -1,17 +1,14 @@
 import { ArrowRight, BriefcaseBusiness, ChartNoAxesColumnIncreasing, CircleCheck, ShieldCheck, Target, TrendingUp } from 'lucide-react'
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
-import { Button } from '../../components/common/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/common/Card'
-import { ChartLoading, EmptyRecommendations, MetricCard, PageIntro, RecommendationCard, RequestState } from '../../features/career/components/CareerShared'
+import { ChartLoading, EmptyRecommendations, MetricCard, PageIntro, RecommendationCard, RecommendationLimitForm, RequestState } from '../../features/career/components/CareerShared'
 import { formatScore, getSkillGaps, useCareerData } from '../../features/career/careerUtils'
 
 const ScoreChart = lazy(() => import('../../features/career/charts').then((module) => ({ default: module.ScoreChart })))
 
 export function OverviewPage() {
-  const { recommendations, isLoading, isSuccess, limit, setLimit } = useCareerData()
-  const [draftLimit, setDraftLimit] = useState(String(limit))
-  const [limitError, setLimitError] = useState('')
+  const { recommendations, isLoading, isSuccess } = useCareerData()
   const gaps = getSkillGaps(recommendations)
   const missingRequired = new Set(
     gaps.filter((gap) => gap.required && gap.gap > 0).map((gap) => gap.skillName),
@@ -28,36 +25,7 @@ export function OverviewPage() {
         description="Khám phá cơ hội phù hợp với năng lực đã được xác thực và xem kỹ năng nào sẽ giúp bạn tiến xa hơn."
         action={
           <div className="flex flex-wrap items-end gap-3">
-            <form
-              className="flex items-end gap-2"
-              onSubmit={(event) => {
-                event.preventDefault()
-                const value = Number(draftLimit)
-                if (!Number.isInteger(value) || value < 1 || value > 50) {
-                  setLimitError('Nhập số nguyên từ 1 đến 50.')
-                  return
-                }
-                setLimitError('')
-                setLimit(value)
-              }}
-            >
-              <div>
-                <label htmlFor="career-limit" className="block text-xs text-muted">Số gợi ý</label>
-                <input
-                  id="career-limit"
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={draftLimit}
-                  onChange={(event) => setDraftLimit(event.target.value)}
-                  aria-invalid={Boolean(limitError)}
-                  aria-describedby={limitError ? 'career-limit-error' : undefined}
-                  className="mt-1 w-20 rounded-lg border border-border bg-surface px-2 py-2 text-sm focus:border-primary focus:outline-none"
-                />
-                {limitError && <p id="career-limit-error" role="alert" className="mt-1 text-xs text-danger">{limitError}</p>}
-              </div>
-              <Button type="submit" size="sm">Cập nhật</Button>
-            </form>
+            <RecommendationLimitForm />
             <Link to="/candidate/career/recommendations" className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-slate-50">
               Khám phá việc làm <ArrowRight size={15} />
             </Link>
