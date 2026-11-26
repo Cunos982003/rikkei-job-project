@@ -40,11 +40,11 @@ public class CareerService {
     public List<JobRecommendationResponse> getRecommendations(UUID userId, int limit) {
         RecommendationSnapshot snapshot = dataSource.loadSnapshot(userId);
         Instant now = Instant.now();
-        List<ScoredJob> jobs = snapshot.eligibleJobs().stream()
+        List<ScoredJob> allScored = snapshot.eligibleJobs().stream()
                 .map(job -> new ScoredJob(job, JobMatchScorer.score(snapshot.verifiedSkills(), job.requirements())))
                 .sorted((first, second) -> Double.compare(second.match().score(), first.match().score()))
-                .limit(limit)
                 .toList();
+        List<ScoredJob> jobs = selectDiverseTopJobs(allScored, limit);
 
         List<PendingRecommendation> pending = new java.util.ArrayList<>();
         JobRecommendationResponse[] results = new JobRecommendationResponse[jobs.size()];
@@ -110,6 +110,45 @@ public class CareerService {
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Eligible job not found for user"));
         return JobMatchScorer.score(snapshot.verifiedSkills(), job.requirements()).score();
+    }
+
+    private List<ScoredJob> selectDiverseTopJobs(List<ScoredJob> sortedScored, int limit) {
+        if (sortedScored.size() <= limit) {
+            return sortedScored;
+        }
+        List<ScoredJob> selected = new java.util.ArrayList<>(limit);
+        java.util.Set<String> seenRoles = new java.util.HashSet<>();
+        java.util.Set<UUID> selectedIds = new java.util.HashSet<>();
+
+        for (ScoredJob item : sortedScored) {
+            if (selected.size() >= limit) {
+                break;
+            }
+            String roleKey = normalizeRoleKey(item.job().title());
+            if (roleKey == null || seenRoles.add(roleKey)) {
+                selected.add(item);
+                selectedIds.add(item.job().jobId());
+            }
+        }
+        if (selected.size() < limit) {
+            for (ScoredJob item : sortedScored) {
+                if (selected.size() >= limit) {
+                    break;
+                }
+                if (selectedIds.add(item.job().jobId())) {
+                    selected.add(item);
+                }
+            }
+        }
+        selected.sort((first, second) -> Double.compare(second.match().score(), first.match().score()));
+        return selected;
+    }
+
+    private String normalizeRoleKey(String title) {
+        if (title == null || title.isBlank()) {
+            return null;
+        }
+        return title.replaceAll("\\s*#\\d+\\s*$", "").trim().toLowerCase(java.util.Locale.ROOT);
     }
 
     private record ScoredJob(RecommendationSnapshot.EligibleJob job, JobMatchScorer.MatchResult match) {
