@@ -38,15 +38,10 @@ public class SmtpEmailService implements EmailService {
     @Override
     public void sendPasswordResetEmail(String toEmail, String resetToken) {
         String resetLink = resetUrl + "?token=" + resetToken;
-        log.info("================================================================================");
-        log.info("[PASSWORD RESET] Recipient : {}", toEmail);
-        log.info("[PASSWORD RESET] Reset Link: {}", resetLink);
-        log.info("[PASSWORD RESET] Raw Token : {}", resetToken);
-        log.info("================================================================================");
+        log.info("[PASSWORD RESET] Yêu cầu đặt lại mật khẩu đã được khởi tạo cho tài khoản email.");
 
         if (simulateLocal || !emailEnabled) {
             log.info("[DEV MOCK] Bypassing SMTP mail delivery (simulate-local={}, email-enabled={}).", simulateLocal, emailEnabled);
-            log.info("[DEV MOCK] Open the reset link above in your browser to proceed with password reset.");
             return;
         }
 

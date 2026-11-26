@@ -23,7 +23,7 @@ public class CandidateContextService {
 
     public CandidateContextService(
             @Value("${app.integrations.profile-service-url:http://localhost:8082}") String profileServiceUrl) {
-        this.profileClient = RestClient.builder().baseUrl(profileServiceUrl).build();
+        this.profileClient = RestClient.builder().requestInterceptor(new com.example.common.logging.TracingClientHttpRequestInterceptor()).baseUrl(profileServiceUrl).build();
     }
 
     @SuppressWarnings("unchecked")

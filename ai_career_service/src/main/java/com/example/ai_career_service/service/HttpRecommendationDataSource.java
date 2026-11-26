@@ -29,8 +29,8 @@ public class HttpRecommendationDataSource implements RecommendationDataSource {
     public HttpRecommendationDataSource(
             @Value("${app.integrations.profile-service-url:http://localhost:8082}") String profileServiceUrl,
             @Value("${app.integrations.job-service-url:http://localhost:8085}") String jobServiceUrl) {
-        this.profileClient = RestClient.builder().baseUrl(profileServiceUrl).build();
-        this.jobClient = RestClient.builder().baseUrl(jobServiceUrl).build();
+        this.profileClient = RestClient.builder().requestInterceptor(new com.example.common.logging.TracingClientHttpRequestInterceptor()).baseUrl(profileServiceUrl).build();
+        this.jobClient = RestClient.builder().requestInterceptor(new com.example.common.logging.TracingClientHttpRequestInterceptor()).baseUrl(jobServiceUrl).build();
     }
 
     @Override

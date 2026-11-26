@@ -80,7 +80,7 @@ export const interviewPracticeApi = {
     return interviewAxios.post(`/${practiceId}/finish`);
   },
 
-  deletePractice: async (practiceId: string): Promise<ApiResponse<null>> => {
+  deletePractice: async (practiceId: string): Promise<ApiResponse<void>> => {
     return interviewAxios.delete(`/${practiceId}`);
   },
 };

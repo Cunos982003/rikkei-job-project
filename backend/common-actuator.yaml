@@ -1,0 +1,49 @@
+# ==============================================================================
+# COMMON-01 & COMMON-04: Shared Actuator, Prometheus & OTel Tracing Template
+# ==============================================================================
+# Mọi Spring Boot service kế thừa cấu hình chuẩn này để xuất:
+# 1. /actuator/prometheus: Prometheus metrics với tags (application, env)
+# 2. /actuator/health/liveness: Kubernetes Liveness probe (HTTP 200 khi service sống)
+# 3. /actuator/health/readiness: Kubernetes Readiness probe (HTTP 200 khi service sẵn sàng nhận traffic)
+# 4. Histogram percentiles (0.5, 0.95, 0.99) cho http.server.requests để đo độ trễ chuẩn hóa
+# 5. Distributed Tracing: Sampling 100% dev, 10% prod (cấu hình qua biến môi trường MANAGEMENT_TRACING_SAMPLING_PROBABILITY)
+# 6. OTLP Exporter trỏ tới Tempo/Jaeger collector (MANAGEMENT_OTLP_TRACING_ENDPOINT)
+# ==============================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+    info:
+      env:
+        enabled: false
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      env: ${SPRING_PROFILES_ACTIVE:${spring.profiles.active:default}}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5, 0.95, 0.99
+  tracing:
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}
+  otlp:
+    tracing:
+      endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}}
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+management:
+  tracing:
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:0.1}
+
