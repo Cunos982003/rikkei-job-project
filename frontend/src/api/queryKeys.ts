@@ -17,6 +17,13 @@ export const candidateKeys = {
     visibilityHistory: (userId?: string) => [...candidateKeys.profile.all(), "visibilityHistory", userId ?? "me"] as const,
     evaluations: (userId?: string) => [...candidateKeys.profile.all(), "evaluations", userId ?? "me"] as const,
     internships: (userId?: string) => [...candidateKeys.profile.all(), "internships", userId ?? "me"] as const,
+    // HS-04 CV
+    cvs: {
+      all: () => [...candidateKeys.profile.all(), "cvs"] as const,
+      list: (userId?: string) => [...candidateKeys.profile.cvs.all(), "list", userId ?? "me"] as const,
+      detail: (cvId: string) => [...candidateKeys.profile.cvs.all(), "detail", cvId] as const,
+      public: (publicToken: string) => [...candidateKeys.profile.cvs.all(), "public", publicToken] as const,
+    },
   },
 
   // Kỹ năng ứng viên (Skills) - Dùng chung cho Profile, LMS & AI Career

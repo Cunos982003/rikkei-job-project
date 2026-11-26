@@ -16,6 +16,7 @@ java {
 
 repositories {
     mavenCentral()
+    maven { url 'https://repo.itextsupport.com/releases' }
 }
 
 dependencies {
@@ -39,6 +40,15 @@ dependencies {
 
     // MinIO/S3 client for object storage
     implementation 'io.minio:minio:8.5.14'
+
+    // PDF generation (iText7) - correct artifact IDs
+    implementation 'com.itextpdf:itext7-core:7.1.18'
+    implementation 'com.itextpdf:layout:7.1.18'
+    implementation 'com.itextpdf:pdfa:7.1.18'
+
+    // QR code generation (ZXing)
+    implementation 'com.google.zxing:core:3.5.2'
+    implementation 'com.google.zxing:javase:3.5.2'
 
     // JWT dependencies
     implementation 'io.jsonwebtoken:jjwt-api:0.12.6'

@@ -638,3 +638,128 @@ export const profileApi = {
     );
   },
 };
+
+// ===== HS-04 CV Types =====
+
+export type CVSectionType =
+  | 'personal_info'
+  | 'education'
+  | 'experience'
+  | 'skills'
+  | 'projects'
+  | 'certificates'
+  | 'summary';
+
+export interface CVSection {
+  id: string;
+  sectionType: CVSectionType;
+  contentJson: string;
+  sortOrder: number;
+}
+
+export interface CV {
+  id: string;
+  title: string;
+  publicToken: string;
+  isPublic: boolean;
+  pdfUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+  sections: CVSection[];
+}
+
+export interface CreateCVRequest {
+  title: string;
+}
+
+export interface UpdateCVRequest {
+  title?: string;
+  isPublic?: boolean;
+}
+
+export interface UpdateCVSectionRequest {
+  sectionType: CVSectionType;
+  contentJson: string;
+  sortOrder?: number;
+}
+
+export interface ReorderCVSectionsRequest {
+  sectionIds: string[];
+}
+
+export interface GeneratePDFResponse {
+  pdfUrl: string;
+  publicUrl: string;
+}
+
+// ===== HS-04 CV Endpoints =====
+
+/**
+ * Lấy danh sách CV của chính mình
+ */
+export const getMyCVs = (): Promise<ApiResponse<CV[]>> => {
+  return api.get<CV[]>('/profiles/me/cvs', { silentError: true });
+};
+
+/**
+ * Lấy chi tiết một CV
+ */
+export const getMyCV = (cvId: string): Promise<ApiResponse<CV>> => {
+  return api.get<CV>(`/profiles/me/cvs/${cvId}`);
+};
+
+/**
+ * Tạo CV mới
+ */
+export const createCV = (data: CreateCVRequest): Promise<ApiResponse<CV>> => {
+  return api.post<CV>('/profiles/me/cvs', data);
+};
+
+/**
+ * Cập nhật CV
+ */
+export const updateCV = (cvId: string, data: UpdateCVRequest): Promise<ApiResponse<CV>> => {
+  return api.put<CV>(`/profiles/me/cvs/${cvId}`, data);
+};
+
+/**
+ * Xóa CV
+ */
+export const deleteCV = (cvId: string): Promise<ApiResponse<null>> => {
+  return api.delete<null>(`/profiles/me/cvs/${cvId}`);
+};
+
+/**
+ * Cập nhật section của CV
+ */
+export const upsertCVSection = (cvId: string, data: UpdateCVSectionRequest): Promise<ApiResponse<CVSection>> => {
+  return api.put<CVSection>(`/profiles/me/cvs/${cvId}/sections`, data);
+};
+
+/**
+ * Xóa section của CV
+ */
+export const deleteCVSection = (cvId: string, sectionType: CVSectionType): Promise<ApiResponse<null>> => {
+  return api.delete<null>(`/profiles/me/cvs/${cvId}/sections/${sectionType}`);
+};
+
+/**
+ * Sắp xếp lại thứ tự sections
+ */
+export const reorderCVSections = (cvId: string, data: ReorderCVSectionsRequest): Promise<ApiResponse<null>> => {
+  return api.put<null>(`/profiles/me/cvs/${cvId}/sections/order`, data);
+};
+
+/**
+ * Tạo PDF cho CV
+ */
+export const generateCVPDF = (cvId: string): Promise<ApiResponse<GeneratePDFResponse>> => {
+  return api.post<GeneratePDFResponse>(`/profiles/me/cvs/${cvId}/generate-pdf`, {});
+};
+
+/**
+ * Lấy CV công khai (không cần auth)
+ */
+export const getPublicCV = (publicToken: string): Promise<ApiResponse<CV>> => {
+  return api.get<CV>(`/profiles/public/${publicToken}`);
+};

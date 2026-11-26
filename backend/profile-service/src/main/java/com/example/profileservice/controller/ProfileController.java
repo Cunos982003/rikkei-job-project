@@ -1,12 +1,16 @@
 package com.example.profileservice.controller;
 
 import com.example.profileservice.common.ApiResponse;
+import com.example.profileservice.dto.CVDto;
 import com.example.profileservice.dto.PortfolioProjectDto;
 import com.example.profileservice.dto.PublishRequest;
 import com.example.profileservice.dto.ReviewHistoryItemDto;
 import com.example.profileservice.dto.SelfSkillDto;
 import com.example.profileservice.dto.UpdateProfileRequest;
 import com.example.profileservice.entity.CandidateProfile;
+import com.example.profileservice.exception.ResourceNotFoundException;
+import com.example.profileservice.service.CVService;
+import com.example.profileservice.service.MinioFileUploadService;
 import com.example.profileservice.service.PortfolioService;
 import com.example.profileservice.service.ProfileCommandService;
 import com.example.profileservice.service.SkillProfileService;
@@ -19,6 +23,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,6 +36,8 @@ public class ProfileController {
     private final SkillProfileService skillProfileService;
     private final VisibilityService visibilityService;
     private final PortfolioService portfolioService;
+    private final CVService cvService;
+    private final MinioFileUploadService minioFileUploadService;
 
     private UUID resolveUserId(Object headerUserId) {
         if (headerUserId instanceof UUID uuid) {
@@ -261,5 +268,158 @@ public class ProfileController {
     @GetMapping("/me/evaluations")
     public ResponseEntity<ApiResponse<java.util.List<Object>>> getMyEvaluations() {
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách đánh giá thành công", java.util.Collections.emptyList()));
+    }
+
+    // ========== CV Endpoints (HS-04) ==========
+
+    @GetMapping("/me/cvs")
+    public ResponseEntity<ApiResponse<List<CVDto>>> getMyCVs(
+            @RequestHeader(value = "X-User-Id", required = false) Object userId) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
+        }
+        List<CVDto> cvs = cvService.getMyCVs(effectiveUserId);
+        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách CV thành công", cvs));
+    }
+
+    @GetMapping("/me/cvs/{cvId}")
+    public ResponseEntity<ApiResponse<CVDto>> getMyCV(
+            @RequestHeader(value = "X-User-Id", required = false) Object userId,
+            @PathVariable UUID cvId) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
+        }
+        CVDto cv = cvService.getMyCV(effectiveUserId, cvId);
+        return ResponseEntity.ok(ApiResponse.success("Lấy CV thành công", cv));
+    }
+
+    @PostMapping("/me/cvs")
+    public ResponseEntity<ApiResponse<CVDto>> createCV(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @Valid @RequestBody CVDto.CreateCVRequest request) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
+        }
+        CVDto created = cvService.createCV(effectiveUserId, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Tạo CV thành công", created));
+    }
+
+    @PutMapping("/me/cvs/{cvId}")
+    public ResponseEntity<ApiResponse<CVDto>> updateCV(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @PathVariable UUID cvId,
+            @Valid @RequestBody CVDto.UpdateCVRequest request) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
+        }
+        CVDto updated = cvService.updateCV(effectiveUserId, cvId, request);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật CV thành công", updated));
+    }
+
+    @DeleteMapping("/me/cvs/{cvId}")
+    public ResponseEntity<ApiResponse<Void>> deleteCV(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @PathVariable UUID cvId) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
+        }
+        cvService.deleteCV(effectiveUserId, cvId);
+        return ResponseEntity.ok(ApiResponse.success("Xóa CV thành công", null));
+    }
+
+    @PutMapping("/me/cvs/{cvId}/sections")
+    public ResponseEntity<ApiResponse<CVDto.CVSectionDto>> upsertSection(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @PathVariable UUID cvId,
+            @Valid @RequestBody CVDto.UpdateCVSectionRequest request) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
+        }
+        CVDto.CVSectionDto section = cvService.updateCVSection(effectiveUserId, cvId, request);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật section thành công", section));
+    }
+
+    @DeleteMapping("/me/cvs/{cvId}/sections/{sectionType}")
+    public ResponseEntity<ApiResponse<Void>> deleteSection(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @PathVariable UUID cvId,
+            @PathVariable String sectionType) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
+        }
+        cvService.deleteCVSection(effectiveUserId, cvId, sectionType);
+        return ResponseEntity.ok(ApiResponse.success("Xóa section thành công", null));
+    }
+
+    @PutMapping("/me/cvs/{cvId}/sections/order")
+    public ResponseEntity<ApiResponse<Void>> reorderSections(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @PathVariable UUID cvId,
+            @Valid @RequestBody CVDto.ReorderCVSectionsRequest request) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
+        }
+        cvService.reorderCVSections(effectiveUserId, cvId, request);
+        return ResponseEntity.ok(ApiResponse.success("Sắp xếp lại sections thành công", null));
+    }
+
+    @PostMapping("/me/cvs/{cvId}/generate-pdf")
+    public ResponseEntity<ApiResponse<CVDto.GeneratePDFResponse>> generatePDF(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @PathVariable UUID cvId) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
+        }
+        try {
+            CVDto.GeneratePDFResponse response = cvService.generatePDF(effectiveUserId, cvId);
+            return ResponseEntity.ok(ApiResponse.success("Tạo PDF thành công", response));
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi tạo PDF: " + e.getMessage()));
+        }
+    }
+
+    // Public access without auth
+    @GetMapping("/public/{publicToken}")
+    public ResponseEntity<ApiResponse<CVDto>> getPublicCV(
+            @PathVariable String publicToken) {
+        CVDto cv = cvService.getCVByPublicToken(publicToken)
+                .orElseThrow(() -> new ResourceNotFoundException("CV không tồn tại hoặc không công khai"));
+        return ResponseEntity.ok(ApiResponse.success("Lấy CV công khai thành công", cv));
+    }
+
+    @GetMapping("/public/{publicToken}/pdf")
+    public ResponseEntity<org.springframework.core.io.Resource> downloadPublicPdf(
+            @PathVariable String publicToken) {
+        CVDto cv = cvService.getCVByPublicToken(publicToken)
+                .orElseThrow(() -> new ResourceNotFoundException("CV không tồn tại hoặc không công khai"));
+        if (cv.getPdfUrl() == null) {
+            throw new ResourceNotFoundException("PDF chưa được tạo");
+        }
+        org.springframework.core.io.InputStreamResource resource =
+                new org.springframework.core.io.InputStreamResource(minioFileUploadService.getObject(cv.getPdfUrl()));
+        return ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .header("Content-Disposition", "attachment; filename=\"" + cv.getTitle() + ".pdf\"")
+                .body(resource);
     }
 }

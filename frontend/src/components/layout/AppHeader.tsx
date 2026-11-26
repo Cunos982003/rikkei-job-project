@@ -180,6 +180,12 @@ const ROLE_NAV_CONFIGS: Record<Role, RoleConfig> = {
             icon: UserIcon,
           },
           {
+            title: "CV của tôi",
+            description: "Tạo và quản lý CV, xuất PDF với mã QR công khai",
+            path: "/candidate/cv",
+            icon: FileText,
+          },
+          {
             title: "Thư mời nhận việc (Offers)",
             description: "Xem xét đãi ngộ và phản hồi thư mời làm việc",
             path: "/candidate/offers",
