@@ -79,4 +79,8 @@ export const interviewPracticeApi = {
   finishPractice: async (practiceId: string): Promise<ApiResponse<InterviewPracticeItem>> => {
     return interviewAxios.post(`/${practiceId}/finish`);
   },
+
+  deletePractice: async (practiceId: string): Promise<ApiResponse<null>> => {
+    return interviewAxios.delete(`/${practiceId}`);
+  },
 };

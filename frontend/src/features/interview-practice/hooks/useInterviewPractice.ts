@@ -87,3 +87,19 @@ export function useFinishPractice(practiceId: string) {
     },
   });
 }
+
+export function useDeletePractice() {
+  const queryClient = useQueryClient();
+
+  return useMutation<ApiResponse<null>, any, string>({
+    mutationFn: (practiceId: string) => interviewPracticeApi.deletePractice(practiceId),
+    onSuccess: (res) => {
+      toast.success(res.message || "Đã xóa buổi luyện phỏng vấn!");
+      queryClient.invalidateQueries({ queryKey: INTERVIEW_QUERY_KEYS.all });
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || "Không thể xóa buổi luyện phỏng vấn.";
+      toast.error(msg);
+    },
+  });
+}
