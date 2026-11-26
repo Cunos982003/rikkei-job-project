@@ -72,6 +72,44 @@ public class UserContextHelper {
         }
     }
 
+    public void requireStaffOrAdmin(String headerUserId, String headerUserRole, String authHeader) {
+        if (headerUserRole != null && !headerUserRole.isBlank()) {
+            String normalized = headerUserRole.trim().toUpperCase().replace("ROLE_", "");
+            if ("STAFF".equals(normalized) || "ADMIN".equals(normalized)) {
+                return;
+            }
+            if ("HR".equals(normalized) || "CANDIDATE".equals(normalized)) {
+                throw new ForbiddenException("Bạn không có quyền thực hiện thao tác này. Chức năng chỉ dành cho Cán bộ (STAFF).");
+            }
+            throw new ForbiddenException("Bạn không có quyền thực hiện thao tác này. Chức năng chỉ dành cho Cán bộ (STAFF).");
+        }
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7).trim();
+            try {
+                Claims claims = parseJwtClaims(token);
+                Object roleClaim = claims.get("role");
+                if (roleClaim != null) {
+                    String normalized = roleClaim.toString().trim().toUpperCase().replace("ROLE_", "");
+                    if ("STAFF".equals(normalized) || "ADMIN".equals(normalized)) {
+                        return;
+                    }
+                    if ("HR".equals(normalized) || "CANDIDATE".equals(normalized)) {
+                        throw new ForbiddenException("Bạn không có quyền thực hiện thao tác này. Chức năng chỉ dành cho Cán bộ (STAFF).");
+                    }
+                }
+                throw new ForbiddenException("Bạn không có quyền thực hiện thao tác này. Chức năng chỉ dành cho Cán bộ (STAFF).");
+            } catch (ForbiddenException e) {
+                throw e;
+            } catch (Exception e) {
+                log.warn("Lỗi giải mã JWT: {}", e.getMessage());
+                throw new UnauthorizedException("Phiên đăng nhập không hợp lệ hoặc đã hết hạn.");
+            }
+        }
+
+        throw new UnauthorizedException("Vui lòng đăng nhập với quyền Cán bộ để thực hiện thao tác này.");
+    }
+
     private UUID parseOrDeterministicUuid(String rawId) {
         try {
             return UUID.fromString(rawId);

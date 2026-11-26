@@ -1,7 +1,7 @@
-# Tài Liệu Đặc Tả API - Module Đào Tạo Bổ Sung (DT-01, DT-02 & DT-03)
+# Tài Liệu Đặc Tả API - Module Đào Tạo Bổ Sung (DT-01, DT-02, DT-03 & DT-04)
 
 > **Dự án**: Rikkei Jobs  
-> **Module**: Đào tạo bổ sung · DT-01 (Phân tích khoảng thiếu hụt năng lực), DT-02 (Gợi ý khóa học LMS, ghi danh, theo dõi) & DT-03 (Màn khoảng thiếu hụt và lộ trình bổ sung)  
+> **Module**: Đào tạo bổ sung · DT-01 (Phân tích khoảng thiếu hụt năng lực), DT-02 (Gợi ý khóa học LMS, ghi danh, theo dõi), DT-03 (Màn khoảng thiếu hụt và lộ trình bổ sung) & DT-04 (Cán bộ theo dõi đào tạo bổ sung theo lớp, khoá)  
 > **Cổng API Gateway chính thức**: `http://localhost:8080`  
 > **Cổng Learning Service nội bộ**: `http://localhost:8089`  
 > **Cổng Mock Server dịch vụ ngoài**: `http://localhost:9000`  
@@ -37,9 +37,13 @@ Mọi phản hồi từ hệ thống (kể cả thành công 2xx, lỗi nghiệp
   - `X-User-Id`: ID định danh của người dùng (ví dụ: UUID hoặc mã ứng viên `cand-001`).
   - `X-User-Role`: Vai trò của người dùng từ hệ thống (`CANDIDATE`, `HR`, `MENTOR`, `STAFF`, `ADMIN`).
   - `Authorization`: Token `Bearer <JWT>` (được dùng để xác thực trực tiếp hoặc chuyển tiếp sang service ngoài).
-- Đối với các API yêu cầu bảo mật (`/me/**`):
+- Đối với các API yêu cầu bảo mật của Ứng viên (`/me/**`):
   - Nếu thiếu thông tin đăng nhập (`X-User-Id` và `Authorization` đều trống hoặc JWT không hợp lệ): Trả về **HTTP 401 Unauthorized**.
   - Nếu người dùng có vai trò không phải `CANDIDATE` (ví dụ `HR`, `MENTOR`, `STAFF`...): Trả về **HTTP 403 Forbidden**.
+- Đối với các API theo dõi đào tạo của Cán bộ (`/staff/upskilling/**`, DT-04):
+  - Yêu cầu vai trò **`STAFF`** hoặc **`ADMIN`**.
+  - Nếu người dùng gọi bằng vai trò `HR` hoặc `CANDIDATE`: Trả về **HTTP 403 Forbidden** (AC-4).
+  - Nếu thiếu thông tin đăng nhập hoặc JWT không hợp lệ: Trả về **HTTP 401 Unauthorized**.
 
 ### 1.3. Bảng Tổng Hợp Phân Quyền API (Access Control Matrix)
 
@@ -56,6 +60,9 @@ Mọi phản hồi từ hệ thống (kể cả thành công 2xx, lỗi nghiệp
 |  9  |   `POST`    | `/api/v1/learning/me/enrollments/refresh` |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Làm mới tiến độ và điểm số từ LMS; tự động cập nhật tăng chỉ số và chuyển DONE step. |
 | 10  |   `POST`    | `/api/v1/learning/me/learning-path`       |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Sinh lộ trình học tập tối ưu từ phân tích Gap (DT-01) và khóa học gợi ý (DT-02). Kỹ năng bắt buộc trước, gap lớn trước. Lộ trình cũ ACTIVE chuyển ARCHIVED. (DT-03) |
 | 11  |    `GET`    | `/api/v1/learning/me/learning-path`       |  **Bảo mật**   | Chỉ **`CANDIDATE`** (Ứng viên)           | Lấy thông tin lộ trình ACTIVE, danh sách bước học, % hoàn thành và mức tăng trưởng sẵn sàng. Tự động chuyển DONE khi môn học COMPLETED. (DT-03) |
+| 12  |    `GET`    | `/api/v1/staff/upskilling`                |  **Bảo mật**   | Chỉ **`STAFF`**, **`ADMIN`** (Cán bộ)    | Cán bộ theo dõi danh sách đào tạo bổ sung theo lớp, khoá; lọc trạng thái, kỹ năng thiếu; phân trang (DT-04) |
+| 13  |    `GET`    | `/api/v1/staff/upskilling/summary`        |  **Bảo mật**   | Chỉ **`STAFF`**, **`ADMIN`** (Cán bộ)    | Báo cáo tổng hợp đào tạo bổ sung: số ứng viên đang học, đã hoàn thành, Top 5 kỹ năng bị thiếu nhiều nhất (DT-04) |
+| 14  |    `GET`    | `/api/v1/staff/upskilling/export`         |  **Bảo mật**   | Chỉ **`STAFF`**, **`ADMIN`** (Cán bộ)    | Xuất báo cáo danh sách đào tạo bổ sung ra tệp Excel (`.xlsx`) theo đúng bộ lọc hiện tại (DT-04) |
 
 #### Phản hồi lỗi bảo mật chuẩn (HTTP 401 & HTTP 403):
 
@@ -855,6 +862,219 @@ Khi truyền cả 2 tham số hoặc không truyền:
 
 ---
 
+## MODULE DT-04: CÁN BỘ THEO DÕI ĐÀO TẠO BỔ SUNG THEO LỚP, KHOÁ (STAFF UPSKILLING)
+
+```mermaid
+flowchart LR
+    FE["Màn Đào tạo bổ sung (Frontend :5173)"] -->|"GET /api/v1/staff/upskilling"| GW["API Gateway (:8080)"]
+    FE -->|"GET /api/v1/staff/upskilling/summary"| GW
+    GW -->|"Chuyển tiếp kèm X-User-Role: STAFF"| LS["learning-service (:8089)"]
+    LS -->|"Truy vấn gộp theo lớp, khoá"| DB[("learning_db (PostgreSQL)")]
+    DB -->|"candidate_profiles + enrollments + gap_results"| LS
+```
+
+---
+
+### API 12: Cán bộ theo dõi danh sách đào tạo bổ sung theo lớp, khoá (DT-04)
+
+- **Mục đích**: Cán bộ theo dõi tình hình học bổ sung của học viên/ứng viên, hỗ trợ lọc theo mã lớp, tên khoá, trạng thái học tập, kỹ năng thiếu và phân trang. Bấm 1 dòng để xem chi tiết lộ trình và các môn học đã ghi danh.
+- **Phương thức HTTP**: `GET`
+- **Đường dẫn qua Gateway**: `http://localhost:8080/api/v1/staff/upskilling` (hoặc `/staff/upskilling`)
+- **Đường dẫn trực tiếp nội bộ**: `http://localhost:8089/api/v1/staff/upskilling` (hoặc `/staff/upskilling`)
+- **Quyền hạn**: **Bảo mật (Authenticated)** — Chỉ dành cho **`STAFF`** hoặc **`ADMIN`**.
+- **Chặn truy cập (AC-4)**:
+  - Nếu gọi bằng vai trò `ROLE_HR` hoặc `ROLE_CANDIDATE` $\to$ Trả về **HTTP 403 Forbidden**.
+  - Nếu không có token/header xác thực $\to$ Trả về **HTTP 401 Unauthorized**.
+- **Request Headers**:
+  - `X-User-Id`: ID cán bộ (ví dụ: `staff-001` hoặc UUID)
+  - `X-User-Role`: `ROLE_STAFF` hoặc `ROLE_ADMIN`
+  - `Authorization`: `Bearer <token>` (tuỳ chọn nếu gọi qua Gateway)
+- **Query Parameters**:
+
+| Tham số | Kiểu dữ liệu | Bắt buộc | Mặc định | Mô tả |
+| :--- | :---: | :---: | :---: | :--- |
+| `classCode` | String | Không | Trống | Lọc chính xác theo mã lớp (ví dụ: `RA-JAVA-2026`, `RA-FE-2026`, `RA-FS-2026`). Khớp AC-1. |
+| `courseName` | String | Không | Trống | Tìm kiếm theo tên khoá đào tạo (không phân biệt hoa thường, ví dụ: `Java`, `Frontend React`). |
+| `status` | String | Không | Trống | Lọc theo trạng thái học tập: `IN_PROGRESS` (đang học), `COMPLETED` (đã hoàn thành), `ENROLLED` (mới ghi danh), `FAILED` (chưa đạt). |
+| `skillId` | String | Không | Trống | Lọc những ứng viên đang thiếu kỹ năng cụ thể (ví dụ: `JAVA_CORE`, `SPRING_BOOT`, `TYPESCRIPT`, `REACT`, `SQL`). |
+| `page` | Integer | Không | `0` | Số thứ tự trang (0-indexed). |
+| `size` | Integer | Không | `10` | Số lượng bản ghi trên một trang. |
+
+- **Response Headers phân trang**:
+  - `X-Total-Count`: Tổng số ứng viên thoả mãn bộ lọc.
+  - `X-Page-Number`: Số trang hiện tại (`page`).
+  - `X-Page-Size`: Kích thước trang (`size`).
+  - `X-Total-Pages`: Tổng số trang.
+
+#### Cấu trúc dữ liệu Response (`data`):
+
+Trả về danh sách đối tượng học viên theo đúng định dạng đặc tả của task:
+`[{candidate, classCode, courseName, target, missingSkills, enrollments:[{course, progress, score, status}], readiness}]`
+
+- `candidate`: Thông tin cá nhân học viên: `{ userId, fullName, email, phone }`.
+- `classCode`: Mã lớp đào tạo (`RA-JAVA-2026`, ...).
+- `courseName`: Tên khoá đào tạo.
+- `target`: Tên vị trí hoặc mục tiêu nghề nghiệp (ví dụ: `Java Backend Fresher`, `Frontend ReactJS Fresher`).
+- `missingSkills`: Danh sách các kỹ năng bị thiếu (`gap > 0`): `[{ skillId, skillName, required, current, gap, priority }]`.
+- `enrollments`: Danh sách môn học và tiến độ thực tế: `[{ course, progress, score, status }]`.
+- `readiness`: Tỷ lệ sẵn sàng (%) được tính từ mức độ bù đắp kỹ năng thiếu và tiến độ môn học.
+- `status`: Trạng thái học tập tổng thể của học viên (`IN_PROGRESS`, `COMPLETED`, `ENROLLED`, `NOT_STARTED`).
+
+#### Response Mẫu (HTTP 200 OK):
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Lấy danh sách đào tạo bổ sung thành công",
+  "data": [
+    {
+      "candidate": {
+        "userId": "ed854c07-f3eb-48f1-a186-4e7135f54645",
+        "fullName": "Nguyễn Văn An",
+        "email": "candidate1@rikkeijobs.test",
+        "phone": "0912345600"
+      },
+      "classCode": "RA-JAVA-2026",
+      "courseName": "Khóa đào tạo Kỹ sư Phần mềm Java",
+      "target": "Java Backend Fresher",
+      "missingSkills": [
+        {
+          "skillId": "JAVA_CORE",
+          "skillName": "Java Core",
+          "required": 80,
+          "current": 55,
+          "gap": 25,
+          "priority": "HIGH"
+        },
+        {
+          "skillId": "SPRING_BOOT",
+          "skillName": "Spring Boot",
+          "required": 80,
+          "current": 66,
+          "gap": 14,
+          "priority": "MEDIUM"
+        },
+        {
+          "skillId": "SQL",
+          "skillName": "SQL",
+          "required": 80,
+          "current": 77,
+          "gap": 3,
+          "priority": "LOW"
+        }
+      ],
+      "enrollments": [
+        {
+          "course": "Lập trình Spring Boot nâng cao & Microservices",
+          "progress": 100.0,
+          "score": 80.0,
+          "status": "COMPLETED"
+        },
+        {
+          "course": "React 19 & Next.js Fullstack Architecture",
+          "progress": 35.0,
+          "score": null,
+          "status": "IN_PROGRESS"
+        }
+      ],
+      "readiness": 65.0,
+      "status": "IN_PROGRESS"
+    }
+  ],
+  "timestamp": "2026-11-26T10:45:00.0000000"
+}
+```
+
+---
+
+### API 13: Báo cáo tổng hợp đào tạo bổ sung (DT-04)
+
+- **Mục đích**: Cung cấp số liệu tổng quan cho Cán bộ trên giao diện "Đào tạo bổ sung", bao gồm các thẻ KPI số tổng và dữ liệu cho biểu đồ cột Top 5 kỹ năng thiếu nhiều nhất.
+- **Phương thức HTTP**: `GET`
+- **Đường dẫn qua Gateway**: `http://localhost:8080/api/v1/staff/upskilling/summary` (hoặc `/staff/upskilling/summary`)
+- **Đường dẫn trực tiếp nội bộ**: `http://localhost:8089/api/v1/staff/upskilling/summary` (hoặc `/staff/upskilling/summary`)
+- **Quyền hạn**: **Bảo mật (Authenticated)** — Chỉ dành cho **`STAFF`** hoặc **`ADMIN`**. Chặn `HR` và `CANDIDATE` (HTTP 403 Forbidden).
+- **Request Headers**:
+  - `X-User-Id`: ID cán bộ
+  - `X-User-Role`: `ROLE_STAFF` hoặc `ROLE_ADMIN`
+  - `Authorization`: `Bearer <token>`
+
+#### Cấu trúc dữ liệu Response (`data`):
+
+- `inProgressCount`: Số lượng ứng viên đang trong quá trình học tập bổ sung (có ít nhất 1 môn học đang học).
+- `completedCount`: Số lượng ứng viên đã hoàn thành tất cả các khóa học bổ sung.
+- `topMissingSkills`: Danh sách Top 5 kỹ năng bị thiếu nhiều nhất từ dữ liệu phân tích Gap (`gap > 0`), khớp hoàn toàn dữ liệu seed:
+  - `skillId`: Mã định danh kỹ năng (`TYPESCRIPT`, `JAVA_CORE`, `REACT`, `SPRING_BOOT`, `SQL`...).
+  - `skillName`: Tên hiển thị của kỹ năng (`TypeScript`, `Java Core`, `React`, `Spring Boot`, `SQL`).
+  - `missingCount`: Số lượng ứng viên bị thiếu kỹ năng này.
+  - `percentage`: Tỷ lệ phần trăm trên tổng số học viên.
+
+#### Response Mẫu (HTTP 200 OK - Khớp 100% dữ liệu seed DT-04):
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Lấy báo cáo tổng hợp đào tạo bổ sung thành công",
+  "data": {
+    "inProgressCount": 18,
+    "completedCount": 12,
+    "topMissingSkills": [
+      {
+        "skillId": "TYPESCRIPT",
+        "skillName": "TypeScript",
+        "missingCount": 10,
+        "percentage": 25.0
+      },
+      {
+        "skillId": "JAVA_CORE",
+        "skillName": "Java Core",
+        "missingCount": 8,
+        "percentage": 20.0
+      },
+      {
+        "skillId": "REACT",
+        "skillName": "React",
+        "missingCount": 7,
+        "percentage": 17.5
+      },
+      {
+        "skillId": "SPRING_BOOT",
+        "skillName": "Spring Boot",
+        "missingCount": 7,
+        "percentage": 17.5
+      },
+      {
+        "skillId": "SQL",
+        "skillName": "SQL",
+        "missingCount": 5,
+        "percentage": 12.5
+      }
+    ]
+  },
+  "timestamp": "2026-11-26T10:45:00.0000000"
+}
+```
+
+---
+
+### API 14: Xuất báo cáo Excel (.xlsx) theo đúng bộ lọc (DT-04)
+
+- **Mục đích**: Cho phép Cán bộ xuất toàn bộ danh sách ứng viên đào tạo bổ sung khớp với bộ lọc đang hiển thị trên bảng ra file Excel (`.xlsx`) chuẩn OpenXML (AC-3).
+- **Phương thức HTTP**: `GET`
+- **Đường dẫn qua Gateway**: `http://localhost:8080/api/v1/staff/upskilling/export` (hoặc `/staff/upskilling/export`)
+- **Đường dẫn trực tiếp nội bộ**: `http://localhost:8089/api/v1/staff/upskilling/export` (hoặc `/staff/upskilling/export`)
+- **Quyền hạn**: **Bảo mật (Authenticated)** — Chỉ dành cho **`STAFF`** hoặc **`ADMIN`**. Chặn `HR` và `CANDIDATE` (HTTP 403 Forbidden).
+- **Query Parameters**: Nhận các tham số lọc giống hệt API 12 (`courseName`, `classCode`, `status`, `skillId`). Không phân trang (xuất tất cả bản ghi thoả mãn bộ lọc).
+- **Response Headers**:
+  - `Content-Type`: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+  - `Content-Disposition`: `attachment; filename="bao-cao-dao-tao-bo-sung-YYYY-MM-DD.xlsx"`
+- **Cấu trúc cột trong tệp Excel**:
+  `STT` | `Họ và tên` | `Email` | `Số điện thoại` | `Mã lớp` | `Khoá đào tạo` | `Mục tiêu nghề nghiệp` | `Kỹ năng còn thiếu` | `Khoá học bổ sung & Tiến độ` | `Độ sẵn sàng (%)` | `Trạng thái`
+
+---
+
 ### 3.1. Cấu hình Axios / API Client trong Frontend:
 
 ```typescript
@@ -1011,6 +1231,63 @@ export interface LearningPathResponse {
   createdAt: string;
   steps: LearningPathStep[];
 }
+
+// Module DT-04: Cán bộ theo dõi đào tạo bổ sung theo lớp, khoá
+export interface CandidateInfo {
+  userId: string;
+  fullName: string;
+  email: string;
+  phone: string;
+}
+
+export interface MissingSkillItem {
+  skillId: string;
+  skillName: string;
+  required: number;
+  current: number;
+  gap: number;
+  priority: string;
+}
+
+export interface EnrollmentProgressItem {
+  course: string;
+  progress: number;
+  score: number | null;
+  status: string;
+}
+
+export interface UpskillingCandidateItem {
+  candidate: CandidateInfo;
+  classCode: string;
+  courseName: string;
+  target: string;
+  missingSkills: MissingSkillItem[];
+  enrollments: EnrollmentProgressItem[];
+  readiness: number;
+  status: "IN_PROGRESS" | "COMPLETED" | "ENROLLED" | "NOT_STARTED" | "FAILED";
+}
+
+export interface TopMissingSkillItem {
+  skillId: string;
+  skillName: string;
+  missingCount: number;
+  percentage: number;
+}
+
+export interface UpskillingSummaryData {
+  inProgressCount: number;
+  completedCount: number;
+  topMissingSkills: TopMissingSkillItem[];
+}
+
+export interface StaffUpskillingFilterParams {
+  courseName?: string;
+  classCode?: string;
+  status?: string;
+  skillId?: string;
+  page?: number;
+  size?: number;
+}
 ```
 
 ### 3.3. Hiển thị UI theo kết quả:
@@ -1158,4 +1435,67 @@ curl -X POST "http://localhost:8080/api/v1/learning/me/learning-path" \
 curl -X GET "http://localhost:8080/api/v1/learning/me/learning-path" \
   -H "X-User-Id: cand-001" \
   -H "X-User-Role: CANDIDATE"
+```
+
+---
+
+### 15. Cán bộ lấy danh sách đào tạo bổ sung (DT-04):
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/staff/upskilling?page=0&size=10" \
+  -H "X-User-Id: staff-001" \
+  -H "X-User-Role: ROLE_STAFF"
+```
+
+### 16. Lọc theo mã lớp (AC-1: ra đúng ứng viên lớp đó):
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/staff/upskilling?classCode=RA-JAVA-2026" \
+  -H "X-User-Id: staff-001" \
+  -H "X-User-Role: ROLE_STAFF"
+```
+
+### 17. Lọc theo kỹ năng thiếu & trạng thái:
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/staff/upskilling?skillId=JAVA_CORE&status=IN_PROGRESS" \
+  -H "X-User-Id: staff-001" \
+  -H "X-User-Role: ROLE_STAFF"
+```
+
+### 18. Lấy báo cáo tổng hợp đào tạo bổ sung (DT-04 - Summary KPI & Top 5 skills):
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/staff/upskilling/summary" \
+  -H "X-User-Id: staff-001" \
+  -H "X-User-Role: ROLE_STAFF"
+```
+
+### 19. Kiểm thử phân quyền RBAC (AC-4: HR hoặc CANDIDATE gọi API -> 403 Forbidden):
+
+```bash
+# HR gọi API Cán bộ -> 403 Forbidden
+curl -X GET "http://localhost:8080/api/v1/staff/upskilling" \
+  -H "X-User-Id: hr-001" \
+  -H "X-User-Role: ROLE_HR"
+
+# CANDIDATE gọi API Cán bộ -> 403 Forbidden
+curl -X GET "http://localhost:8080/api/v1/staff/upskilling" \
+  -H "X-User-Id: cand-001" \
+  -H "X-User-Role: ROLE_CANDIDATE"
+```
+
+### 20. Kiểm thử khi chưa đăng nhập -> 401 Unauthorized:
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/staff/upskilling"
+```
+
+### 21. Xuất báo cáo Excel (.xlsx) theo bộ lọc lớp (AC-3):
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/staff/upskilling/export?classCode=RA-JAVA-2026" \
+  -H "X-User-Id: staff-001" \
+  -H "X-User-Role: ROLE_STAFF" \
+  --output bao-cao-RA-JAVA-2026.xlsx
 ```
