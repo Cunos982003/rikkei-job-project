@@ -29,3 +29,19 @@ app:
   mail:
     from: no-reply@rikkei-jobs.vn
     reset-url: http://localhost:5173/reset-password
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      env: ${SPRING_PROFILES_ACTIVE:${spring.profiles.active:test}}
+

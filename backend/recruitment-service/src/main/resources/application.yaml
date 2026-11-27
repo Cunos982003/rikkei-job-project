@@ -4,9 +4,9 @@ spring:
   application:
     name: recruitment-service
   datasource:
-    url: ${RECRUITMENT_DATABASE_URL:jdbc:postgresql://localhost:5432/recruitment_db}
-    username: ${RECRUITMENT_DATABASE_USERNAME:postgres}
-    password: ${RECRUITMENT_DATABASE_PASSWORD:postgres}
+    url: ${RECRUITMENT_DATABASE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/recruitment_db}}
+    username: ${RECRUITMENT_DATABASE_USERNAME:${SPRING_DATASOURCE_USERNAME:postgres}}
+    password: ${RECRUITMENT_DATABASE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:123}}
   jpa:
     hibernate:
       ddl-auto: update

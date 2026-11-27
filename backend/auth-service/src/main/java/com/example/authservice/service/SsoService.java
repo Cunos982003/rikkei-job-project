@@ -55,7 +55,7 @@ public class SsoService {
         Instant now = Instant.now();
 
         if (usedSsoTicketRepository.existsByTicket(ticket)) {
-            log.warn("Rejected replayed SSO ticket: ticket={} ", ticket);
+            log.warn("Rejected replayed SSO ticket");
             throw new SsoException(ErrorCode.TICKET_ALREADY_USED, "SSO ticket has already been used");
         }
 
@@ -63,7 +63,7 @@ public class SsoService {
         try {
             lmsResponse = lmsClient.verifyTicket(ticket);
         } catch (SsoException ex) {
-            log.warn("Mock LMS verification failed for ticket {}: {}", ticket, ex.getMessage());
+            log.warn("Mock LMS verification failed: {}", ex.getMessage());
             throw ex;
         }
 
@@ -87,7 +87,7 @@ public class SsoService {
         try {
             usedSsoTicketRepository.saveAndFlush(new UsedSsoTicket(ticket, now));
         } catch (DataIntegrityViolationException ex) {
-            log.warn("SSO ticket replay prevented for ticket={} in concurrent request", ticket);
+            log.warn("SSO ticket replay prevented in concurrent request");
             throw new SsoException(ErrorCode.TICKET_ALREADY_USED, "SSO ticket has already been used");
         }
 

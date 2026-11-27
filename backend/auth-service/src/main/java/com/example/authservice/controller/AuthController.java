@@ -13,9 +13,12 @@ import com.example.authservice.dto.UserDto;
 import com.example.authservice.entity.User;
 import com.example.authservice.exception.ErrorCode;
 import com.example.authservice.exception.SsoException;
+import com.example.authservice.metrics.AuthEndpoint;
+import com.example.authservice.metrics.AuthMetricsService;
 import com.example.authservice.repository.UserRepository;
 import com.example.authservice.service.HrAuthService;
 import com.example.authservice.service.SsoService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -34,27 +37,36 @@ public class AuthController {
     private final SsoService ssoService;
     private final HrAuthService hrAuthService;
     private final UserRepository userRepository;
+    private final AuthMetricsService authMetricsService;
 
     public AuthController(
         SsoService ssoService,
         HrAuthService hrAuthService,
-        UserRepository userRepository
+        UserRepository userRepository,
+        AuthMetricsService authMetricsService
     ) {
         this.ssoService = ssoService;
         this.hrAuthService = hrAuthService;
         this.userRepository = userRepository;
+        this.authMetricsService = authMetricsService;
     }
 
     @PostMapping("/sso")
     public ResponseEntity<ApiResponse<AuthResponse>> ssoLogin(@Valid @RequestBody SsoRequest request) {
         String ticket = request.ticket() == null ? null : request.ticket().trim();
         AuthResponse response = ssoService.authenticateWithTicket(ticket);
+        authMetricsService.recordSuccess(AuthEndpoint.SSO);
         return ResponseEntity.ok(ApiResponse.success("Đăng nhập SSO thành công", response));
     }
 
     @PostMapping({"/login", "/hr/login"})
-    public ResponseEntity<ApiResponse<AuthResponse>> hrLogin(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<AuthResponse>> hrLogin(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest servletRequest
+    ) {
         AuthResponse response = hrAuthService.login(request);
+        AuthEndpoint endpoint = AuthEndpoint.fromUri(servletRequest != null ? servletRequest.getRequestURI() : null);
+        authMetricsService.recordSuccess(endpoint != null ? endpoint : AuthEndpoint.LOGIN);
         return ResponseEntity.ok(ApiResponse.success("Đăng nhập thành công", response));
     }
 
