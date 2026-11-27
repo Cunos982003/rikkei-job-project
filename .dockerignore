@@ -1,0 +1,16 @@
+.git
+.idea
+.vscode
+**/.gradle
+**/build
+**/bin
+**/node_modules
+**/dist
+**/coverage
+**/*.log
+**/.env
+**/.env.*
+**/.DS_Store
+**/Thumbs.db
+**/.superpowers
+**/.claude

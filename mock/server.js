@@ -1,7 +1,7 @@
 /**
  * Rikkei Jobs Mock Server
  * Cổng: 9000
- * Yêu cầu: Xác thực header X-Service-Key: dev-key cho các endpoint hệ thống ngoài (LMS, Khảo thí, PM, Meet)
+ * Các endpoint hệ thống ngoài (LMS, Khảo thí, PM, Meet) yêu cầu X-Service-Key.
  * Hỗ trợ: CORS, JSON parsing, phân trang (?page=1&size=20), mã lỗi HTTP chuẩn (400, 401, 403, 404, 409, 429, 500)
  */
 
@@ -9,9 +9,12 @@ const http = require('http');
 const url = require('url');
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
+const { renderLmsPortalHtml } = require('./portal');
 
-const PORT = 9000;
-const SERVICE_KEY = 'dev-key';
+const PORT = Number(process.env.PORT || 9000);
+const DEFAULT_LMS_SERVICE_KEY = 'fbc368ffa97a999a71577c552ecc2546815f245fd4ebee014732afcba1b52870';
+const SERVICE_KEY = process.env.LMS_SERVICE_KEY || DEFAULT_LMS_SERVICE_KEY;
 
 // Đọc dữ liệu mẫu từ mock/data/
 function loadData(fileName) {
@@ -24,6 +27,16 @@ function loadData(fileName) {
   }
 }
 
+// Ghi dữ liệu mẫu vào mock/data/
+function saveData(fileName, data) {
+  try {
+    const filePath = path.join(__dirname, 'data', fileName);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+  } catch (error) {
+    console.error(`[Error] Không thể ghi file data/${fileName}:`, error.message);
+  }
+}
+
 const users = loadData('users.json') || [];
 const candidates = loadData('candidates.json') || [];
 const lmsData = loadData('lms.json') || { students: {}, courses: [], enrollments: [] };
@@ -32,6 +45,96 @@ const pmData = loadData('pm.json') || { internships: {}, batches: [] };
 const skillsData = loadData('skills.json') || [];
 const jobsData = loadData('jobs.json') || [];
 const evaluationsData = loadData('evaluations.json') || [];
+const companies = loadData('companies.json') || [];
+const offerStore = loadData('offers.json') || { applications: [], offers: [] };
+const mockApplications = offerStore.applications || [];
+const mockOffers = offerStore.offers || [];
+const mockEmploymentRecords = loadData('employment_records.json') || [];
+let savedJobsData = loadData('saved_jobs.json') || {};
+let internshipsData = loadData('internships.json') || [];
+let placementsData = loadData('placements.json') || [];
+let portfolioData = loadData('portfolio.json') || {};
+let notificationsData = loadData('notifications.json') || {};
+const candidateTargets = {};
+
+// Lịch sử duyệt hồ sơ (HS-05), chỉ tồn tại trong bộ nhớ của tiến trình mock
+const profileReviews = [];
+
+// Bỏ trường password trước khi trả user ra ngoài (đăng nhập, /auth/me).
+function publicUser(user) {
+  if (!user) return user;
+  const { password, ...safe } = user;
+  return safe;
+}
+
+const UUID_TO_LMS = {
+  'ed854c07-f3eb-48f1-a186-4e7135f54645': 'std-001',
+  '797c5663-386b-4e96-9112-6d3e414b4449': 'std-002',
+  '4a09b051-d7ab-40a5-8322-963ec9ebdbd7': 'std-003',
+  'user-001': 'std-001',
+  'user-002': 'std-002',
+  'user-003': 'std-003',
+  'cand-001': 'std-001',
+  'cand-002': 'std-002',
+  'cand-003': 'std-003'
+};
+
+function resolveStudent(idOrUuid) {
+  if (!idOrUuid) return null;
+  const key = String(idOrUuid).toLowerCase();
+  if (lmsData.students && lmsData.students[key]) return lmsData.students[key];
+  const mapped = UUID_TO_LMS[idOrUuid];
+  if (mapped && lmsData.students && lmsData.students[mapped.toLowerCase()]) return lmsData.students[mapped.toLowerCase()];
+  if (lmsData.students) {
+    const byEmail = Object.values(lmsData.students).find(s => s.email && s.email.toLowerCase() === key);
+    if (byEmail) return byEmail;
+  }
+  const u = users.find(u => u.id === idOrUuid || u.email === idOrUuid || (u.lmsUserId && u.lmsUserId.toLowerCase() === key));
+  if (u && u.lmsUserId && lmsData.students && lmsData.students[u.lmsUserId.toLowerCase()]) {
+    return lmsData.students[u.lmsUserId.toLowerCase()];
+  }
+  return lmsData.students ? lmsData.students['std-001'] : null;
+}
+
+function resolveUserFromRequest(req) {
+  const userId = req.headers['x-user-id'];
+  if (userId) {
+    let found = users.find(u => u.id === userId || u.lmsUserId === userId);
+    if (found) return found;
+    const lmsId = UUID_TO_LMS[userId];
+    if (lmsId) {
+      found = users.find(u => u.lmsUserId === lmsId);
+      if (found) return found;
+    }
+  }
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const parts = authHeader.split(' ')[1].split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        if (payload.email) {
+          const found = users.find(u => u.email === payload.email);
+          if (found) return found;
+        }
+        if (payload.lmsUserId) {
+          const found = users.find(u => u.lmsUserId === payload.lmsUserId);
+          if (found) return found;
+        }
+      }
+    } catch (e) {}
+  }
+  return users.find(u => u.role === 'CANDIDATE') || users[0];
+}
+
+function getCandidateStorageKey(req) {
+  const user = resolveUserFromRequest(req);
+  if (user) {
+    if (user.lmsUserId) return user.lmsUserId;
+    if (user.id) return user.id;
+  }
+  return 'cand-001';
+}
 
 // Helper helper gửi response JSON
 function sendJson(res, statusCode, data) {
@@ -39,7 +142,7 @@ function sendJson(res, statusCode, data) {
     'Content-Type': 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Service-Key'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Service-Key, X-User-Id, X-User-Role'
   });
   res.end(JSON.stringify(data, null, 2));
 }
@@ -50,6 +153,15 @@ function sendError(res, code, message) {
     code: code,
     message: message
   });
+}
+
+// Helper gửi response HTML (phục vụ giao diện Portal Sinh viên LMS)
+function sendHtml(res, statusCode, html) {
+  res.writeHead(statusCode, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Access-Control-Allow-Origin': '*'
+  });
+  res.end(html);
 }
 
 // Helper parse body cho request POST/PUT/PATCH
@@ -75,7 +187,7 @@ function parseBody(req) {
 
 // Handler xử lý toàn bộ request
 async function requestHandler(req, res) {
-  const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost:9000'}`);
+  const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost:' + PORT}`);
   const pathname = parsedUrl.pathname;
   const method = req.method.toUpperCase();
   const query = Object.fromEntries(parsedUrl.searchParams.entries());
@@ -85,7 +197,7 @@ async function requestHandler(req, res) {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Service-Key'
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Service-Key, X-User-Id, X-User-Role'
     });
     res.end();
     return;
@@ -94,18 +206,40 @@ async function requestHandler(req, res) {
   console.log(`[${new Date().toISOString()}] ${method} ${pathname}`);
 
   // -------------------------------------------------------------
-  // KIỂM TRA BẢO MẬT: X-Service-Key: dev-key cho các hệ thống ngoài
+  // Tuyến đường Cổng Đào Tạo Học Viên LMS (Mock LMS Portal HTML)
+  // Phục vụ tại: http://localhost:9000/ hoặc /lms/portal hoặc /lms/login
   // -------------------------------------------------------------
+  const isPortalRoute = pathname === '/' || pathname === '/lms' || pathname === '/lms/portal' || pathname === '/lms/login';
+  if (method === 'GET' && isPortalRoute) {
+    const isJsonRequested = req.headers.accept && req.headers.accept.includes('application/json') && !req.headers.accept.includes('text/html');
+    if (pathname === '/' && isJsonRequested) {
+      return sendJson(res, 200, {
+        status: 'UP',
+        service: 'Rikkei Jobs Mock Server',
+        port: PORT,
+        timestamp: new Date().toISOString()
+      });
+    }
+    return sendHtml(res, 200, renderLmsPortalHtml(lmsData, users));
+  }
+
+  // -------------------------------------------------------------
+  // Require the configured service key for external-system routes.
+  // Tuyến cấp vé SSO (/lms/sso/tickets) được mở để browser/portal gọi trực tiếp.
+  // -------------------------------------------------------------
+  const isSsoTicketCreation = method === 'POST' && pathname === '/lms/sso/tickets';
   const isExternalSystemRoute = 
-    pathname.startsWith('/lms') || 
-    pathname.startsWith('/exam') || 
-    pathname.startsWith('/pm') || 
-    pathname.startsWith('/meet');
+    !isPortalRoute &&
+    !isSsoTicketCreation &&
+    (pathname.startsWith('/lms') || 
+     pathname.startsWith('/exam') || 
+     pathname.startsWith('/pm') || 
+     pathname.startsWith('/meet'));
 
   if (isExternalSystemRoute) {
     const serviceKey = req.headers['x-service-key'];
-    if (!serviceKey || serviceKey !== SERVICE_KEY) {
-      return sendError(res, 401, 'Khóa dịch vụ không hợp lệ hoặc bị thiếu (yêu cầu header X-Service-Key: dev-key)');
+    if (!serviceKey || (serviceKey !== SERVICE_KEY && serviceKey !== 'dev-key' && serviceKey !== DEFAULT_LMS_SERVICE_KEY)) {
+      return sendError(res, 401, 'Khóa dịch vụ không hợp lệ hoặc bị thiếu (yêu cầu header X-Service-Key)');
     }
   }
 
@@ -118,7 +252,12 @@ async function requestHandler(req, res) {
     const body = await parseBody(req);
     const lmsUserId = body.lmsUserId || 'std-001';
     const ticket = `TICKET-${lmsUserId.toUpperCase()}-${Date.now()}`;
-    return sendJson(res, 200, { ticket });
+    return sendJson(res, 200, {
+      ticket,
+      lmsUserId,
+      expiresIn: 60,
+      redirectUrl: `http://localhost:5173/login?ticket=${encodeURIComponent(ticket)}&auto=true`
+    });
   }
 
   // 2. POST /lms/sso/verify (Backend xác thực ticket với LMS)
@@ -126,10 +265,16 @@ async function requestHandler(req, res) {
     const body = await parseBody(req);
     const ticket = body.ticket || '';
     
-    // Tìm sinh viên theo ticket
-    let matchedStudent = lmsData.students['std-001'];
-    if (ticket.includes('STD-002')) matchedStudent = lmsData.students['std-002'];
-    if (ticket.includes('STD-003')) matchedStudent = lmsData.students['std-003'];
+    // Tìm sinh viên theo ticket dynamically
+    let matchedStudent = null;
+    const ticketMatch = ticket.match(/STD-(\d+)/i);
+    if (ticketMatch) {
+      const studentKey = `std-${ticketMatch[1].padStart(3, '0')}`.toLowerCase();
+      matchedStudent = lmsData.students[studentKey];
+    }
+    if (!matchedStudent) {
+      matchedStudent = lmsData.students['std-001'];
+    }
 
     return sendJson(res, 200, {
       lmsUserId: matchedStudent.lmsUserId,
@@ -144,11 +289,13 @@ async function requestHandler(req, res) {
   const lmsStudentMatch = pathname.match(/^\/lms\/students\/([^\/]+)$/);
   if (method === 'GET' && lmsStudentMatch) {
     const studentId = lmsStudentMatch[1];
-    const student = lmsData.students[studentId];
+    const student = resolveStudent(studentId);
     if (!student) {
       return sendError(res, 404, `Không tìm thấy thông tin sinh viên ${studentId} trên LMS`);
     }
     return sendJson(res, 200, {
+      fullName: student.fullName || 'Nguyễn Văn An',
+      email: student.email || 'candidate1@rikkeijobs.test',
       program: student.program,
       classCode: student.classCode,
       courseName: student.courseName
@@ -159,11 +306,11 @@ async function requestHandler(req, res) {
   const lmsResultsMatch = pathname.match(/^\/lms\/students\/([^\/]+)\/results$/);
   if (method === 'GET' && lmsResultsMatch) {
     const studentId = lmsResultsMatch[1];
-    const student = lmsData.students[studentId];
+    const student = resolveStudent(studentId);
     if (!student) {
       return sendError(res, 404, `Không tìm thấy kết quả học tập của sinh viên ${studentId} trên LMS`);
     }
-    return sendJson(res, 200, student.results);
+    return sendJson(res, 200, student.results || []);
   }
 
   // 5. GET /lms/courses
@@ -174,27 +321,93 @@ async function requestHandler(req, res) {
   // 6. POST /lms/enrollments
   if (method === 'POST' && pathname === '/lms/enrollments') {
     const body = await parseBody(req);
+    // Hỗ trợ mô phỏng lỗi LMS cho AC4
+    if (req.headers['x-mock-fail'] === 'true' ||
+        parsedUrl.query?.fail === 'true' ||
+        body.mockError === true ||
+        body.courseId === 'CRS-ERROR' ||
+        body.lmsCourseId === 'CRS-ERROR') {
+      return sendError(res, 500, 'LMS_ERROR: Máy chủ LMS gặp sự cố nội bộ khi ghi danh (Simulated Failure)');
+    }
+
+    const studentId = body.studentId || body.lmsUserId || body.userId || 'std-001';
+    const courseId = body.courseId || body.lmsCourseId || 'CRS-01';
+
     const newEnrollment = {
       id: `enr-${Date.now()}`,
-      studentId: body.studentId || 'std-001',
-      courseId: body.courseId || 'CRS-01',
+      studentId,
+      userId: studentId,
+      courseId,
+      lmsCourseId: courseId,
       status: 'IN_PROGRESS',
       progress: 0.0,
+      score: null,
       enrolledAt: new Date().toISOString()
     };
     lmsData.enrollments.push(newEnrollment);
     return sendJson(res, 201, newEnrollment);
   }
 
-  // 7. GET /lms/enrollments/:id
+  // 6b. POST /lms/mock/complete-course (Endpoint hỗ trợ test AC3: cập nhật hoàn thành môn học kèm điểm)
+  if (method === 'POST' && (pathname === '/lms/mock/complete-course' || pathname === '/lms/enrollments/complete')) {
+    const body = await parseBody(req);
+    const studentId = body.studentId || body.lmsUserId || body.userId;
+    const courseId = body.courseId || body.lmsCourseId;
+    const score = body.score !== undefined ? Number(body.score) : 85.0;
+
+    let enr = lmsData.enrollments.find(e => 
+      (e.courseId === courseId || e.lmsCourseId === courseId) &&
+      (!studentId || e.studentId === studentId || e.userId === studentId)
+    );
+
+    if (!enr) {
+      enr = {
+        id: `enr-${Date.now()}`,
+        studentId: studentId || 'std-001',
+        userId: studentId || 'std-001',
+        courseId: courseId || 'CRS-01',
+        lmsCourseId: courseId || 'CRS-01',
+        status: 'COMPLETED',
+        progress: 100.0,
+        score: score,
+        enrolledAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+        completedAt: new Date().toISOString()
+      };
+      lmsData.enrollments.push(enr);
+    } else {
+      enr.status = 'COMPLETED';
+      enr.progress = 100.0;
+      enr.score = score;
+      enr.completedAt = new Date().toISOString();
+    }
+
+    return sendJson(res, 200, {
+      message: 'Cập nhật hoàn thành khóa học trên Mock LMS thành công',
+      enrollment: enr
+    });
+  }
+
+  // 7. GET /lms/enrollments/:param (param có thể là enrollmentId hoặc lmsUserId/studentId)
   const enrollmentMatch = pathname.match(/^\/lms\/enrollments\/([^\/]+)$/);
   if (method === 'GET' && enrollmentMatch) {
-    const enrId = enrollmentMatch[1];
-    const enrollment = lmsData.enrollments.find(e => e.id === enrId);
-    if (!enrollment) {
-      return sendError(res, 404, `Không tìm thấy thông tin đăng ký môn học ${enrId}`);
+    const enrParam = enrollmentMatch[1];
+    
+    // Tìm danh sách đăng ký theo studentId / lmsUserId
+    const studentEnrollments = lmsData.enrollments.filter(e => 
+      e.studentId === enrParam || e.userId === enrParam || e.lmsUserId === enrParam
+    );
+    if (studentEnrollments.length > 0) {
+      return sendJson(res, 200, studentEnrollments);
     }
-    return sendJson(res, 200, enrollment);
+
+    // Hoặc tìm bản ghi đơn lẻ theo enrollmentId
+    const single = lmsData.enrollments.find(e => e.id === enrParam);
+    if (single) {
+      return sendJson(res, 200, single);
+    }
+
+    // Nếu hỏi theo dạng ID người dùng mà chưa có môn nào
+    return sendJson(res, 200, []);
   }
 
   // -------------------------------------------------------------
@@ -205,7 +418,9 @@ async function requestHandler(req, res) {
   const examMatch = pathname.match(/^\/exam\/students\/([^\/]+)\/results$/);
   if (method === 'GET' && examMatch) {
     const studentId = examMatch[1];
-    const results = examData[studentId];
+    const student = resolveStudent(studentId);
+    const key = student ? (student.lmsUserId || studentId) : (UUID_TO_LMS[studentId] || studentId);
+    const results = examData[key] || examData[studentId];
     if (!results) {
       return sendError(res, 404, `Không tìm thấy kết quả thi của thí sinh ${studentId}`);
     }
@@ -220,7 +435,9 @@ async function requestHandler(req, res) {
   const pmInternMatch = pathname.match(/^\/pm\/students\/([^\/]+)\/internships$/);
   if (method === 'GET' && pmInternMatch) {
     const studentId = pmInternMatch[1];
-    const internships = pmData.internships[studentId];
+    const student = resolveStudent(studentId);
+    const key = student ? (student.lmsUserId || studentId) : (UUID_TO_LMS[studentId] || studentId);
+    const internships = pmData.internships ? (pmData.internships[key] || pmData.internships[studentId]) : null;
     if (!internships) {
       return sendError(res, 404, `Không tìm thấy lịch sử thực tập IOC của ứng viên ${studentId}`);
     }
@@ -269,18 +486,57 @@ async function requestHandler(req, res) {
   if (method === 'POST' && pathname === '/api/v1/auth/login') {
     const body = await parseBody(req);
     const { email, password } = body;
-    if (password !== 'Test@123') {
-      return sendError(res, 401, 'Mật khẩu không chính xác (mật khẩu chuẩn: Test@123)');
-    }
     const user = users.find(u => u.email === email);
     if (!user) {
       return sendError(res, 404, 'Không tìm thấy tài khoản với email này');
+    }
+    const expectedPassword = user.password || 'Test@123';
+    if (password !== expectedPassword) {
+      return sendError(res, 401, 'Mật khẩu không chính xác');
+    }
+    const allowedPasswordRoles = ['HR', 'MENTOR', 'STAFF', 'ADMIN', 'CANDIDATE'];
+    if (!allowedPasswordRoles.includes(user.role)) {
+      return sendError(res, 403, 'Học viên chỉ được đăng nhập qua vé SSO (tab Học viên)');
     }
     return sendJson(res, 200, {
       accessToken: `mock-jwt-token-for-${user.role.toLowerCase()}-${Date.now()}`,
       tokenType: 'Bearer',
       expiresIn: 3600,
-      user: user
+      user: publicUser(user)
+    });
+  }
+
+  // 1.02 POST /api/v1/auth/sso (Đăng nhập SSO bằng vé từ LMS)
+  if (method === 'POST' && (pathname === '/api/v1/auth/sso' || pathname === '/auth/sso')) {
+    const body = await parseBody(req);
+    const ticket = body.ticket || '';
+
+    // Map ticket to student (giả lập LMS verify dynamically)
+    let matchedStudent = null;
+    const ticketMatch = ticket.match(/STD-(\d+)/i);
+    if (ticketMatch) {
+      const studentKey = `std-${ticketMatch[1].padStart(3, '0')}`.toLowerCase();
+      matchedStudent = lmsData.students[studentKey];
+    }
+    if (!matchedStudent) {
+      matchedStudent = lmsData.students['std-001'];
+    }
+
+    if (!matchedStudent) {
+      return sendError(res, 404, 'Vé SSO không hợp lệ hoặc đã hết hạn');
+    }
+
+    // Tìm user trong hệ thống bằng email
+    const user = users.find(u => u.email === matchedStudent.email);
+    if (!user) {
+      return sendError(res, 404, 'Không tìm thấy tài khoản ứng viên');
+    }
+
+    return sendJson(res, 200, {
+      accessToken: `mock-jwt-token-for-${user.role.toLowerCase()}-${Date.now()}`,
+      tokenType: 'Bearer',
+      expiresIn: 3600,
+      user: publicUser(user)
     });
   }
 
@@ -304,16 +560,78 @@ async function requestHandler(req, res) {
     else if (authHeader.includes('mentor')) matchedUser = users[5]; // mentor1
     else if (authHeader.includes('staff')) matchedUser = users[6]; // staff1
     else if (authHeader.includes('admin')) matchedUser = users[7]; // admin1
-    return sendJson(res, 200, matchedUser);
+    return sendJson(res, 200, publicUser(matchedUser));
+  }
+
+  // 1.15 POST /api/v1/auth/change-password & /auth/change-password (Đổi mật khẩu)
+  if (method === 'POST' && (pathname === '/api/v1/auth/change-password' || pathname === '/auth/change-password')) {
+    const authHeader = req.headers['authorization'] || '';
+    if (!authHeader.startsWith('Bearer ')) {
+      return sendError(res, 401, 'Yêu cầu đăng nhập để đổi mật khẩu');
+    }
+    const body = await parseBody(req);
+    const { currentPassword, newPassword } = body;
+    if (!currentPassword || !newPassword) {
+      return sendError(res, 400, 'Vui lòng cung cấp mật khẩu hiện tại và mật khẩu mới');
+    }
+    if (newPassword.length < 8 || !/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+      return sendError(res, 400, 'Mật khẩu mới phải dài ít nhất 8 ký tự và bao gồm cả chữ và số');
+    }
+    const roleHeader = (req.headers['x-user-role'] || '').toUpperCase();
+    const userIdHeader = req.headers['x-user-id'] || '';
+
+    let matchedUser = users.find(u => u.id === userIdHeader) || users[0];
+    if (roleHeader === 'HR' || authHeader.includes('hr')) matchedUser = users[3];
+    else if (roleHeader === 'MENTOR' || authHeader.includes('mentor')) matchedUser = users[5];
+    else if (roleHeader === 'STAFF' || authHeader.includes('staff')) matchedUser = users[6];
+    else if (roleHeader === 'ADMIN' || authHeader.includes('admin')) matchedUser = users[7];
+
+    if (matchedUser.password && currentPassword !== matchedUser.password && currentPassword !== 'Test@123') {
+      return sendError(res, 401, 'Mật khẩu hiện tại không chính xác');
+    }
+    matchedUser.password = newPassword;
+    matchedUser.mustChangePassword = false;
+    saveData('users.json', users);
+    return sendJson(res, 200, { message: 'Đổi mật khẩu thành công.' });
+  }
+
+  // 1.16 POST /api/v1/auth/first-time-password & /auth/first-time-password (Đặt mật khẩu mới lần đầu - không cần mật khẩu tạm)
+  if (method === 'POST' && (pathname === '/api/v1/auth/first-time-password' || pathname === '/auth/first-time-password')) {
+    const authHeader = req.headers['authorization'] || '';
+    if (!authHeader.startsWith('Bearer ')) {
+      return sendError(res, 401, 'Yêu cầu đăng nhập để thiết lập mật khẩu mới');
+    }
+    const body = await parseBody(req);
+    const { newPassword } = body;
+    if (!newPassword) {
+      return sendError(res, 400, 'Vui lòng cung cấp mật khẩu mới');
+    }
+    if (newPassword.length < 8 || !/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+      return sendError(res, 400, 'Mật khẩu mới phải dài ít nhất 8 ký tự và bao gồm cả chữ và số');
+    }
+    const roleHeader = (req.headers['x-user-role'] || '').toUpperCase();
+    const userIdHeader = req.headers['x-user-id'] || '';
+
+    let matchedUser = users.find(u => u.id === userIdHeader) || users[0];
+    if (roleHeader === 'HR' || authHeader.includes('hr')) matchedUser = users[3];
+    else if (roleHeader === 'MENTOR' || authHeader.includes('mentor')) matchedUser = users[5];
+    else if (roleHeader === 'STAFF' || authHeader.includes('staff')) matchedUser = users[6];
+    else if (roleHeader === 'ADMIN' || authHeader.includes('admin')) matchedUser = users[7];
+
+    matchedUser.password = newPassword;
+    matchedUser.mustChangePassword = false;
+    saveData('users.json', users);
+    return sendJson(res, 200, { message: 'Đặt mật khẩu mới thành công. Tài khoản của bạn đã được kích hoạt.' });
   }
 
   // 1.2 GET /api/v1/profiles/:userId/skills & /profiles/me/skills (Hồ sơ kỹ năng cho Frontend)
   const profileSkillsMatch = pathname.match(/^\/(?:api\/v1\/)?profiles\/(me|[^\/]+)\/skills$/);
   if (method === 'GET' && profileSkillsMatch) {
     const targetId = profileSkillsMatch[1];
-    let cand = candidates[0];
-    if (targetId !== 'me') {
-      cand = candidates.find(c => c.id === targetId || c.lmsUserId === targetId || c.email === targetId) || candidates[0];
+    const requester = resolveUserFromRequest(req);
+    const cand = requester ? (candidates.find(c => c.email === requester.email) || candidates[0]) : candidates[0];
+    if (targetId !== 'me' || !cand) {
+      return sendError(res, 404, 'Không tìm thấy hồ sơ ứng viên');
     }
     const formattedSkills = (cand.skills || []).map((s, idx) => ({
       skillId: String(idx + 1),
@@ -335,7 +653,8 @@ async function requestHandler(req, res) {
         }
       ]
     }));
-    return sendJson(res, 200, formattedSkills);
+    // Wrap trong ApiResponse để tương thích với HttpRecommendationDataSource.fetchVerifiedSkills()
+    return sendJson(res, 200, { success: true, data: formattedSkills });
   }
 
   // 1.25 GET /api/v1/profiles/:userId/evaluations & /profiles/me/evaluations (Đánh giá Mentor)
@@ -343,10 +662,169 @@ async function requestHandler(req, res) {
   if (method === 'GET' && profileEvaluationsMatch) {
     const targetId = profileEvaluationsMatch[1];
     if (targetId === 'me') {
-      return sendJson(res, 200, evaluationsData);
+      return sendJson(res, 200, { success: true, statusCode: 200, message: "OK", data: evaluationsData });
     }
     const matched = evaluationsData.filter(e => e.userId === targetId || e.candidateId === targetId);
-    return sendJson(res, 200, matched.length > 0 ? matched : evaluationsData);
+    return sendJson(res, 200, { success: true, statusCode: 200, message: "OK", data: matched.length > 0 ? matched : evaluationsData });
+  }
+
+  // 1.25.1 GET /api/v1/me/self-assessment/template
+  if (method === 'GET' && (pathname === '/api/v1/me/self-assessment/template' || pathname === '/me/self-assessment/template')) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      data: {
+        templateId: "tpl-default-01",
+        name: "Khung năng lực tự đánh giá chuẩn Rikkei",
+        skills: [
+          { skillId: "sk-01", skillName: "REST API", description: "Thiết kế và triển khai RESTful API chuẩn" },
+          { skillId: "sk-02", skillName: "Git", description: "Quản lý mã nguồn với Git & GitHub" },
+          { skillId: "sk-03", skillName: "React", description: "Xây dựng ứng dụng frontend với ReactJS" },
+          { skillId: "sk-04", skillName: "SQL", description: "Truy vấn và thiết kế cơ sở dữ liệu quan hệ" }
+        ]
+      }
+    });
+  }
+
+  // 1.25.2 POST /api/v1/me/self-assessments
+  if (method === 'POST' && (pathname === '/api/v1/me/self-assessments' || pathname === '/me/self-assessments')) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: "Gửi bản tự đánh giá thành công"
+    });
+  }
+
+  // 1.25.3 GET /api/v1/me/skill-comparison
+  if (method === 'GET' && (pathname === '/api/v1/me/skill-comparison' || pathname === '/me/skill-comparison')) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      data: [
+        { skillId: "sk-01", skillName: "REST API", measured: 74, self: 80, gap: 6, flag: "NORMAL" },
+        { skillId: "sk-02", skillName: "Git", measured: 82, self: 85, gap: 3, flag: "NORMAL" },
+        { skillId: "sk-03", skillName: "React", measured: 70, self: 88, gap: 18, flag: "OVERRATED" },
+        { skillId: "sk-04", skillName: "SQL", measured: 65, self: 60, gap: -5, flag: "UNDERRATED" }
+      ]
+    });
+  }
+
+  // 1.26 GET /api/v1/profiles/:userId/portfolio & /profiles/me/portfolio
+  const profilePortfolioMatch = pathname.match(/^\/(?:api\/v1\/)?profiles\/(me|[^\/]+)\/portfolio$/);
+  if (method === 'GET' && profilePortfolioMatch) {
+    const targetId = profilePortfolioMatch[1];
+    const key = targetId === 'me' ? getCandidateStorageKey(req) : targetId;
+    const list = portfolioData[key] || portfolioData['cand-001'] || portfolioData['std-001'] || [];
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách portfolio thành công',
+      data: list
+    });
+  }
+
+  // 1.27 POST /api/v1/profiles/me/portfolio
+  if (method === 'POST' && (pathname === '/api/v1/profiles/me/portfolio' || pathname === '/profiles/me/portfolio')) {
+    const body = await parseBody(req);
+    const key = getCandidateStorageKey(req);
+    if (!portfolioData[key]) portfolioData[key] = [];
+    const newProject = {
+      id: `port-${Date.now()}`,
+      name: body.name || 'Dự án mới',
+      role: body.role || '',
+      description: body.description || '',
+      techStack: body.techStack || '',
+      repoUrl: body.repoUrl || '',
+      demoUrl: body.demoUrl || '',
+      startDate: body.startDate || '',
+      endDate: body.endDate || '',
+      visible: body.visible !== undefined ? body.visible : true,
+      sortOrder: portfolioData[key].length + 1,
+      source: 'SELF',
+      sourceRef: 'Dự án cá nhân',
+      media: []
+    };
+    portfolioData[key].push(newProject);
+    saveData('portfolio.json', portfolioData);
+    return sendJson(res, 201, {
+      success: true,
+      statusCode: 201,
+      message: 'Tạo dự án portfolio thành công',
+      data: newProject
+    });
+  }
+
+  // 1.28 PUT /api/v1/profiles/me/portfolio/:id
+  const portfolioUpdateMatch = pathname.match(/^\/(?:api\/v1\/)?profiles\/me\/portfolio\/([^\/]+)$/);
+  if (method === 'PUT' && portfolioUpdateMatch && portfolioUpdateMatch[1] !== 'order') {
+    const projectId = portfolioUpdateMatch[1];
+    const body = await parseBody(req);
+    const key = getCandidateStorageKey(req);
+    const list = portfolioData[key] || portfolioData['cand-001'] || [];
+    const idx = list.findIndex(p => p.id === projectId);
+    if (idx === -1) {
+      return sendError(res, 404, 'Không tìm thấy dự án portfolio');
+    }
+    list[idx] = { ...list[idx], ...body, id: projectId };
+    saveData('portfolio.json', portfolioData);
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Cập nhật dự án portfolio thành công',
+      data: list[idx]
+    });
+  }
+
+  // 1.29 DELETE /api/v1/profiles/me/portfolio/:id
+  if (method === 'DELETE' && portfolioUpdateMatch && portfolioUpdateMatch[1] !== 'order') {
+    const projectId = portfolioUpdateMatch[1];
+    const key = getCandidateStorageKey(req);
+    if (portfolioData[key]) {
+      portfolioData[key] = portfolioData[key].filter(p => p.id !== projectId);
+      saveData('portfolio.json', portfolioData);
+    }
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Xóa dự án portfolio thành công',
+      data: null
+    });
+  }
+
+  // 1.30 POST /api/v1/profiles/me/portfolio/:id/media
+  const portfolioMediaMatch = pathname.match(/^\/(?:api\/v1\/)?profiles\/me\/portfolio\/([^\/]+)\/media$/);
+  if (method === 'POST' && portfolioMediaMatch) {
+    const projectId = portfolioMediaMatch[1];
+    const key = getCandidateStorageKey(req);
+    const list = portfolioData[key] || portfolioData['cand-001'] || [];
+    const proj = list.find(p => p.id === projectId);
+    const newMedia = {
+      id: `med-${Date.now()}`,
+      url: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&auto=format&fit=crop',
+      mediaType: 'IMAGE',
+      sortOrder: (proj?.media?.length || 0) + 1
+    };
+    if (proj) {
+      if (!proj.media) proj.media = [];
+      proj.media.push(newMedia);
+      saveData('portfolio.json', portfolioData);
+    }
+    return sendJson(res, 201, {
+      success: true,
+      statusCode: 201,
+      message: 'Tải ảnh lên thành công',
+      data: newMedia
+    });
+  }
+
+  // 1.31 PUT /api/v1/profiles/me/portfolio/order
+  if (method === 'PUT' && (pathname === '/api/v1/profiles/me/portfolio/order' || pathname === '/profiles/me/portfolio/order')) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Cập nhật thứ tự dự án thành công',
+      data: null
+    });
   }
 
   // 1.3 GET /api/v1/companies/me & /companies/me (Thông tin công ty của HR)
@@ -361,6 +839,204 @@ async function requestHandler(req, res) {
       city: "Hà Nội",
       website: "https://rikkeisoft.com",
       status: "ACTIVE"
+    });
+  }
+
+  // 1.4 GET /api/v1/staff/companies & /staff/companies (Danh sách doanh nghiệp - STAFF)
+  const staffCompaniesMatch = pathname === '/api/v1/staff/companies' || pathname === '/staff/companies';
+  if (method === 'GET' && staffCompaniesMatch) {
+    const q = (query.q || '').trim().toLowerCase();
+    const status = (query.status || '').trim().toUpperCase();
+    const page = parseInt(query.page) || 0;
+    const size = parseInt(query.size) || 10;
+
+    let filtered = companies;
+    if (q) {
+      filtered = filtered.filter(c => 
+        (c.name && c.name.toLowerCase().includes(q)) ||
+        (c.taxCode && c.taxCode.includes(q))
+      );
+    }
+    if (status && status !== 'ALL') {
+      filtered = filtered.filter(c => (c.status || 'ACTIVE') === status);
+    }
+
+    const items = filtered.map(c => ({
+      id: c.id,
+      name: c.name,
+      taxCode: c.taxCode,
+      industry: c.industry || null,
+      size: c.size || null,
+      address: c.address || null,
+      city: c.city || null,
+      logoUrl: c.logoUrl || null,
+      status: c.status || 'ACTIVE',
+      totalHr: users.filter(u => String(u.companyId) === String(c.id) && u.role === 'HR').length,
+      totalJd: (jobsData || []).filter(j => String(j.companyId) === String(c.id)).length
+    }));
+
+    const startIndex = page * size;
+    const paginatedItems = items.slice(startIndex, startIndex + size);
+    const totalElements = items.length;
+    const totalPages = Math.ceil(totalElements / size) || 0;
+
+    return sendJson(res, 200, {
+      items: paginatedItems,
+      pagination: {
+        page: page,
+        size: size,
+        totalElements: totalElements,
+        totalPages: totalPages,
+        isFirst: page === 0,
+        isLast: page >= totalPages - 1,
+        hasNext: page < totalPages - 1,
+        hasPrevious: page > 0
+      },
+      totalElements: totalElements,
+      totalPages: totalPages,
+      page: page,
+      size: size
+    });
+  }
+
+  // 1.5 GET /api/v1/staff/companies/:id & /staff/companies/:id (Chi tiết doanh nghiệp - STAFF)
+  const staffCompanyDetailMatch = pathname.match(/^\/(?:api\/v1\/)?staff\/companies\/([^\/]+)$/);
+  if (method === 'GET' && staffCompanyDetailMatch) {
+    const companyId = staffCompanyDetailMatch[1];
+    const company = companies.find(c => String(c.id) === String(companyId));
+    if (!company) {
+      return sendError(res, 404, `Không tìm thấy doanh nghiệp ${companyId}`);
+    }
+
+    const hrAccounts = users
+      .filter(u => String(u.companyId) === String(companyId) && u.role === 'HR')
+      .map(u => ({
+        id: u.id,
+        fullName: u.fullName,
+        email: u.email,
+        status: u.status || 'ACTIVE',
+        lockedReason: u.lockedReason || null,
+        lockedAt: u.lockedAt || null,
+        createdAt: u.createdAt || new Date().toISOString()
+      }));
+
+    return sendJson(res, 200, {
+      id: company.id,
+      name: company.name,
+      taxCode: company.taxCode,
+      industry: company.industry || null,
+      size: company.size || null,
+      address: company.address || null,
+      city: company.city || null,
+      website: company.website || null,
+      logoUrl: company.logoUrl || null,
+      description: company.description || null,
+      status: company.status || 'ACTIVE',
+      createdAt: company.createdAt || new Date().toISOString(),
+      updatedAt: company.updatedAt || new Date().toISOString(),
+      hrAccounts: hrAccounts
+    });
+  }
+
+  // 1.6 POST /api/v1/staff/companies & /staff/companies (Tạo doanh nghiệp - STAFF)
+  if (method === 'POST' && staffCompaniesMatch) {
+    const body = await parseBody(req);
+    if (!body.name || !body.taxCode) {
+      return sendError(res, 400, 'Tên doanh nghiệp và mã số thuế là bắt buộc');
+    }
+    const newCompany = {
+      id: 'comp-' + String(companies.length + 1).padStart(3, '0'),
+      name: body.name,
+      taxCode: body.taxCode,
+      industry: body.industry || null,
+      size: body.size || null,
+      address: body.address || null,
+      city: body.city || null,
+      website: body.website || null,
+      description: body.description || null,
+      logoUrl: null,
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    companies.unshift(newCompany);
+    saveData('companies.json', companies);
+    return sendJson(res, 201, newCompany);
+  }
+
+  // 1.7 POST /api/v1/staff/companies/:id/hr-accounts (Cấp tài khoản HR)
+  const staffCreateHrMatch = pathname.match(/^\/(?:api\/v1\/)?staff\/companies\/([^\/]+)\/hr-accounts$/);
+  if (method === 'POST' && staffCreateHrMatch) {
+    const companyId = staffCreateHrMatch[1];
+    const company = companies.find(c => String(c.id) === String(companyId));
+    const body = await parseBody(req);
+    if (!body.email || !body.fullName) {
+      return sendError(res, 400, 'Email và họ tên là bắt buộc');
+    }
+    const newHr = {
+      id: 'user-' + String(users.length + 1).padStart(3, '0'),
+      email: body.email,
+      password: 'Test@123',
+      role: 'HR',
+      fullName: body.fullName,
+      companyId: companyId,
+      companyName: company ? company.name : '',
+      mustChangePassword: true,
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString()
+    };
+    users.push(newHr);
+    saveData('users.json', users);
+    return sendJson(res, 201, {
+      id: newHr.id,
+      email: newHr.email,
+      fullName: newHr.fullName,
+      role: 'HR',
+      companyId: companyId,
+      mustChangePassword: true,
+      temporaryPassword: 'Test@123',
+      message: 'Cấp tài khoản HR thành công'
+    });
+  }
+
+  // 1.8 POST /api/v1/staff/companies/:id/logo
+  const staffLogoMatch = pathname.match(/^\/(?:api\/v1\/)?staff\/companies\/([^\/]+)\/logo$/);
+  if (method === 'POST' && staffLogoMatch) {
+    const companyId = staffLogoMatch[1];
+    return sendJson(res, 200, {
+      logoUrl: `/uploads/logos/company-${companyId}.png`,
+      message: 'Tải logo thành công'
+    });
+  }
+
+  // 1.9 POST /api/v1/staff/hr-accounts/:id/lock & unlock
+  const staffHrLockMatch = pathname.match(/^\/(?:api\/v1\/)?staff\/hr-accounts\/([^\/]+)\/(lock|unlock)$/);
+  if (method === 'POST' && staffHrLockMatch) {
+    const targetHrId = staffHrLockMatch[1];
+    const action = staffHrLockMatch[2];
+    const targetUser = users.find(u => String(u.id) === String(targetHrId));
+    if (!targetUser) {
+      return sendError(res, 404, `Không tìm thấy tài khoản HR ${targetHrId}`);
+    }
+    if (action === 'lock') {
+      const body = await parseBody(req);
+      targetUser.status = 'LOCKED';
+      targetUser.lockedReason = body.reason || 'Bị khóa bởi Cán bộ';
+      targetUser.lockedAt = new Date().toISOString();
+    } else {
+      targetUser.status = 'ACTIVE';
+      targetUser.lockedReason = null;
+      targetUser.lockedAt = null;
+    }
+    saveData('users.json', users);
+    return sendJson(res, 200, {
+      id: targetUser.id,
+      fullName: targetUser.fullName,
+      email: targetUser.email,
+      status: targetUser.status,
+      lockedReason: targetUser.lockedReason,
+      lockedAt: targetUser.lockedAt,
+      createdAt: targetUser.createdAt || new Date().toISOString()
     });
   }
 
@@ -395,18 +1071,1130 @@ async function requestHandler(req, res) {
     return sendJson(res, 200, skillsData);
   }
 
-  // 5. GET /api/v1/jobs (Danh sách JD có phân trang)
-  if (method === 'GET' && pathname === '/api/v1/jobs') {
-    const page = parseInt(query.page) || 1;
-    const size = parseInt(query.size) || 20;
-    const startIndex = (page - 1) * size;
-    const paginatedItems = jobsData.slice(startIndex, startIndex + size);
+  // 5.1. GET /api/v1/candidate/saved-jobs (Danh sách việc làm đã lưu của ứng viên)
+  const cleanPath = (pathname || '').replace(/\/$/, '');
+  const isSavedJobsRoute = cleanPath === '/api/v1/candidate/saved-jobs' || cleanPath === '/candidate/saved-jobs';
+  const savedJobDeleteMatch = cleanPath.match(/^(?:\/api\/v1)?\/candidate\/saved-jobs\/([^/?]+)$/);
+
+  if (method === 'GET' && isSavedJobsRoute) {
+    const key = getCandidateStorageKey(req);
+    const list = savedJobsData[key] || savedJobsData['std-001'] || savedJobsData['cand-001'] || [];
+    const fullJobs = list
+      .map(item => {
+        let job = jobsData.find(j => j.id === item.jobId);
+        if (!job) {
+          job = {
+            id: item.jobId,
+            title: 'Java Backend Developer (FRESHER) #25',
+            companyName: 'VNG Cloud & Digital Hub',
+            location: 'Cầu Giấy, Hà Nội',
+            salaryMin: 12000000,
+            salaryMax: 18000000,
+            jobType: 'FULL_TIME',
+            requiredSkills: ['Java Core', 'Spring Boot', 'SQL'],
+            description: 'Vị trí lập trình viên backend Java phát triển hệ thống doanh nghiệp.',
+            status: 'APPROVED'
+          };
+        }
+        return { ...job, savedAt: item.savedAt };
+      });
 
     return sendJson(res, 200, {
-      items: paginatedItems,
-      total: jobsData.length,
-      page: page,
-      size: size
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách việc làm đã lưu thành công',
+      data: fullJobs
+    });
+  }
+
+  // 5.2. POST /api/v1/candidate/saved-jobs (Lưu việc làm / thả tim)
+  if (method === 'POST' && isSavedJobsRoute) {
+    const body = await parseBody(req);
+    const jobId = body?.jobId;
+    if (!jobId) {
+      return sendError(res, 400, 'Thiếu thông tin jobId');
+    }
+    const key = getCandidateStorageKey(req);
+    if (!savedJobsData[key]) savedJobsData[key] = [];
+    if (!savedJobsData[key].some(item => item.jobId === jobId)) {
+      savedJobsData[key].push({
+        jobId,
+        savedAt: new Date().toISOString()
+      });
+      saveData('saved_jobs.json', savedJobsData);
+    }
+    return sendJson(res, 201, {
+      success: true,
+      statusCode: 201,
+      message: 'Lưu việc làm thành công',
+      data: { jobId, saved: true }
+    });
+  }
+
+  // 5.3. DELETE /api/v1/candidate/saved-jobs/:jobId (Bỏ lưu việc làm)
+  if (method === 'DELETE' && savedJobDeleteMatch) {
+    const jobId = savedJobDeleteMatch[1];
+    const key = getCandidateStorageKey(req);
+    if (savedJobsData[key]) {
+      savedJobsData[key] = savedJobsData[key].filter(item => item.jobId !== jobId);
+      saveData('saved_jobs.json', savedJobsData);
+    }
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Bỏ lưu việc làm thành công',
+      data: { jobId, saved: false }
+    });
+  }
+
+  // 6.1. GET /api/v1/notifications & /api/v1/notifications/me (Danh sách thông báo in-app)
+  const isNotificationsRoute = pathname === '/api/v1/notifications' || pathname === '/api/v1/notifications/me' || pathname === '/notifications/me';
+  if (method === 'GET' && isNotificationsRoute) {
+    const key = getCandidateStorageKey(req);
+    const list = notificationsData[key] || notificationsData['ed854c07-f3eb-48f1-a186-4e7135f54645'] || notificationsData['cand-001'] || notificationsData['std-001'] || [];
+    const unreadOnly = parsedUrl.searchParams.get('unreadOnly') === 'true';
+    const filtered = unreadOnly ? list.filter(n => !n.readAt) : list;
+    const page = parseInt(parsedUrl.searchParams.get('page') || '0', 10);
+    const size = parseInt(parsedUrl.searchParams.get('size') || '10', 10);
+    const start = page * size;
+    const items = filtered.slice(start, start + size);
+
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách thông báo thành công',
+      data: {
+        items,
+        pagination: {
+          page,
+          size,
+          totalElements: filtered.length,
+          totalPages: Math.ceil(filtered.length / size) || 1,
+          isFirst: page === 0,
+          isLast: start + size >= filtered.length,
+          hasNext: start + size < filtered.length,
+          hasPrevious: page > 0
+        }
+      }
+    });
+  }
+
+  // 6.2. GET /api/v1/notifications/unread-count (Số lượng thông báo chưa đọc cho chuông)
+  if (method === 'GET' && (pathname === '/api/v1/notifications/unread-count' || pathname === '/notifications/unread-count')) {
+    const key = getCandidateStorageKey(req);
+    const list = notificationsData[key] || notificationsData['ed854c07-f3eb-48f1-a186-4e7135f54645'] || notificationsData['cand-001'] || notificationsData['std-001'] || [];
+    const unreadCount = list.filter(n => !n.readAt).length;
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy số lượng thông báo chưa đọc thành công',
+      data: { unreadCount }
+    });
+  }
+
+  // 6.3. PUT /api/v1/notifications/:id/read (Đánh dấu 1 thông báo đã đọc)
+  const notificationReadMatch = pathname.match(/^\/(?:api\/v1\/)?notifications\/([a-zA-Z0-9-]+)\/read$/);
+  if (method === 'PUT' && notificationReadMatch) {
+    const notifId = notificationReadMatch[1];
+    const key = getCandidateStorageKey(req);
+    const list = notificationsData[key] || notificationsData['ed854c07-f3eb-48f1-a186-4e7135f54645'] || notificationsData['cand-001'] || [];
+    const item = list.find(n => n.id === notifId);
+    if (item) {
+      item.readAt = new Date().toISOString();
+      saveData('notifications.json', notificationsData);
+      return sendJson(res, 200, {
+        success: true,
+        statusCode: 200,
+        message: 'Đánh dấu thông báo đã đọc thành công',
+        data: item
+      });
+    }
+    return sendError(res, 404, 'Không tìm thấy thông báo');
+  }
+
+  // 6.4. PUT /api/v1/notifications/read-all (Đánh dấu tất cả thông báo đã đọc)
+  if (method === 'PUT' && (pathname === '/api/v1/notifications/read-all' || pathname === '/notifications/read-all')) {
+    const key = getCandidateStorageKey(req);
+    const list = notificationsData[key] || notificationsData['ed854c07-f3eb-48f1-a186-4e7135f54645'] || notificationsData['cand-001'] || [];
+    const now = new Date().toISOString();
+    let updatedCount = 0;
+    list.forEach(n => {
+      if (!n.readAt) {
+        n.readAt = now;
+        updatedCount++;
+      }
+    });
+    saveData('notifications.json', notificationsData);
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Đánh dấu tất cả thông báo đã đọc thành công',
+      data: { updatedCount }
+    });
+  }
+
+  // 6.5. DELETE /api/v1/notifications/:id (Xóa thông báo)
+  const notificationDeleteMatch = pathname.match(/^\/(?:api\/v1\/)?notifications\/([a-zA-Z0-9-]+)$/);
+  if (method === 'DELETE' && notificationDeleteMatch) {
+    const notifId = notificationDeleteMatch[1];
+    const key = getCandidateStorageKey(req);
+    if (notificationsData[key]) {
+      notificationsData[key] = notificationsData[key].filter(n => n.id !== notifId);
+      saveData('notifications.json', notificationsData);
+    }
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Xóa thông báo thành công',
+      data: null
+    });
+  }
+
+  // 5.4. GET /api/v1/jobs/:id (Chi tiết một tin tuyển dụng)
+  const jobDetailMatch = (pathname || '').match(/^(?:\/api\/v1)?\/jobs\/([^/?]+)$/);
+  if (method === 'GET' && jobDetailMatch && jobDetailMatch[1] !== 'undefined' && jobDetailMatch[1] !== 'me') {
+    const jobId = jobDetailMatch[1];
+    let job = jobsData.find(j => j.id === jobId);
+    if (!job && jobId.startsWith('job-')) {
+      const idx = jobId.replace('job-', '');
+      const uuid = `d0000000-0000-4000-8000-${idx.padStart(12, '0')}`;
+      job = jobsData.find(j => j.id === uuid);
+    }
+    if (!job) {
+      return sendJson(res, 404, {
+        success: false,
+        statusCode: 404,
+        message: `Không tìm thấy tin tuyển dụng với ID ${jobId}`
+      });
+    }
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy chi tiết tin tuyển dụng thành công',
+      data: job
+    });
+  }
+
+  // 5.5. GET /api/v1/jobs (Danh sách JD có lọc và phân trang - Frontend & ai-career-service)
+  if (method === 'GET' && (pathname === '/api/v1/jobs' || pathname === '/jobs')) {
+    let filtered = [...jobsData];
+    const statusFilter = (query.status || '').toUpperCase();
+    if (statusFilter) {
+      filtered = filtered.filter(j => (j.status || '').toUpperCase() === statusFilter);
+    }
+    if (query.keyword) {
+      const q = String(query.keyword).trim().toLowerCase();
+      filtered = filtered.filter(j =>
+        (j.title && j.title.toLowerCase().includes(q)) ||
+        (j.companyName && j.companyName.toLowerCase().includes(q)) ||
+        (Array.isArray(j.requiredSkills) && j.requiredSkills.some(s => s.toLowerCase().includes(q)))
+      );
+    }
+    if (query.location && query.location !== 'ALL') {
+      const loc = String(query.location).trim().toLowerCase();
+      filtered = filtered.filter(j => j.location && j.location.toLowerCase().includes(loc));
+    }
+    if (query.jobType && query.jobType !== 'ALL') {
+      filtered = filtered.filter(j => j.jobType === query.jobType);
+    }
+
+    const page = parseInt(query.page) || 0;
+    const size = parseInt(query.size) || 20;
+    const startIndex = page > 0 ? (page - 1) * size : 0;
+    const paginatedItems = filtered.slice(startIndex, startIndex + size);
+
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách tin tuyển dụng thành công',
+      data: {
+        items: paginatedItems,
+        total: filtered.length,
+        page: page,
+        size: size
+      }
+    });
+  }
+
+  // 5.6. GET /api/v1/learning/me/gap-analysis (Phân tích khoảng thiếu hụt năng lực theo JD)
+  const isGapAnalysisRoute = cleanPath === '/api/v1/learning/me/gap-analysis' || cleanPath === '/learning/me/gap-analysis';
+  if (method === 'GET' && isGapAnalysisRoute) {
+    const candidate = resolveUserFromRequest(req);
+    const candProfile = candidates.find(c => c.email === candidate?.email || c.lmsUserId === candidate?.lmsUserId) || candidates[0];
+
+    const jobId = query.jobId || '';
+    let targetJob = jobsData.find(j => j.id === jobId);
+
+    // 1. Nếu chưa có trong mock data, thử fetch trực tiếp từ job-service nội bộ (:8085)
+    if (!targetJob && jobId) {
+      try {
+        const jobServiceUrl = process.env.JOB_SERVICE_URL || 'http://localhost:8085';
+        const jobRes = await fetch(`${jobServiceUrl}/jobs/${jobId}`, { signal: AbortSignal.timeout(1500) });
+        if (jobRes.ok) {
+          const json = await jobRes.json();
+          if (json?.data) {
+            targetJob = json.data;
+          }
+        }
+      } catch {
+        // Fallback tự động bên dưới nếu job-service không phản hồi
+      }
+    }
+
+    // 2. Nếu vẫn chưa có, tự động tạo hồ sơ kỹ năng trực quan, đa dạng theo từng loại công việc
+    if (!targetJob && jobId) {
+      const cleanId = String(jobId);
+      const numPart = parseInt(cleanId.replace(/\D/g, '').slice(-2), 10) || 0;
+      const typeIndex = numPart % 6;
+
+      if (typeIndex === 1 || cleanId.toLowerCase().includes('react') || cleanId.toLowerCase().includes('frontend')) {
+        targetJob = {
+          id: jobId,
+          title: `Frontend React Developer #${numPart || '02'}`,
+          companyName: 'Rikkei Digital Solutions',
+          description: 'Phát triển giao diện ứng dụng web responsive React & TypeScript.',
+          jobSkills: [
+            { skillId: 'REACT', skillName: 'React', minScore: 75, isMandatory: true },
+            { skillId: 'TYPESCRIPT', skillName: 'TypeScript', minScore: 70, isMandatory: true },
+            { skillId: 'JAVASCRIPT', skillName: 'JavaScript', minScore: 65, isMandatory: true },
+            { skillId: 'TAILWIND_CSS', skillName: 'Tailwind CSS', minScore: 60, isMandatory: false }
+          ]
+        };
+      } else if (typeIndex === 2 || cleanId.toLowerCase().includes('ai') || cleanId.toLowerCase().includes('python')) {
+        targetJob = {
+          id: jobId,
+          title: `Python AI & Machine Learning Engineer #${numPart || '04'}`,
+          companyName: 'Viettel AI Lab',
+          description: 'Nghiên cứu và phát triển giải pháp AI & Học máy.',
+          jobSkills: [
+            { skillId: 'PYTHON', skillName: 'Python', minScore: 80, isMandatory: true },
+            { skillId: 'MACHINE_LEARNING', skillName: 'Machine Learning', minScore: 75, isMandatory: true },
+            { skillId: 'SQL', skillName: 'SQL', minScore: 70, isMandatory: false }
+          ]
+        };
+      } else if (typeIndex === 3 || cleanId.toLowerCase().includes('devops') || cleanId.toLowerCase().includes('cloud')) {
+        targetJob = {
+          id: jobId,
+          title: `DevOps & Cloud Engineer #${numPart || '07'}`,
+          companyName: 'VNG Cloud Infrastructure',
+          description: 'Vận hành hạ tầng đám mây và tối ưu CI/CD pipeline.',
+          jobSkills: [
+            { skillId: 'DOCKER', skillName: 'Docker', minScore: 80, isMandatory: true },
+            { skillId: 'KUBERNETES', skillName: 'Kubernetes', minScore: 75, isMandatory: true },
+            { skillId: 'AWS', skillName: 'AWS Cloud', minScore: 70, isMandatory: false }
+          ]
+        };
+      } else if (typeIndex === 4 || cleanId.toLowerCase().includes('mobile') || cleanId.toLowerCase().includes('flutter')) {
+        targetJob = {
+          id: jobId,
+          title: `Mobile App Developer (Flutter) #${numPart || '05'}`,
+          companyName: 'MoMo Fintech Engineering',
+          description: 'Phát triển ứng dụng di động tài chính đa nền tảng.',
+          jobSkills: [
+            { skillId: 'FLUTTER', skillName: 'Flutter', minScore: 70, isMandatory: true },
+            { skillId: 'REACT_NATIVE', skillName: 'React Native', minScore: 65, isMandatory: true },
+            { skillId: 'TYPESCRIPT', skillName: 'TypeScript', minScore: 60, isMandatory: false }
+          ]
+        };
+      } else if (typeIndex === 5 || cleanId.toLowerCase().includes('senior')) {
+        targetJob = {
+          id: jobId,
+          title: `Senior Java Microservices Engineer #${numPart || '03'}`,
+          companyName: 'Công ty Cổ phần Rikkeisoft',
+          description: 'Thiết kế kiến trúc hệ thống phân tán và Microservices quy mô lớn.',
+          jobSkills: [
+            { skillId: 'JAVA_CORE', skillName: 'Java Core', minScore: 85, isMandatory: true },
+            { skillId: 'SPRING_BOOT', skillName: 'Spring Boot', minScore: 85, isMandatory: true },
+            { skillId: 'MICROSERVICES', skillName: 'Microservices', minScore: 80, isMandatory: true },
+            { skillId: 'KAFKA', skillName: 'Apache Kafka', minScore: 75, isMandatory: false }
+          ]
+        };
+      } else {
+        targetJob = {
+          id: jobId,
+          title: `Java Backend Developer (FRESHER) #${numPart || '01'}`,
+          companyName: 'Công ty Cổ phần Rikkeisoft',
+          description: 'Vị trí lập trình viên backend Java phát triển hệ thống doanh nghiệp.',
+          jobSkills: [
+            { skillId: 'JAVA_CORE', skillName: 'Java Core', minScore: 70, isMandatory: true },
+            { skillId: 'SPRING_BOOT', skillName: 'Spring Boot', minScore: 65, isMandatory: true },
+            { skillId: 'SQL', skillName: 'SQL', minScore: 65, isMandatory: true }
+          ]
+        };
+      }
+    }
+
+    if (!targetJob) {
+      targetJob = jobsData[0];
+    }
+    const candidateSkills = candProfile?.skills || [];
+
+    const rawJobSkills = targetJob.jobSkills || targetJob.skills || [];
+    const jobSkills = rawJobSkills.length > 0
+      ? rawJobSkills.map((js, idx) => ({
+          skillId: js.skillId || js.skillCode || `SKL_${idx + 1}`,
+          skillName: js.skillName || js.skillCode || `Skill ${idx + 1}`,
+          minScore: Number(js.minScore) || 70,
+          isMandatory: js.isMandatory !== undefined ? Boolean(js.isMandatory) : (js.required !== undefined ? Boolean(js.required) : true)
+        }))
+      : (targetJob.requiredSkills || []).map((s, idx) => ({
+          skillId: `SKL_${idx + 1}`,
+          skillName: s,
+          minScore: 70,
+          isMandatory: idx < 3
+        }));
+
+    const gapItems = jobSkills.map(js => {
+      const jsName = String(js.skillName || js.skillId || '').toLowerCase().trim();
+      const matched = candidateSkills.find(cs => {
+        if (cs.verified === false || cs.score === null || cs.score === undefined) return false;
+        const csName = String(cs.name || cs.skillName || '').toLowerCase().trim();
+        if (!csName) return false;
+        if (csName === jsName) return true;
+        if (jsName.includes('react') && csName.includes('react')) return true;
+        if (jsName.includes('java') && !jsName.includes('javascript') && csName.includes('java') && !csName.includes('javascript')) return true;
+        if (jsName.includes('sql') && csName.includes('sql')) return true;
+        if (jsName.includes('spring') && csName.includes('spring')) return true;
+        if (jsName.includes('docker') && csName.includes('docker')) return true;
+        if (jsName.includes('git') && csName.includes('git')) return true;
+        if (jsName.includes('python') && csName.includes('python')) return true;
+        if (jsName.includes('typescript') && csName.includes('typescript')) return true;
+        if (jsName.includes('javascript') && csName.includes('javascript')) return true;
+        return false;
+      });
+      const current = (matched && typeof matched.score === 'number') ? matched.score : 0;
+      const required = js.minScore || 70;
+      const gap = Math.max(0, required - current);
+      let priority = 'LOW';
+      if (js.isMandatory && gap > 15) priority = 'HIGH';
+      else if (gap > 0) priority = 'MEDIUM';
+
+      return {
+        skillId: js.skillId,
+        skill: js.skillName,
+        skillName: js.skillName,
+        required,
+        current,
+        gap,
+        priority,
+        isMandatory: Boolean(js.isMandatory)
+      };
+    });
+
+    const passedCount = gapItems.filter(g => g.gap === 0).length;
+    const totalCount = gapItems.length;
+    const readiness = totalCount > 0 ? Math.round((passedCount / totalCount) * 100) : 100;
+
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Phân tích khoảng thiếu hụt năng lực thành công',
+      data: {
+        target: {
+          type: 'JOB',
+          id: targetJob.id,
+          code: targetJob.id,
+          name: targetJob.title,
+          description: targetJob.description || ''
+        },
+        readiness,
+        totalRequiredSkills: totalCount,
+        passedSkillsCount: passedCount,
+        missingSkillsCount: totalCount - passedCount,
+        computedAt: new Date().toISOString(),
+        items: gapItems
+      }
+    });
+  }
+
+  // 5.7. GET /api/v1/learning/target-positions
+  if (method === 'GET' && (pathname === '/api/v1/learning/target-positions' || pathname === '/learning/target-positions')) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh mục vị trí mục tiêu thành công',
+      data: [
+        {
+          id: "POS_JAVA",
+          code: "JAVA_DEV",
+          name: "Lập trình viên Backend Java",
+          description: "Phát triển hệ thống backend doanh nghiệp với Java Core, Spring Boot, SQL và Microservices.",
+          skills: [
+            { skillId: "JAVA_CORE", skillName: "Java Core", minScore: 75, isMandatory: true },
+            { skillId: "SPRING_BOOT", skillName: "Spring Boot", minScore: 70, isMandatory: true },
+            { skillId: "SQL", skillName: "SQL", minScore: 70, isMandatory: true },
+            { skillId: "REST_API", skillName: "REST API", minScore: 70, isMandatory: true },
+            { skillId: "GIT", skillName: "Git", minScore: 60, isMandatory: false }
+          ]
+        },
+        {
+          id: "POS_REACT",
+          code: "REACT_DEV",
+          name: "Lập trình viên Frontend React",
+          description: "Phát triển giao diện ứng dụng web hiện đại với React, TypeScript, HTML/CSS và Tailwind CSS.",
+          skills: [
+            { skillId: "REACT", skillName: "ReactJS", minScore: 75, isMandatory: true },
+            { skillId: "TYPESCRIPT", skillName: "TypeScript", minScore: 70, isMandatory: true },
+            { skillId: "HTML_CSS", skillName: "HTML/CSS", minScore: 80, isMandatory: true },
+            { skillId: "REST_API", skillName: "REST API", minScore: 70, isMandatory: true },
+            { skillId: "GIT", skillName: "Git", minScore: 60, isMandatory: false }
+          ]
+        }
+      ]
+    });
+  }
+
+  // 5.8. GET & PUT /api/v1/learning/me/target
+  const isLearningTargetRoute = pathname === '/api/v1/learning/me/target' || pathname === '/learning/me/target';
+  if (method === 'GET' && isLearningTargetRoute) {
+    const key = getCandidateStorageKey(req);
+    const target = candidateTargets[key] || {
+      userId: key,
+      targetType: "JOB",
+      jobId: "job-001",
+      targetName: "Java Backend Developer (Fresher / Junior)",
+      chosenAt: new Date().toISOString()
+    };
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy mục tiêu nghề nghiệp thành công',
+      data: target
+    });
+  }
+
+  if (method === 'PUT' && isLearningTargetRoute) {
+    const body = await parseBody(req);
+    const key = getCandidateStorageKey(req);
+    const job = body?.jobId ? jobsData.find(j => j.id === body.jobId) : null;
+    const target = {
+      userId: key,
+      targetType: body?.positionId ? "POSITION" : "JOB",
+      positionId: body?.positionId || null,
+      jobId: body?.jobId || null,
+      targetName: job ? job.title : (body?.positionId ? "Vị trí mục tiêu" : "Mục tiêu việc làm"),
+      chosenAt: new Date().toISOString()
+    };
+    candidateTargets[key] = target;
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Cập nhật mục tiêu thành công',
+      data: target
+    });
+  }
+
+  // 5.9. GET /api/v1/learning/me/course-suggestions (Khóa học gợi ý)
+  if (method === 'GET' && (cleanPath === '/api/v1/learning/me/course-suggestions' || cleanPath === '/learning/me/course-suggestions')) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách khóa học gợi ý thành công',
+      data: [
+        {
+          skillId: 'SPRING_BOOT',
+          skillName: 'Spring Boot',
+          requiredScore: 70,
+          currentScore: 50,
+          gap: 20,
+          priority: 'HIGH',
+          courses: [
+            {
+              lmsCourseId: 'CRS-JAVA-001',
+              courseName: 'Khóa học Spring Boot & Microservices nâng cao',
+              lessonHint: 'Tập trung Module 4: REST API & Spring Data JPA',
+              levelFrom: 50,
+              levelTo: 75,
+              isEnrolled: false
+            }
+          ]
+        },
+        {
+          skillId: 'SQL',
+          skillName: 'SQL',
+          requiredScore: 70,
+          currentScore: 55,
+          gap: 15,
+          priority: 'MEDIUM',
+          courses: [
+            {
+              lmsCourseId: 'CRS-DB-002',
+              courseName: 'Tối ưu hóa câu truy vấn CSDL PostgreSQL thực chiến',
+              lessonHint: 'Tập trung Module 2: Indexing & Query Tuning',
+              levelFrom: 55,
+              levelTo: 80,
+              isEnrolled: false
+            }
+          ]
+        }
+      ]
+    });
+  }
+
+  // 5.10. GET & POST /api/v1/learning/me/enrollments (Ghi danh khóa học)
+  const isEnrollmentsRoute = cleanPath === '/api/v1/learning/me/enrollments' || cleanPath === '/learning/me/enrollments';
+  if (method === 'GET' && isEnrollmentsRoute) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách khóa học đã ghi danh thành công',
+      data: []
+    });
+  }
+
+  if (method === 'POST' && isEnrollmentsRoute) {
+    const body = await parseBody(req);
+    const key = getCandidateStorageKey(req);
+    return sendJson(res, 201, {
+      success: true,
+      statusCode: 201,
+      message: 'Ghi danh khóa học thành công',
+      data: {
+        id: `enr-${Date.now()}`,
+        userId: key,
+        lmsCourseId: body?.lmsCourseId || 'CRS-JAVA-001',
+        courseName: 'Khóa học Spring Boot & Microservices nâng cao',
+        skillId: body?.skillId || 'SPRING_BOOT',
+        status: 'ENROLLED',
+        progress: 0,
+        enrolledAt: new Date().toISOString()
+      }
+    });
+  }
+
+  // 5.11. POST /api/v1/learning/me/enrollments/refresh (Làm mới tiến độ LMS)
+  if (method === 'POST' && (cleanPath === '/api/v1/learning/me/enrollments/refresh' || cleanPath === '/learning/me/enrollments/refresh')) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Làm mới tiến độ khóa học từ LMS thành công',
+      data: {
+        totalUpdated: 0,
+        completedCoursesCount: 0,
+        enrollments: []
+      }
+    });
+  }
+
+  // 5.12. GET & POST /api/v1/learning/me/learning-path (Lộ trình học tập)
+  const isLearningPathRoute = cleanPath === '/api/v1/learning/me/learning-path' || cleanPath === '/learning/me/learning-path';
+  if (method === 'GET' && isLearningPathRoute) {
+    const key = getCandidateStorageKey(req);
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy lộ trình học tập thành công',
+      data: {
+        id: `lp-${key}`,
+        userId: key,
+        targetType: 'JOB',
+        targetId: 'job-001',
+        targetName: 'Java Backend Developer (Fresher / Junior)',
+        readinessAtStart: 60,
+        currentReadiness: 80,
+        readinessGrowth: 20,
+        completionPercentage: 50,
+        totalSteps: 2,
+        completedSteps: 1,
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
+        steps: [
+          {
+            id: 'step-1',
+            stepOrder: 1,
+            skillId: 'SPRING_BOOT',
+            skillName: 'Spring Boot',
+            requiredScore: 70,
+            currentScore: 50,
+            gap: 20,
+            isMandatory: true,
+            lmsCourseId: 'CRS-JAVA-001',
+            courseName: 'Khóa học Spring Boot & Microservices nâng cao',
+            status: 'TODO'
+          }
+        ]
+      }
+    });
+  }
+
+  if (method === 'POST' && isLearningPathRoute) {
+    const key = getCandidateStorageKey(req);
+    return sendJson(res, 201, {
+      success: true,
+      statusCode: 201,
+      message: 'Sinh lộ trình học tập thành công',
+      data: {
+        id: `lp-${key}`,
+        userId: key,
+        targetType: 'JOB',
+        targetId: 'job-001',
+        targetName: 'Java Backend Developer (Fresher / Junior)',
+        readinessAtStart: 60,
+        currentReadiness: 60,
+        readinessGrowth: 0,
+        completionPercentage: 0,
+        totalSteps: 1,
+        completedSteps: 0,
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
+        steps: []
+      }
+    });
+  }
+
+  // 5.13. DT-04: Cán bộ theo dõi đào tạo bổ sung theo lớp, khoá (/api/v1/staff/upskilling, /summary, /export)
+  const isStaffUpskillingBase = cleanPath === '/api/v1/staff/upskilling' || cleanPath === '/staff/upskilling';
+  const isStaffUpskillingSummary = cleanPath === '/api/v1/staff/upskilling/summary' || cleanPath === '/staff/upskilling/summary';
+  const isStaffUpskillingExport = cleanPath === '/api/v1/staff/upskilling/export' || cleanPath === '/staff/upskilling/export';
+
+  if (method === 'GET' && (isStaffUpskillingBase || isStaffUpskillingSummary || isStaffUpskillingExport)) {
+    const hasAuth = req.headers['authorization'] || req.headers['x-user-id'] || req.headers['x-user-role'];
+    if (!hasAuth) {
+      return sendJson(res, 401, {
+        success: false,
+        statusCode: 401,
+        message: 'Vui lòng đăng nhập với quyền Cán bộ để thực hiện thao tác này.',
+        data: null,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const headerRole = (req.headers['x-user-role'] || '').toUpperCase().replace('ROLE_', '');
+    const reqUser = resolveUserFromRequest(req);
+    const effectiveRole = headerRole || (reqUser && reqUser.role ? reqUser.role.toUpperCase().replace('ROLE_', '') : '');
+    if (effectiveRole !== 'STAFF' && effectiveRole !== 'ADMIN') {
+      return sendJson(res, 403, {
+        success: false,
+        statusCode: 403,
+        message: 'Bạn không có quyền thực hiện thao tác này. Chức năng chỉ dành cho Cán bộ (STAFF).',
+        data: null,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    function generateOpenXmlXlsx(items) {
+      function crc32(buf) {
+        let table = new Int32Array(256);
+        for (let i = 0; i < 256; i++) {
+          let c = i;
+          for (let k = 0; k < 8; k++) c = ((c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1));
+          table[i] = c;
+        }
+        let crc = -1;
+        for (let i = 0; i < buf.length; i++) {
+          crc = (crc >>> 8) ^ table[(crc ^ buf[i]) & 0xFF];
+        }
+        return (crc ^ (-1)) >>> 0;
+      }
+
+      function createZip(files) {
+        const localHeaders = [];
+        const centralDirs = [];
+        let offset = 0;
+
+        for (const f of files) {
+          const dataBuf = Buffer.isBuffer(f.data) ? f.data : Buffer.from(f.data, 'utf8');
+          const compData = zlib.deflateRawSync(dataBuf);
+          const nameBuf = Buffer.from(f.name, 'utf8');
+          const crc = crc32(dataBuf);
+
+          const localHeader = Buffer.alloc(30 + nameBuf.length);
+          localHeader.writeUInt32LE(0x04034b50, 0);
+          localHeader.writeUInt16LE(20, 4);
+          localHeader.writeUInt16LE(0x0800, 6);
+          localHeader.writeUInt16LE(8, 8);
+          localHeader.writeUInt16LE(0, 10);
+          localHeader.writeUInt16LE(0, 12);
+          localHeader.writeUInt32LE(crc, 14);
+          localHeader.writeUInt32LE(compData.length, 18);
+          localHeader.writeUInt32LE(dataBuf.length, 22);
+          localHeader.writeUInt16LE(nameBuf.length, 26);
+          localHeader.writeUInt16LE(0, 28);
+          nameBuf.copy(localHeader, 30);
+
+          const cdHeader = Buffer.alloc(46 + nameBuf.length);
+          cdHeader.writeUInt32LE(0x02014b50, 0);
+          cdHeader.writeUInt16LE(20, 4);
+          cdHeader.writeUInt16LE(20, 6);
+          cdHeader.writeUInt16LE(0x0800, 8);
+          cdHeader.writeUInt16LE(8, 10);
+          cdHeader.writeUInt16LE(0, 12);
+          cdHeader.writeUInt16LE(0, 14);
+          cdHeader.writeUInt32LE(crc, 16);
+          cdHeader.writeUInt32LE(compData.length, 20);
+          cdHeader.writeUInt32LE(dataBuf.length, 24);
+          cdHeader.writeUInt16LE(nameBuf.length, 28);
+          cdHeader.writeUInt16LE(0, 30);
+          cdHeader.writeUInt16LE(0, 32);
+          cdHeader.writeUInt16LE(0, 34);
+          cdHeader.writeUInt16LE(0, 36);
+          cdHeader.writeUInt32LE(0, 38);
+          cdHeader.writeUInt32LE(offset, 42);
+          nameBuf.copy(cdHeader, 46);
+
+          localHeaders.push(localHeader, compData);
+          centralDirs.push(cdHeader);
+          offset += localHeader.length + compData.length;
+        }
+
+        const cdStart = offset;
+        let cdSize = 0;
+        for (const cd of centralDirs) cdSize += cd.length;
+
+        const eocd = Buffer.alloc(22);
+        eocd.writeUInt32LE(0x06054b50, 0);
+        eocd.writeUInt16LE(0, 4);
+        eocd.writeUInt16LE(0, 6);
+        eocd.writeUInt16LE(files.length, 8);
+        eocd.writeUInt16LE(files.length, 10);
+        eocd.writeUInt32LE(cdSize, 12);
+        eocd.writeUInt32LE(cdStart, 16);
+        eocd.writeUInt16LE(0, 20);
+
+        return Buffer.concat([...localHeaders, ...centralDirs, eocd]);
+      }
+
+      const escapeXml = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+
+      const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`;
+
+      const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+
+      const workbook = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="Dao tao bo sung" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>`;
+
+      const wbRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+
+      const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="2">
+    <font><sz val="11"/><name val="Calibri"/></font>
+    <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+  </fonts>
+  <fills count="3">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF1E3A8A"/><bgColor indexed="64"/></patternFill></fill>
+  </fills>
+  <borders count="2">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border><left style="thin"><color rgb="FFD1D5DB"/></left><right style="thin"><color rgb="FFD1D5DB"/></right><top style="thin"><color rgb="FFD1D5DB"/></top><bottom style="thin"><color rgb="FFD1D5DB"/></bottom><diagonal/></border>
+  </borders>
+  <cellStyleXfs count="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+  </cellStyleXfs>
+  <cellXfs count="3">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
+    </xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1">
+      <alignment vertical="top" wrapText="1"/>
+    </xf>
+  </cellXfs>
+  <cellStyles count="1">
+    <cellStyle name="Normal" xfId="0" builtinId="0"/>
+  </cellStyles>
+</styleSheet>`;
+
+      const totalRows = items.length + 1;
+      const headers = ['STT', 'Họ và tên', 'Email', 'Mã lớp', 'Khoá đào tạo', 'Mục tiêu', 'Kỹ năng còn thiếu', 'Khoá học & Tiến độ', 'Độ sẵn sàng (%)', 'Trạng thái'];
+      let sheetRows = '    <row r="1" ht="28" customHeight="1">\n';
+      headers.forEach((h, idx) => {
+        const colLetter = String.fromCharCode(65 + idx);
+        sheetRows += '      <c r="' + colLetter + '1" s="1" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(h) + '</t></is></c>\n';
+      });
+      sheetRows += '    </row>\n';
+
+      items.forEach((item, i) => {
+        const r = i + 2;
+        const miss = (item.missingSkills || []).map(s => s.skillName + ' (thiếu ' + s.gap + 'đ)').join('; ');
+        const enr = (item.enrollments || []).map(e => e.course + ' (' + e.progress + '% - ' + e.status + ')').join('&#10;');
+        sheetRows += '    <row r="' + r + '">\n';
+        sheetRows += '      <c r="A' + r + '" s="2" t="n"><v>' + (i + 1) + '</v></c>\n';
+        sheetRows += '      <c r="B' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(item.candidate?.fullName) + '</t></is></c>\n';
+        sheetRows += '      <c r="C' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(item.candidate?.email) + '</t></is></c>\n';
+        sheetRows += '      <c r="D' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(item.classCode) + '</t></is></c>\n';
+        sheetRows += '      <c r="E' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(item.courseName) + '</t></is></c>\n';
+        sheetRows += '      <c r="F' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(item.target) + '</t></is></c>\n';
+        sheetRows += '      <c r="G' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(miss) + '</t></is></c>\n';
+        sheetRows += '      <c r="H' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(enr) + '</t></is></c>\n';
+        sheetRows += '      <c r="I' + r + '" s="2" t="n"><v>' + (item.readiness || 0) + '</v></c>\n';
+        sheetRows += '      <c r="J' + r + '" s="2" t="inlineStr"><is><t xml:space="preserve">' + escapeXml(item.status) + '</t></is></c>\n';
+        sheetRows += '    </row>\n';
+      });
+
+      const sheet1 = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <dimension ref="A1:J${totalRows}"/>
+  <sheetViews><sheetView tabSelected="1" workbookViewId="0"/></sheetViews>
+  <sheetFormatPr defaultRowHeight="15"/>
+  <cols>
+    <col min="1" max="1" width="6" customWidth="1"/>
+    <col min="2" max="2" width="22" customWidth="1"/>
+    <col min="3" max="3" width="26" customWidth="1"/>
+    <col min="4" max="4" width="16" customWidth="1"/>
+    <col min="5" max="5" width="34" customWidth="1"/>
+    <col min="6" max="6" width="24" customWidth="1"/>
+    <col min="7" max="7" width="30" customWidth="1"/>
+    <col min="8" max="8" width="40" customWidth="1"/>
+    <col min="9" max="9" width="16" customWidth="1"/>
+    <col min="10" max="10" width="16" customWidth="1"/>
+  </cols>
+  <sheetData>
+${sheetRows}  </sheetData>
+</worksheet>`;
+
+      return createZip([
+        { name: '[Content_Types].xml', data: contentTypes },
+        { name: '_rels/.rels', data: rels },
+        { name: 'xl/workbook.xml', data: workbook },
+        { name: 'xl/_rels/workbook.xml.rels', data: wbRels },
+        { name: 'xl/styles.xml', data: styles },
+        { name: 'xl/worksheets/sheet1.xml', data: sheet1 }
+      ]);
+    }
+
+    const mockUpskillingItems = [
+      {
+        candidate: {
+          userId: 'ed854c07-f3eb-48f1-a186-4e7135f54645',
+          fullName: 'Nguyễn Văn An',
+          email: 'candidate1@rikkeijobs.test',
+          phone: '0912345600'
+        },
+        classCode: 'RA-HN-JV-01',
+        courseName: 'Khóa đào tạo Kỹ sư Phần mềm Java Fresher (2026)',
+        target: 'Java Backend Fresher',
+        missingSkills: [
+          { skillId: 'JAVA_CORE', skillName: 'Java Core', required: 80, current: 55, gap: 25, priority: 'HIGH' },
+          { skillId: 'SPRING_BOOT', skillName: 'Spring Boot', required: 80, current: 66, gap: 14, priority: 'MEDIUM' },
+          { skillId: 'SQL', skillName: 'SQL', required: 80, current: 77, gap: 3, priority: 'LOW' }
+        ],
+        enrollments: [
+          { course: 'Lập trình Spring Boot nâng cao & Microservices', progress: 100, score: 80, status: 'COMPLETED' },
+          { course: 'Java Core & Cấu trúc dữ liệu giải thuật', progress: 45, score: null, status: 'IN_PROGRESS' }
+        ],
+        readiness: 68.5,
+        status: 'IN_PROGRESS'
+      },
+      {
+        candidate: {
+          userId: '797c5663-386b-4e96-9112-6d3e414b4449',
+          fullName: 'Trần Thị Bình',
+          email: 'candidate2@rikkeijobs.test',
+          phone: '0912345737'
+        },
+        classCode: 'RA-DN-FE-01',
+        courseName: 'Khóa đào tạo Chuyên viên Frontend React Fresher (2026)',
+        target: 'Frontend ReactJS Fresher',
+        missingSkills: [
+          { skillId: 'REACT', skillName: 'React', required: 80, current: 62, gap: 18, priority: 'MEDIUM' },
+          { skillId: 'TYPESCRIPT', skillName: 'TypeScript', required: 80, current: 73, gap: 7, priority: 'LOW' }
+        ],
+        enrollments: [
+          { course: 'React 19 & Next.js Fullstack Architecture', progress: 100, score: 92, status: 'COMPLETED' },
+          { course: 'TypeScript nâng cao & Design Patterns', progress: 100, score: 88, status: 'COMPLETED' }
+        ],
+        readiness: 100.0,
+        status: 'COMPLETED'
+      },
+      {
+        candidate: {
+          userId: '4a09b051-d7ab-40a5-8322-963ec9ebdbd7',
+          fullName: 'Lê Hoàng Cường',
+          email: 'candidate3@rikkeijobs.test',
+          phone: '0912345874'
+        },
+        classCode: 'RA-SG-FS-01',
+        courseName: 'Khóa đào tạo Kỹ sư Phần mềm Fullstack Web Fresher (2026)',
+        target: 'Fullstack',
+        missingSkills: [
+          { skillId: 'JAVA_CORE', skillName: 'Java Core', required: 80, current: 69, gap: 11, priority: 'MEDIUM' },
+          { skillId: 'REACT', skillName: 'React', required: 80, current: 61, gap: 19, priority: 'MEDIUM' }
+        ],
+        enrollments: [
+          { course: 'Node.js & Express RESTful API', progress: 0, score: null, status: 'ENROLLED' },
+          { course: 'JavaScript ES6+ & TypeScript nền tảng', progress: 61, score: null, status: 'IN_PROGRESS' }
+        ],
+        readiness: 48.0,
+        status: 'IN_PROGRESS'
+      },
+      {
+        candidate: {
+          userId: '6f7d791c-8ef0-4404-ab53-5871eb562621',
+          fullName: 'Đặng Quốc Khánh',
+          email: 'candidate9@rikkeijobs.test',
+          phone: '0912346696'
+        },
+        classCode: 'RA-HN-JV-01',
+        courseName: 'Khóa đào tạo Kỹ sư Phần mềm Java Fresher (2026)',
+        target: 'Java Backend Fresher',
+        missingSkills: [
+          { skillId: 'SPRING_BOOT', skillName: 'Spring Boot', required: 80, current: 62, gap: 18, priority: 'MEDIUM' },
+          { skillId: 'SQL', skillName: 'SQL', required: 80, current: 73, gap: 7, priority: 'LOW' }
+        ],
+        enrollments: [
+          { course: 'Tối ưu hóa CSDL quan hệ PostgreSQL', progress: 84, score: null, status: 'IN_PROGRESS' }
+        ],
+        readiness: 72.0,
+        status: 'IN_PROGRESS'
+      },
+      {
+        candidate: {
+          userId: '1c1cae0c-2691-4876-a05e-e1c133a1f013',
+          fullName: 'Ngô Mai Linh',
+          email: 'candidate10@rikkeijobs.test',
+          phone: '0912346833'
+        },
+        classCode: 'RA-DN-FE-01',
+        courseName: 'Khóa đào tạo Chuyên viên Frontend React Fresher (2026)',
+        target: 'Frontend ReactJS Fresher',
+        missingSkills: [
+          { skillId: 'REACT', skillName: 'React', required: 80, current: 58, gap: 22, priority: 'HIGH' },
+          { skillId: 'TYPESCRIPT', skillName: 'TypeScript', required: 80, current: 69, gap: 11, priority: 'MEDIUM' }
+        ],
+        enrollments: [
+          { course: 'Quản trị CSDL MySQL nâng cao', progress: 100, score: 89, status: 'COMPLETED' },
+          { course: 'Lập trình Frontend với Vue.js 3', progress: 42, score: null, status: 'IN_PROGRESS' }
+        ],
+        readiness: 54.0,
+        status: 'IN_PROGRESS'
+      }
+    ];
+
+    if (isStaffUpskillingSummary) {
+      return sendJson(res, 200, {
+        success: true,
+        statusCode: 200,
+        message: 'Lấy báo cáo tổng hợp đào tạo bổ sung thành công',
+        data: {
+          totalStudying: 18,
+          totalCompleted: 12,
+          inProgressCount: 18,
+          completedCount: 12,
+          topMissingSkills: [
+            { skillId: 'TYPESCRIPT', skillName: 'TypeScript', missingCount: 10, percentage: 25.0 },
+            { skillId: 'JAVA_CORE', skillName: 'Java Core', missingCount: 8, percentage: 20.0 },
+            { skillId: 'REACT', skillName: 'React', missingCount: 7, percentage: 17.5 },
+            { skillId: 'SPRING_BOOT', skillName: 'Spring Boot', missingCount: 7, percentage: 17.5 },
+            { skillId: 'SQL', skillName: 'SQL', missingCount: 5, percentage: 12.5 }
+          ]
+        },
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Lọc theo query params cho cả list & export
+    const qClassCode = (query.classCode || '').trim();
+    const qCourseName = (query.courseName || '').trim().toLowerCase();
+    const qStatus = (query.status || '').trim().toUpperCase();
+    const qSkillId = (query.skillId || '').trim().toUpperCase();
+
+    const filtered = mockUpskillingItems.filter((item) => {
+      if (qClassCode && item.classCode !== qClassCode) return false;
+      if (qCourseName && !item.courseName.toLowerCase().includes(qCourseName)) return false;
+      if (qStatus && item.status !== qStatus && !item.enrollments.some((e) => e.status === qStatus)) return false;
+      if (qSkillId && !item.missingSkills.some((s) => s.skillId.toUpperCase() === qSkillId)) return false;
+      return true;
+    });
+
+    if (isStaffUpskillingExport) {
+      const buffer = generateOpenXmlXlsx(filtered);
+      res.writeHead(200, {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': 'attachment; filename="bao-cao-dao-tao-bo-sung-mock.xlsx"',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Expose-Headers': 'Content-Disposition'
+      });
+      return res.end(buffer);
+    }
+
+    const page = Number(query.page || 0);
+    const size = Number(query.size || 10);
+    const total = filtered.length;
+    const paged = filtered.slice(page * size, page * size + size);
+
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Expose-Headers': 'X-Total-Count, X-Page-Number, X-Page-Size, X-Total-Pages',
+      'X-Total-Count': String(total),
+      'X-Page-Number': String(page),
+      'X-Page-Size': String(size),
+      'X-Total-Pages': String(Math.max(1, Math.ceil(total / size)))
+    });
+    return res.end(JSON.stringify({
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách đào tạo bổ sung thành công',
+      data: paged,
+      timestamp: new Date().toISOString()
+    }, null, 2));
+  }
+
+  // 5.10 GET /api/v1/hr/interns (Danh sách thực tập sinh của HR)
+  if (method === 'GET' && (pathname === '/api/v1/hr/interns' || pathname === '/hr/interns')) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách thực tập sinh thành công',
+      data: internshipsData
+    });
+  }
+
+  // 5.11 GET /api/v1/staff/placements (Danh sách nhu cầu thực tập và ứng viên chờ ghép)
+  if (method === 'GET' && (pathname === '/api/v1/staff/placements' || pathname === '/staff/placements')) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Lấy danh sách nhu cầu ghép thực tập thành công',
+      data: placementsData
+    });
+  }
+
+  // 5.12 POST /api/v1/staff/placements/assign (Ghép ứng viên vào đợt thực tập)
+  if (method === 'POST' && (pathname === '/api/v1/staff/placements/assign' || pathname === '/staff/placements/assign')) {
+    const body = await parseBody(req);
+    const { userId, jobId, batchName } = body || {};
+    if (!userId || !batchName) {
+      return sendError(res, 400, 'Thiếu thông tin userId hoặc batchName');
+    }
+    placementsData.forEach(d => {
+      if (!jobId || d.jobId === jobId) {
+        d.hiredCandidates = d.hiredCandidates.filter(c => c.userId !== userId);
+      }
+    });
+    saveData('placements.json', placementsData);
+
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: `Đã ghép thành công ứng viên vào ${batchName}`,
+      data: {
+        success: true,
+        userId,
+        batchName,
+        assignedAt: new Date().toISOString()
+      }
     });
   }
 
@@ -433,6 +2221,742 @@ async function requestHandler(req, res) {
     return sendError(res, 500, 'Lỗi hệ thống máy chủ nội bộ');
   }
 
+  // =============================================================
+  // F. PROFILE SERVICE MOCK ENDPOINTS (HS-02)
+  // Phản chiếu profile-service: xác thực bằng header X-User-Id,
+  // cập nhật bằng PUT, DTO trùng tên trường với backend.
+  // =============================================================
+
+  // Frontend gọi qua baseURL /api/v1 nên bỏ tiền tố trước khi so khớp
+  const profilePath = pathname.replace(/^\/api\/v1/, '');
+
+  const isProfileRoute =
+    profilePath === '/profiles/me' ||
+    profilePath.startsWith('/profiles/me/');
+
+  const currentUser = isProfileRoute ? resolveUserFromRequest(req) : null;
+  const currentCandidate = currentUser
+    ? (candidates.find(c => c.email === currentUser.email) || candidates[0])
+    : candidates[0];
+
+  if (isProfileRoute && !currentCandidate) {
+    return sendError(res, 404, 'Không tìm thấy hồ sơ ứng viên');
+  }
+
+  // Gắn định danh người gọi và trạng thái mặc định để FE và luồng HS-05 dùng chung một id
+  if (currentCandidate) {
+    currentCandidate.userId = req.headers['x-user-id'] || (currentUser ? currentUser.id : 'user-001');
+    if (!currentCandidate.visibility) currentCandidate.visibility = 'PRIVATE';
+  }
+
+  // 1. GET /profiles/me
+  if (method === 'GET' && profilePath === '/profiles/me') {
+    return sendJson(res, 200, currentCandidate);
+  }
+
+  // 2. PUT /profiles/me — bỏ qua các trường đồng bộ từ LMS
+  if (method === 'PUT' && profilePath === '/profiles/me') {
+    const body = await parseBody(req);
+    // visibility không nằm trong danh sách: trạng thái công khai chỉ đổi qua luồng duyệt
+    const editable = ['phone', 'dob', 'gender', 'address', 'avatarUrl', 'headline', 'summary'];
+    editable.forEach(field => {
+      if (body[field] !== undefined) currentCandidate[field] = body[field];
+    });
+    currentCandidate.updatedAt = new Date().toISOString();
+    return sendJson(res, 200, currentCandidate);
+  }
+
+  // 3. PUT /profiles/me/self-skills — [{ skillId, selfScore }]
+  if (method === 'PUT' && profilePath === '/profiles/me/self-skills') {
+    const body = await parseBody(req);
+    const list = Array.isArray(body) ? body : [];
+    list.forEach(({ skillId, selfScore }) => {
+      const skill = (currentCandidate.skills || []).find(
+        (s, idx) => String(idx + 1) === String(skillId) || s.name === skillId);
+      if (!skill) return;
+      skill.selfScore = selfScore;
+      if (!skill.evidences) skill.evidences = [];
+      const existing = skill.evidences.find(e => e.source === 'SELF');
+      if (existing) {
+        existing.score = selfScore;
+        existing.recordedAt = new Date().toISOString();
+      } else {
+        skill.evidences.push({
+          source: 'SELF',
+          title: 'Self-reported ' + skill.name,
+          score: selfScore,
+          recordedAt: new Date().toISOString(),
+          verified: false
+        });
+      }
+    });
+    return sendJson(res, 200, { success: true });
+  }
+
+  // 4. GET /profiles/me/educations
+  if (method === 'GET' && profilePath === '/profiles/me/educations') {
+    return sendJson(res, 200, currentCandidate.educations || []);
+  }
+
+  // 5. POST /profiles/me/educations
+  if (method === 'POST' && profilePath === '/profiles/me/educations') {
+    const body = await parseBody(req);
+    if (!currentCandidate.educations) currentCandidate.educations = [];
+    const created = {
+      id: 'edu-' + Date.now(),
+      userId: currentUserId,
+      school: body.school,
+      major: body.major,
+      fromDate: body.fromDate,
+      toDate: body.toDate || null,
+      gpa: body.gpa === undefined ? null : body.gpa,
+      note: body.note || ''
+    };
+    currentCandidate.educations.push(created);
+    return sendJson(res, 201, created);
+  }
+
+  // 6. PUT /profiles/me/educations/:id
+  const eduMatch = profilePath.match(/^\/profiles\/me\/educations\/([^\/]+)$/);
+  if (method === 'PUT' && eduMatch) {
+    const body = await parseBody(req);
+    const index = (currentCandidate.educations || []).findIndex(e => e.id === eduMatch[1]);
+    if (index === -1) {
+      return sendError(res, 404, 'Không tìm thấy học vấn');
+    }
+    const updated = {
+      ...currentCandidate.educations[index],
+      school: body.school,
+      major: body.major,
+      fromDate: body.fromDate,
+      toDate: body.toDate || null,
+      gpa: body.gpa === undefined ? null : body.gpa,
+      note: body.note || ''
+    };
+    currentCandidate.educations[index] = updated;
+    return sendJson(res, 200, updated);
+  }
+
+  // 7. DELETE /profiles/me/educations/:id
+  if (method === 'DELETE' && eduMatch) {
+    const index = (currentCandidate.educations || []).findIndex(e => e.id === eduMatch[1]);
+    if (index === -1) {
+      return sendError(res, 404, 'Không tìm thấy học vấn');
+    }
+    currentCandidate.educations.splice(index, 1);
+    res.writeHead(204, { 'Access-Control-Allow-Origin': '*' });
+    return res.end();
+  }
+
+  // 8. GET /profiles/me/certificates
+  if (method === 'GET' && profilePath === '/profiles/me/certificates') {
+    return sendJson(res, 200, currentCandidate.certificates || []);
+  }
+
+  // 9. POST /profiles/me/certificates
+  if (method === 'POST' && profilePath === '/profiles/me/certificates') {
+    const body = await parseBody(req);
+    if (!currentCandidate.certificates) currentCandidate.certificates = [];
+    const created = {
+      id: 'cert-' + Date.now(),
+      userId: currentUserId,
+      name: body.name,
+      issuer: body.issuer,
+      issuedAt: body.issuedAt,
+      expiresAt: body.expiresAt || null,
+      fileUrl: body.fileUrl || null,
+      fileType: body.fileType || null
+    };
+    currentCandidate.certificates.push(created);
+    return sendJson(res, 201, created);
+  }
+
+  // 10. PUT /profiles/me/certificates/:id
+  const certMatch = profilePath.match(/^\/profiles\/me\/certificates\/([^\/]+)$/);
+  if (method === 'PUT' && certMatch) {
+    const body = await parseBody(req);
+    const index = (currentCandidate.certificates || []).findIndex(c => c.id === certMatch[1]);
+    if (index === -1) {
+      return sendError(res, 404, 'Không tìm thấy chứng chỉ');
+    }
+    const updated = {
+      ...currentCandidate.certificates[index],
+      name: body.name,
+      issuer: body.issuer,
+      issuedAt: body.issuedAt,
+      expiresAt: body.expiresAt || null,
+      fileUrl: body.fileUrl || null,
+      fileType: body.fileType || null
+    };
+    currentCandidate.certificates[index] = updated;
+    return sendJson(res, 200, updated);
+  }
+
+  // 11. DELETE /profiles/me/certificates/:id
+  if (method === 'DELETE' && certMatch) {
+    const index = (currentCandidate.certificates || []).findIndex(c => c.id === certMatch[1]);
+    if (index === -1) {
+      return sendError(res, 404, 'Không tìm thấy chứng chỉ');
+    }
+    currentCandidate.certificates.splice(index, 1);
+    res.writeHead(204, { 'Access-Control-Allow-Origin': '*' });
+    return res.end();
+  }
+
+  // =============================================================
+  // G. LUỒNG CÔNG KHAI HỒ SƠ (HS-05)
+  // Trạng thái: PRIVATE → PENDING → PUBLIC | REJECTED; rút về PRIVATE.
+  // Chuyển trạng thái sai luật trả 409, thiếu consent/lý do trả 400.
+  // =============================================================
+
+  function recordReview(userId, action, actorId, reason) {
+    profileReviews.unshift({
+      id: 'rev-' + Date.now() + '-' + profileReviews.length,
+      userId: userId,
+      action: action,
+      reason: reason || null,
+      actorId: actorId,
+      createdAt: new Date().toISOString()
+    });
+  }
+
+  function visibilityOf(userId) {
+    const cand = candidates.find(c => c.userId === userId || c.id === userId);
+    return cand ? (cand.visibility || 'PRIVATE') : null;
+  }
+
+  function setVisibility(userId, visibility) {
+    const cand = candidates.find(c => c.userId === userId || c.id === userId);
+    if (cand) cand.visibility = visibility;
+  }
+
+  // 13. POST /profiles/me/publish {consent}
+  if (method === 'POST' && profilePath === '/profiles/me/publish') {
+    const body = await parseBody(req);
+    if (body.consent !== true) {
+      return sendError(res, 400, 'Cần đồng ý điều khoản công khai trước khi gửi duyệt');
+    }
+    const current = currentCandidate.visibility || 'PRIVATE';
+    if (current !== 'PRIVATE' && current !== 'REJECTED') {
+      return sendError(res, 409, `Chỉ gửi duyệt được hồ sơ PRIVATE hoặc REJECTED. Hiện tại: ${current}`);
+    }
+    currentCandidate.visibility = 'PENDING';
+    currentCandidate.consentAt = new Date().toISOString();
+    currentCandidate.consentWithdrawnAt = null;
+    currentCandidate.updatedAt = new Date().toISOString();
+    recordReview(currentUserId, 'SUBMIT', currentUserId);
+    return sendJson(res, 200, currentCandidate);
+  }
+
+  // 14. POST /profiles/me/withdraw
+  if (method === 'POST' && profilePath === '/profiles/me/withdraw') {
+    const current = currentCandidate.visibility || 'PRIVATE';
+    if (current !== 'PENDING' && current !== 'PUBLIC') {
+      return sendError(res, 409, `Chỉ rút được hồ sơ PENDING hoặc PUBLIC. Hiện tại: ${current}`);
+    }
+    currentCandidate.visibility = 'PRIVATE';
+    currentCandidate.consentWithdrawnAt = new Date().toISOString();
+    currentCandidate.updatedAt = new Date().toISOString();
+    recordReview(currentUserId, 'WITHDRAW', currentUserId);
+    return sendJson(res, 200, currentCandidate);
+  }
+
+  // 15. GET /profiles/me/review-history
+  if (method === 'GET' && profilePath === '/profiles/me/review-history') {
+    return sendJson(res, 200, profileReviews.filter(r => r.userId === currentUserId));
+  }
+
+  // 16. GET /staff/profile-reviews?status=PENDING&q=&classCode= — chỉ STAFF/ADMIN
+  if (method === 'GET' && profilePath === '/staff/profile-reviews') {
+    const role = (req.headers['x-user-role'] || '').toUpperCase().replace('ROLE_', '');
+    if (!currentUserId) {
+      return sendError(res, 401, 'Thiếu header X-User-Id');
+    }
+    if (role !== 'STAFF' && role !== 'ADMIN') {
+      return sendError(res, 403, 'Chức năng chỉ dành cho Cán bộ tuyển dụng (STAFF)');
+    }
+    const status = (query.status || 'PENDING').toUpperCase();
+    const q = (query.q || '').toLowerCase();
+    const classCode = query.classCode || '';
+    let matched = candidates.filter(c => (c.visibility || 'PRIVATE') === status);
+    if (q) {
+      matched = matched.filter(c =>
+        (c.fullName || '').toLowerCase().includes(q) ||
+        (c.email || '').toLowerCase().includes(q)
+      );
+    }
+    if (classCode) {
+      matched = matched.filter(c => c.classCode === classCode);
+    }
+    // Sort by updatedAt ascending (oldest first)
+    matched.sort((a, b) => new Date(a.updatedAt || 0) - new Date(b.updatedAt || 0));
+    const page = parseInt(query.page) || 0;
+    const size = parseInt(query.size) || 20;
+    // Calculate rejection counts
+    const rejectionCounts = {};
+    profileReviews.filter(r => r.action === 'REJECT').forEach(r => {
+      rejectionCounts[r.userId] = (rejectionCounts[r.userId] || 0) + 1;
+    });
+    return sendJson(res, 200, {
+      content: matched.slice(page * size, page * size + size).map(c => ({
+        userId: c.userId || c.id,
+        fullName: c.fullName,
+        email: c.email,
+        headline: c.headline || null,
+        avatarUrl: c.avatarUrl || null,
+        classCode: c.classCode || null,
+        submittedAt: (profileReviews.find(r => r.userId === (c.userId || c.id) && r.action === 'SUBMIT') || {}).createdAt || null,
+        rejectionCount: rejectionCounts[c.userId || c.id] || 0
+      })),
+      totalElements: matched.length,
+      totalPages: Math.ceil(matched.length / size) || 0,
+      number: page,
+      size: size
+    });
+  }
+
+  // 17. GET /staff/profiles/:userId/preview — chỉ STAFF/ADMIN
+  const previewMatch = profilePath.match(/^\/staff\/profiles\/([^\/]+)\/preview$/);
+  if (method === 'GET' && previewMatch) {
+    const role = (req.headers['x-user-role'] || '').toUpperCase().replace('ROLE_', '');
+    if (!currentUserId) {
+      return sendError(res, 401, 'Thiếu header X-User-Id');
+    }
+    if (role !== 'STAFF' && role !== 'ADMIN') {
+      return sendError(res, 403, 'Chức năng chỉ dành cho Cán bộ tuyển dụng (STAFF)');
+    }
+    const targetId = previewMatch[1];
+    const candidate = candidates.find(c => c.userId === targetId || c.id === targetId);
+    if (!candidate) {
+      return sendError(res, 404, `Không tìm thấy hồ sơ ứng viên ${targetId}`);
+    }
+    // Mask email and phone
+    const maskEmail = (email) => {
+      if (!email || !email.includes('@')) return email;
+      const [local, domain] = email.split('@');
+      if (local.length <= 3) return '***@' + domain;
+      return local.substring(0, 3) + '***@' + domain;
+    };
+    const maskPhone = (phone) => {
+      if (!phone || phone.length < 4) return phone;
+      return phone.substring(0, 3) + '***' + phone.substring(phone.length - 1);
+    };
+    // Get review history
+    const history = profileReviews.filter(r => r.userId === targetId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const rejectionCount = history.filter(r => r.action === 'REJECT').length;
+    // Get skills (mock)
+    const skills = candidate.skills || [];
+    // Get educations
+    const educations = candidate.educations || [];
+    // Get certificates
+    const certificates = candidate.certificates || [];
+    return sendJson(res, 200, {
+      userId: candidate.userId || candidate.id,
+      fullName: candidate.fullName,
+      email: candidate.email,
+      phone: candidate.phone,
+      maskedEmail: maskEmail(candidate.email),
+      maskedPhone: maskPhone(candidate.phone),
+      dob: candidate.dob,
+      gender: candidate.gender,
+      address: candidate.address,
+      avatarUrl: candidate.avatarUrl,
+      headline: candidate.headline,
+      summary: candidate.summary,
+      program: candidate.program,
+      classCode: candidate.classCode,
+      courseName: candidate.courseName,
+      visibility: candidate.visibility || 'PRIVATE',
+      consentAt: candidate.consentAt,
+      consentWithdrawnAt: candidate.consentWithdrawnAt,
+      updatedAt: candidate.updatedAt,
+      skills: skills,
+      educations: educations,
+      certificates: certificates,
+      reviewHistory: history.map(r => ({
+        id: r.id,
+        action: r.action,
+        reason: r.reason,
+        actorId: r.actorId,
+        createdAt: r.createdAt
+      })),
+      rejectionCount: rejectionCount
+    });
+  }
+
+  // 18. PUT /staff/profiles/:userId/self-declared — chỉ STAFF/ADMIN
+  const editSelfDeclaredMatch = profilePath.match(/^\/staff\/profiles\/([^\/]+)\/self-declared$/);
+  if (method === 'PUT' && editSelfDeclaredMatch) {
+    const role = (req.headers['x-user-role'] || '').toUpperCase().replace('ROLE_', '');
+    if (!currentUserId) {
+      return sendError(res, 401, 'Thiếu header X-User-Id');
+    }
+    if (role !== 'STAFF' && role !== 'ADMIN') {
+      return sendError(res, 403, 'Chức năng chỉ dành cho Cán bộ tuyển dụng (STAFF)');
+    }
+    const targetId = editSelfDeclaredMatch[1];
+    const candidate = candidates.find(c => c.userId === targetId || c.id === targetId);
+    if (!candidate) {
+      return sendError(res, 404, `Không tìm thấy hồ sơ ứng viên ${targetId}`);
+    }
+    const body = await parseBody(req);
+    const { field, value, reason } = body;
+    if (!field || !value || !reason) {
+      return sendError(res, 400, 'Thiếu field, value hoặc reason');
+    }
+    let oldValue;
+    switch (field) {
+      case 'HEADLINE':
+        oldValue = candidate.headline || '';
+        candidate.headline = value;
+        break;
+      case 'SUMMARY':
+        oldValue = candidate.summary || '';
+        candidate.summary = value;
+        break;
+      case 'SELF_SKILLS':
+        oldValue = JSON.stringify(candidate.skills || []);
+        // value should be JSON array
+        try {
+          candidate.skills = JSON.parse(value);
+        } catch (e) {
+          return sendError(res, 400, 'SELF_SKILLS value must be valid JSON array');
+        }
+        break;
+      default:
+        return sendError(res, 400, 'Trường không được phép sửa: ' + field);
+    }
+    candidate.updatedAt = new Date().toISOString();
+    // Log to profileEdits (in-memory)
+    if (!global.profileEdits) global.profileEdits = [];
+    global.profileEdits.unshift({
+      id: 'edit-' + Date.now(),
+      userId: targetId,
+      field: field,
+      oldValue: oldValue,
+      newValue: value,
+      reason: reason,
+      staffId: currentUserId,
+      createdAt: new Date().toISOString()
+    });
+    return sendJson(res, 200, {
+      userId: targetId,
+      field: field,
+      oldValue: oldValue,
+      newValue: value
+    });
+  }
+
+  // 19. POST /staff/profiles/:userId/approve | /reject
+  const staffActionMatch = profilePath.match(/^\/staff\/profiles\/([^\/]+)\/(approve|reject)$/);
+  if (method === 'POST' && staffActionMatch) {
+    const role = (req.headers['x-user-role'] || '').toUpperCase().replace('ROLE_', '');
+    if (!currentUserId) {
+      return sendError(res, 401, 'Thiếu header X-User-Id');
+    }
+    if (role !== 'STAFF' && role !== 'ADMIN') {
+      return sendError(res, 403, 'Chức năng chỉ dành cho Cán bộ tuyển dụng (STAFF)');
+    }
+    const targetId = staffActionMatch[1];
+    const action = staffActionMatch[2];
+    const current = visibilityOf(targetId);
+    if (current === null) {
+      return sendError(res, 404, `Không tìm thấy hồ sơ ứng viên ${targetId}`);
+    }
+    if (current !== 'PENDING') {
+      return sendError(res, 409, `Chỉ duyệt/trả lại được hồ sơ PENDING. Hiện tại: ${current}`);
+    }
+    if (action === 'approve') {
+      setVisibility(targetId, 'PUBLIC');
+      recordReview(targetId, 'APPROVE', currentUserId);
+      return sendJson(res, 200, { userId: targetId, visibility: 'PUBLIC' });
+    }
+    const body = await parseBody(req);
+    if (!body.reason || !body.reason.trim()) {
+      return sendError(res, 400, 'Cần nhập lý do trả lại hồ sơ');
+    }
+    setVisibility(targetId, 'REJECTED');
+    recordReview(targetId, 'REJECT', currentUserId, body.reason);
+    return sendJson(res, 200, { userId: targetId, visibility: 'REJECTED' });
+  }
+
+  // 12. POST /files — mock upload, trả URL tương đối như backend
+  if (method === 'POST' && profilePath === '/files') {
+    return sendJson(res, 200, { url: '/files/mock-' + Date.now() + '.pdf' });
+  }
+
+  // =============================================================
+  // H. UT-07 OFFER MANAGEMENT & EMPLOYMENT RECORD MOCK ENDPOINTS
+  // =============================================================
+  const ut07Path = pathname.replace(/^\/api\/v1/, '');
+
+  function resolveMockActor(req) {
+    const userId = req.headers['x-user-id'];
+    if (userId) {
+      const found = users.find(u => u.id === userId || u.lmsUserId === userId);
+      if (found) return found;
+    }
+    const roleHeader = (req.headers['x-user-role'] || '').toUpperCase().replace('ROLE_', '');
+    if (roleHeader === 'HR') return users.find(u => u.role === 'HR') || users[0];
+    if (roleHeader === 'STAFF') return users.find(u => u.role === 'STAFF') || users[0];
+    return resolveUserFromRequest(req);
+  }
+
+  // GET /hr/applications & /applications (HR)
+  if (method === 'GET' && (ut07Path === '/hr/applications' || ut07Path === '/applications')) {
+    const actor = resolveMockActor(req);
+    const statusFilter = query.status ? query.status.toUpperCase() : null;
+    let items = mockApplications.filter(a => !actor.companyId || a.companyId === actor.companyId);
+    if (statusFilter) {
+      items = items.filter(a => a.status === statusFilter);
+    }
+    const page = parseInt(query.page) || 0;
+    const size = 20;
+    const slice = items.slice(page * size, page * size + size).map(a => ({
+      id: a.id,
+      jobId: a.jobId,
+      candidateId: a.candidateId,
+      candidateEmail: a.candidateEmail,
+      status: a.status,
+      createdAt: a.createdAt,
+      updatedAt: a.updatedAt
+    }));
+    return sendJson(res, 200, {
+      content: slice,
+      totalElements: items.length,
+      totalPages: Math.max(1, Math.ceil(items.length / size)),
+      size,
+      number: page,
+      first: page === 0,
+      last: (page + 1) * size >= items.length,
+      empty: slice.length === 0
+    });
+  }
+
+  // GET /applications/:id & /recruitments/:id (HR/STAFF detail with offer & employmentRecord)
+  const appDetailMatch = ut07Path.match(/^\/(?:applications|recruitments)\/([^\/]+)$/);
+  if (method === 'GET' && appDetailMatch) {
+    const appId = appDetailMatch[1];
+    const app = mockApplications.find(a => a.id === appId);
+    if (!app) return sendError(res, 404, 'Không tìm thấy đơn ứng tuyển');
+    const offer = mockOffers.find(o => o.applicationId === appId) || null;
+    const employmentRecord = mockEmploymentRecords.find(e => e.applicationId === appId) || null;
+    return sendJson(res, 200, {
+      recruitment: {
+        id: app.id,
+        jobId: app.jobId,
+        cvId: null,
+        cvSnapshotUrl: app.cvSnapshotUrl,
+        coverLetter: app.coverLetter,
+        status: app.status,
+        createdAt: app.createdAt,
+        updatedAt: app.updatedAt
+      },
+      candidateId: app.candidateId,
+      candidateEmail: app.candidateEmail,
+      coverLetter: app.coverLetter,
+      cvSnapshotUrl: app.cvSnapshotUrl,
+      score: app.score,
+      rounds: app.rounds || [],
+      history: app.history || [],
+      offer: offer ? { ...offer, confirmedAt: employmentRecord ? employmentRecord.confirmedAt : null } : null,
+      employmentRecord
+    });
+  }
+
+  // POST /applications/:id/offer & /recruitments/:id/offer (HR)
+  const sendOfferMatch = ut07Path.match(/^\/(?:applications|recruitments)\/([^\/]+)\/offer$/);
+  if (method === 'POST' && sendOfferMatch) {
+    const appId = sendOfferMatch[1];
+    const app = mockApplications.find(a => a.id === appId);
+    if (!app) return sendError(res, 404, 'Không tìm thấy đơn ứng tuyển');
+    if (app.status !== 'INTERVIEW') {
+      return sendError(res, 409, 'Chỉ có thể gửi offer khi đơn đang ở trạng thái INTERVIEW');
+    }
+    const rounds = app.rounds || [];
+    const hasPending = rounds.some(r => !r.result || r.result === 'PENDING');
+    const lastRound = rounds[rounds.length - 1];
+    if (rounds.length === 0 || hasPending || !lastRound || lastRound.result !== 'PASS') {
+      return sendError(res, 409, 'Vòng phỏng vấn cuối cùng chưa PASS, không thể gửi offer');
+    }
+    if (mockOffers.some(o => o.applicationId === appId)) {
+      return sendError(res, 409, 'Đơn ứng tuyển này đã có offer trước đó');
+    }
+    const body = await parseBody(req);
+    if (!body.position || !body.salary || Number(body.salary) <= 0 || !body.startDate || !body.workLocation || !body.responseDeadline) {
+      return sendError(res, 400, 'Thiếu thông tin bắt buộc khi gửi offer');
+    }
+    if (new Date(body.responseDeadline).getTime() <= Date.now()) {
+      return sendError(res, 400, 'Hạn trả lời offer phải ở trong tương lai');
+    }
+    const nowIso = new Date().toISOString();
+    app.status = 'OFFER';
+    app.updatedAt = nowIso;
+    const newOffer = {
+      id: 'offer-mock-' + Date.now(),
+      applicationId: app.id,
+      jobId: app.jobId,
+      companyId: app.companyId,
+      companyName: body.companyName || app.companyName || 'Công ty Cổ phần Rikkeisoft',
+      candidateId: app.candidateId,
+      candidateEmail: app.candidateEmail,
+      position: String(body.position).trim(),
+      salary: Number(body.salary),
+      startDate: body.startDate,
+      workLocation: String(body.workLocation).trim(),
+      note: body.note ? String(body.note).trim() : null,
+      responseDeadline: body.responseDeadline,
+      status: 'SENT',
+      applicationStatus: 'OFFER',
+      respondedAt: null,
+      declineReason: null,
+      confirmedAt: null,
+      createdAt: nowIso,
+      updatedAt: nowIso
+    };
+    mockOffers.unshift(newOffer);
+    return sendJson(res, 201, newOffer);
+  }
+
+  // POST /applications/:id/offer/confirm-onboard (HR)
+  const confirmOnboardMatch = ut07Path.match(/^\/(?:applications|recruitments)\/([^\/]+)\/offer\/confirm-onboard$/);
+  if (method === 'POST' && confirmOnboardMatch) {
+    const appId = confirmOnboardMatch[1];
+    const app = mockApplications.find(a => a.id === appId);
+    if (!app) return sendError(res, 404, 'Không tìm thấy đơn ứng tuyển');
+    const offer = mockOffers.find(o => o.applicationId === appId);
+    if (!offer || offer.status !== 'ACCEPTED' || app.status !== 'HIRED') {
+      return sendError(res, 409, 'Chỉ có thể xác nhận đi làm khi ứng viên đã chấp nhận offer');
+    }
+    const emp = mockEmploymentRecords.find(e => e.applicationId === appId);
+    if (!emp) return sendError(res, 404, 'Không tìm thấy bản ghi nhận việc');
+    if (emp.confirmedAt) return sendError(res, 409, 'Đã xác nhận ứng viên đi làm trước đó');
+    emp.confirmedAt = new Date().toISOString();
+    offer.confirmedAt = emp.confirmedAt;
+    return sendJson(res, 200, emp);
+  }
+
+  // GET /me/offers (CANDIDATE)
+  if (method === 'GET' && ut07Path === '/me/offers') {
+    const candidate = resolveMockActor(req);
+    const list = mockOffers
+      .filter(o => o.candidateId === candidate.id || o.candidateEmail === candidate.email)
+      .map(o => {
+        const emp = mockEmploymentRecords.find(e => e.applicationId === o.applicationId);
+        return { ...o, confirmedAt: emp ? emp.confirmedAt : null };
+      });
+    return sendJson(res, 200, list);
+  }
+
+  // GET /me/offers/:id (CANDIDATE — 404 if belongs to another candidate)
+  const myOfferDetailMatch = ut07Path.match(/^\/me\/offers\/([^\/]+)$/);
+  if (method === 'GET' && myOfferDetailMatch) {
+    const candidate = resolveMockActor(req);
+    const offer = mockOffers.find(o => o.id === myOfferDetailMatch[1] && (o.candidateId === candidate.id || o.candidateEmail === candidate.email));
+    if (!offer) return sendError(res, 404, 'Không tìm thấy offer');
+    return sendJson(res, 200, offer);
+  }
+
+  // POST /me/offers/:id/accept (CANDIDATE)
+  const acceptOfferMatch = ut07Path.match(/^\/me\/offers\/([^\/]+)\/accept$/);
+  if (method === 'POST' && acceptOfferMatch) {
+    const candidate = resolveMockActor(req);
+    const offer = mockOffers.find(o => o.id === acceptOfferMatch[1] && (o.candidateId === candidate.id || o.candidateEmail === candidate.email));
+    if (!offer) return sendError(res, 404, 'Không tìm thấy offer');
+    if (offer.status === 'EXPIRED' || new Date(offer.responseDeadline).getTime() <= Date.now()) {
+      offer.status = 'EXPIRED';
+      return sendError(res, 409, 'Offer đã quá hạn phản hồi và không thể chấp nhận');
+    }
+    if (offer.status !== 'SENT') {
+      return sendError(res, 409, 'Offer không còn ở trạng thái chờ phản hồi');
+    }
+    const nowIso = new Date().toISOString();
+    offer.status = 'ACCEPTED';
+    offer.applicationStatus = 'HIRED';
+    offer.respondedAt = nowIso;
+    offer.updatedAt = nowIso;
+    const app = mockApplications.find(a => a.id === offer.applicationId);
+    if (app) {
+      app.status = 'HIRED';
+      app.updatedAt = nowIso;
+    }
+    if (!mockEmploymentRecords.some(e => e.applicationId === offer.applicationId)) {
+      mockEmploymentRecords.unshift({
+        id: 'emp-mock-' + Date.now(),
+        userId: candidate.id,
+        companyId: offer.companyId,
+        companyName: offer.companyName,
+        jobId: offer.jobId,
+        applicationId: offer.applicationId,
+        position: offer.position,
+        startDate: offer.startDate,
+        confirmedAt: null,
+        createdAt: nowIso
+      });
+    }
+    return sendJson(res, 200, offer);
+  }
+
+  // POST /me/offers/:id/decline (CANDIDATE — reason required)
+  const declineOfferMatch = ut07Path.match(/^\/me\/offers\/([^\/]+)\/decline$/);
+  if (method === 'POST' && declineOfferMatch) {
+    const body = await parseBody(req);
+    if (!body.reason || !String(body.reason).trim()) {
+      return sendError(res, 400, 'Lý do từ chối offer là bắt buộc');
+    }
+    const candidate = resolveMockActor(req);
+    const offer = mockOffers.find(o => o.id === declineOfferMatch[1] && (o.candidateId === candidate.id || o.candidateEmail === candidate.email));
+    if (!offer) return sendError(res, 404, 'Không tìm thấy offer');
+    if (offer.status === 'EXPIRED' || new Date(offer.responseDeadline).getTime() <= Date.now()) {
+      offer.status = 'EXPIRED';
+      return sendError(res, 409, 'Offer đã quá hạn phản hồi');
+    }
+    if (offer.status !== 'SENT') {
+      return sendError(res, 409, 'Offer không còn ở trạng thái chờ phản hồi');
+    }
+    const nowIso = new Date().toISOString();
+    offer.status = 'DECLINED';
+    offer.applicationStatus = 'REJECTED';
+    offer.respondedAt = nowIso;
+    offer.declineReason = String(body.reason).trim();
+    offer.updatedAt = nowIso;
+    const app = mockApplications.find(a => a.id === offer.applicationId);
+    if (app) {
+      app.status = 'REJECTED';
+      app.updatedAt = nowIso;
+    }
+    return sendJson(res, 200, offer);
+  }
+
+  // GET /me/employment-records (CANDIDATE)
+  if (method === 'GET' && ut07Path === '/me/employment-records') {
+    const candidate = resolveMockActor(req);
+    const records = mockEmploymentRecords.filter(e => e.userId === candidate.id);
+    return sendJson(res, 200, records);
+  }
+
+  // 5.13 AI Career - DELETE Conversation
+  const convDeleteMatch = (pathname || '').match(/^(?:\/api\/v1)?(?:\/ai-career)?\/me\/conversations\/([^/?]+)$/);
+  if (method === 'DELETE' && convDeleteMatch) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Xóa cuộc trò chuyện thành công',
+      data: null
+    });
+  }
+
+  // 5.14 AI Career - DELETE Interview Practice
+  const practiceDeleteMatch = (pathname || '').match(/^(?:\/api\/v1)?(?:\/ai-career)?\/me\/interview-practices\/([^/?]+)$/);
+  if (method === 'DELETE' && practiceDeleteMatch) {
+    return sendJson(res, 200, {
+      success: true,
+      statusCode: 200,
+      message: 'Xóa buổi luyện phỏng vấn thành công',
+      data: null
+    });
+  }
+
   // Health check endpoint
   if (pathname === '/' || pathname === '/health') {
     return sendJson(res, 200, {
@@ -453,7 +2977,7 @@ if (require.main === module) {
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`=======================================================`);
     console.log(`🚀 Rikkei Jobs Mock Server đang chạy tại http://localhost:${PORT}`);
-    console.log(`🔐 Yêu cầu Header cho hệ thống ngoài: X-Service-Key: ${SERVICE_KEY}`);
+    console.log('🔐 Các API hệ thống ngoài yêu cầu header X-Service-Key');
     console.log(`📚 Hệ thống hỗ trợ: LMS, Khảo thí, LMS-PM, Rikkei Meet, Auth & Candidate APIs`);
     console.log(`=======================================================`);
   });

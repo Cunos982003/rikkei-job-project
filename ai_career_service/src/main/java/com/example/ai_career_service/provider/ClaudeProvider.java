@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.net.http.HttpRequest;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -27,6 +28,23 @@ public class ClaudeProvider extends AbstractHttpAIProvider {
                 "system", systemPrompt,
                 "messages", List.of(Map.of("role", "user", "content", userPrompt)));
         return requestBuilder(endpoint())
+                .header("x-api-key", apiKey())
+                .header("anthropic-version", "2023-06-01")
+                .POST(HttpRequest.BodyPublishers.ofByteArray(json(body)))
+                .build();
+    }
+
+    @Override
+    protected HttpRequest createChatRequest(String systemPrompt, String userPrompt) throws IOException {
+        Map<String, Object> body = new HashMap<>();
+        body.put("model", model);
+        body.put("max_tokens", 1024);
+        if (systemPrompt != null && !systemPrompt.isBlank()) {
+            body.put("system", systemPrompt);
+        }
+        body.put("messages", List.of(Map.of("role", "user", "content", userPrompt)));
+
+        return chatRequestBuilder(endpoint())
                 .header("x-api-key", apiKey())
                 .header("anthropic-version", "2023-06-01")
                 .POST(HttpRequest.BodyPublishers.ofByteArray(json(body)))

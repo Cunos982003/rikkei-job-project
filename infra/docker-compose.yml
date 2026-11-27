@@ -1,10 +1,10 @@
 services:
-  # Mock Server (WireMock) chạy trên cổng 9000 theo chuẩn dự án
+  # WireMock dùng cổng host 9001; Mock API dùng cổng 9000.
   wiremock:
     image: wiremock/wiremock:3.5.4
     container_name: rikkei_mock_server
     ports:
-      - "9000:8080"
+      - "9001:8080"
     volumes:
       - ./wiremock/mappings:/home/wiremock/mappings
       - ./wiremock/__files:/home/wiremock/__files
@@ -25,6 +25,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER:-postgres}\" -d \"$${POSTGRES_DB:-rikkei_jobs}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     restart: unless-stopped
 
   # In-memory Caching & Session (Redis 7)
@@ -44,22 +49,366 @@ services:
       - "8025:8025"
     restart: unless-stopped
 
-  # Object Storage (MinIO: API 9002, Console 9001 - cổng 9002 để tránh trùng Mock 9000)
-  minio:
-    image: minio/minio:latest
-    container_name: rikkei_minio
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password123}
+  mock-api:
+    build:
+      context: ..
+      dockerfile: mock/Dockerfile
+    env_file:
+      - .env
+    profiles: ["app"]
     ports:
-      - "9002:9000"
-      - "9001:9001"
+      - "9000:9000"
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: backend/api-gateway/Dockerfile
+    env_file:
+      - .env
+    profiles: ["app"]
+    environment:
+      PORT: 8080
+      REDIS_HOST: redis
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      GATEWAY_AUTH_URL: http://auth-service:8081
+      GATEWAY_PROFILE_URL: http://profile-service:8082
+      GATEWAY_JOB_URL: http://job-service:8085
+      GATEWAY_RECRUITMENT_URL: http://recruitment-service:8086
+      GATEWAY_LEARNING_URL: http://learning-service:8089
+      GATEWAY_AI_URL: http://ai-career-service:8090
+    depends_on:
+      - redis
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  auth-service:
+    build:
+      context: ..
+      dockerfile: backend/auth-service/Dockerfile
+    env_file:
+      - .env
+    profiles: ["app"]
+    environment:
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auth_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      LMS_SERVICE_KEY: ${LMS_SERVICE_KEY:-fbc368ffa97a999a71577c552ecc2546815f245fd4ebee014732afcba1b52870}
+      LMS_BASE_URL: http://mock-api:9000
+      SPRING_MAIL_HOST: mailpit
+      SPRING_MAIL_PORT: 1025
+      SPRING_MAIL_USERNAME: postgres
+      SPRING_MAIL_PASSWORD: postgres
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      MAIL_USERNAME: postgres
+      MAIL_PASSWORD: postgres
+      MAIL_FROM: no-reply@rikkei-jobs.vn
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_USERNAME: postgres
+      SMTP_PASSWORD: postgres
+      SMTP_AUTH: "true"
+      SMTP_STARTTLS: "true"
+      EMAIL_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mock-api:
+        condition: service_started
+      mailpit:
+        condition: service_started
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  profile-service:
+    build:
+      context: ..
+      dockerfile: backend/profile-service/Dockerfile
+    env_file:
+      - .env
+    profiles: ["app"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/profile_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      LMS_BASE_URL: http://mock-api:9000
+      INTEGRATIONS_PM_BASE_URL: http://mock-api:9000
+      MINIO_ENDPOINT: http://localstack:4566
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-test}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-test}
+      MINIO_BUCKET: ${MINIO_BUCKET:-portfolio}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      MINIO_SECURE: ${MINIO_SECURE:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mock-api:
+        condition: service_started
+      localstack:
+        condition: service_started
     volumes:
-      - miniodata:/data
+      - profile-uploads:/app/uploads
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
+
+  job-service:
+    build:
+      context: ..
+      dockerfile: backend/job-service/Dockerfile
+    env_file:
+      - .env
+    profiles: ["app"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/job_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      APP_JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      MAIL_HOST: mailpit
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    volumes:
+      - job-uploads:/app/uploads/logos
+    ports:
+      - "8085:8085"
+    restart: unless-stopped
+
+  recruitment-service:
+    build:
+      context: ..
+      dockerfile: backend/recruitment-service/Dockerfile
+    env_file:
+      - .env
+    profiles: ["app"]
+    environment:
+      SERVER_PORT: 8086
+      RECRUITMENT_DATABASE_URL: jdbc:postgresql://postgres:5432/recruitment_db
+      RECRUITMENT_DATABASE_USERNAME: ${POSTGRES_USER:-postgres}
+      RECRUITMENT_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      JOB_SERVICE_URL: http://job-service:8085
+      PROFILE_SERVICE_URL: http://profile-service:8082
+      AI_CAREER_SERVICE_URL: http://ai-career-service:8090
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-service-token-dev}
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+    depends_on:
+      postgres:
+        condition: service_healthy
+      job-service:
+        condition: service_started
+      profile-service:
+        condition: service_started
+      mailpit:
+        condition: service_started
+    volumes:
+      - recruitment-uploads:/app/uploads/recruitments
+    ports:
+      - "8086:8086"
+    restart: unless-stopped
+
+  learning-service:
+    build:
+      context: ..
+      dockerfile: backend/learning-service/Dockerfile
+    env_file:
+      - .env
+    profiles: ["app"]
+    environment:
+      SERVER_PORT: 8089
+      LEARNING_DATABASE_URL: jdbc:postgresql://postgres:5432/learning_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      PROFILE_SERVICE_URL: http://profile-service:8082
+      JOB_SERVICE_URL: http://job-service:8085
+      MOCK_SERVER_URL: http://mock-api:9000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      profile-service:
+        condition: service_started
+      job-service:
+        condition: service_started
+      mock-api:
+        condition: service_started
+    ports:
+      - "8089:8089"
+    restart: unless-stopped
+
+  ai-career-service:
+    build:
+      context: ..
+      dockerfile: ai_career_service/Dockerfile
+    env_file:
+      - .env
+    profiles: ["app"]
+    environment:
+      AI_DATABASE_URL: jdbc:postgresql://postgres:5432/ai_db
+      AI_DATABASE_USERNAME: ${POSTGRES_USER:-postgres}
+      AI_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-service-token-dev}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8090:8090"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+    profiles: ["app"]
+    environment:
+      LMS_SERVICE_KEY: ${LMS_SERVICE_KEY:-fbc368ffa97a999a71577c552ecc2546815f245fd4ebee014732afcba1b52870}
+      NGINX_ENVSUBST_FILTER: LMS_SERVICE_KEY
+    depends_on:
+      - api-gateway
+      - mock-api
+    ports:
+      - "5173:8080"
+    restart: unless-stopped
+
+  # Object Storage (LocalStack S3-compatible - port 4566 for S3, 8080 for console)
+  localstack:
+    image: localstack/localstack:2.3.0
+    container_name: rikkei_localstack
+    environment:
+      SERVICES: s3
+      DEBUG: 1
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    ports:
+      - "4566:4566"
+      - "4571:4571"
+    volumes:
+      - localstackdata:/var/lib/localstack
+    restart: unless-stopped
+
+  # Centralized Logging — Loki (:3100) & Promtail (:9080) (OBS-PLAT-02 / OBS-PLAT-03)
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: rikkei_loki
+    user: "0"
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml
+      - lokidata:/tmp/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    container_name: rikkei_promtail
+    volumes:
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail-positions:/tmp/promtail
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  # Distributed Tracing — Grafana Tempo (:4317 gRPC, :4318 HTTP, :3200 query) (COMMON-04 / INFRA-03)
+  tempo:
+    image: grafana/tempo:2.4.1
+    container_name: rikkei_tempo
+    command: [ "-config.file=/etc/tempo.yml" ]
+    volumes:
+      - ./tempo/tempo.yml:/etc/tempo.yml
+      - tempodata:/tmp/tempo
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "3200:3200"
+    restart: unless-stopped
+
+  # Metrics Collection — Prometheus & Exporters (OBS-PLAT-01)
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.16.0
+    container_name: rikkei_postgres_exporter
+    profiles: ["monitoring"]
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_EXPORTER_USER:-prometheus_exporter}:${POSTGRES_EXPORTER_PASSWORD:-prometheus_exporter_readonly}@postgres:5432/${POSTGRES_DB:-rikkei_jobs}?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.67.0
+    container_name: rikkei_redis_exporter
+    profiles: ["monitoring"]
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.4.0
+    container_name: rikkei_nginx_exporter
+    profiles: ["monitoring"]
+    command:
+      - "--nginx.scrape-uri=http://frontend:8080/nginx_status"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    container_name: rikkei_prometheus
+    profiles: ["monitoring"]
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"
+    depends_on:
+      - postgres-exporter
+      - redis-exporter
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: rikkei_grafana
+    profiles: ["monitoring"]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - loki
     restart: unless-stopped
 
 volumes:
   pgdata:
-  miniodata:
-
+  profile-uploads:
+  job-uploads:
+  recruitment-uploads:
+  localstackdata:
+  lokidata:
+  shared-logs:
+  tempodata:
+  prometheus-data:
+  promtail-positions:
+  grafana-data:

@@ -1,0 +1,83 @@
+[
+  {
+    "jobId": "job-1",
+    "jobTitle": "Thực tập sinh Java Backend",
+    "companyName": "Công ty Cổ phần Rikkeisoft",
+    "preferredBatch": "Đợt thực tập Java K20",
+    "durationWeeks": 12,
+    "hiredCandidates": [
+      {
+        "userId": "u-2",
+        "candidateName": "Trần Thị B",
+        "applicationId": "app-002"
+      },
+      {
+        "userId": "u-3",
+        "candidateName": "Lê Hoàng Cường",
+        "applicationId": "app-003"
+      },
+      {
+        "userId": "u-4",
+        "candidateName": "Phạm Minh Dũng",
+        "applicationId": "app-004"
+      }
+    ]
+  },
+  {
+    "jobId": "job-2",
+    "jobTitle": "Thực tập sinh Frontend React",
+    "companyName": "Công ty Cổ phần Rikkeisoft",
+    "preferredBatch": "Đợt thực tập FE K21",
+    "durationWeeks": 10,
+    "hiredCandidates": [
+      {
+        "userId": "u-5",
+        "candidateName": "Vũ Thị Hương",
+        "applicationId": "app-005"
+      },
+      {
+        "userId": "u-6",
+        "candidateName": "Hoàng Anh Tuấn",
+        "applicationId": "app-006"
+      }
+    ]
+  },
+  {
+    "jobId": "job-3",
+    "jobTitle": "Thực tập sinh DevOps",
+    "companyName": "Rikkei Digital Solutions",
+    "preferredBatch": "Đợt thực tập DevOps K20",
+    "durationWeeks": 8,
+    "hiredCandidates": [
+      {
+        "userId": "u-7",
+        "candidateName": "Đặng Thu Thảo",
+        "applicationId": "app-007"
+      },
+      {
+        "userId": "u-8",
+        "candidateName": "Bùi Văn Nam",
+        "applicationId": "app-008"
+      }
+    ]
+  },
+  {
+    "jobId": "job-4",
+    "jobTitle": "Thực tập sinh Data Analyst",
+    "companyName": "VNG Cloud & Digital Hub",
+    "preferredBatch": "Đợt thực tập Data K22",
+    "durationWeeks": 14,
+    "hiredCandidates": [
+      {
+        "userId": "u-9",
+        "candidateName": "Ngô Thị Mai",
+        "applicationId": "app-009"
+      },
+      {
+        "userId": "u-10",
+        "candidateName": "Đỗ Quang Huy",
+        "applicationId": "app-010"
+      }
+    ]
+  }
+]

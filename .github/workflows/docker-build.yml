@@ -36,27 +36,59 @@ jobs:
         env:
           PUSH: ${{ github.event_name != 'pull_request' }}
         run: |
+
+          set -Eeuo pipefail
+
           repo="$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
           found=0
+
           for dir in backend/*/; do
             service="$(basename "$dir")"
+
             if [ -f "${dir}Dockerfile" ]; then
               found=1
               echo "Building $service..."
+
               image="${REGISTRY}/${repo}-${service}"
-              action="--load"
-              [ "$PUSH" = "true" ] && action="--push"
-              docker buildx build $action \
-                --tag "${image}:${{ github.sha }}" \
-                --tag "${image}:latest" \
-                --file "${dir}Dockerfile" \
-                "$dir"
+
+              if [ "$PUSH" = "true" ]; then
+                docker buildx build --push \
+                  --tag "${image}:${{ github.sha }}" \
+                  --tag "${image}:latest" \
+                  --file "${dir}Dockerfile" \
+                  .
+              else
+                docker buildx build --load \
+                  --tag "${image}:${{ github.sha }}" \
+                  --file "${dir}Dockerfile" \
+                  .
+              fi
             else
               echo "No Dockerfile for $service, skipping..."
             fi
           done
-          [ "$found" = "0" ] && echo "No backend Dockerfiles found."
-          exit 0
+
+          if [ "$found" = "0" ]; then
+            echo "::error::No backend Dockerfiles found."
+            exit 1
+          fi
+
+      - name: Compute AI Career image name
+        id: ai-image
+        run: |
+          repo="$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
+          echo "name=${REGISTRY}/${repo}-ai-career-service" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push AI Career Service Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ai_career_service/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ steps.ai-image.outputs.name }}:${{ github.sha }}
+            ${{ steps.ai-image.outputs.name }}:latest
+
 
   build-frontend-image:
     name: Build Frontend Image
@@ -71,6 +103,13 @@ jobs:
         id: check
         run: |
           if [ -f frontend/Dockerfile ]; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; echo "No frontend Dockerfile, skipping."; fi
+
+      - name: Compute image name
+        if: steps.check.outputs.exists == 'true'
+        id: image
+        run: |
+          repo="$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
+          echo "name=${REGISTRY}/${repo}-frontend" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         if: steps.check.outputs.exists == 'true'
@@ -88,8 +127,10 @@ jobs:
         if: steps.check.outputs.exists == 'true'
         uses: docker/build-push-action@v6
         with:
-          context: frontend
+          context: .
           file: frontend/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository }}-frontend:${{ github.sha }}
+            ${{ steps.image.outputs.name }}:${{ github.sha }}
+            ${{ steps.image.outputs.name }}:latest
+    

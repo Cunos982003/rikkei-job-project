@@ -3,7 +3,6 @@ package com.example.jobservice.company.dto;
 import com.example.jobservice.company.domain.Company;
 import java.util.UUID;
 import java.time.OffsetDateTime;
-import io.swagger.v3.oas.annotations.media.Schema;
 
 public record CompanyResponse(
         UUID id,
@@ -14,7 +13,6 @@ public record CompanyResponse(
         String address,
         String city,
         String website,
-        @Schema(description = "Đường dẫn tương đối của logo; FE ghép với base URL của API")
         String logoUrl,
         String description,
         String status,

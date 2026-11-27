@@ -21,6 +21,8 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
+import java.util.UUID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -43,12 +45,11 @@ public class HrAuthService {
     private final EmailService emailService;
 
     public HrAuthService(
-        UserRepository userRepository,
-        PasswordResetTokenRepository passwordResetTokenRepository,
-        PasswordEncoder passwordEncoder,
-        JwtTokenProvider jwtTokenProvider,
-        EmailService emailService
-    ) {
+            UserRepository userRepository,
+            PasswordResetTokenRepository passwordResetTokenRepository,
+            PasswordEncoder passwordEncoder,
+            JwtTokenProvider jwtTokenProvider,
+            EmailService emailService) {
         this.userRepository = userRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.passwordEncoder = passwordEncoder;
@@ -60,7 +61,7 @@ public class HrAuthService {
     public AuthResponse login(LoginRequest request) {
         String email = request.email() != null ? request.email().trim().toLowerCase(Locale.ROOT) : "";
         User user = userRepository.findByEmailForUpdate(email)
-            .orElseThrow(() -> new SsoException(ErrorCode.INVALID_CREDENTIALS, "Invalid email or password"));
+                .orElseThrow(() -> new SsoException(ErrorCode.INVALID_CREDENTIALS, "Invalid email or password"));
 
         if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
             throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Invalid email or password");
@@ -68,18 +69,27 @@ public class HrAuthService {
 
         Instant now = Instant.now();
 
-        if (user.getStatus() == UserStatus.LOCKED || (user.getLockedUntil() != null && user.getLockedUntil().isAfter(now))) {
+        if (user.getStatus() == UserStatus.LOCKED
+                || (user.getLockedUntil() != null && user.getLockedUntil().isAfter(now))) {
+            if (user.getLockedReason() != null) {
+                log.warn("Login attempt for manually locked account (userId={})", user.getId());
+                throw new SsoException(
+                        ErrorCode.ACCOUNT_LOCKED,
+                        "Tài khoản đã bị khoá. Vui lòng liên hệ cán bộ để được mở khoá.");
+            }
             if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(now)) {
                 long remainingMinutes = Math.max(1, Duration.between(now, user.getLockedUntil()).toMinutes() + 1);
-                log.warn("Login attempt for locked account: {}, locked until {}", email, user.getLockedUntil());
+                log.warn("Login attempt for locked account (userId={}), locked until {}", user.getId(), user.getLockedUntil());
                 throw new SsoException(
-                    ErrorCode.ACCOUNT_LOCKED,
-                    "Account is locked due to 5 consecutive failed login attempts. Please try again in " + remainingMinutes + " minute(s)."
-                );
+                        ErrorCode.ACCOUNT_LOCKED,
+                        "Account is locked due to 5 consecutive failed login attempts. Please try again in "
+                                + remainingMinutes + " minute(s).");
             }
-            user.setStatus(UserStatus.ACTIVE);
-            user.setFailedLoginCount(0);
-            user.setLockedUntil(null);
+            if (user.getLockedReason() == null) {
+                user.setStatus(UserStatus.ACTIVE);
+                user.setFailedLoginCount(0);
+                user.setLockedUntil(null);
+            }
         }
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
@@ -91,11 +101,10 @@ public class HrAuthService {
                 user.setLockedUntil(now.plus(Duration.ofMinutes(LOCKOUT_DURATION_MINUTES)));
                 user.setFailedLoginCount(MAX_FAILED_ATTEMPTS);
                 userRepository.saveAndFlush(user);
-                log.warn("Account {} exceeded max failed attempts, locked for 15 minutes", email);
+                log.warn("Account (userId={}) exceeded max failed attempts, locked for 15 minutes", user.getId());
                 throw new SsoException(
-                    ErrorCode.ACCOUNT_LOCKED,
-                    "Account has been locked for 15 minutes due to 5 consecutive failed login attempts."
-                );
+                        ErrorCode.ACCOUNT_LOCKED,
+                        "Account has been locked for 15 minutes due to 5 consecutive failed login attempts.");
             }
 
             userRepository.saveAndFlush(user);
@@ -110,21 +119,22 @@ public class HrAuthService {
 
         String accessToken = jwtTokenProvider.generateToken(user);
         return new AuthResponse(
-            accessToken,
-            "Bearer",
-            jwtTokenProvider.getExpirationSeconds(),
-            UserDto.from(user)
-        );
+                accessToken,
+                "Bearer",
+                jwtTokenProvider.getExpirationSeconds(),
+                UserDto.from(user));
     }
 
     @Transactional
     public MessageResponse changePassword(String email, String currentPassword, String newPassword) {
-        if (newPassword == null || newPassword.length() < 8 || !newPassword.matches(".*[A-Za-z].*") || !newPassword.matches(".*[0-9].*")) {
-            throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Password must be at least 8 characters long and contain both letters and numbers");
+        if (newPassword == null || newPassword.length() < 8 || !newPassword.matches(".*[A-Za-z].*")
+                || !newPassword.matches(".*[0-9].*")) {
+            throw new SsoException(ErrorCode.INVALID_CREDENTIALS,
+                    "Password must be at least 8 characters long and contain both letters and numbers");
         }
 
         User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new SsoException(ErrorCode.INVALID_CREDENTIALS, "Invalid email or password"));
+                .orElseThrow(() -> new SsoException(ErrorCode.INVALID_CREDENTIALS, "Invalid email or password"));
 
         if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
             throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Current password is incorrect");
@@ -135,6 +145,24 @@ public class HrAuthService {
         user.setUpdatedAt(Instant.now());
         userRepository.save(user);
         return new MessageResponse("Password changed successfully.");
+    }
+
+    @Transactional
+    public MessageResponse firstTimePassword(UUID userId, String newPassword) {
+        if (newPassword == null || newPassword.length() < 8 || !newPassword.matches(".*[A-Za-z].*")
+                || !newPassword.matches(".*[0-9].*")) {
+            throw new SsoException(ErrorCode.INVALID_CREDENTIALS,
+                    "Password must be at least 8 characters long and contain both letters and numbers");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new SsoException(ErrorCode.INVALID_CREDENTIALS, "User not found"));
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setMustChangePassword(false);
+        user.setUpdatedAt(Instant.now());
+        userRepository.save(user);
+        return new MessageResponse("First-time password set successfully.");
     }
 
     @Transactional
@@ -167,30 +195,39 @@ public class HrAuthService {
 
         String tokenHash = hashToken(rawToken);
         PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenHashForUpdate(tokenHash)
-            .orElseThrow(() -> new SsoException(ErrorCode.RESET_TOKEN_INVALID, "Invalid or unrecognized password reset token"));
+                .orElseThrow(() -> new SsoException(ErrorCode.RESET_TOKEN_INVALID,
+                        "Invalid or unrecognized password reset token"));
 
         if (resetToken.isUsed()) {
             throw new SsoException(ErrorCode.RESET_TOKEN_ALREADY_USED, "Password reset token has already been used");
         }
 
         if (resetToken.isExpired()) {
-            throw new SsoException(ErrorCode.RESET_TOKEN_EXPIRED, "Password reset token has expired (valid for 30 minutes)");
+            throw new SsoException(ErrorCode.RESET_TOKEN_EXPIRED,
+                    "Password reset token has expired (valid for 30 minutes)");
         }
 
-        if (request.newPassword() == null || request.newPassword().length() < 8 || !request.newPassword().matches(".*[A-Za-z].*") || !request.newPassword().matches(".*[0-9].*")) {
-            throw new SsoException(ErrorCode.INVALID_CREDENTIALS, "Password must be at least 8 characters long and contain both letters and numbers");
+        if (request.newPassword() == null || request.newPassword().length() < 8
+                || !request.newPassword().matches(".*[A-Za-z].*") || !request.newPassword().matches(".*[0-9].*")) {
+            throw new SsoException(ErrorCode.INVALID_CREDENTIALS,
+                    "Password must be at least 8 characters long and contain both letters and numbers");
         }
 
         User user = userRepository.findById(resetToken.getUserId())
-            .orElseThrow(() -> new SsoException(ErrorCode.RESET_TOKEN_INVALID, "User associated with reset token was not found"));
+                .orElseThrow(() -> new SsoException(ErrorCode.RESET_TOKEN_INVALID,
+                        "User associated with reset token was not found"));
 
         Instant now = Instant.now();
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
-        user.setStatus(UserStatus.ACTIVE);
-        user.setFailedLoginCount(0);
-        user.setLockedUntil(null);
         user.setMustChangePassword(false);
         user.setUpdatedAt(now);
+
+        boolean manuallyLocked = user.getLockedReason() != null || user.getLockedAt() != null;
+        if (!manuallyLocked) {
+            user.setStatus(UserStatus.ACTIVE);
+            user.setFailedLoginCount(0);
+            user.setLockedUntil(null);
+        }
         userRepository.save(user);
 
         resetToken.setUsedAt(now);

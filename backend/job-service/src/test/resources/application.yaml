@@ -10,11 +10,10 @@ spring:
     password: ""
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: create-drop
     open-in-view: false
   flyway:
-    enabled: true
-    locations: classpath:db/migration,classpath:db/dev
+    enabled: false
   servlet:
     multipart:
       max-file-size: 2MB
@@ -22,9 +21,26 @@ spring:
 
 app:
   jwt:
-    secret: ${APP_JWT_SECRET:test-only-jwt-secret-not-for-production}
+    secret: "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970"
     expiration-ms: 86400000
-  cors:
-    allowed-origins: http://localhost:5173,http://localhost:3000
   upload:
     dir: "build/test-uploads/logos"
+
+auth:
+  base-url: http://localhost:8081
+  client:
+    stub: true
+
+skill:
+  catalog:
+    base-url: http://localhost:8082
+    stub: true
+
+candidate:
+  skills:
+    base-url: http://localhost:8082
+    stub: true
+
+job:
+  expiry:
+    enabled: false

@@ -1,0 +1,206 @@
+openapi: 3.0.3
+info:
+  title: Profile Service - Candidate Directory & Contact Privacy API (NT-08)
+  description: OpenAPI specification cho các endpoint tra cứu ứng viên, kiểm soát hiển thị thông tin liên hệ PII và phân quyền truy cập.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1
+    description: API Gateway
+  - url: http://localhost:8082/api/v1
+    description: Profile Service Direct
+
+paths:
+  /candidates:
+    get:
+      summary: Tra cứu danh bạ ứng viên (Có kiểm soát lộ PII)
+      description: |
+        Tìm kiếm danh sách ứng viên theo từ khóa (kỹ năng, tiêu đề, chương trình đào tạo).
+        Nếu người gọi là HR chưa được mở thông tin liên hệ, trường `email` và `phone` sẽ trả về `null` và `contactLocked: true`.
+      parameters:
+        - name: keyword
+          in: query
+          schema:
+            type: string
+          description: Từ khóa tìm kiếm (họ tên, kỹ năng, chuyên ngành)
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: X-User-Id
+          in: header
+          schema:
+            type: string
+            format: uuid
+        - name: X-User-Role
+          in: header
+          schema:
+            type: string
+            enum: [CANDIDATE, HR, STAFF, MENTOR, ADMIN]
+        - name: X-Company-Id
+          in: header
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CandidateItem'
+                      total:
+                        type: integer
+                      page:
+                        type: integer
+                      size:
+                        type: integer
+
+  /candidates/{userId}:
+    get:
+      summary: Xem chi tiết hồ sơ ứng viên
+      description: |
+        Xem chi tiết ứng viên. Nếu HR chưa mở liên hệ, email và phone sẽ bị ẩn (`null`), `contactLocked: true`.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: X-User-Id
+          in: header
+          schema:
+            type: string
+            format: uuid
+        - name: X-User-Role
+          in: header
+          schema:
+            type: string
+            enum: [CANDIDATE, HR, STAFF, MENTOR, ADMIN]
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/CandidateItem'
+        '404':
+          description: Không tìm thấy ứng viên
+
+  /candidates/{userId}/contact:
+    get:
+      summary: HR lấy thông tin liên hệ trực tiếp của ứng viên
+      description: |
+        Chỉ thành công (200 OK) nếu công ty của HR đã được Staff duyệt yêu cầu mở liên hệ,
+        hoặc ứng viên đã chủ động nộp đơn ứng tuyển vào việc làm của công ty.
+        Nếu chưa mở liên hệ, trả về HTTP 403 Forbidden với mã lỗi CONTACT_LOCKED.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: X-User-Id
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Lấy liên hệ thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      email:
+                        type: string
+                        example: "nguyenvana@example.com"
+                      phone:
+                        type: string
+                        example: "0912345678"
+        '403':
+          description: Liên hệ bị khóa (CONTACT_LOCKED)
+        '401':
+          description: Chưa đăng nhập
+
+components:
+  schemas:
+    CandidateItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+          example: "Nguyễn Văn An"
+        email:
+          type: string
+          nullable: true
+          example: null
+          description: "Bị ẩn (null) nếu contactLocked=true"
+        phone:
+          type: string
+          nullable: true
+          example: null
+          description: "Bị ẩn (null) nếu contactLocked=true"
+        contactLocked:
+          type: boolean
+          example: true
+        headline:
+          type: string
+          example: "Java Backend Developer"
+        program:
+          type: string
+          example: "Lập trình Java Fullstack Chuyên sâu"
+        overallScore:
+          type: integer
+          example: 85
+        level:
+          type: string
+          example: "Nâng cao"
+        skills:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              score:
+                type: integer
+              verified:
+                type: boolean
+        createdAt:
+          type: string
+          format: date-time

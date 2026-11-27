@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Menu,
-  Bell,
   LogOut,
   ChevronDown,
   User as UserIcon,
@@ -10,10 +9,13 @@ import {
   Briefcase,
   GraduationCap,
   Users,
+  KeyRound,
 } from "lucide-react";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useUiStore } from "../../store/useUiStore";
 import { Badge } from "../common/Badge";
+import { NotificationBell } from "../notification/NotificationBell";
+import { ChangePasswordModal } from "../auth/ChangePasswordModal";
 import type { Role } from "../../api/endpoints/auth.api";
 
 export function Navbar() {
@@ -21,6 +23,7 @@ export function Navbar() {
   const { user, isAuthenticated, logout } = useAuthStore();
   const { toggleSidebar, openMobileSidebar } = useUiStore();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Close user dropdown on click outside
@@ -37,7 +40,7 @@ export function Navbar() {
   const handleLogout = () => {
     logout();
     setIsUserMenuOpen(false);
-    navigate("/login");
+    navigate("/login", { replace: true, state: null });
   };
 
   const getRoleBadgeVariant = (role?: Role) => {
@@ -74,7 +77,7 @@ export function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-surface border-b border-border shadow-xs flex items-center justify-between px-4 sm:px-6">
+    <header className="sticky top-0 z-30 h-16 shrink-0 bg-surface border-b border-border shadow-xs flex items-center justify-between px-4 sm:px-6">
       {/* Left: Hamburger & Brand */}
       <div className="flex items-center gap-3">
         <button
@@ -113,14 +116,7 @@ export function Navbar() {
       {/* Right Actions: Notifications & User profile */}
       <div className="flex items-center gap-3 sm:gap-4">
         {/* Notification Bell */}
-        <button
-          type="button"
-          aria-label="Thông báo hệ thống"
-          className="relative p-2 text-muted hover:text-foreground hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-        >
-          <Bell className="h-5 w-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary" />
-        </button>
+        <NotificationBell />
 
         {/* User Account / Login */}
         {isAuthenticated && user ? (
@@ -179,6 +175,18 @@ export function Navbar() {
                     <UserIcon className="h-4 w-4 text-muted" />
                     <span>Hồ sơ cá nhân</span>
                   </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      setIsChangePasswordOpen(true);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-foreground hover:bg-slate-50 transition-colors cursor-pointer text-left"
+                  >
+                    <KeyRound className="h-4 w-4 text-muted" />
+                    <span>Thay đổi mật khẩu</span>
+                  </button>
                 </div>
 
                 <div className="border-t border-border-subtle pt-1">
@@ -193,6 +201,12 @@ export function Navbar() {
                 </div>
               </div>
             )}
+
+            {/* Change Password Modal */}
+            <ChangePasswordModal
+              isOpen={isChangePasswordOpen}
+              onClose={() => setIsChangePasswordOpen(false)}
+            />
           </div>
         ) : (
           <div className="flex items-center gap-2">

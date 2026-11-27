@@ -237,9 +237,10 @@ Dự án gồm 3 thành phần chính có thể khởi chạy độc lập:
 
 #### 1. Khởi động Mock Server hệ thống ngoài (LMS, Khảo thí, PM, Meet - Cổng 9000)
 ```bash
+# Tạo và cấu hình LMS_SERVICE_KEY trong ..env gốc trước.
 cd mock
 npm start
-# Server lắng nghe tại http://localhost:9000 (Yêu cầu header X-Service-Key: dev-key)
+# Server lắng nghe tại http://localhost:9000
 ```
 
 #### 2. Khởi động Frontend (React 19 - Cổng 5173)
@@ -251,26 +252,146 @@ npm run dev
 ```
 
 #### 3. Khởi động Backend (Spring Boot Microservices)
+
+##### PostgreSQL cho AI Career và Recruitment
+
+Tạo `.env` ở thư mục gốc từ `.env.example`, sau đó điền mật khẩu PostgreSQL,
+`JWT_SECRET` (trùng với auth-service) và các API key hoặc thông tin SMTP cần
+dùng. Không commit `.env`; giá trị mẫu cần được thay trước khi chạy.
+API Gateway, Auth, Job, Learning, Profile, AI Career và Recruitment đọc `.env`
+ở thư mục gốc khi chạy từ thư mục service; cũng có thể cung cấp biến qua môi
+trường chạy. Tạo các database `ai_db` và
+`recruitment_db` trên PostgreSQL trước khi khởi động, ví dụ với Docker Compose:
+
+```bash
+docker compose --.env-file ..env -f infra/docker-compose.yml up -d postgres
+docker compose --.env-file ..env -f infra/docker-compose.yml exec postgres sh -c 'createdb -U "$POSTGRES_USER" ai_db'
+docker compose --.env-file ..env -f infra/docker-compose.yml exec postgres sh -c 'createdb -U "$POSTGRES_USER" recruitment_db'
+```
+
+Compose lấy thông tin PostgreSQL từ `.env` gốc; lệnh cần có `--env-file .env`.
+Nếu thay đổi cấu hình Compose, dùng người dùng và mật khẩu tương ứng. Hai lệnh
+`createdb` chỉ chạy một lần cho
+mỗi database. Hibernate tạo/cập nhật schema khi service khởi động; thao tác này
+không di chuyển dữ liệu H2 hoặc dữ liệu PostgreSQL cũ. Hãy sao lưu và thực
+hiện migration riêng nếu cần giữ dữ liệu hiện có.
+
+Chạy từ các thư mục `ai_career_service` và `backend/recruitment-service` bằng
+`./gradlew bootRun` (Windows: `gradlew.bat bootRun`). Các kiểm thử tự động dùng
+H2 riêng, không dùng database PostgreSQL thật.
+
 ```bash
 # Tùy chọn A: Khởi động hạ tầng bổ trợ bằng Docker (PostgreSQL, Redis, Kafka, MinIO, Mailpit)
-docker compose -f infra/docker-compose.yml up -d
+docker compose --.env-file ..env -f infra/docker-compose.yml up -d
 
 # Tùy chọn B: Chạy service cụ thể bằng Gradle (ví dụ auth-service)
 cd backend/auth-service
 ./gradlew bootRun
 ```
 
+Để build và chạy các ứng dụng có thể triển khai cùng frontend:
+
+```bash
+docker compose --.env-file ..env -f infra/docker-compose.yml --profile app up --build -d
+```
+
+Frontend chạy tại `http://localhost:5173`; gateway tại `http://localhost:8080`.
+Các giá trị `CHANGE_ME` trong `.env` phải được thay bằng cấu hình phù hợp trước
+khi khởi chạy. Bốn service `assessment`, `audit`, `evidence`, `notification`
+hiện chưa có web starter; `backend/ai-service` cũng chưa có mã ứng dụng/build
+file nên chưa được đưa vào stack chạy.
+
+##### Quy ước AI chung (`ai_career_service`)
+
+- Biến môi trường `AI_PROVIDER` nhận một trong các giá trị: `openai | gemini | claude | mock` (mặc định `mock`). Chế độ `mock` trả về câu cố định để mentor/dev chạy thử đầy đủ luồng mà không cần khóa API.
+- Mọi lời gọi AI trong hệ thống đều đi qua một service dùng chung là `ai_career_service` (thông qua interface `AIProvider`).
+
+##### Triển khai VPS (production)
+
+Stack production chạy frontend, gateway, các service hiện có, PostgreSQL và
+Redis trên cùng VPS. LMS và SMTP phải trỏ tới các hệ thống thật có thể truy cập
+từ VPS; cấu hình auth/profile kết nối LMS từ backend. Chọn `AI_PROVIDER` thật
+và điền API key tương ứng vào `AI_PROVIDER_API_KEY`. Production chặn route
+`/lms/` dùng để tạo vé SSO mock; luồng SSO thật phải bắt đầu từ LMS. Thay mọi
+giá trị mẫu trong `.env.prod` trước khi chạy; file này đã được gitignore và
+không được commit.
+
+```bash
+cp ..env.prod.example ..env.prod
+# Chỉnh ..env.prod: mật khẩu mạnh, JWT_SECRET, domain, LMS/PM, SMTP và AI key.
+docker compose --.env-file ..env.prod -f docker-compose.prod.yml config -q
+docker compose --.env-file ..env.prod -f docker-compose.prod.yml up --build -d
+docker compose --.env-file ..env.prod -f docker-compose.prod.yml ps
+docker compose --.env-file ..env.prod -f docker-compose.prod.yml down
+```
+
+Frontend chỉ bind vào `127.0.0.1:8080` mặc định; cấu hình reverse proxy trên
+cùng VPS chuyển tiếp tới địa chỉ này và kết thúc HTTPS. Đổi cổng bằng
+`FRONTEND_PORT`. Lệnh `down` giữ lại dữ liệu PostgreSQL và tệp tải lên trong
+named volumes; cần có kế hoạch backup riêng cho VPS.
+
 ##### Auth service và Mock LMS
 ```bash
-# Mock LMS bắt buộc header X-Service-Key: dev-key
+# Mock LMS đọc LMS_SERVICE_KEY từ ..env gốc
 cd mock
 npm start
 
 # Auth service mặc định kết nối PostgreSQL auth_db và mock LMS trên http://localhost:9000
 cd ../backend/auth-service
-LMS_BASE_URL=http://localhost:9000 LMS_SERVICE_KEY=dev-key ./gradlew bootRun
+./gradlew bootRun
 # OpenAPI UI: http://localhost:8081/swagger-ui/index.html
 ```
+
+##### API Gateway
+
+Gateway dùng cổng `8080`, Spring Cloud Gateway MVC và Redis để giới hạn request.
+Cấu hình `JWT_SECRET` trong `.env` ở thư mục gốc (tối thiểu 32 byte, trùng khóa
+ký của auth-service); auth-service phải được cung cấp cùng `JWT_SECRET` qua môi
+trường chạy của nó. Nếu Redis yêu cầu xác thực, đặt `REDIS_USERNAME` và
+`REDIS_PASSWORD` trong `.env`. Không dùng khóa mẫu cho môi trường thực tế.
+
+Khởi động Redis và các service cần dùng, sau đó chạy `./gradlew bootRun` trong
+`backend/api-gateway` (Windows: `gradlew.bat bootRun`). Các URL service có thể
+ghi đè qua các biến `GATEWAY_AUTH_URL`, `GATEWAY_PROFILE_URL`,
+`GATEWAY_EVIDENCE_URL`, `GATEWAY_ASSESSMENT_URL`, `GATEWAY_JOB_URL`,
+`GATEWAY_RECRUITMENT_URL`, `GATEWAY_NOTIFICATION_URL`, `GATEWAY_AUDIT_URL`,
+`GATEWAY_LEARNING_URL` và `GATEWAY_AI_URL`; mặc định là `localhost` với các
+cổng trong bảng bên dưới. Một số service hiện mới là skeleton và cần được
+cấu hình chạy đúng cổng trước khi có thể nhận request.
+
+- Các route hiện có của auth (`/api/v1/auth/**`, `/auth/**`), profile
+  (`/api/v1/profiles/**`, `/api/v1/files/**`), job (`/companies/**`,
+  `/staff/**`) và recruitment được chuyển tiếp giữ nguyên đường dẫn.
+  URL snapshot `/recruitments/{id}/cv-snapshot` cũng được chuyển tới
+  `/api/v1/recruitments/{id}/cv-snapshot`. Đặt `PUBLIC_BASE_URL` của
+  recruitment-service thành origin gateway nếu cần URL snapshot tuyệt đối.
+- AI nhận `/ai-career/me/job-recommendations` hoặc `/me/job-recommendations`;
+  tiền tố `/ai-career` được bỏ trước khi chuyển tiếp.
+- Mọi service còn có route `/api/services/{service}/{đường-dẫn-nội-bộ}`.
+  Tên service là `auth`, `profile`, `evidence`, `assessment`, `job`,
+  `recruitment`, `notification`, `audit`, `learning` hoặc `ai`. Ví dụ
+  `/api/services/job/api/v1/auth/login` đi đến login của job-service; route
+  `/api/v1/auth/login` đi đến auth-service vì hai service trùng đường dẫn.
+- Gateway kiểm tra chữ ký và thời hạn JWT cho các route, trừ POST đăng nhập,
+  SSO và quên/đặt lại mật khẩu của auth-service, cùng login của job-service
+  qua route có tiền tố service. Service đích vẫn phải tự kiểm tra quyền.
+  AI service hiện chỉ hỗ trợ principal qua bộ lọc `dev`; việc xác thực riêng
+  cho AI ngoài profile này vẫn cần được triển khai.
+- Gateway thay `X-User-Id` do client gửi bằng user ID từ JWT đã xác minh; không
+  tin giá trị định danh do client tự khai báo. Các service dùng header này cần
+  chỉ cho phép truy cập qua gateway hoặc một proxy nội bộ đáng tin cậy.
+- Gateway tạm chặn `/api/v1/profiles/me/internships` (kể cả route theo service):
+  profile-service hiện cho chọn PM student ID qua header hoặc dùng ID mặc định
+  mà chưa kiểm tra quyền sở hữu. Cần bổ sung ánh xạ danh tính đáng tin cậy
+  trước khi mở route này.
+- CORS mặc định chỉ cho `http://localhost:5173`, có thể đổi bằng
+  `GATEWAY_ALLOWED_ORIGINS` (danh sách cách nhau bởi dấu phẩy). Giới hạn mặc
+  định là 60 request/phút cho từng IP **và** từng tài khoản, đổi bằng
+  `GATEWAY_RATE_LIMIT_PER_MINUTE`. Khi Redis lỗi, gateway trả `503`; quá giới
+  hạn trả `429`. IP được lấy từ kết nối trực tiếp, không tin
+  `X-Forwarded-For`; cần cấu hình proxy tin cậy trước khi dùng sau load balancer.
+- Frontend Vite có thể đi qua gateway bằng `VITE_BACKEND_URL=http://localhost:8080`
+  và `VITE_AI_CAREER_URL=http://localhost:8080`.
 
 > Lưu ý: ClamAV mất vài phút để tải dữ liệu virus ở lần khởi động đầu. Tên module Uvicorn (`<module>`) sẽ được cập nhật khi service được khởi tạo.
 
@@ -290,7 +411,8 @@ LMS_BASE_URL=http://localhost:9000 LMS_SERVICE_KEY=dev-key ./gradlew bootRun
 | MinIO (API / Console) | 9002 / 9001 |
 | ClamAV | 3310 |
 | Mailpit (SMTP / Web) | 1025 / 8025 |
-| WireMock (Mock API) | 9000 |
+| Mock API | 9000 |
+| WireMock | 9001 |
 
 ## 8. Quy ước phát triển
 
@@ -308,7 +430,7 @@ LMS_BASE_URL=http://localhost:9000 LMS_SERVICE_KEY=dev-key ./gradlew bootRun
 | Nhánh Git | `main` (production), `develop` (tích hợp), nhánh tính năng `feature/<mã>-<tên>` (vd: `feature/NT-01-login`) |
 | Pull Request | **Mọi PR đều trỏ vào `develop`**, tiêu đề bắt đầu bằng mã task: `[<mã-task>] ...` (vd: `[NT-01] Xây dựng đăng nhập`) |
 | Commit | [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:` |
-| Mock hệ thống ngoài | Chạy tại `mock/`, cổng `9000`, bắt buộc header `X-Service-Key: dev-key` (sai/thiếu -> 401) |
+| Mock hệ thống ngoài | Chạy tại `mock/`, cổng host `9000`, bắt buộc header `X-Service-Key` với giá trị `LMS_SERVICE_KEY` từ `.env` (sai/thiếu -> 401) |
 | Thang bậc kỹ năng | ~20 kỹ năng mẫu; 0–39 Cơ bản, 40–69 Khá, 70–84 Tốt, 85–100 Xuất sắc |
 
 ### Quy ước frontend

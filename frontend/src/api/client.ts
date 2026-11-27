@@ -13,29 +13,157 @@ declare module "axios" {
   export interface InternalAxiosRequestConfig extends CustomRequestConfig {}
 }
 
-/**
- * Token lưu trong bộ nhớ (In-memory) theo chuẩn bảo mật D11,
- * giảm thiểu rủi ro XSS so với localStorage / sessionStorage.
- */
-let inMemoryAccessToken: string | null = null;
+const TOKEN_STORAGE_KEY = "rikkei_access_token";
+const USER_ID_STORAGE_KEY = "rikkei_user_id";
+const AUTH_STORAGE_KEY = "rikkei_auth_storage";
+
+export const getCurrentUserRole = (): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    return parsed.state?.user?.role || null;
+  } catch {
+    return null;
+  }
+};
+
+let inMemoryAccessToken: string | null =
+  typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : null;
+let inMemoryUserId: string | null =
+  typeof window !== "undefined" ? localStorage.getItem(USER_ID_STORAGE_KEY) : null;
 let onUnauthorizedCallback: (() => void) | null = null;
 
 export const setAccessToken = (token: string | null) => {
   inMemoryAccessToken = token;
+  if (typeof window !== "undefined") {
+    if (token) {
+      try {
+        localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      } catch {}
+    } else {
+      try {
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+      } catch {}
+    }
+  }
+  if (token) {
+    axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  } else {
+    delete axiosInstance.defaults.headers.common["Authorization"];
+  }
 };
 
-export const getAccessToken = (): string | null => inMemoryAccessToken;
+export const getAccessToken = (): string | null => {
+  if (inMemoryAccessToken) return inMemoryAccessToken;
+  if (typeof window !== "undefined") {
+    try {
+      inMemoryAccessToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+      return inMemoryAccessToken;
+    } catch {}
+  }
+  return null;
+};
+
+/**
+ * Các service nội bộ (profile-service, evidence-service...) xác định danh tính
+ * qua header X-User-Id do gateway truyền xuống, không đọc JWT.
+ */
+export const setCurrentUserId = (userId: string | null) => {
+  inMemoryUserId = userId;
+  if (typeof window !== "undefined") {
+    if (userId) {
+      try {
+        localStorage.setItem(USER_ID_STORAGE_KEY, userId);
+      } catch {}
+    } else {
+      try {
+        localStorage.removeItem(USER_ID_STORAGE_KEY);
+      } catch {}
+    }
+  }
+  if (userId) {
+    axiosInstance.defaults.headers.common["X-User-Id"] = userId;
+  } else {
+    delete axiosInstance.defaults.headers.common["X-User-Id"];
+  }
+};
+
+/**
+ * Xóa sạch toàn bộ phiên đăng nhập (Access Token, User ID, Storage và Axios Headers)
+ * khi người dùng Đăng xuất để đảm bảo không còn sót lại dữ liệu/token của tài khoản cũ.
+ */
+export const clearAuthSession = () => {
+  inMemoryAccessToken = null;
+  inMemoryUserId = null;
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem(USER_ID_STORAGE_KEY);
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      sessionStorage.clear();
+    } catch {}
+  }
+  delete axiosInstance.defaults.headers.common["Authorization"];
+  delete axiosInstance.defaults.headers.common["X-User-Id"];
+  delete axiosInstance.defaults.headers.common["X-User-Role"];
+};
+
+export const getCurrentUserId = (): string | null => {
+  if (inMemoryUserId) return inMemoryUserId;
+  if (typeof window !== "undefined") {
+    try {
+      inMemoryUserId = localStorage.getItem(USER_ID_STORAGE_KEY);
+      return inMemoryUserId;
+    } catch {}
+  }
+  return null;
+};
 
 export const registerUnauthorizedHandler = (handler: () => void) => {
   onUnauthorizedCallback = handler;
 };
 
 /**
+ * Helper chuẩn hóa URL tài nguyên tĩnh (logo công ty, file upload).
+ * - Nếu là URL tuyệt đối (http://, https://, blob:, data:) thì giữ nguyên.
+ * - Nếu là đường dẫn tương đối:
+ *   + Nếu VITE_API_BASE_URL là URL tuyệt đối: ghép với origin của VITE_API_BASE_URL.
+ *   + Nếu VITE_API_BASE_URL là đường dẫn tương đối (qua proxy/gateway): dùng chính nó.
+ *   + Nếu VITE_API_BASE_URL không được cấu hình: mặc định ghép với origin window.location.origin.
+ */
+export function resolveAssetUrl(path: string | null | undefined): string {
+  if (!path) return "";
+  if (/^https?:\/\//i.test(path) || path.startsWith("data:") || path.startsWith("blob:")) {
+    return path;
+  }
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const rawBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
+  if (rawBaseUrl) {
+    if (/^https?:\/\//i.test(rawBaseUrl)) {
+      try {
+        const parsed = new URL(rawBaseUrl);
+        return `${parsed.origin}${normalizedPath}`;
+      } catch {
+        // Fallback below
+      }
+    } else {
+      return normalizedPath;
+    }
+  }
+
+  const defaultOrigin = typeof window !== "undefined" ? window.location.origin : "";
+  return `${defaultOrigin}${normalizedPath}`;
+}
+
+/**
  * Khởi tạo Axios Instance chính
  */
 export const axiosInstance: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "/api/v1",
-  timeout: 15000,
+  baseURL: "/api/v1",
+  timeout: 30000,
   headers: {
     "Content-Type": "application/json",
   },
@@ -50,12 +178,47 @@ axiosInstance.interceptors.request.use(
     if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    const userId = getCurrentUserId();
+    if (userId && !config.headers["X-User-Id"]) {
+      config.headers["X-User-Id"] = userId;
+    }
+
+    const userRole = getCurrentUserRole();
+    if (userRole && !config.headers["X-User-Role"]) {
+      config.headers["X-User-Role"] = userRole;
+    }
+
+    // Để trình duyệt tự sinh boundary cho multipart/form-data
+    if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+    }
+
     return config;
   },
   (error: AxiosError) => {
     return Promise.reject(error);
   }
 );
+
+const lastToastTimes = new Map<string, number>();
+const TOAST_DEBOUNCE_MS = 1500;
+
+function showDeduplicatedErrorToast(msg: string) {
+  const now = Date.now();
+  const lastTime = lastToastTimes.get(msg) || 0;
+  if (now - lastTime < TOAST_DEBOUNCE_MS) {
+    return;
+  }
+  lastToastTimes.set(msg, now);
+  if (lastToastTimes.size > 20) {
+    const cutoff = now - 5000;
+    for (const [k, v] of lastToastTimes.entries()) {
+      if (v < cutoff) lastToastTimes.delete(k);
+    }
+  }
+  toast.error(msg);
+}
 
 // -------------------------------------------------------------
 // RESPONSE INTERCEPTOR: Trích xuất Envelope & Bắt lỗi chuẩn tiếng Việt
@@ -86,7 +249,7 @@ axiosInstance.interceptors.response.use(
     if (!error.response) {
       // Lỗi mất kết nối mạng hoặc không gọi được Gateway/Backend
       errorMessage = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra đường truyền mạng";
-      if (!isSilent) toast.error(errorMessage);
+      if (!isSilent) showDeduplicatedErrorToast(errorMessage);
       return Promise.reject(error);
     }
 
@@ -126,7 +289,7 @@ axiosInstance.interceptors.response.use(
 
     // Xử lý riêng mã 401 Unauthorized
     if (status === 401) {
-      setAccessToken(null);
+      clearAuthSession();
       if (onUnauthorizedCallback) {
         onUnauthorizedCallback();
       }
@@ -136,7 +299,7 @@ axiosInstance.interceptors.response.use(
     if (!isSilent) {
       // Nếu có lỗi validation theo từng field, hiển thị lỗi trường đầu tiên hoặc thông báo chung
       const firstFieldError = errorData?.data?.errors?.[0]?.message;
-      toast.error(firstFieldError || errorMessage);
+      showDeduplicatedErrorToast(firstFieldError || errorMessage);
     }
 
     return Promise.reject(error);

@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- 1. Retrieve Spring Application Name & Log Directory -->
+    <springProperty scope="context" name="springAppName" source="spring.application.name" defaultValue="application"/>
+    <property name="LOG_DIR" value="${LOG_PATH:-${LOG_DIR:-logs}}"/>
+
+    <!-- 2. Custom Conversion Rule for PII Masking -->
+    <conversionRule conversionWord="mask" class="com.example.common.logging.PiiMaskingConverter"/>
+
+    <!-- 3. Structured JSON Rolling File Appender (Recorded into dedicated log file for Loki/Promtail/ELK) -->
+    <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/${springAppName}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/${springAppName}-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>14</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="com.example.common.logging.StructuredJsonLayout">
+                <serviceName>${springAppName}</serviceName>
+            </layout>
+        </encoder>
+    </appender>
+
+    <!-- 4. Profile Routing:
+            - dev / local / default: Console hiển thị dạng text sạch đẹp, đồng thời ghi JSON ra file riêng.
+            - prod / production / staging: Console BẮT BUỘC xuất JSON (cho Docker/K8s/Loki) và ghi JSON ra file.
+    -->
+    <springProfile name="dev,local,default">
+        <appender name="CONSOLE_TEXT" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [%cyan(%X{traceId:-NO_TRACE})] [%yellow(${springAppName})] [%magenta(%X{userId:-anon})] %logger{36} - %mask(%msg)%n</pattern>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_TEXT"/>
+            <appender-ref ref="JSON_FILE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="prod,production,staging">
+        <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+                <layout class="com.example.common.logging.StructuredJsonLayout">
+                    <serviceName>${springAppName}</serviceName>
+                </layout>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_JSON"/>
+            <appender-ref ref="JSON_FILE"/>
+        </root>
+    </springProfile>
+</configuration>

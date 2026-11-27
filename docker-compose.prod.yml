@@ -1,0 +1,381 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env.prod}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.prod}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env.prod}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/init-db:/docker-entrypoint-initdb.d:ro
+      - ./infra/seed:/infra/seed:ro
+      - ./infra/seed:/seed:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\"" ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env.prod}
+    command: [ "sh", "-c", "exec redis-server --requirepass \"$${REDIS_PASSWORD}\"" ]
+    healthcheck:
+      test: [ "CMD-SHELL", "REDISCLI_AUTH=\"$${REDIS_PASSWORD}\" redis-cli ping | grep -q PONG" ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  api-gateway:
+    image: ghcr.io/cunos982003/rikkei-job-project-api-gateway:${IMAGE_TAG:-latest}
+    pull_policy: always
+    environment:
+      PORT: "8080"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env.prod}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.prod}
+      GATEWAY_ALLOWED_ORIGINS: ${GATEWAY_ALLOWED_ORIGINS:?Set GATEWAY_ALLOWED_ORIGINS in .env.prod}
+      GATEWAY_AUTH_URL: http://auth-service:8081
+      GATEWAY_PROFILE_URL: http://profile-service:8082
+      GATEWAY_JOB_URL: http://job-service:8085
+      GATEWAY_RECRUITMENT_URL: http://recruitment-service:8086
+      GATEWAY_LEARNING_URL: http://learning-service:8089
+      GATEWAY_AI_URL: http://ai-career-service:8090
+    depends_on:
+      redis:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      profile-service:
+        condition: service_healthy
+      job-service:
+        condition: service_healthy
+      recruitment-service:
+        condition: service_healthy
+      learning-service:
+        condition: service_healthy
+      ai-career-service:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1" ]
+      start_period: 60s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  auth-service:
+    image: ghcr.io/cunos982003/rikkei-job-project-auth-service:${IMAGE_TAG:-latest}
+    pull_policy: always
+    environment:
+      SERVER_PORT: "8081"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auth_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in .env.prod}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.prod}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.prod}
+      JWT_EXPIRATION_SECONDS: ${JWT_EXPIRATION_SECONDS:-28800}
+      LMS_BASE_URL: ${LMS_BASE_URL:?Set LMS_BASE_URL in .env.prod}
+      LMS_SERVICE_KEY: ${LMS_SERVICE_KEY:?Set LMS_SERVICE_KEY in .env.prod}
+      SPRING_MAIL_HOST: ${SMTP_HOST:-mailpit}
+      SPRING_MAIL_PORT: ${SMTP_PORT:-1025}
+      SPRING_MAIL_USERNAME: ${SMTP_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SMTP_PASSWORD:-}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: ${SMTP_AUTH:-false}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${SMTP_STARTTLS:-false}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED: ${SMTP_STARTTLS:-false}
+      MAIL_FROM: ${MAIL_FROM:?Set MAIL_FROM in .env.prod}
+      RESET_PASSWORD_URL: ${RESET_PASSWORD_URL:?Set RESET_PASSWORD_URL in .env.prod}
+      MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+      SPRING_FLYWAY_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1" ]
+      start_period: 60s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  profile-service:
+    image: ghcr.io/cunos982003/rikkei-job-project-profile-service:${IMAGE_TAG:-latest}
+    pull_policy: always
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/profile_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in .env.prod}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.prod}
+      APP_JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.prod}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.prod}
+      APP_LMS_BASE_URL: ${LMS_BASE_URL:?Set LMS_BASE_URL in .env.prod}
+      APP_LMS_SERVICE_KEY: ${LMS_SERVICE_KEY:?Set LMS_SERVICE_KEY in .env.prod}
+      INTEGRATIONS_PM_BASE_URL: ${INTEGRATIONS_PM_BASE_URL:?Set INTEGRATIONS_PM_BASE_URL in .env.prod}
+      SPRING_MAIL_HOST: ${SMTP_HOST:-mailpit}
+      SPRING_MAIL_PORT: ${SMTP_PORT:-1025}
+      SPRING_MAIL_USERNAME: ${SMTP_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SMTP_PASSWORD:-}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: ${SMTP_AUTH:-false}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${SMTP_STARTTLS:-false}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED: ${SMTP_STARTTLS:-false}
+      MAIL_FROM: ${MAIL_FROM:?Set MAIL_FROM in .env.prod}
+      MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+      SPRING_FLYWAY_ENABLED: "true"
+    volumes:
+      - profile-uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1" ]
+      start_period: 60s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  job-service:
+    image: ghcr.io/cunos982003/rikkei-job-project-job-service:${IMAGE_TAG:-latest}
+    pull_policy: always
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/job_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in .env.prod}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.prod}
+      APP_JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.prod}
+      MAIL_HOST: ${SMTP_HOST:-mailpit}
+      MAIL_PORT: ${SMTP_PORT:-1025}
+      MAIL_USERNAME: ${SMTP_USERNAME:-}
+      MAIL_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:?Set MAIL_FROM in .env.prod}
+      EMAIL_ENABLED: "true"
+      MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+      SPRING_FLYWAY_ENABLED: "true"
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:?Set APP_CORS_ALLOWED_ORIGINS in .env.prod}
+      AUTH_BASE_URL: http://auth-service:8081
+      PROFILE_SERVICE_URL: http://profile-service:8082
+    volumes:
+      - job-uploads:/app/uploads/logos
+    depends_on:
+      postgres:
+        condition: service_healthy
+      profile-service:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8085/actuator/health || exit 1" ]
+      start_period: 60s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  recruitment-service:
+    image: ghcr.io/cunos982003/rikkei-job-project-recruitment-service:${IMAGE_TAG:-latest}
+    pull_policy: always
+    environment:
+      SERVER_PORT: "8086"
+      RECRUITMENT_DATABASE_URL: jdbc:postgresql://postgres:5432/recruitment_db
+      RECRUITMENT_DATABASE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in .env.prod}
+      RECRUITMENT_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.prod}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.prod}
+      JOB_SERVICE_URL: http://job-service:8085
+      SPRING_FLYWAY_ENABLED: "true"
+      PROFILE_SERVICE_URL: http://profile-service:8082
+      AI_CAREER_SERVICE_URL: http://ai-career-service:8090
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?Set INTERNAL_SERVICE_TOKEN in .env.prod}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_AUTH: ${SMTP_AUTH:-false}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+      MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+      CV_SNAPSHOT_DIRECTORY: uploads/recruitments
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Set PUBLIC_BASE_URL in .env.prod}
+    volumes:
+      - recruitment-uploads:/app/uploads/recruitments
+    depends_on:
+      postgres:
+        condition: service_healthy
+      job-service:
+        condition: service_healthy
+      profile-service:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8086/actuator/health || exit 1" ]
+      start_period: 60s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  learning-service:
+    image: ghcr.io/cunos982003/rikkei-job-project-learning-service:${IMAGE_TAG:-latest}
+    pull_policy: always
+    environment:
+      SERVER_PORT: "8089"
+      LEARNING_DATABASE_URL: jdbc:postgresql://postgres:5432/learning_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in .env.prod}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.prod}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.prod}
+      PROFILE_SERVICE_URL: http://profile-service:8082
+      JOB_SERVICE_URL: http://job-service:8085
+      SPRING_FLYWAY_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      profile-service:
+        condition: service_healthy
+      job-service:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8089/actuator/health || exit 1" ]
+      start_period: 60s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  ai-career-service:
+    image: ghcr.io/cunos982003/rikkei-job-project-ai-career-service:${IMAGE_TAG:-latest}
+    pull_policy: always
+    environment:
+      AI_DATABASE_URL: jdbc:postgresql://postgres:5432/ai_db
+      AI_DATABASE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in .env.prod}
+      AI_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.prod}
+      AI_PROVIDER: ${AI_PROVIDER:?Set AI_PROVIDER in .env.prod}
+      AI_CHAT_DAILY_LIMIT: ${AI_CHAT_DAILY_LIMIT:-30}
+      AI_QUOTA_TIMEZONE: ${AI_QUOTA_TIMEZONE:-Asia/Ho_Chi_Minh}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?Set INTERNAL_SERVICE_TOKEN in .env.prod}
+      AI_OPENAI_API_KEY: ${AI_OPENAI_API_KEY:-${AI_PROVIDER_API_KEY:-}}
+      AI_OPENAI_ENDPOINT: ${AI_OPENAI_ENDPOINT:-https://api.openai.com/v1/chat/completions}
+      AI_OPENAI_MODEL: ${AI_OPENAI_MODEL:-gpt-4o-mini}
+      AI_GEMINI_API_KEY: ${AI_GEMINI_API_KEY:-${AI_PROVIDER_API_KEY:-}}
+      AI_GEMINI_ENDPOINT: ${AI_GEMINI_ENDPOINT:-https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent}
+      AI_CLAUDE_API_KEY: ${AI_CLAUDE_API_KEY:-${AI_PROVIDER_API_KEY:-}}
+      AI_CLAUDE_ENDPOINT: ${AI_CLAUDE_ENDPOINT:-https://api.anthropic.com/v1/messages}
+      AI_CLAUDE_MODEL: ${AI_CLAUDE_MODEL:-claude-3-5-haiku-latest}
+      PROFILE_SERVICE_URL: http://profile-service:8082
+      JOB_SERVICE_URL: http://job-service:8085
+      SPRING_FLYWAY_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8090/actuator/health || exit 1" ]
+      start_period: 60s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  frontend:
+    image: ghcr.io/cunos982003/rikkei-job-project-frontend:${IMAGE_TAG:-latest}
+    pull_policy: always
+    volumes:
+      - ./infra/docker/frontend.prod.conf:/etc/nginx/templates/default.conf.template:ro
+    depends_on:
+      api-gateway:
+        condition: service_started
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:8080"
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.16.0
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_EXPORTER_USER:-prometheus_exporter}:${POSTGRES_EXPORTER_PASSWORD:-prometheus_exporter_readonly}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env.prod}?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.67.0
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env.prod}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.4.0
+    command:
+      - "--nginx.scrape-uri=http://frontend:8080/nginx_status"
+    depends_on:
+      - frontend
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    volumes:
+      - ./infra/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    depends_on:
+      - postgres-exporter
+      - redis-exporter
+      - nginx-exporter
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.0.0
+    user: "0"
+    volumes:
+      - ./infra/monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - lokidata:/tmp/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    volumes:
+      - ./infra/monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail-positions:/tmp/promtail
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./infra/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  profile-uploads:
+  job-uploads:
+  recruitment-uploads:
+  prometheus-data:
+  lokidata:
+  promtail-positions:
+  grafana-data:

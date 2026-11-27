@@ -1,4 +1,3 @@
-
 package com.example.jobservice.security;
 
 import io.jsonwebtoken.Claims;
@@ -19,7 +18,7 @@ public class JwtTokenProvider {
     private final long expirationMs;
 
     public JwtTokenProvider(
-            @Value("${app.jwt.secret}") String secret,
+            @Value("${app.jwt.secret:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}") String secret,
             @Value("${app.jwt.expiration-ms:86400000}") long expirationMs) {
 
         this.key = Keys.hmacShaKeyFor(
@@ -33,15 +32,15 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(principal.getEmail())
-                .claim("userId", principal.getId().toString())
+                .claim("userId", principal.getId() != null ? principal.getId().toString() : null)
                 .claim("fullName", principal.getFullName())
                 .claim("role", principal.getRole())
-                .claim("mustChangePassword", principal.isMustChangePassword())
                 .claim(
                         "companyId",
                         principal.getCompanyId() != null
                                 ? principal.getCompanyId().toString()
                                 : null)
+                .claim("mustChangePassword", principal.isMustChangePassword())
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(key)
@@ -66,7 +65,8 @@ public class JwtTokenProvider {
                 ? UUID.fromString(companyIdClaim)
                 : null;
 
-        String email = claims.getSubject();
+        String emailClaim = claims.get("email", String.class);
+        String email = emailClaim != null && !emailClaim.isBlank() ? emailClaim : claims.getSubject();
         String fullName = claims.get("fullName", String.class);
         String role = claims.get("role", String.class);
         Boolean mustChangePassword = claims.get("mustChangePassword", Boolean.class);
@@ -78,18 +78,5 @@ public class JwtTokenProvider {
                 role,
                 companyId,
                 Boolean.TRUE.equals(mustChangePassword));
-    }
-
-    public boolean validateToken(String token) {
-        try {
-            Jwts.parser()
-                    .verifyWith(key)
-                    .build()
-                    .parseSignedClaims(token);
-
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
     }
 }

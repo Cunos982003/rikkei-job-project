@@ -38,20 +38,14 @@ class AICareerControllerTests {
     private AICareerController controller;
 
     @Test
-    void namesLimitExplicitlyForBuildsWithoutParameterMetadata() throws NoSuchMethodException {
+    void bindsExplicitAndDefaultLimitsWithoutParameterNameMetadata() throws Exception {
         RequestParam requestParam = AICareerController.class
                 .getMethod("getRecommendations", Principal.class, int.class)
-                .getParameters()[1]
-                .getAnnotation(RequestParam.class);
-
+                .getParameters()[1].getAnnotation(RequestParam.class);
         assertThat(requestParam.name()).isEqualTo("limit");
-    }
 
-    @Test
-    void bindsExplicitAndDefaultLimitsFromHttpRequests() throws Exception {
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
         Principal principal = USER_ID::toString;
-
         mockMvc.perform(get("/me/job-recommendations").principal(principal).param("limit", "5"))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/me/job-recommendations").principal(principal))
@@ -74,9 +68,11 @@ class AICareerControllerTests {
                         List.of()));
         when(careerService.getRecommendations(USER_ID, 5)).thenReturn(expected);
 
-        List<JobRecommendationResponse> actual = controller.getRecommendations(principal, 5);
+        var responseEntity = controller.getRecommendations(principal, 5);
 
-        assertThat(actual).isSameAs(expected);
+        assertThat(responseEntity.getBody()).isNotNull();
+        assertThat(responseEntity.getBody().success()).isTrue();
+        assertThat(responseEntity.getBody().data()).isSameAs(expected);
         verify(careerService).getRecommendations(USER_ID, 5);
     }
 

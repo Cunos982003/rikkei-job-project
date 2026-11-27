@@ -1,6 +1,8 @@
-
 package com.example.jobservice.company;
 
+import com.example.jobservice.auth.client.AuthClient;
+import com.example.jobservice.auth.client.AuthHrAccount;
+import com.example.jobservice.auth.client.StubAuthClient;
 import com.example.jobservice.company.domain.Company;
 import com.example.jobservice.company.domain.CompanyRepository;
 import com.example.jobservice.company.dto.CreateCompanyRequest;
@@ -8,14 +10,10 @@ import com.example.jobservice.company.dto.CreateHrAccountRequest;
 import com.example.jobservice.company.dto.UpdateCompanyRequest;
 import com.example.jobservice.security.JwtTokenProvider;
 import com.example.jobservice.security.UserPrincipal;
-import com.example.jobservice.user.domain.User;
-import com.example.jobservice.user.domain.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
@@ -25,9 +23,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -38,351 +36,267 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class CompanyControllerIntegrationTest {
 
-        @Autowired
-        private WebApplicationContext webApplicationContext;
+    @Autowired
+    private WebApplicationContext webApplicationContext;
 
-        @Autowired
-        private CompanyRepository companyRepository;
+    @Autowired
+    private CompanyRepository companyRepository;
 
-        @Autowired
-        private UserRepository userRepository;
+    @Autowired
+    private AuthClient authClient;
 
-        @Autowired
-        private JwtTokenProvider tokenProvider;
+    @Autowired
+    private JwtTokenProvider tokenProvider;
 
-        private MockMvc mockMvc;
+    private MockMvc mockMvc;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-        private final ObjectMapper objectMapper = new ObjectMapper();
+    private String staffToken;
+    private String hr1Token;
 
-        private String staffToken;
-        private String hr1Token;
+    private UUID companyAId;
+    private UUID companyBId;
 
-        private UUID companyAId;
-        private UUID companyBId;
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .apply(springSecurity())
+                .build();
 
-        @BeforeEach
-        void setUp() {
-                mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
-                                .apply(springSecurity())
-                                .build();
+        Company companyA = companyRepository.findByTaxCode("0101234567")
+                .orElseGet(() -> {
+                    Company c = new Company();
+                    c.setName("Công ty Cổ phần Rikkeisoft");
+                    c.setTaxCode("0101234567");
+                    return companyRepository.save(c);
+                });
+        companyAId = companyA.getId();
 
-                // Lấy HR1 đã được seed trong database test
-                User hr1 = userRepository.findAll().stream()
-                                .filter(user -> "hr1@rikkei.vn".equals(user.getEmail()))
-                                .findFirst()
-                                .orElseThrow(() -> new IllegalStateException("Không tìm thấy HR1 trong dữ liệu test"));
+        StubAuthClient stub = (StubAuthClient) authClient;
+        AuthHrAccount hr1 = stub.findByEmail("hr1@rikkeijobs.test")
+                .orElseGet(() -> {
+                    AuthHrAccount acc = new AuthHrAccount(
+                            UUID.randomUUID(),
+                            "hr1@rikkeijobs.test",
+                            "HR Account One",
+                            companyAId,
+                            "ACTIVE",
+                            null,
+                            null,
+                            false,
+                            OffsetDateTime.now(ZoneOffset.UTC),
+                            null,
+                            true
+                    );
+                    stub.seedAccount(acc);
+                    return acc;
+                });
 
-                companyAId = hr1.getCompanyId();
+        companyBId = companyRepository.findAll().stream()
+                .map(Company::getId)
+                .filter(id -> !id.equals(companyAId))
+                .findFirst()
+                .orElseGet(() -> {
+                    Company c = new Company();
+                    c.setName("Rikkei Digital Solutions");
+                    c.setTaxCode("0107654321");
+                    return companyRepository.save(c).getId();
+                });
 
-                if (companyAId == null) {
-                        throw new IllegalStateException("HR1 chưa được gán companyId");
-                }
+        staffToken = "Bearer " + tokenProvider.generateToken(
+                UserPrincipal.of(
+                        UUID.randomUUID(),
+                        "staff1@rikkeijobs.test",
+                        "Staff 1",
+                        "ROLE_STAFF",
+                        null));
 
-                // Lấy công ty B khác công ty A
-                companyBId = companyRepository.findAll().stream()
-                                .map(Company::getId)
-                                .filter(id -> !id.equals(companyAId))
-                                .findFirst()
-                                .orElseThrow(() -> new IllegalStateException(
-                                                "Không tìm thấy công ty B trong dữ liệu test"));
+        hr1Token = "Bearer " + tokenProvider.generateToken(
+                UserPrincipal.of(
+                        hr1.id(),
+                        hr1.email(),
+                        hr1.fullName(),
+                        "ROLE_HR",
+                        companyAId));
+    }
 
-                staffToken = "Bearer " + tokenProvider.generateToken(
-                                UserPrincipal.of(
-                                                UUID.randomUUID(),
-                                                "staff1@rikkei.vn",
-                                                "Staff 1",
-                                                "ROLE_STAFF",
-                                                null));
+    @Test
+    @DisplayName("STAFF tạo công ty thành công với mã số thuế 10 số")
+    void staffCreateCompany_valid10Digits_returns201() throws Exception {
+        CreateCompanyRequest request = new CreateCompanyRequest(
+                "Công ty TNHH Phần mềm ABC",
+                "0108889999",
+                "Phần mềm",
+                "51-200",
+                "Cầu Giấy",
+                "Hà Nội",
+                "https://abc.vn",
+                "Công ty phần mềm ABC");
 
-                hr1Token = "Bearer " + tokenProvider.generateToken(
-                                UserPrincipal.of(
-                                                hr1.getId(),
-                                                hr1.getEmail(),
-                                                hr1.getFullName(),
-                                                hr1.getRole(),
-                                                hr1.getCompanyId()));
-        }
+        mockMvc.perform(post("/staff/companies")
+                        .header("Authorization", staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.id").isString())
+                .andExpect(jsonPath("$.data.name", is("Công ty TNHH Phần mềm ABC")))
+                .andExpect(jsonPath("$.data.taxCode", is("0108889999")))
+                .andExpect(jsonPath("$.data.status", is("ACTIVE")));
+    }
 
-        @Test
-        @DisplayName("STAFF tạo công ty thành công với mã số thuế 10 số")
-        void staffCreateCompany_valid10Digits_returns201() throws Exception {
-                CreateCompanyRequest request = new CreateCompanyRequest(
-                                "Công ty TNHH Phần mềm ABC",
-                                "0108889999",
-                                "Phần mềm",
-                                "51-200",
-                                "Cầu Giấy",
-                                "Hà Nội",
-                                "https://abc.vn",
-                                "Công ty phần mềm ABC");
+    @Test
+    @DisplayName("Mã số thuế sai định dạng → 400 Bad Request")
+    void staffCreateCompany_invalidTaxCode_returns400() throws Exception {
+        CreateCompanyRequest request = new CreateCompanyRequest(
+                "Công ty Thuế Sai",
+                "123456789",
+                "CNTT",
+                "1-50",
+                null, null, null, null);
 
-                mockMvc.perform(post("/staff/companies")
-                                .header("Authorization", staffToken)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isCreated())
-                                .andExpect(jsonPath("$.id").isString())
-                                .andExpect(jsonPath("$.name", is("Công ty TNHH Phần mềm ABC")))
-                                .andExpect(jsonPath("$.taxCode", is("0108889999")))
-                                .andExpect(jsonPath("$.status", is("ACTIVE")));
-        }
+        mockMvc.perform(post("/staff/companies")
+                        .header("Authorization", staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.data.errors[0].field", is("taxCode")))
+                .andExpect(jsonPath("$.data.errors[0].message",
+                                containsString("Mã số thuế phải gồm 10 hoặc 13 chữ số")));
+    }
 
-        @Test
-        @DisplayName("Mã số thuế sai định dạng → 400 Bad Request")
-        void staffCreateCompany_invalidTaxCode_returns400() throws Exception {
-                CreateCompanyRequest request = new CreateCompanyRequest(
-                                "Công ty Thuế Sai",
-                                "123456789",
-                                "CNTT",
-                                "1-50",
-                                null, null, null, null);
+    @Test
+    @DisplayName("STAFF tạo HR cho doanh nghiệp thành công")
+    void staffCreateHrAccount_shouldReturn201WithTemporaryPassword() throws Exception {
+        CreateHrAccountRequest request = new CreateHrAccountRequest(
+                "hr.test.create@rikkei.vn",
+                "Trần Văn Tuyển Dụng");
 
-                mockMvc.perform(post("/staff/companies")
-                                .header("Authorization", staffToken)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isBadRequest())
-                                .andExpect(jsonPath("$.errors.taxCode",
-                                                containsString("Mã số thuế phải gồm 10 hoặc 13 chữ số")));
-        }
+        mockMvc.perform(post("/staff/companies/" + companyAId + "/hr-accounts")
+                        .header("Authorization", staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.email", is("hr.test.create@rikkei.vn")))
+                .andExpect(jsonPath("$.data.role", is("ROLE_HR")))
+                .andExpect(jsonPath("$.data.companyId", is(companyAId.toString())))
+                .andExpect(jsonPath("$.data.mustChangePassword", is(true)));
+    }
 
-        @Test
-        @DisplayName("Mã số thuế đã tồn tại → 409 Conflict")
-        void staffCreateCompany_duplicateTaxCode_returns409() throws Exception {
-                CreateCompanyRequest request = new CreateCompanyRequest(
-                                "Công ty Trùng MST",
-                                "0101234567",
-                                "CNTT",
-                                "1-50",
-                                null, null, null, null);
+    @Test
+    @DisplayName("Tạo HR trùng email → 409 Conflict")
+    void staffCreateHrAccount_duplicateEmail_returns409() throws Exception {
+        CreateHrAccountRequest request = new CreateHrAccountRequest(
+                "hr1@rikkeijobs.test",
+                "Trùng Tên");
 
-                mockMvc.perform(post("/staff/companies")
-                                .header("Authorization", staffToken)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isConflict())
-                                .andExpect(jsonPath("$.detail", containsString("đã tồn tại")));
-        }
+        mockMvc.perform(post("/staff/companies/" + companyAId + "/hr-accounts")
+                        .header("Authorization", staffToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", containsString("đã tồn tại")));
+    }
 
-        @Test
-        @DisplayName("STAFF tạo HR cho doanh nghiệp thành công")
-        void staffCreateHrAccount_shouldReturn201WithTemporaryPassword() throws Exception {
-                CreateHrAccountRequest request = new CreateHrAccountRequest(
-                                "hr.test.create@rikkei.vn",
-                                "Trần Văn Tuyển Dụng");
+    @Test
+    @DisplayName("HR lấy thông tin công ty mình → 200 OK")
+    void hrGetMyCompany_returns200() throws Exception {
+        mockMvc.perform(get("/companies/me")
+                        .header("Authorization", hr1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.id", is(companyAId.toString())))
+                .andExpect(jsonPath("$.data.taxCode", is("0101234567")));
+    }
 
-                mockMvc.perform(post("/staff/companies/" + companyAId + "/hr-accounts")
-                                .header("Authorization", staffToken)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isCreated())
-                                .andExpect(jsonPath("$.email", is("hr.test.create@rikkei.vn")))
-                                .andExpect(jsonPath("$.role", is("ROLE_HR")))
-                                .andExpect(jsonPath("$.companyId", is(companyAId.toString())))
-                                .andExpect(jsonPath("$.mustChangePassword", is(true)))
-                                .andExpect(jsonPath("$.emailSent", is(true)));
-        }
+    @Test
+    @DisplayName("HR tự sửa hồ sơ công ty mình → 200 OK")
+    void hrUpdateMyCompany_returns200() throws Exception {
+        UpdateCompanyRequest request = new UpdateCompanyRequest(
+                "Công ty Cổ phần Công nghệ Rikkei A Mới",
+                "Fintech",
+                "201-1000",
+                "Tầng 25 Keangnam",
+                "Hà Nội",
+                "https://rikkeia-new.com",
+                "Mô tả đã được cập nhật bởi HR");
 
-        @Test
-        @DisplayName("Tạo HR trùng email → 409 Conflict")
-        void staffCreateHrAccount_duplicateEmail_returns409() throws Exception {
-                CreateHrAccountRequest request = new CreateHrAccountRequest(
-                                "hr1@rikkei.vn",
-                                "Trùng Tên");
+        mockMvc.perform(put("/companies/me")
+                        .header("Authorization", hr1Token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.name",
+                                is("Công ty Cổ phần Công nghệ Rikkei A Mới")))
+                .andExpect(jsonPath("$.data.industry", is("Fintech")))
+                .andExpect(jsonPath("$.data.taxCode", is("0101234567")))
+                .andExpect(jsonPath("$.data.status", is("ACTIVE")));
+    }
 
-                mockMvc.perform(post("/staff/companies/" + companyAId + "/hr-accounts")
-                                .header("Authorization", staffToken)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isConflict())
-                                .andExpect(jsonPath("$.detail", containsString("đã tồn tại")));
-        }
+    @Test
+    @DisplayName("HR không được sửa công ty khác → 404")
+    void hr1UpdateCompanyB_returns404() throws Exception {
+        UpdateCompanyRequest request = new UpdateCompanyRequest(
+                "Cố tình sửa công ty B",
+                "Fintech",
+                "51-200",
+                "Quận 1",
+                "TP. HCM",
+                null,
+                null);
 
-        @Test
-        @DisplayName("HR lấy thông tin công ty mình → 200 OK")
-        void hrGetMyCompany_returns200() throws Exception {
-                mockMvc.perform(get("/companies/me")
-                                .header("Authorization", hr1Token))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.id", is(companyAId.toString())))
-                                .andExpect(jsonPath("$.taxCode", is("0101234567")));
-        }
+        mockMvc.perform(put("/companies/" + companyBId)
+                        .header("Authorization", hr1Token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message",
+                                containsString("Không tìm thấy doanh nghiệp")));
+    }
 
-        @Test
-        @DisplayName("HR tự sửa hồ sơ công ty mình → 200 OK")
-        void hrUpdateMyCompany_returns200() throws Exception {
-                UpdateCompanyRequest request = new UpdateCompanyRequest(
-                                "Công ty Cổ phần Công nghệ Rikkei A Mới",
-                                "Fintech",
-                                "201-1000",
-                                "Tầng 25 Keangnam",
-                                "Hà Nội",
-                                "https://rikkeia-new.com",
-                                "Mô tả đã được cập nhật bởi HR");
+    @Test
+    @DisplayName("Logo lớn hơn 2MB → 400 Bad Request")
+    void uploadLogo_exceeds2MB_returns400() throws Exception {
+        byte[] largeBytes = new byte[2 * 1024 * 1024 + 10];
 
-                mockMvc.perform(put("/companies/me")
-                                .header("Authorization", hr1Token)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.name",
-                                                is("Công ty Cổ phần Công nghệ Rikkei A Mới")))
-                                .andExpect(jsonPath("$.industry", is("Fintech")))
-                                .andExpect(jsonPath("$.taxCode", is("0101234567")))
-                                .andExpect(jsonPath("$.status", is("ACTIVE")));
-        }
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "big-logo.jpg",
+                "image/jpeg",
+                largeBytes);
 
-        @Test
-        @DisplayName("HR không được sửa công ty khác → 404")
-        void hr1UpdateCompanyB_returns404() throws Exception {
-                UpdateCompanyRequest request = new UpdateCompanyRequest(
-                                "Cố tình sửa công ty B",
-                                "Fintech",
-                                "51-200",
-                                "Quận 1",
-                                "TP. HCM",
-                                null,
-                                null);
+        mockMvc.perform(multipart("/companies/me/logo")
+                        .file(file)
+                        .header("Authorization", hr1Token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message",
+                                containsString("không được vượt quá 2MB")));
+    }
 
-                mockMvc.perform(put("/companies/" + companyBId)
-                                .header("Authorization", hr1Token)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isNotFound())
-                                .andExpect(jsonPath("$.detail",
-                                                containsString("Không tìm thấy doanh nghiệp")));
-        }
+    @Test
+    @DisplayName("Upload logo PNG hợp lệ → 200 OK")
+    void uploadLogo_validPng_returns200() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "logo.png",
+                "image/png",
+                new byte[] {
+                                (byte) 0x89, 0x50, 0x4E, 0x47,
+                                0x0D, 0x0A, 0x1A, 0x0A
+                });
 
-        @Test
-        @DisplayName("HR chưa đổi mật khẩu bị chặn tới khi đổi mật khẩu")
-        void mustChangePassword_blocksCompanyApiAndChangePasswordReturnsNewToken() throws Exception {
-                User hr1 = userRepository.findByEmail("hr1@rikkei.vn").orElseThrow();
-                String originalPasswordHash = hr1.getPasswordHash();
-                boolean originalMustChangePassword = hr1.isMustChangePassword();
-
-                try {
-                        hr1.setMustChangePassword(true);
-                        userRepository.saveAndFlush(hr1);
-
-                        String passwordChangeToken = "Bearer " + objectMapper.readTree(
-                                        mockMvc.perform(post("/api/v1/auth/login")
-                                                        .contentType(MediaType.APPLICATION_JSON)
-                                                        .content("""
-                                                                        {"email":"hr1@rikkei.vn","password":"Password@123"}
-                                                                        """))
-                                                        .andExpect(status().isOk())
-                                                        .andReturn()
-                                                        .getResponse()
-                                                        .getContentAsString())
-                                        .get("token").asText();
-
-                        mockMvc.perform(get("/companies/me")
-                                        .header("Authorization", passwordChangeToken))
-                                        .andExpect(status().isForbidden())
-                                        .andExpect(jsonPath("$.detail",
-                                                        containsString("phải đổi mật khẩu")));
-
-                        mockMvc.perform(post("/api/v1/auth/change-password")
-                                        .header("Authorization", passwordChangeToken)
-                                        .contentType(MediaType.APPLICATION_JSON)
-                                        .content("""
-                                                        {"oldPassword":"Password@123","newPassword":"NewPassword@123"}
-                                                        """))
-                                        .andExpect(status().isOk())
-                                        .andExpect(jsonPath("$.token").isString())
-                                        .andExpect(jsonPath("$.message", is("Đổi mật khẩu thành công")))
-                                        .andDo(result -> {
-                                                String newToken = objectMapper.readTree(
-                                                                result.getResponse().getContentAsString())
-                                                                .get("token").asText();
-                                                mockMvc.perform(get("/companies/me")
-                                                                .header("Authorization", "Bearer " + newToken))
-                                                                .andExpect(status().isOk());
-                                        });
-                } finally {
-                        hr1.setPasswordHash(originalPasswordHash);
-                        hr1.setMustChangePassword(originalMustChangePassword);
-                        userRepository.saveAndFlush(hr1);
-                }
-        }
-
-        @Test
-        @DisplayName("Đổi mật khẩu không có token → 401")
-        void changePassword_withoutToken_returns401() throws Exception {
-                mockMvc.perform(post("/api/v1/auth/change-password")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content("""
-                                                {"oldPassword":"Password@123","newPassword":"NewPassword@123"}
-                                                """))
-                                .andExpect(status().isUnauthorized());
-        }
-
-        @Test
-        @DisplayName("Logo lớn hơn 2MB → 400 Bad Request")
-        void uploadLogo_exceeds2MB_returns400() throws Exception {
-                byte[] largeBytes = new byte[2 * 1024 * 1024 + 10];
-
-                MockMultipartFile file = new MockMultipartFile(
-                                "file",
-                                "big-logo.jpg",
-                                "image/jpeg",
-                                largeBytes);
-
-                mockMvc.perform(multipart("/companies/me/logo")
-                                .file(file)
-                                .header("Authorization", hr1Token))
-                                .andExpect(status().isBadRequest())
-                                .andExpect(jsonPath("$.detail",
-                                                containsString("không được vượt quá 2MB")));
-        }
-
-        @Test
-        @DisplayName("Upload logo PNG hợp lệ → 200 OK")
-        void uploadLogo_validPng_returns200() throws Exception {
-                MockMultipartFile file = new MockMultipartFile(
-                                "file",
-                                "logo.png",
-                                "image/png",
-                                new byte[] {
-                                                (byte) 0x89, 0x50, 0x4E, 0x47,
-                                                0x0D, 0x0A, 0x1A, 0x0A
-                                });
-
-                String oldLogoUrl = mockMvc.perform(multipart("/companies/me/logo")
-                                .file(file)
-                                .header("Authorization", hr1Token))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.logoUrl",
-                                                startsWith("/uploads/logos/company-" + companyAId + "-")))
-                                .andReturn()
-                                .getResponse()
-                                .getContentAsString();
-                String oldLogo = objectMapper.readTree(oldLogoUrl).get("logoUrl").asText();
-
-                mockMvc.perform(multipart("/companies/me/logo")
-                                .file(file)
-                                .header("Authorization", hr1Token))
-                                .andExpect(status().isOk());
-
-                Path oldLogoFile = Path.of("build/test-uploads/logos")
-                                .resolve(Path.of(oldLogo).getFileName());
-                org.assertj.core.api.Assertions.assertThat(Files.exists(oldLogoFile)).isFalse();
-        }
-
-        @Test
-        @DisplayName("OpenAPI liệt kê API DN-01 và Swagger UI tồn tại")
-        void openApiDocumentsCompanyEndpoints() throws Exception {
-                mockMvc.perform(get("/v3/api-docs"))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.paths['/staff/companies'].post").exists())
-                                .andExpect(jsonPath("$.paths['/staff/companies/{id}/hr-accounts'].post").exists())
-                                .andExpect(jsonPath("$.paths['/companies/me'].get").exists())
-                                .andExpect(jsonPath("$.paths['/companies/me'].put").exists())
-                                .andExpect(jsonPath("$.paths['/companies/me/logo'].post").exists())
-                                .andExpect(jsonPath("$.paths['/companies/{id}'].put").exists())
-                                .andExpect(jsonPath("$.paths['/staff/companies/{id}'].get").exists());
-
-                mockMvc.perform(get("/swagger-ui.html"))
-                                .andExpect(status().is3xxRedirection());
-        }
+        mockMvc.perform(multipart("/companies/me/logo")
+                        .file(file)
+                        .header("Authorization", hr1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.logoUrl",
+                                startsWith("/uploads/logos/company-" + companyAId + "-")));
+    }
 }

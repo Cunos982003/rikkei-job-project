@@ -19,7 +19,9 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -39,11 +41,11 @@ public class CareerService {
     public List<JobRecommendationResponse> getRecommendations(UUID userId, int limit) {
         RecommendationSnapshot snapshot = dataSource.loadSnapshot(userId);
         Instant now = Instant.now();
-        List<ScoredJob> jobs = snapshot.eligibleJobs().stream()
+        List<ScoredJob> allScored = snapshot.eligibleJobs().stream()
                 .map(job -> new ScoredJob(job, JobMatchScorer.score(snapshot.verifiedSkills(), job.requirements())))
                 .sorted((first, second) -> Double.compare(second.match().score(), first.match().score()))
-                .limit(limit)
                 .toList();
+        List<ScoredJob> jobs = selectDiverseTopJobs(allScored, limit);
 
         List<PendingRecommendation> pending = new java.util.ArrayList<>();
         JobRecommendationResponse[] results = new JobRecommendationResponse[jobs.size()];
@@ -53,13 +55,15 @@ public class CareerService {
             RecommendationPrompt prompt = RecommendationExplanation.createPrompt(snapshot, job);
             boolean aiExplanation = index < AI_EXPLANATION_LIMIT;
             String inputHash = inputHash(snapshot, job, aiExplanation);
-            var cached = repository.findByUserIdAndJobId(userId, job.jobId())
+            var existingOpt = repository.findByUserIdAndJobId(userId, job.jobId());
+            boolean cacheValid = existingOpt
                     .filter(item -> item.getCreatedAt().isAfter(now.minus(CACHE_TTL)))
-                    .filter(item -> item.getInputHash().equals(inputHash));
+                    .filter(item -> item.getInputHash().equals(inputHash))
+                    .isPresent();
 
-            if (cached.isPresent()) {
-                JobRecommendation recommendation = cached.get();
-                results[index] = recommendationMapper.toResponse(recommendation, scoredJob.match());
+            if (cacheValid) {
+                JobRecommendation recommendation = existingOpt.get();
+                results[index] = toResponse(recommendation, scoredJob.match(), job);
                 continue;
             }
 
@@ -81,19 +85,71 @@ public class CareerService {
                     : CompletableFuture.completedFuture(fallback);
 
             pending.add(new PendingRecommendation(
-                    index, job, scoredJob.match(), inputHash, cached.orElse(null), explanation, now));
+                    index, job, scoredJob.match(), inputHash, existingOpt.orElse(null), explanation, now));
         }
         for (PendingRecommendation item : pending) {
-            JobRecommendation recommendation = item.cached() == null ? new JobRecommendation() : item.cached();
+            JobRecommendation recommendation = item.cached() != null
+                    ? item.cached()
+                    : repository.findByUserIdAndJobId(userId, item.job().jobId())
+                            .orElseGet(JobRecommendation::new);
             recommendation.setUserId(userId);
             recommendation.setJobId(item.job().jobId());
             recommendation.setScore(item.match().score());
             recommendation.setExplanation(RecommendationExplanation.limitWords(item.explanation().join()));
             recommendation.setCreatedAt(item.createdAt());
             recommendation.setInputHash(item.inputHash());
-            results[item.index()] = recommendationMapper.toResponse(repository.save(recommendation), item.match());
+            results[item.index()] = toResponse(repository.save(recommendation), item.match(), item.job());
         }
         return java.util.Arrays.asList(results);
+    }
+
+    public double getMatchScore(UUID userId, UUID jobId) {
+        RecommendationSnapshot snapshot = dataSource.loadSnapshot(userId);
+        RecommendationSnapshot.EligibleJob job = snapshot.eligibleJobs().stream()
+                .filter(eligibleJob -> eligibleJob.jobId().equals(jobId))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Eligible job not found for user"));
+        return JobMatchScorer.score(snapshot.verifiedSkills(), job.requirements()).score();
+    }
+
+    private List<ScoredJob> selectDiverseTopJobs(List<ScoredJob> sortedScored, int limit) {
+        if (sortedScored.size() <= limit) {
+            return sortedScored;
+        }
+        List<ScoredJob> selected = new java.util.ArrayList<>(limit);
+        java.util.Set<String> seenRoles = new java.util.HashSet<>();
+        java.util.Set<UUID> selectedIds = new java.util.HashSet<>();
+
+        for (ScoredJob item : sortedScored) {
+            if (selected.size() >= limit) {
+                break;
+            }
+            String roleKey = normalizeRoleKey(item.job().title());
+            if (roleKey == null || seenRoles.add(roleKey)) {
+                selected.add(item);
+                selectedIds.add(item.job().jobId());
+            }
+        }
+        if (selected.size() < limit) {
+            for (ScoredJob item : sortedScored) {
+                if (selected.size() >= limit) {
+                    break;
+                }
+                if (selectedIds.add(item.job().jobId())) {
+                    selected.add(item);
+                }
+            }
+        }
+        selected.sort((first, second) -> Double.compare(second.match().score(), first.match().score()));
+        return selected;
+    }
+
+    private String normalizeRoleKey(String title) {
+        if (title == null || title.isBlank()) {
+            return null;
+        }
+        return title.replaceAll("\\s*#\\d+\\s*$", "").trim().toLowerCase(java.util.Locale.ROOT);
     }
 
     private record ScoredJob(RecommendationSnapshot.EligibleJob job, JobMatchScorer.MatchResult match) {
@@ -107,6 +163,28 @@ public class CareerService {
             JobRecommendation cached,
             CompletableFuture<String> explanation,
             Instant createdAt) {
+    }
+
+    private JobRecommendationResponse toResponse(
+            JobRecommendation recommendation,
+            JobMatchScorer.MatchResult match,
+            RecommendationSnapshot.EligibleJob job) {
+        return new JobRecommendationResponse(
+                recommendation.getJobId(),
+                job != null ? job.title() : null,
+                job != null ? job.companyName() : null,
+                recommendation.getScore(),
+                recommendation.getExplanation(),
+                recommendation.getCreatedAt(),
+                match.missingRequiredSkills(),
+                match.skillGaps().stream()
+                        .map(gap -> new SkillGapResponse(
+                                gap.name(),
+                                gap.verifiedIndex(),
+                                gap.requiredIndex(),
+                                gap.gap(),
+                                gap.type() == RecommendationSnapshot.RequirementType.REQUIRED))
+                        .toList());
     }
 
     private String inputHash(

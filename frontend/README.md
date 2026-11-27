@@ -1,32 +1,34 @@
-# React + TypeScript + Vite
+# Rikkei Jobs frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React, TypeScript, Vite, and Tailwind CSS frontend for the Rikkei Jobs platform.
+AI Career is integrated into the authenticated candidate area:
 
-Currently, two official plugins are available:
+- `/candidate/career` — career overview
+- `/candidate/career/recommendations` — job recommendations
+- `/candidate/career/skills` — skill-gap analysis
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Career requests use the signed-in candidate's access token and are proxied to
+AI Career Service. They do not use mock recommendations or a manually entered
+token.
 
-## React Compiler
+## Local development
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+From the repository root, copy `.env.example` to `.env` and set values for
+your local services. The root `.env` is ignored by git.
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```powershell
+cd frontend
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Vite reads `VITE_BACKEND_URL` and `VITE_AI_CAREER_URL` from the root `.env` (or
+`frontend/.env`) to configure the `/api`, `/lms`, `/staff`, and `/ai-career`
+development proxies. Local defaults are provided.
+
+## Validation
+
+```powershell
+npm run build
+npm run lint
+```

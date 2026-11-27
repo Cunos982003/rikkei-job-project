@@ -1,0 +1,91 @@
+
+name: Deploy to VPS
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Upload Docker Compose and Infra Configs to VPS
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "docker-compose.prod.yml,infra/monitoring,infra/docker,infra/init-db"
+          target: "/home/ubuntu/rikkei-job-project"
+          overwrite: true
+
+      - name: Verify uploaded files
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            cd /home/ubuntu/rikkei-job-project
+
+            echo "=== Uploaded files ==="
+            ls -l docker-compose.prod.yml infra/monitoring/prometheus/prometheus.yml infra/docker/frontend.prod.conf
+
+            echo "=== File checksum ==="
+            sha256sum docker-compose.prod.yml infra/monitoring/prometheus/prometheus.yml infra/docker/frontend.prod.conf
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            set -e
+
+            cd /home/ubuntu/rikkei-job-project
+
+            echo "=== Validate configuration ==="
+
+            docker compose \
+              --env-file .env.prod \
+              -f docker-compose.prod.yml \
+              config -q
+
+            echo "=== Pull images ==="
+
+            docker compose \
+              --env-file .env.prod \
+              -f docker-compose.prod.yml \
+              pull
+
+            echo "=== Start services ==="
+
+            docker compose \
+              --env-file .env.prod \
+              -f docker-compose.prod.yml \
+              up -d --remove-orphans
+
+            echo "=== Reload config-mounted services ==="
+
+            docker compose \
+              --env-file .env.prod \
+              -f docker-compose.prod.yml \
+              up -d --force-recreate --no-deps frontend prometheus
+
+            echo "=== Cleanup ==="
+
+            docker image prune -f
+
+            echo "Deployment completed"

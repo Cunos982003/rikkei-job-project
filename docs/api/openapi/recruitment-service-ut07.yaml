@@ -1,0 +1,418 @@
+openapi: 3.0.3
+info:
+  title: Rikkei Jobs - Recruitment Service Offer & Employment API (UT-07)
+  description: >
+    Luồng quản lý Thư mời nhận việc (Offer) và Ghi nhận lịch sử nhận việc (Task UT-07).
+
+    - HR gửi Offer cho đơn đang `INTERVIEW` và vòng phỏng vấn cuối `PASS` (sai điều kiện → `409`); đơn chuyển sang `OFFER` và gửi email thông báo ứng viên.
+    - Ứng viên xem danh sách/chi tiết Offer của chính mình (ứng viên khác mở → `404`), chấp nhận (`HIRED` + tạo `employment_records`, giữ nguyên các đơn khác) hoặc từ chối (bắt buộc `reason` → `400` nếu rỗng; offer `DECLINED`, đơn `REJECTED`).
+    - Job chạy mỗi giờ (`0 0 * * * *`) tự động chuyển offer quá `response_deadline` → `EXPIRED` và đơn → `REJECTED`.
+    - HR xác nhận ứng viên đã đi làm (`confirm-onboard`) để ghi `confirmed_at`.
+  version: 1.0.0
+  contact:
+    name: Rikkei Jobs Team - Recruitment Module
+    email: dev@rikkei.vn
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: API Gateway (Cổng chính thức)
+  - url: http://localhost:8086/api/v1
+    description: Local Recruitment Service (Nội bộ)
+
+tags:
+  - name: HR Offers
+    description: HR gửi Offer, xem đơn tuyển dụng và xác nhận ứng viên đã đi làm
+  - name: Candidate Offers
+    description: Ứng viên xem danh sách/chi tiết Offer, Chấp nhận hoặc Từ chối Offer
+  - name: Candidate Employment Records
+    description: Lịch sử nhận việc hiển thị trên hồ sơ ứng viên
+
+security:
+  - bearerAuth: []
+
+paths:
+  /hr/applications:
+    get:
+      tags: [HR Offers]
+      summary: Danh sách đơn ứng tuyển thuộc doanh nghiệp của HR
+      parameters:
+        - name: jobId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/RecruitmentStatus'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseGeneric'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /applications/{id}/offer:
+    post:
+      tags: [HR Offers]
+      summary: HR gửi Offer cho đơn đã PASS vòng phỏng vấn cuối
+      description: >
+        Chỉ cho phép khi đơn đang ở trạng thái `INTERVIEW`, có ít nhất 1 vòng phỏng vấn,
+        không có vòng `PENDING`, và vòng cuối cùng có kết quả `PASS`. Vi phạm trả `409`.
+        Chuyển đơn sang `OFFER` và gửi email tới ứng viên.
+        Hỗ trợ alias `/recruitments/{id}/offer`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID của đơn ứng tuyển (application_id / recruitment_id)
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendOfferRequest'
+      responses:
+        '201':
+          description: Gửi Offer thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfferApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /applications/{id}/offer/confirm-onboard:
+    post:
+      tags: [HR Offers]
+      summary: HR xác nhận ứng viên đã đi làm (ghi confirmed_at)
+      description: >
+        Chỉ thực hiện được khi ứng viên đã chấp nhận Offer (`ACCEPTED` / `HIRED`) và chưa xác nhận trước đó.
+        Hỗ trợ alias `/recruitments/{id}/offer/confirm-onboard`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Xác nhận onboard thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmploymentRecordApiResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /me/offers:
+    get:
+      tags: [Candidate Offers]
+      summary: Ứng viên xem danh sách Offer của chính mình
+      responses:
+        '200':
+          description: Danh sách Offer thuộc ứng viên đang đăng nhập
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfferListApiResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /me/offers/{id}:
+    get:
+      tags: [Candidate Offers]
+      summary: Ứng viên xem chi tiết 1 Offer (ứng viên khác mở trả 404)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Chi tiết Offer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfferApiResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /me/offers/{id}/accept:
+    post:
+      tags: [Candidate Offers]
+      summary: Ứng viên chấp nhận Offer
+      description: >
+        Chuyển Offer sang `ACCEPTED`, đơn sang `HIRED` và tạo bản ghi `employment_records`.
+        Các đơn ứng tuyển khác của ứng viên được giữ nguyên. Nếu quá `response_deadline` hoặc không còn `SENT` → `409`.
+        Nếu Offer thuộc ứng viên khác → `404`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Chấp nhận Offer thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfferApiResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /me/offers/{id}/decline:
+    post:
+      tags: [Candidate Offers]
+      summary: Ứng viên từ chối Offer (bắt buộc nhập lý do)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeclineOfferRequest'
+      responses:
+        '200':
+          description: Từ chối Offer thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfferApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /me/employment-records:
+    get:
+      tags: [Candidate Employment Records]
+      summary: Ứng viên lấy danh sách lịch sử nhận việc hiển thị trên hồ sơ cá nhân
+      responses:
+        '200':
+          description: Danh sách kinh nghiệm nhận việc
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmploymentRecordListApiResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RecruitmentStatus:
+      type: string
+      enum: [SUBMITTED, SCREENING, INTERVIEW, OFFER, HIRED, REJECTED, WITHDRAWN]
+
+    OfferStatus:
+      type: string
+      enum: [SENT, ACCEPTED, DECLINED, EXPIRED]
+
+    SendOfferRequest:
+      type: object
+      required: [position, salary, startDate, workLocation, responseDeadline]
+      properties:
+        position:
+          type: string
+          example: Java Backend Developer (Junior)
+        salary:
+          type: number
+          minimum: 0.01
+          example: 20000000
+        startDate:
+          type: string
+          format: date
+          example: "2026-12-15"
+        workLocation:
+          type: string
+          example: "Tầng 21, Tòa nhà Handico, Nam Từ Liêm, Hà Nội"
+        responseDeadline:
+          type: string
+          format: date-time
+          example: "2026-11-25T10:00:00Z"
+        note:
+          type: string
+          nullable: true
+          example: "Thưởng tháng 13, bảo hiểm sức khỏe và phụ cấp ăn trưa."
+        companyName:
+          type: string
+          nullable: true
+          example: "Công ty Cổ phần Rikkeisoft"
+
+    DeclineOfferRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          example: "Em đã nhận được đề nghị phù hợp hơn về khoảng cách địa lý."
+
+    OfferResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        applicationId: { type: string, format: uuid }
+        jobId: { type: string, format: uuid }
+        companyId: { type: string, format: uuid, nullable: true }
+        companyName: { type: string, nullable: true }
+        candidateId: { type: string, format: uuid }
+        candidateEmail: { type: string, nullable: true }
+        position: { type: string }
+        salary: { type: number }
+        startDate: { type: string, format: date }
+        workLocation: { type: string }
+        note: { type: string, nullable: true }
+        responseDeadline: { type: string, format: date-time }
+        status: { $ref: '#/components/schemas/OfferStatus' }
+        applicationStatus: { $ref: '#/components/schemas/RecruitmentStatus' }
+        respondedAt: { type: string, format: date-time, nullable: true }
+        declineReason: { type: string, nullable: true }
+        confirmedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    EmploymentRecordResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        companyId: { type: string, format: uuid }
+        companyName: { type: string, nullable: true }
+        jobId: { type: string, format: uuid }
+        applicationId: { type: string, format: uuid, nullable: true }
+        position: { type: string }
+        startDate: { type: string, format: date }
+        confirmedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    OfferApiResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        statusCode: { type: integer }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/OfferResponse' }
+        timestamp: { type: string }
+
+    OfferListApiResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        statusCode: { type: integer }
+        message: { type: string }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/OfferResponse' }
+        timestamp: { type: string }
+
+    EmploymentRecordApiResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        statusCode: { type: integer }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/EmploymentRecordResponse' }
+        timestamp: { type: string }
+
+    EmploymentRecordListApiResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        statusCode: { type: integer }
+        message: { type: string }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/EmploymentRecordResponse' }
+        timestamp: { type: string }
+
+    ApiResponseGeneric:
+      type: object
+      properties:
+        success: { type: boolean }
+        statusCode: { type: integer }
+        message: { type: string }
+        data: { type: object }
+        timestamp: { type: string }
+
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp: { type: string }
+        status: { type: integer }
+        error: { type: string }
+        code: { type: string }
+        message: { type: string }
+
+  responses:
+    BadRequestError:
+      description: Dữ liệu đầu vào không hợp lệ (ví dụ thiếu lý do từ chối hoặc hạn trả lời ở quá khứ)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    UnauthorizedError:
+      description: Chưa xác thực JWT
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ForbiddenError:
+      description: Không có quyền vai trò phù hợp
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFoundError:
+      description: Không tìm thấy Offer hoặc Offer thuộc ứng viên/doanh nghiệp khác
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ConflictError:
+      description: Xung đột trạng thái nghiệp vụ (chưa có vòng PASS, offer đã hết hạn/đã phản hồi, đã xác nhận onboard)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }

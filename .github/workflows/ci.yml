@@ -20,28 +20,47 @@ jobs:
     secrets: inherit
 
   docker:
+    if: github.event_name == 'push'
     uses: ./.github/workflows/docker-build.yml
     secrets: inherit
+    needs: [backend, frontend]
 
-  # Summary job to report overall status
+  deploy:
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    needs: [backend, frontend, docker]
+
   summary:
     name: CI Summary
     runs-on: ubuntu-latest
-    needs: [backend, frontend, docker]
+    needs: [backend, frontend, docker, deploy]
     if: always()
+
     steps:
       - name: Check job statuses
+        shell: bash
         run: |
           if [[ "${{ needs.backend.result }}" != "success" ]]; then
-            echo "❌ Backend CI failed"
+            echo "Backend CI failed"
             exit 1
           fi
+
           if [[ "${{ needs.frontend.result }}" != "success" ]]; then
-            echo "❌ Frontend CI failed"
+            echo "Frontend CI failed"
             exit 1
           fi
-          if [[ "${{ needs.docker.result }}" != "success" && "${{ needs.docker.result }}" != "skipped" ]]; then
-            echo "❌ Docker build failed"
-            exit 1
+
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            if [[ "${{ needs.docker.result }}" != "success" ]]; then
+              echo "Docker build failed"
+              exit 1
+            fi
+
+            if [[ "${{ needs.deploy.result }}" != "success" ]]; then
+              echo "Deploy failed"
+              exit 1
+            fi
           fi
-          echo "✅ All CI checks passed"
+
+          echo "All required CI checks passed"

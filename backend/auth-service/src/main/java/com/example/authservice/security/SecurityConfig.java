@@ -1,5 +1,6 @@
 package com.example.authservice.security;
 
+import com.example.authservice.dto.ApiResponse;
 import com.example.authservice.dto.ErrorResponse;
 import com.example.authservice.entity.UserStatus;
 import com.example.authservice.repository.UserRepository;
@@ -9,6 +10,7 @@ import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -55,7 +57,7 @@ public class SecurityConfig {
             .map(user -> org.springframework.security.core.userdetails.User.builder()
                 .username(user.getEmail())
                 .password(user.getPasswordHash())
-                .authorities(user.getRole() == null ? "ROLE_CANDIDATE" : user.getRole())
+                .authorities(user.getRole() == null ? "ROLE_CANDIDATE" : user.getRole().withPrefix())
                 .accountExpired(false)
                 .accountLocked(user.getStatus() == UserStatus.LOCKED || (user.getLockedUntil() != null && user.getLockedUntil().isAfter(java.time.Instant.now())))
                 .credentialsExpired(false)
@@ -98,37 +100,43 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(exceptions -> exceptions
                 .authenticationEntryPoint((request, response, authException) -> {
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                    ErrorResponse error = new ErrorResponse(
-                        HttpServletResponse.SC_UNAUTHORIZED,
+                    ApiResponse<Void> error = ApiResponse.error(
+                        HttpStatus.UNAUTHORIZED,
                         "UNAUTHORIZED",
-                        "Authentication required: Full authentication is required to access this resource"
+                        "Phiên đăng nhập đã hết hạn hoặc bạn chưa được xác thực"
                     );
                     objectMapper.writeValue(response.getOutputStream(), error);
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                    ErrorResponse error = new ErrorResponse(
-                        HttpServletResponse.SC_FORBIDDEN,
+                    ApiResponse<Void> error = ApiResponse.error(
+                        HttpStatus.FORBIDDEN,
                         "MUST_CHANGE_PASSWORD",
-                        "Access denied: You must change your password before continuing"
+                        "Bạn cần đổi mật khẩu lần đầu trước khi tiếp tục truy cập"
                     );
                     objectMapper.writeValue(response.getOutputStream(), error);
                 })
             )
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(
+                        "/actuator/**")
+                .permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
+                .requestMatchers("/h2-console/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/sso", "/auth/sso").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/auth/login", "/api/v1/auth/hr/login", "/auth/hr/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/forgot-password", "/auth/forgot-password").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/reset-password", "/auth/reset-password").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/auth/change-password", "/auth/change-password").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/change-password", "/auth/change-password", "/api/v1/auth/first-time-password", "/auth/first-time-password").authenticated()
+                .requestMatchers("/api/v1/auth/internal/hr-accounts/**").hasAnyRole("STAFF", "ADMIN")
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated()
             )
