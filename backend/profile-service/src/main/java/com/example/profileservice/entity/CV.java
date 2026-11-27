@@ -33,12 +33,14 @@ public class CV {
     @Column(name = "target_position", length = 200)
     private String targetPosition;
 
+    @Builder.Default
     @Column(name = "template", length = 50, nullable = false)
     private String template = "RIKKEI_STANDARD";
 
     @Column(name = "public_token", length = 64, nullable = false, unique = true)
     private String publicToken;
 
+    @Builder.Default
     @Column(name = "is_public", nullable = false)
     private boolean isPublic = false;
 
@@ -53,6 +55,7 @@ public class CV {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
+    @Builder.Default
     @OneToMany(mappedBy = "cv", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
     private List<CVSection> sections = new ArrayList<>();
