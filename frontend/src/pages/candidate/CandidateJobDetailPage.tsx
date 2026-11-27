@@ -12,14 +12,12 @@ import {
   Sparkles,
   CheckCircle2,
   Users,
-  Target,
   FileCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { jobsApi, type JobPostingItem } from "../../api/endpoints/jobs.api";
 import { candidateJobsApi } from "../../api/endpoints/candidateJobs.api";
 import { recruitmentApi } from "../../api/endpoints/recruitment.api";
-import { learningApi } from "../../api/endpoints/learning.api";
 import { candidateKeys } from "../../api/queryKeys";
 import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
@@ -188,17 +186,6 @@ export function CandidateJobDetailPage() {
     }
     return false;
   }, [recruitmentsRes, job]);
-
-  // 4. Lấy nhanh điểm sẵn sàng cho thẻ widget
-  const { data: quickGapRes } = useQuery({
-    queryKey: candidateKeys.learning.gapAnalysis(job?.id),
-    queryFn: () => learningApi.getGapAnalysis(job?.id).catch(() => null),
-    enabled: Boolean(job?.id),
-    staleTime: 60 * 1000,
-    retry: false,
-  });
-
-  const readinessScore = quickGapRes?.data?.readiness ?? 80;
 
   // 5. Thao tác Lưu / Bỏ lưu
   const toggleSaveMutation = useMutation({
@@ -528,35 +515,10 @@ export function CandidateJobDetailPage() {
 
         {/* Right Column: Widgets */}
         <div className="space-y-6">
-          {/* Widget 1: Thẻ phân tích năng lực nhanh tại chỗ */}
-          <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 text-white shadow-md space-y-4">
-            <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
-              <Sparkles className="h-4 w-4" />
-              <span>Đối chiếu năng lực tại chỗ</span>
-            </div>
-
-            <div>
-              <p className="text-xs text-slate-300">Độ tương thích hồ sơ LMS của bạn:</p>
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-3xl font-extrabold text-white">{readinessScore}%</span>
-                <span className="text-xs text-emerald-400 font-semibold">Phù hợp</span>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-slate-300 leading-relaxed">
-              Nhấn để xem chi tiết các kỹ năng đã đạt, kỹ năng cần bổ sung và các khóa học LMS gợi ý trực tiếp tại trang này.
-            </p>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsDrawerOpen(true)}
-              leftIcon={<Target className="h-3.5 w-3.5 text-primary" />}
-              className="w-full justify-center bg-white text-slate-900 hover:bg-slate-100 border-none font-bold text-xs"
-            >
-              Mở bảng phân tích năng lực
-            </Button>
-          </div>
+          {/* Widget 1: Độ khớp kỹ năng */}
+          {isCandidate && (
+            <MatchScorePanel jobId={job.id} mode="me" />
+          )}
 
           {/* Widget 2: Thông tin công ty */}
           <div className="bg-surface border border-border rounded-3xl p-6 shadow-xs space-y-4">
@@ -609,10 +571,6 @@ export function CandidateJobDetailPage() {
               </div>
             </div>
           </div>
-
-          {isCandidate && (
-            <MatchScorePanel jobId={job.id} mode="me" />
-          )}
         </div>
       </div>
 
