@@ -23,7 +23,9 @@ import {
   Target,
   LayoutDashboard,
   QrCode,
+  Sparkles,
 } from "lucide-react";
+import { AIDraftCompareModal } from "../../components/cv/AIDraftCompareModal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   type CV,
@@ -91,6 +93,13 @@ export function CandidateCVPage() {
   const [activeTab, setActiveTab] = useState<"list" | "editor" | "preview">("list");
   const [editingCV, setEditingCV] = useState<CV | null>(null);
   const [editingSection, setEditingSection] = useState<CVSectionDto | null>(null);
+  const [aiDraftTarget, setAiDraftTarget] = useState<{
+    cvId: string;
+    section: "SUMMARY" | "PROJECT";
+    sectionTitle: string;
+    projectId?: string | null;
+    currentText: string;
+  } | null>(null);
   const [selectedCVForPreview, setSelectedCVForPreview] = useState<CV | null>(null);
   const [cvForm, setCvForm] = useState<CreateCVRequest & { isPublic?: boolean }>({ title: "", targetPosition: "", template: "RIKKEI_STANDARD", isPublic: false });
   const [sectionForm, setSectionForm] = useState<UpdateCVSectionRequest>({
@@ -557,8 +566,28 @@ export function CandidateCVPage() {
     switch (sectionType) {
       case "SUMMARY":
         return (
-          <div className="text-sm whitespace-pre-wrap text-foreground/80">
-            {(data as SummaryPreview).summary || "Chưa có tóm tắt"}
+          <div className="space-y-2">
+            <div className="text-sm whitespace-pre-wrap text-foreground/80">
+              {(data as SummaryPreview).summary || "Chưa có tóm tắt"}
+            </div>
+            {editingCV && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                leftIcon={<Sparkles className="h-3.5 w-3.5 text-primary" />}
+                onClick={() =>
+                  setAiDraftTarget({
+                    cvId: editingCV.id,
+                    section: "SUMMARY",
+                    sectionTitle: "Giới thiệu bản thân",
+                    currentText: (data as SummaryPreview).summary || profileData?.data?.summary || "",
+                  })
+                }
+              >
+                AI viết giúp
+              </Button>
+            )}
           </div>
         );
       case "EDUCATION":
@@ -583,6 +612,28 @@ export function CandidateCVPage() {
                 {proj.role && <p className="text-xs text-muted">Vai trò: {proj.role}</p>}
                 {proj.techStack && <p className="text-xs text-muted">Công nghệ: {proj.techStack}</p>}
                 {proj.description && <p className="text-xs text-foreground/80">{proj.description}</p>}
+                {editingCV && proj.id && (
+                  <div className="pt-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-primary"
+                      leftIcon={<Sparkles className="h-3 w-3" />}
+                      onClick={() =>
+                        setAiDraftTarget({
+                          cvId: editingCV.id,
+                          section: "PROJECT",
+                          sectionTitle: `Dự án: ${proj.name}`,
+                          projectId: proj.id,
+                          currentText: proj.description || "",
+                        })
+                      }
+                    >
+                      AI viết giúp
+                    </Button>
+                  </div>
+                )}
                 <div className="flex gap-2 mt-1">
                   {proj.repoUrl && <a href={proj.repoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">Repo</a>}
                   {proj.demoUrl && <a href={proj.demoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">Demo</a>}
@@ -1089,6 +1140,49 @@ export function CandidateCVPage() {
                                         <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
                                         {subtitle && <p className="text-xs text-muted truncate">{subtitle}</p>}
                                       </div>
+                                      {sectionForm.sectionType === "PROJECTS" && editingCV && (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          className="shrink-0 gap-1"
+                                          leftIcon={<Sparkles className="h-3.5 w-3.5 text-primary" />}
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setAiDraftTarget({
+                                              cvId: editingCV.id,
+                                              section: "PROJECT",
+                                              sectionTitle: `Dự án: ${item.name || displayName}`,
+                                              projectId: item.id,
+                                              currentText: item.description || "",
+                                            });
+                                          }}
+                                        >
+                                          AI viết giúp
+                                        </Button>
+                                      )}
+                                      {sectionForm.sectionType === "SUMMARY" && editingCV && (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          className="shrink-0 gap-1"
+                                          leftIcon={<Sparkles className="h-3.5 w-3.5 text-primary" />}
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setAiDraftTarget({
+                                              cvId: editingCV.id,
+                                              section: "SUMMARY",
+                                              sectionTitle: "Giới thiệu bản thân",
+                                              currentText: item.summary || profileData?.data?.summary || "",
+                                            });
+                                          }}
+                                        >
+                                          AI viết giúp
+                                        </Button>
+                                      )}
                                       {sectionForm.sectionType === "SKILLS" && item.verificationStatus && (
                                         <Badge
                                           variant={item.verificationStatus === "Đã xác thực" ? "verified" : "outline"}
@@ -1176,6 +1270,24 @@ export function CandidateCVPage() {
                               )}
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
+                              {type === "SUMMARY" && editingCV && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  leftIcon={<Sparkles className="h-3.5 w-3.5 text-primary" />}
+                                  onClick={() =>
+                                    setAiDraftTarget({
+                                      cvId: editingCV.id,
+                                      section: "SUMMARY",
+                                      sectionTitle: "Giới thiệu bản thân",
+                                      currentText: profileData?.data?.summary || "",
+                                    })
+                                  }
+                                >
+                                  AI viết giúp
+                                </Button>
+                              )}
                               {hasSection ? (
                                 <>
                                   <Button
@@ -1395,6 +1507,23 @@ export function CandidateCVPage() {
             </Card>
           )}
         </div>
+      )}
+
+      {aiDraftTarget && (
+        <AIDraftCompareModal
+          open={!!aiDraftTarget}
+          cvId={aiDraftTarget.cvId}
+          section={aiDraftTarget.section}
+          sectionTitle={aiDraftTarget.sectionTitle}
+          projectId={aiDraftTarget.projectId}
+          currentText={aiDraftTarget.currentText}
+          onClose={() => setAiDraftTarget(null)}
+          onAccepted={() => {
+            queryClient.invalidateQueries({ queryKey: candidateKeys.profile.cvs.all() });
+            queryClient.invalidateQueries({ queryKey: candidateKeys.profile.me(user?.id) });
+            queryClient.invalidateQueries({ queryKey: candidateKeys.profile.portfolio(user?.id) });
+          }}
+        />
       )}
     </div>
   );
