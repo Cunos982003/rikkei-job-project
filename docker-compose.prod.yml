@@ -339,6 +339,7 @@ services:
 
   loki:
     image: grafana/loki:3.0.0
+    user: "0"
     volumes:
       - ./infra/monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
       - lokidata:/tmp/loki
