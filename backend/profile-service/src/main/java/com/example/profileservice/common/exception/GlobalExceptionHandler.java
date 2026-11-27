@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.security.access.AccessDeniedException;
+
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -70,6 +72,34 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(HttpStatus.NOT_FOUND, ex.getMessage()));
     }
 
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(HttpStatus.FORBIDDEN, ex.getMessage()));
+    }
+
+    @ExceptionHandler(SecurityException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSecurity(SecurityException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(HttpStatus.FORBIDDEN, ex.getMessage()));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception ex) {
+        log.error("handleGeneralException called with exception class: " + ex.getClass().getName() + ", message: " + ex.getMessage());
+        log.error("ex instanceof AccessDeniedException: " + (ex instanceof AccessDeniedException));
+        log.error("ex instanceof SecurityException: " + (ex instanceof SecurityException));
+        if (ex instanceof AccessDeniedException) {
+            return handleAccessDenied((AccessDeniedException) ex);
+        }
+        if (ex instanceof SecurityException) {
+            return handleSecurity((SecurityException) ex);
+        }
+        log.error("Unhandled exception in profile-service: ", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR, "Đã xảy ra sự cố trên hệ thống máy chủ, vui lòng thử lại sau"));
+    }
+
     @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleNoResourceFound(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -81,12 +111,5 @@ public class GlobalExceptionHandler {
         log.warn("Method argument type mismatch: {} = {}", ex.getName(), ex.getValue());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Tham số không hợp lệ"));
-    }
-
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception ex) {
-        log.error("Unhandled exception in profile-service: ", ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR, "Đã xảy ra sự cố trên hệ thống máy chủ, vui lòng thử lại sau"));
     }
 }

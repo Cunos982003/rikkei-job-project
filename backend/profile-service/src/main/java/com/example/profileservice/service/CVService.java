@@ -5,6 +5,7 @@ import com.example.profileservice.entity.CV;
 import com.example.profileservice.entity.CVSection;
 import com.example.profileservice.entity.SectionType;
 import com.example.profileservice.exception.ResourceNotFoundException;
+import org.springframework.security.access.AccessDeniedException;
 import com.example.profileservice.repository.CVRepository;
 import com.example.profileservice.repository.CVSectionRepository;
 import com.example.profileservice.service.MinioFileUploadService;
@@ -71,7 +72,7 @@ public class CVService {
         CV cv = cvRepository.findById(cvId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy CV"));
         if (!cv.getUserId().equals(userId)) {
-            throw new SecurityException("Không có quyền truy cập CV này");
+            throw new AccessDeniedException("Không có quyền truy cập CV này");
         }
         return toDto(cv);
     }
@@ -95,6 +96,7 @@ public class CVService {
         cv.setTitle(request.getTitle());
         cv.setTargetPosition(request.getTargetPosition());
         cv.setTemplate(request.getTemplate() != null ? request.getTemplate() : "RIKKEI_STANDARD");
+        if (request.getIsPublic() != null) cv.setPublic(request.getIsPublic());
         cv.setPublicToken(generateUniquePublicToken());
         cv = cvRepository.save(cv);
         return toDto(cv);
@@ -105,7 +107,7 @@ public class CVService {
         CV cv = cvRepository.findById(cvId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy CV"));
         if (!cv.getUserId().equals(userId)) {
-            throw new SecurityException("Không có quyền truy cập CV này");
+            throw new AccessDeniedException("Không có quyền truy cập CV này");
         }
         if (request.getTitle() != null) cv.setTitle(request.getTitle());
         if (request.getTargetPosition() != null) cv.setTargetPosition(request.getTargetPosition());
@@ -120,7 +122,7 @@ public class CVService {
         CV cv = cvRepository.findById(cvId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy CV"));
         if (!cv.getUserId().equals(userId)) {
-            throw new SecurityException("Không có quyền truy cập CV này");
+            throw new AccessDeniedException("Không có quyền truy cập CV này");
         }
         cvRepository.delete(cv);
     }
@@ -130,7 +132,7 @@ public class CVService {
         CV cv = cvRepository.findById(cvId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy CV"));
         if (!cv.getUserId().equals(userId)) {
-            throw new SecurityException("Không có quyền truy cập CV này");
+            throw new AccessDeniedException("Không có quyền truy cập CV này");
         }
         if (!Arrays.asList(VALID_SECTION_TYPES).contains(request.getSectionType())) {
             throw new IllegalArgumentException("Loại section không hợp lệ");
@@ -156,7 +158,7 @@ public class CVService {
         CV cv = cvRepository.findById(cvId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy CV"));
         if (!cv.getUserId().equals(userId)) {
-            throw new SecurityException("Không có quyền truy cập CV này");
+            throw new AccessDeniedException("Không có quyền truy cập CV này");
         }
         sectionRepository.deleteByCvIdAndSectionType(cvId, sectionType);
     }
@@ -166,7 +168,7 @@ public class CVService {
         CV cv = cvRepository.findById(cvId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy CV"));
         if (!cv.getUserId().equals(userId)) {
-            throw new SecurityException("Không có quyền truy cập CV này");
+            throw new AccessDeniedException("Không có quyền truy cập CV này");
         }
         List<CVSection> sections = sectionRepository.findByCvIdOrderBySortOrderAsc(cvId);
         List<UUID> sectionIds = sections.stream().map(CVSection::getId).collect(Collectors.toList());
@@ -222,7 +224,7 @@ public class CVService {
         CV cv = cvRepository.findById(cvId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy CV"));
         if (!cv.getUserId().equals(userId)) {
-            throw new SecurityException("Không có quyền truy cập CV này");
+            throw new AccessDeniedException("Không có quyền truy cập CV này");
         }
 
         List<CVSection> sections = sectionRepository.findByCvIdOrderBySortOrderAsc(cvId);
@@ -266,7 +268,7 @@ public class CVService {
         CV cv = cvRepository.findById(cvId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy CV"));
         if (!cv.getUserId().equals(userId)) {
-            throw new SecurityException("Không có quyền truy cập CV này");
+            throw new AccessDeniedException("Không có quyền truy cập CV này");
         }
 
         // Generate PDF in memory

@@ -43,8 +43,6 @@ public class CVDto {
     @Getter
     @Setter
     @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
     public static class CreateCVRequest {
         @NotBlank(message = "Tiêu đề CV không được để trống")
         @Size(max = 200, message = "Tiêu đề tối đa 200 ký tự")
@@ -54,6 +52,9 @@ public class CVDto {
         private String targetPosition;
 
         private String template;
+
+        @JsonProperty("isPublic")
+        private Boolean isPublic;
     }
 
     @Getter

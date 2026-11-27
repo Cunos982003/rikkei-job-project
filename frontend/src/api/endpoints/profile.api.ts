@@ -674,6 +674,7 @@ export interface CreateCVRequest {
   title: string;
   targetPosition?: string;
   template?: string;
+  isPublic?: boolean;
 }
 
 export interface UpdateCVRequest {

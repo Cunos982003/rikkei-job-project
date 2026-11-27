@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "../../store/useAuthStore";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
@@ -51,6 +51,7 @@ import {
   generateCVPDF,
   downloadPublicPdf,
 } from "../../api/endpoints/profile.api";
+import { profileApi } from "../../api/endpoints/profile.api";
 import type { ApiResponse } from "../../api/types/api";
 import { candidateKeys } from "../../api/queryKeys";
 import { QRCodeSVG } from "qrcode.react";
@@ -91,7 +92,7 @@ export function CandidateCVPage() {
   const [editingCV, setEditingCV] = useState<CV | null>(null);
   const [editingSection, setEditingSection] = useState<CVSectionDto | null>(null);
   const [selectedCVForPreview, setSelectedCVForPreview] = useState<CV | null>(null);
-  const [cvForm, setCvForm] = useState<CreateCVRequest>({ title: "", targetPosition: "", template: "RIKKEI_STANDARD" });
+  const [cvForm, setCvForm] = useState<CreateCVRequest & { isPublic?: boolean }>({ title: "", targetPosition: "", template: "RIKKEI_STANDARD", isPublic: false });
   const [sectionForm, setSectionForm] = useState<UpdateCVSectionRequest>({
     sectionType: "SUMMARY",
     itemIds: [],
@@ -132,16 +133,74 @@ export function CandidateCVPage() {
   });
 
   // Update preview data when query result changes
-  if (previewQueryData?.data) {
-    setPreviewData(previewQueryData.data);
-  }
+  useEffect(() => {
+    if (previewQueryData?.data) {
+      setPreviewData(previewQueryData.data);
+    }
+  }, [previewQueryData]);
+
+  // Profile data queries for section editor (fetch live data from profile tables)
+  const { data: profileData } = useQuery({
+    queryKey: candidateKeys.profile.detail(user?.id),
+    queryFn: () => profileApi.getMyProfile(),
+    enabled: Boolean(user?.id && activeTab === "editor"),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: educationsData } = useQuery({
+    queryKey: candidateKeys.profile.educations(user?.id),
+    queryFn: () => profileApi.getEducations(),
+    enabled: Boolean(user?.id && activeTab === "editor"),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: certificatesData } = useQuery({
+    queryKey: candidateKeys.profile.certificates(user?.id),
+    queryFn: () => profileApi.getCertificates(),
+    enabled: Boolean(user?.id && activeTab === "editor"),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: portfolioData } = useQuery({
+    queryKey: candidateKeys.profile.portfolio(user?.id),
+    queryFn: () => profileApi.getMyPortfolio(),
+    enabled: Boolean(user?.id && activeTab === "editor"),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: internshipsData } = useQuery({
+    queryKey: candidateKeys.profile.internships(user?.id),
+    queryFn: async (): Promise<{ success: boolean; data: any[] }> => {
+      try {
+        return await profileApi.getMyInternships();
+      } catch {
+        return { success: true, data: [] };
+      }
+    },
+    enabled: Boolean(user?.id && activeTab === "editor"),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  const { data: skillsData } = useQuery({
+    queryKey: candidateKeys.skills.byUser(user?.id),
+    queryFn: () => profileApi.getMySkills(),
+    enabled: Boolean(user?.id && activeTab === "editor"),
+    staleTime: 5 * 60 * 1000,
+  });
 
   // Mutations
   const createCVMutation = useMutation({
     mutationFn: (data: CreateCVRequest) => createCV(data),
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: candidateKeys.profile.cvs.all() });
-      closeCVModal();
+      if (response.data && activeTab === "editor") {
+        setEditingCV(response.data);
+        setCvForm({ title: response.data.title, targetPosition: response.data.targetPosition || "", template: response.data.template || "RIKKEI_STANDARD" });
+        refetchPreview();
+      } else {
+        closeCVModal();
+      }
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
       setErrors({ form: error?.response?.data?.message || "Tạo CV thất bại" });
@@ -150,9 +209,12 @@ export function CandidateCVPage() {
 
   const updateCVMutation = useMutation({
     mutationFn: ({ cvId, data }: { cvId: string; data: UpdateCVRequest }) => updateCV(cvId, data),
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: candidateKeys.profile.cvs.all() });
-      if (activeTab === "editor") refetchPreview();
+      if (activeTab === "editor" && response.data) {
+        setEditingCV(prev => prev ? { ...prev, ...response.data } : null);
+        refetchPreview();
+      }
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
       setErrors({ form: error?.response?.data?.message || "Cập nhật CV thất bại" });
@@ -171,9 +233,25 @@ export function CandidateCVPage() {
 
   const upsertSectionMutation = useMutation({
     mutationFn: ({ cvId, data }: { cvId: string; data: UpdateCVSectionRequest }) => upsertCVSection(cvId, data),
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: candidateKeys.profile.cvs.all() });
-      if (activeTab === "editor") refetchPreview();
+      if (activeTab === "editor" && editingCV && response.data) {
+        // Update the section in editingCV
+        setEditingCV(prev => {
+          if (!prev) return null;
+          const sections = prev.sections || [];
+          const existingIndex = sections.findIndex(s => s.sectionType === response.data?.sectionType);
+          const newSection = response.data!;
+          if (existingIndex >= 0) {
+            const newSections = [...sections];
+            newSections[existingIndex] = newSection;
+            return { ...prev, sections: newSections };
+          } else {
+            return { ...prev, sections: [...sections, newSection] };
+          }
+        });
+        refetchPreview();
+      }
       closeSectionModal();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -183,9 +261,15 @@ export function CandidateCVPage() {
 
   const deleteSectionMutation = useMutation({
     mutationFn: ({ cvId, sectionType }: { cvId: string; sectionType: SectionType }) => deleteCVSection(cvId, sectionType),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: candidateKeys.profile.cvs.all() });
-      if (activeTab === "editor") refetchPreview();
+      if (activeTab === "editor" && editingCV) {
+        setEditingCV(prev => {
+          if (!prev) return null;
+          return { ...prev, sections: (prev.sections || []).filter(s => s.sectionType !== variables.sectionType) };
+        });
+        refetchPreview();
+      }
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
       setSectionErrors({ form: error?.response?.data?.message || "Xóa section thất bại" });
@@ -354,19 +438,36 @@ export function CandidateCVPage() {
   };
 
   const handleTogglePublic = (cv: CV) => {
-    updateCVMutation.mutate({ cvId: cv.id, data: { isPublic: !cv.isPublic } });
+    const newIsPublic = !cv.isPublic;
+    // Optimistically update local state for immediate UI feedback
+    if (editingCV?.id === cv.id) {
+      setEditingCV(prev => prev ? { ...prev, isPublic: newIsPublic } : null);
+    }
+    updateCVMutation.mutate({ cvId: cv.id, data: { isPublic: newIsPublic } });
   };
 
   const handleDownloadPublicPdf = (publicToken: string) => {
     downloadPublicPdfMutation.mutate(publicToken);
   };
 
-  // Get available items for a section type from preview data
+  // Get available items for a section type from profile data queries
   const getAvailableItems = (sectionType: SectionType) => {
-    if (!previewData) return [];
-    const sectionPreview = previewData.sections.find(s => s.sectionType === sectionType);
-    if (!sectionPreview) return [];
-    return Array.isArray(sectionPreview.data) ? sectionPreview.data : [];
+    switch (sectionType) {
+      case "SUMMARY":
+        return profileData?.data ? [{ ...profileData.data, id: "summary" }] : [];
+      case "EDUCATION":
+        return educationsData?.data ?? [];
+      case "CERTIFICATES":
+        return certificatesData?.data ?? [];
+      case "PROJECTS":
+        return portfolioData?.data ?? [];
+      case "INTERNSHIP":
+        return internshipsData?.data ?? [];
+      case "SKILLS":
+        return skillsData?.data ?? [];
+      default:
+        return [];
+    }
   };
 
   // Check if item is selected in section
@@ -812,7 +913,7 @@ export function CandidateCVPage() {
       )}
 
       {/* Editor View - 2 Column Layout */}
-      {activeTab === "editor" && editingCV && (
+      {activeTab === "editor" && (
         <div className="space-y-6">
           {/* CV Info Form */}
           <Card>
@@ -847,12 +948,18 @@ export function CandidateCVPage() {
                   <input
                     type="checkbox"
                     id="isPublic"
-                    checked={editingCV.isPublic}
-                    onChange={() => handleTogglePublic(editingCV)}
+                    checked={editingCV?.isPublic ?? cvForm.isPublic ?? false}
+                    onChange={(e) => {
+                      if (editingCV) {
+                        handleTogglePublic(editingCV);
+                      } else {
+                        setCvForm(prev => ({ ...prev, isPublic: e.target.checked }));
+                      }
+                    }}
                     className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                   />
                   <label htmlFor="isPublic" className="text-sm text-foreground">
-                    Hiển thị công khai (có thể truy cập qua link /p/{editingCV.publicToken})
+                    Hiển thị công khai
                   </label>
                 </div>
                 {errors.form && <p className="text-xs text-danger font-medium">{errors.form}</p>}
@@ -1029,7 +1136,7 @@ export function CandidateCVPage() {
                   <CardContent>
                     <div className="space-y-3">
                       {SECTION_TYPES.map(({ type, label, icon, description }: { type: SectionType; label: string; icon: React.ReactNode; description: string }) => {
-                        const section = editingCV.sections?.find(s => s.sectionType === type);
+                        const section = editingCV?.sections?.find(s => s.sectionType === type);
                         const hasSection = !!section;
                         const isIncluded = section?.included ?? true;
                         const itemCount = section?.itemIds?.length || 0;
@@ -1070,7 +1177,7 @@ export function CandidateCVPage() {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => openSectionModal(section!, editingCV)}
+                                    onClick={() => editingCV && openSectionModal(section!, editingCV)}
                                     className="gap-1"
                                   >
                                     <Edit2 className="h-3.5 w-3.5" />
@@ -1080,7 +1187,7 @@ export function CandidateCVPage() {
                                     variant="ghost"
                                     size="sm"
                                     className="h-7 w-7 text-rose-500 hover:bg-rose-50"
-                                    onClick={() => handleDeleteSection(editingCV.id, type)}
+                                    onClick={() => editingCV && handleDeleteSection(editingCV.id, type)}
                                     title="Xóa phần"
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
@@ -1090,8 +1197,8 @@ export function CandidateCVPage() {
                                 <Button
                                   variant="primary"
                                   size="sm"
-                                  onClick={() => openSectionModal(undefined, editingCV)}
-                                  disabled={editingCV.sections && editingCV.sections.length >= 6}
+                                  onClick={() => openSectionModal(undefined, editingCV || undefined)}
+                                  disabled={editingCV?.sections && editingCV.sections.length >= 6}
                                   className="gap-1"
                                 >
                                   <Plus className="h-3.5 w-3.5" />
@@ -1103,7 +1210,7 @@ export function CandidateCVPage() {
                         );
                       })}
                     </div>
-                    {editingCV.sections && editingCV.sections.length >= 6 && (
+                    {editingCV?.sections && editingCV.sections.length >= 6 && (
                       <p className="text-xs text-muted text-center mt-4">CV tối đa 6 phần (mỗi loại một phần)</p>
                     )}
                   </CardContent>
@@ -1134,9 +1241,9 @@ export function CandidateCVPage() {
                       <div className="p-6 h-full overflow-auto">
                         {/* Preview Header */}
                         <div className="mb-6 pb-4 border-b border-border">
-                          <h1 className="text-2xl font-bold text-foreground mb-1">{editingCV.title}</h1>
-                          {editingCV.targetPosition && (
-                            <p className="text-sm text-primary font-medium">{editingCV.targetPosition}</p>
+                          <h1 className="text-2xl font-bold text-foreground mb-1">{editingCV?.title || cvForm.title || "CV mới"}</h1>
+                          {(editingCV?.targetPosition || cvForm.targetPosition) && (
+                            <p className="text-sm text-primary font-medium">{editingCV?.targetPosition || cvForm.targetPosition}</p>
                           )}
                         </div>
 
@@ -1163,7 +1270,7 @@ export function CandidateCVPage() {
                         )}
 
                         {/* QR Code in Preview */}
-                        {editingCV.isPublic && editingCV.publicToken && (
+                        {editingCV?.isPublic && editingCV?.publicToken && (
                           <div className="mt-8 pt-4 border-t border-border text-center">
                             <div className="inline-flex flex-col items-center gap-2 p-3 bg-slate-50 rounded-lg border border-border">
                               <QRCodeSVG
