@@ -38,6 +38,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/evaluate/**").permitAll()
                         // --- KẾT THÚC PHẦN THÊM MỚI CHO TT-04 ---
 
+                        // --- BẮT ĐẦU PHẦN THÊM MỚI CHO UT-05 ---
+                        // Cho phép HR và STAFF truy cập API Báo cáo tuyển dụng
+                        .requestMatchers(HttpMethod.GET, "/api/v1/reports/recruitment/**").hasAnyRole("HR", "STAFF")
+                        // --- KẾT THÚC PHẦN THÊM MỚI CHO UT-05 ---
+
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/v1/jobs/*/recruit",
