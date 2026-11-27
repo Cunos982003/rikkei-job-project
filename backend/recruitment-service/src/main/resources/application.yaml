@@ -4,9 +4,9 @@ spring:
   application:
     name: recruitment-service
   datasource:
-    url: ${RECRUITMENT_DATABASE_URL:jdbc:postgresql://localhost:5432/recruitment_db}
-    username: ${RECRUITMENT_DATABASE_USERNAME:postgres}
-    password: ${RECRUITMENT_DATABASE_PASSWORD:123}
+    url: ${RECRUITMENT_DATABASE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/recruitment_db}}
+    username: ${RECRUITMENT_DATABASE_USERNAME:${SPRING_DATASOURCE_USERNAME:postgres}}
+    password: ${RECRUITMENT_DATABASE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:123}}
   jpa:
     hibernate:
       ddl-auto: update
@@ -48,6 +48,13 @@ app:
     snapshot-directory: ${CV_SNAPSHOT_DIRECTORY:uploads/recruitments}
     max-pdf-bytes: ${CV_MAX_PDF_BYTES:10485760}
   public-base-url: ${PUBLIC_BASE_URL:}
+
+  # --- BẮT ĐẦU PHẦN THÊM MỚI CHO TT-04 ---
+  frontend:
+    base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
+  pm:
+    service-key: ${PM_SERVICE_KEY:pm-service-key}
+  # --- KẾT THÚC PHẦN THÊM MỚI CHO TT-04 ---
 
 management:
   endpoints:

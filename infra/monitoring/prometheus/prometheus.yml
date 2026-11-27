@@ -1,0 +1,126 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          service: "prometheus"
+          env: "prod"
+
+  # ===========================================================================
+  # 11 Spring Boot Microservices (/actuator/prometheus)
+  # ===========================================================================
+  - job_name: "api-gateway"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["api-gateway:8080"]
+        labels:
+          service: "api-gateway"
+          env: "prod"
+
+  - job_name: "auth-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["auth-service:8081"]
+        labels:
+          service: "auth-service"
+          env: "prod"
+
+  - job_name: "profile-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["profile-service:8082"]
+        labels:
+          service: "profile-service"
+          env: "prod"
+
+  - job_name: "evidence-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["evidence-service:8083"]
+        labels:
+          service: "evidence-service"
+          env: "prod"
+
+  - job_name: "assessment-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["assessment-service:8084"]
+        labels:
+          service: "assessment-service"
+          env: "prod"
+
+  - job_name: "job-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["job-service:8085"]
+        labels:
+          service: "job-service"
+          env: "prod"
+
+  - job_name: "recruitment-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["recruitment-service:8086"]
+        labels:
+          service: "recruitment-service"
+          env: "prod"
+
+  - job_name: "notification-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["notification-service:8087"]
+        labels:
+          service: "notification-service"
+          env: "prod"
+
+  - job_name: "audit-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["audit-service:8088"]
+        labels:
+          service: "audit-service"
+          env: "prod"
+
+  - job_name: "learning-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["learning-service:8089"]
+        labels:
+          service: "learning-service"
+          env: "prod"
+
+  - job_name: "ai-career-service"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["ai-career-service:8090"]
+        labels:
+          service: "ai-career-service"
+          env: "prod"
+
+  # ===========================================================================
+  # Infrastructure Exporters (PostgreSQL, Redis, Nginx)
+  # ===========================================================================
+  - job_name: "postgres-exporter"
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+        labels:
+          service: "postgres"
+          env: "prod"
+
+  - job_name: "redis-exporter"
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+        labels:
+          service: "redis"
+          env: "prod"
+
+  - job_name: "nginx-exporter"
+    static_configs:
+      - targets: ["nginx-exporter:9113"]
+        labels:
+          service: "nginx"
+          env: "prod"

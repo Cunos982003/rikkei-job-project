@@ -72,14 +72,14 @@ public class HrAuthService {
         if (user.getStatus() == UserStatus.LOCKED
                 || (user.getLockedUntil() != null && user.getLockedUntil().isAfter(now))) {
             if (user.getLockedReason() != null) {
-                log.warn("Login attempt for manually locked account: {}", email);
+                log.warn("Login attempt for manually locked account (userId={})", user.getId());
                 throw new SsoException(
                         ErrorCode.ACCOUNT_LOCKED,
                         "Tài khoản đã bị khoá. Vui lòng liên hệ cán bộ để được mở khoá.");
             }
             if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(now)) {
                 long remainingMinutes = Math.max(1, Duration.between(now, user.getLockedUntil()).toMinutes() + 1);
-                log.warn("Login attempt for locked account: {}, locked until {}", email, user.getLockedUntil());
+                log.warn("Login attempt for locked account (userId={}), locked until {}", user.getId(), user.getLockedUntil());
                 throw new SsoException(
                         ErrorCode.ACCOUNT_LOCKED,
                         "Account is locked due to 5 consecutive failed login attempts. Please try again in "
@@ -101,7 +101,7 @@ public class HrAuthService {
                 user.setLockedUntil(now.plus(Duration.ofMinutes(LOCKOUT_DURATION_MINUTES)));
                 user.setFailedLoginCount(MAX_FAILED_ATTEMPTS);
                 userRepository.saveAndFlush(user);
-                log.warn("Account {} exceeded max failed attempts, locked for 15 minutes", email);
+                log.warn("Account (userId={}) exceeded max failed attempts, locked for 15 minutes", user.getId());
                 throw new SsoException(
                         ErrorCode.ACCOUNT_LOCKED,
                         "Account has been locked for 15 minutes due to 5 consecutive failed login attempts.");

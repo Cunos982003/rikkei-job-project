@@ -1,10 +1,45 @@
 import type { JobRecommendation } from "../../api/endpoints/career.api";
 
+function formatRoleTitle(title?: string): string | null {
+  if (!title || !title.trim()) return null;
+  return title.replace(/\s*#\d+\s*$/, "").trim();
+}
+
+function normalizeRoleKey(title?: string): string | null {
+  const formatted = formatRoleTitle(title);
+  return formatted ? formatted.toLowerCase() : null;
+}
+
 export function ScoreChart({ recommendations }: { recommendations: JobRecommendation[] }) {
+  const sorted = [...recommendations].sort((a, b) => b.score - a.score);
+  const seenRoles = new Set<string>();
+  const pickedIds = new Set<string>();
+  const diverse: JobRecommendation[] = [];
+
+  for (const item of sorted) {
+    if (diverse.length >= 7) break;
+    const key = normalizeRoleKey(item.jobTitle);
+    if (!key || !seenRoles.has(key)) {
+      if (key) seenRoles.add(key);
+      diverse.push(item);
+      pickedIds.add(item.jobId);
+    }
+  }
+  if (diverse.length < 7) {
+    for (const item of sorted) {
+      if (diverse.length >= 7) break;
+      if (!pickedIds.has(item.jobId)) {
+        diverse.push(item);
+        pickedIds.add(item.jobId);
+      }
+    }
+  }
+  diverse.sort((a, b) => b.score - a.score);
+
   return (
     <div className="space-y-3" aria-label="Điểm phù hợp theo vị trí">
-      {recommendations.slice(0, 7).map((item) => {
-        const displayName = item.jobTitle || item.jobId;
+      {diverse.map((item) => {
+        const displayName = formatRoleTitle(item.jobTitle) || item.jobId;
         return (
           <div key={item.jobId} className="flex items-center gap-3 text-xs">
             <span

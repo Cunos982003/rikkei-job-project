@@ -1,38 +1,223 @@
 ﻿-- ==============================================================================
--- V2__add_offers_and_employment_records.sql: [UT-07] Offer & Employment Records
+-- V1__init_recruitment.sql: Partner portal & tuyển dụng
 -- ==============================================================================
 
-CREATE TABLE IF NOT EXISTS offers (
-    id UUID PRIMARY KEY,
-    application_id UUID NOT NULL UNIQUE REFERENCES recruitments(id) ON DELETE CASCADE,
-    company_name VARCHAR(255),
-    position VARCHAR(255) NOT NULL,
-    salary NUMERIC(15, 2) NOT NULL CHECK (salary > 0),
-    start_date DATE NOT NULL,
-    work_location VARCHAR(500) NOT NULL,
-    note TEXT,
-    response_deadline TIMESTAMPTZ NOT NULL,
-    status VARCHAR(20) NOT NULL CHECK (status IN ('SENT', 'ACCEPTED', 'DECLINED', 'EXPIRED')),
-    responded_at TIMESTAMPTZ,
-    decline_reason TEXT,
+-- 0. Các bảng nền tảng (được tham chiếu bởi V2, V3)
+CREATE TABLE IF NOT EXISTS companies (
+                                         id UUID PRIMARY KEY,
+                                         name VARCHAR(255) NOT NULL,
+    description TEXT,
+    website VARCHAR(500),
+    logo_url VARCHAR(500),
+    address VARCHAR(500),
+    industry VARCHAR(255),
+    company_size VARCHAR(50),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+    );
 
-CREATE INDEX IF NOT EXISTS idx_offers_status_deadline ON offers(status, response_deadline);
+CREATE TABLE IF NOT EXISTS jobs (
+                                    id UUID PRIMARY KEY,
+                                    company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    requirements TEXT,
+    location VARCHAR(255),
+    salary_min NUMERIC(15, 2),
+    salary_max NUMERIC(15, 2),
+    employment_type VARCHAR(50),
+    experience_level VARCHAR(50),
+    status VARCHAR(30) NOT NULL DEFAULT 'DRAFT',
+    posted_at TIMESTAMPTZ,
+    expired_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
 
-CREATE TABLE IF NOT EXISTS employment_records (
-    id UUID PRIMARY KEY,
+CREATE INDEX IF NOT EXISTS idx_jobs_company ON jobs(company_id);
+
+CREATE TABLE IF NOT EXISTS recruitments (
+                                            id UUID PRIMARY KEY,
+                                            company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
+    job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
+    title VARCHAR(255),
+    description TEXT,
+    status VARCHAR(30) NOT NULL DEFAULT 'DRAFT',
+    deadline TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+CREATE INDEX IF NOT EXISTS idx_recruitments_company ON recruitments(company_id);
+CREATE INDEX IF NOT EXISTS idx_recruitments_job ON recruitments(job_id);
+
+CREATE TABLE IF NOT EXISTS applications (
+                                            id UUID PRIMARY KEY,
+                                            recruitment_id UUID REFERENCES recruitments(id) ON DELETE CASCADE,
     user_id UUID NOT NULL,
-    company_id UUID NOT NULL,
-    company_name VARCHAR(255),
-    job_id UUID NOT NULL,
-    application_id UUID UNIQUE REFERENCES recruitments(id) ON DELETE SET NULL,
-    position VARCHAR(255) NOT NULL,
-    start_date DATE NOT NULL,
-    confirmed_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+    cv_url VARCHAR(500),
+    cover_letter TEXT,
+    status VARCHAR(30) NOT NULL DEFAULT 'SUBMITTED',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
 
-CREATE INDEX IF NOT EXISTS idx_employment_records_user ON employment_records(user_id);
-CREATE INDEX IF NOT EXISTS idx_employment_records_company ON employment_records(company_id);
+CREATE INDEX IF NOT EXISTS idx_applications_recruitment ON applications(recruitment_id);
+CREATE INDEX IF NOT EXISTS idx_applications_user ON applications(user_id);
+
+-- 1. Tài khoản đối tác doanh nghiệp
+CREATE TABLE IF NOT EXISTS partner_accounts (
+                                                id UUID PRIMARY KEY,
+                                                company_id UUID NOT NULL,
+                                                email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(255),
+    must_change_password BOOLEAN NOT NULL DEFAULT TRUE,
+    failed_attempts INT NOT NULL DEFAULT 0,
+    locked_until TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+-- 2. Danh sách quan tâm (shortlist)
+CREATE TABLE IF NOT EXISTS shortlists (
+                                          company_id UUID NOT NULL,
+                                          user_id UUID NOT NULL,
+                                          note TEXT,
+                                          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (company_id, user_id)
+    );
+
+-- 3. Yêu cầu phỏng vấn
+CREATE TABLE IF NOT EXISTS interview_requests (
+                                                  id UUID PRIMARY KEY,
+                                                  company_id UUID NOT NULL,
+                                                  account_id UUID,
+                                                  user_id UUID NOT NULL,
+                                                  position VARCHAR(255) NOT NULL,
+    proposed_time TIMESTAMPTZ,
+    status VARCHAR(30) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'CONTACT_OPENED', 'REJECTED', 'INTERVIEWED', 'CLOSED')),
+    result VARCHAR(20) CHECK (result IN ('HIRED', 'NOT_HIRED')),
+    handled_by UUID,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (company_id, user_id, position)
+    );
+
+CREATE INDEX IF NOT EXISTS idx_interview_requests_company ON interview_requests(company_id);
+CREATE INDEX IF NOT EXISTS idx_interview_requests_user ON interview_requests(user_id);
+
+-- 4. Lịch sử trạng thái yêu cầu phỏng vấn
+CREATE TABLE IF NOT EXISTS interview_request_history (
+                                                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    request_id UUID NOT NULL REFERENCES interview_requests(id) ON DELETE CASCADE,
+    status_from VARCHAR(30),
+    status_to VARCHAR(30) NOT NULL,
+    actor_id UUID,
+    note TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+CREATE INDEX IF NOT EXISTS idx_interview_request_history_request ON interview_request_history(request_id);
+
+-- 5. Cấp quyền liên hệ (mỗi yêu cầu được duyệt tạo 1 dòng)
+CREATE TABLE IF NOT EXISTS contact_grants (
+                                              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    request_id UUID NOT NULL UNIQUE REFERENCES interview_requests(id) ON DELETE CASCADE,
+    company_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    granted_by UUID,
+    granted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+CREATE INDEX IF NOT EXISTS idx_contact_grants_company ON contact_grants(company_id);
+CREATE INDEX IF NOT EXISTS idx_contact_grants_user ON contact_grants(user_id);
+
+-- 6. Nhật ký truy cập hồ sơ (giới hạn xem/tải hàng loạt)
+CREATE TABLE IF NOT EXISTS profile_access_logs (
+                                                   id BIGSERIAL PRIMARY KEY,
+                                                   account_id UUID NOT NULL,
+                                                   user_id UUID NOT NULL,
+                                                   access_type VARCHAR(20) NOT NULL CHECK (access_type IN ('VIEW', 'DOWNLOAD_PDF')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+CREATE INDEX IF NOT EXISTS idx_profile_access_logs_account ON profile_access_logs(account_id, access_type, created_at);
+
+-- 7. Vòng phỏng vấn (Interview Rounds) - BỔ SUNG ĐỂ FIX LỖI V2
+-- Bảng này được tham chiếu bởi V2__add_interview_slots_and_schedules.sql
+CREATE TABLE IF NOT EXISTS interview_rounds (
+                                                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    application_id UUID,
+    recruitment_id UUID,
+    round_name VARCHAR(255) NOT NULL,
+    round_order INT NOT NULL DEFAULT 1,
+    status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+    scheduled_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+CREATE INDEX IF NOT EXISTS idx_interview_rounds_application ON interview_rounds(application_id);
+CREATE INDEX IF NOT EXISTS idx_interview_rounds_recruitment ON interview_rounds(recruitment_id);
+
+-- ==============================================================================
+-- SEED DATA: Từ mock data (companies.json, users.json, candidates.json)
+-- ĐÃ SỬA: Thay thế các ID dạng chuỗi (comp-001, user-002...) bằng UUID hợp lệ
+-- ==============================================================================
+
+-- Companies (cần cho FK company_id ở các bảng khác)
+INSERT INTO companies (id, name, website) VALUES
+                                              ('00000000-0000-0000-0000-000000000001', 'Rikkei Jobs Company One', 'https://rikkeijobs.test'),
+                                              ('00000000-0000-0000-0000-000000000002', 'Rikkei Jobs Company Two', 'https://rikkeijobs2.test')
+    ON CONFLICT (id) DO NOTHING;
+
+-- Partner accounts (2 HR users từ users.json)
+INSERT INTO partner_accounts (id, company_id, email, password_hash, full_name, must_change_password, created_at) VALUES
+                                                                                                                     ('80000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'hr1@rikkeijobs.test', '$2a$10$dummy_hash_1', 'HR Account One', FALSE, now() - interval '30 days'),
+                                                                                                                     ('80000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002', 'hr2@rikkeijobs.test', '$2a$10$dummy_hash_2', 'HR Account Two', FALSE, now() - interval '25 days')
+    ON CONFLICT (email) DO NOTHING;
+
+-- Shortlists: mỗi HR quan tâm 2-3 candidates
+INSERT INTO shortlists (company_id, user_id, note, created_at) VALUES
+                                                                   ('00000000-0000-0000-0000-000000000001', '550e8400-e29b-41d4-a716-446655440000', 'Java backend mạnh, phù hợp vị trí Fresher', now() - interval '5 days'),
+                                                                   ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000022', 'Frontend React tốt, xem xét cho vị trí Fullstack', now() - interval '4 days'),
+                                                                   ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000033', 'Fullstack xuất sắc, ưu tiên tuyển', now() - interval '3 days'),
+                                                                   ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000022', 'React/TypeScript chuyên nghiệp', now() - interval '6 days'),
+                                                                   ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000033', 'Kafka + Microservices, phù hợp dự án mới', now() - interval '2 days')
+    ON CONFLICT (company_id, user_id) DO NOTHING;
+
+-- Interview requests: 5 yêu cầu
+INSERT INTO interview_requests (id, company_id, account_id, user_id, position, proposed_time, status, result, handled_by, created_at, updated_at) VALUES
+                                                                                                                                                      ('90000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', '80000000-0000-0000-0000-000000000001', '550e8400-e29b-41d4-a716-446655440000', 'Java Backend Developer (Fresher / Junior)', now() + interval '2 days', 'PENDING', NULL, NULL, now() - interval '7 days', now() - interval '7 days'),
+                                                                                                                                                      ('90000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', '80000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000033', 'Thực tập sinh Fullstack (Dự án IOC)', now() + interval '3 days', 'CONTACT_OPENED', NULL, '80000000-0000-0000-0000-000000000001', now() - interval '10 days', now() - interval '1 day'),
+                                                                                                                                                      ('90000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000002', '80000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000022', 'Frontend React Developer (Fresher)', now() + interval '1 day', 'PENDING', NULL, NULL, now() - interval '5 days', now() - interval '5 days'),
+                                                                                                                                                      ('90000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000001', '80000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000022', 'Java Backend Developer (Fresher / Junior)', now() + interval '5 days', 'REJECTED', 'NOT_HIRED', '80000000-0000-0000-0000-000000000001', now() - interval '12 days', now() - interval '2 days'),
+                                                                                                                                                      ('90000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000002', '80000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000033', 'Thực tập sinh Fullstack (Dự án IOC)', now() + interval '4 days', 'INTERVIEWED', 'HIRED', '80000000-0000-0000-0000-000000000002', now() - interval '8 days', now() - interval '1 day')
+    ON CONFLICT (id) DO NOTHING;
+
+-- Interview request history
+INSERT INTO interview_request_history (id, request_id, status_from, status_to, actor_id, note, created_at) VALUES
+                                                                                                               ('a0000000-0000-0000-0000-000000000001', '90000000-0000-0000-0000-000000000002', 'PENDING', 'CONTACT_OPENED', '80000000-0000-0000-0000-000000000001', 'Đã mở liên hệ', now() - interval '1 day'),
+                                                                                                               ('a0000000-0000-0000-0000-000000000002', '90000000-0000-0000-0000-000000000004', 'PENDING', 'REJECTED', '80000000-0000-0000-0000-000000000001', 'Không phù hợp kỹ năng', now() - interval '2 days'),
+                                                                                                               ('a0000000-0000-0000-0000-000000000003', '90000000-0000-0000-0000-000000000005', 'PENDING', 'INTERVIEWED', '80000000-0000-0000-0000-000000000002', 'Đã phỏng vấn', now() - interval '3 days'),
+                                                                                                               ('a0000000-0000-0000-0000-000000000004', '90000000-0000-0000-0000-000000000005', 'INTERVIEWED', 'CLOSED', '80000000-0000-0000-0000-000000000002', 'Đã tuyển dụng', now() - interval '1 day'),
+                                                                                                               ('a0000000-0000-0000-0000-000000000005', '90000000-0000-0000-0000-000000000003', 'PENDING', 'CONTACT_OPENED', '80000000-0000-0000-0000-000000000002', 'Mở liên hệ', now() - interval '1 day')
+    ON CONFLICT (id) DO NOTHING;
+
+-- Contact grants (cho 2 yêu cầu được duyệt)
+INSERT INTO contact_grants (id, request_id, company_id, user_id, granted_by, granted_at) VALUES
+                                                                                             ('b0000000-0000-0000-0000-000000000001', '90000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000033', '80000000-0000-0000-0000-000000000001', now() - interval '1 day'),
+                                                                                             ('b0000000-0000-0000-0000-000000000002', '90000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000033', '80000000-0000-0000-0000-000000000002', now() - interval '1 day')
+    ON CONFLICT (id) DO NOTHING;
+
+-- Profile access logs (5 log entries)
+INSERT INTO profile_access_logs (account_id, user_id, access_type, created_at) VALUES
+                                                                                   ('80000000-0000-0000-0000-000000000001', '550e8400-e29b-41d4-a716-446655440000', 'VIEW', now() - interval '5 days'),
+                                                                                   ('80000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000033', 'VIEW', now() - interval '4 days'),
+                                                                                   ('80000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000022', 'VIEW', now() - interval '3 days'),
+                                                                                   ('80000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000033', 'DOWNLOAD_PDF', now() - interval '2 days'),
+                                                                                   ('80000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000033', 'DOWNLOAD_PDF', now() - interval '1 day');
+
+-- Note: View v_partner_profiles không tạo ở đây vì cần join với candidate_profiles
+-- đang ở database profile_db (cross-database view không hỗ trợ trong PostgreSQL).
+-- View sẽ được tạo ở API layer hoặc khi có replica/synced data.

@@ -302,7 +302,7 @@ services:
     ports:
       - "3100:3100"
     volumes:
-      - ./loki/loki-config.yml:/etc/loki/local-config.yaml
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml
       - lokidata:/tmp/loki
     command: -config.file=/etc/loki/local-config.yaml
     restart: unless-stopped
@@ -311,7 +311,7 @@ services:
     image: grafana/promtail:3.0.0
     container_name: rikkei_promtail
     volumes:
-      - ./promtail/promtail-config.yml:/etc/promtail/config.yml
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml
       - shared-logs:/var/log/rikkei
     command: -config.file=/etc/promtail/config.yml
     depends_on:
@@ -332,6 +332,57 @@ services:
       - "3200:3200"
     restart: unless-stopped
 
+  # Metrics Collection — Prometheus & Exporters (OBS-PLAT-01)
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.16.0
+    container_name: rikkei_postgres_exporter
+    profiles: ["monitoring"]
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_EXPORTER_USER:-prometheus_exporter}:${POSTGRES_EXPORTER_PASSWORD:-prometheus_exporter_readonly}@postgres:5432/${POSTGRES_DB:-rikkei_jobs}?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.67.0
+    container_name: rikkei_redis_exporter
+    profiles: ["monitoring"]
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.4.0
+    container_name: rikkei_nginx_exporter
+    profiles: ["monitoring"]
+    command:
+      - "--nginx.scrape-uri=http://frontend:8080/nginx_status"
+    depends_on:
+      - frontend
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    container_name: rikkei_prometheus
+    profiles: ["monitoring"]
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"
+    depends_on:
+      - postgres-exporter
+      - redis-exporter
+    restart: unless-stopped
+
 volumes:
   pgdata:
   profile-uploads:
@@ -341,3 +392,4 @@ volumes:
   lokidata:
   shared-logs:
   tempodata:
+  prometheus-data:
