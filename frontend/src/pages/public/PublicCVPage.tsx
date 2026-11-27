@@ -146,6 +146,18 @@ export function PublicCVPage() {
     retry: false,
   });
 
+  // Fetch preview data for richer display - only when CV is public
+  const { data: previewData } = useQuery({
+    queryKey: ["public", "cv", "preview", publicToken],
+    queryFn: async () => {
+      const res = await fetch(`/api/v1/profiles/public/${publicToken}/preview`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!publicToken,
+    retry: false,
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -179,18 +191,6 @@ export function PublicCVPage() {
   }
 
   const cv = data.data;
-
-  // Fetch preview data for richer display
-  const { data: previewData } = useQuery({
-    queryKey: ["public", "cv", "preview", publicToken],
-    queryFn: async () => {
-      const res = await fetch(`/api/v1/profiles/public/${publicToken}/preview`);
-      if (!res.ok) return null;
-      return res.json();
-    },
-    enabled: !!publicToken && cv.isPublic,
-    retry: false,
-  });
 
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4">
