@@ -23,10 +23,22 @@ import {
   Target,
   LayoutDashboard,
   QrCode,
+  GripVertical,
   Sparkles,
 } from "lucide-react";
 import { AIDraftCompareModal } from "../../components/cv/AIDraftCompareModal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   type CV,
   type CVSectionDto,
@@ -43,6 +55,7 @@ import {
   type SkillPreview,
   type InternshipPreview,
   type SummaryPreview,
+  type ReorderCVSectionsRequest,
   getMyCVs,
   createCV,
   updateCV,
@@ -52,6 +65,7 @@ import {
   getCVPreview,
   generateCVPDF,
   downloadPublicPdf,
+  reorderCVSections,
 } from "../../api/endpoints/profile.api";
 import { profileApi } from "../../api/endpoints/profile.api";
 import type { ApiResponse } from "../../api/types/api";
@@ -113,6 +127,13 @@ export function CandidateCVPage() {
   const [generatingPDF, setGeneratingPDF] = useState<{ cvId: string } | null>(null);
   const [copiedPublicUrl, setCopiedPublicUrl] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<CVPreviewResponse | null>(null);
+  const [isTogglingItems, setIsTogglingItems] = useState(false);
+
+  // DnD sensors - must be at top level (Rules of Hooks)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   // Fetch CVs
   const {
@@ -223,6 +244,7 @@ export function CandidateCVPage() {
       if (activeTab === "editor" && response.data) {
         setEditingCV(prev => prev ? { ...prev, ...response.data } : null);
         refetchPreview();
+        closeCVModal(); // Return to list view after successful update
       }
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -261,7 +283,11 @@ export function CandidateCVPage() {
         });
         refetchPreview();
       }
-      closeSectionModal();
+      // Only close modal if not just toggling items (which uses a different flow)
+      if (editingSection && !isTogglingItems) {
+        closeSectionModal();
+      }
+      setIsTogglingItems(false);
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
       setSectionErrors({ form: error?.response?.data?.message || "Cập nhật section thất bại" });
@@ -331,10 +357,24 @@ export function CandidateCVPage() {
     },
   });
 
+  const reorderCVSectionsMutation = useMutation({
+    mutationFn: ({ cvId, data }: { cvId: string; data: ReorderCVSectionsRequest }) =>
+      reorderCVSections(cvId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.cvs.all() });
+      if (activeTab === "editor" && editingCV) {
+        refetchPreview();
+      }
+    },
+    onError: (error: { response?: { data?: { message?: string } } }) => {
+      setErrors({ form: error?.response?.data?.message || "Sắp xếp lại thất bại" });
+    },
+  });
+
   // Handlers
   const closeCVModal = () => {
     setEditingCV(null);
-    setCvForm({ title: "", targetPosition: "", template: "RIKKEI_STANDARD" });
+    setCvForm({ title: "", targetPosition: "", template: "RIKKEI_STANDARD", isPublic: false });
     setErrors({});
     setActiveTab("list");
     setPreviewData(null);
@@ -355,11 +395,11 @@ export function CandidateCVPage() {
     setErrors({});
     if (cv) {
       setEditingCV(cv);
-      setCvForm({ title: cv.title, targetPosition: cv.targetPosition || "", template: cv.template || "RIKKEI_STANDARD" });
-      refetchPreview();
+      setCvForm({ title: cv.title, targetPosition: cv.targetPosition || "", template: cv.template || "RIKKEI_STANDARD", isPublic: cv.isPublic });
+      // refetchPreview will be triggered by the query's enabled condition when editingCV changes
     } else {
       setEditingCV(null);
-      setCvForm({ title: "", targetPosition: "", template: "RIKKEI_STANDARD" });
+      setCvForm({ title: "", targetPosition: "", template: "RIKKEI_STANDARD", isPublic: false });
       setPreviewData(null);
     }
     setActiveTab("editor");
@@ -387,7 +427,7 @@ export function CandidateCVPage() {
     }
   };
 
-  const openSectionModal = (section?: CVSectionDto, cv?: CV) => {
+  const openSectionModal = (section?: CVSectionDto, cv?: CV, sectionType?: SectionType) => {
     setSectionErrors({});
     if (cv) {
       setEditingCV(cv);
@@ -402,11 +442,11 @@ export function CandidateCVPage() {
         sortOrder: section.sortOrder,
       });
     } else {
-      setEditingSection(null);
+      setEditingSection({ sectionType: sectionType || "SUMMARY" } as CVSectionDto);
       const existingSections = cv?.sections || [];
       const nextOrder = existingSections.length > 0 ? Math.max(...existingSections.map(s => s.sortOrder)) + 1 : 0;
       setSectionForm({
-        sectionType: "SUMMARY",
+        sectionType: sectionType || "SUMMARY",
         itemIds: [],
         included: true,
         sortOrder: nextOrder,
@@ -485,22 +525,31 @@ export function CandidateCVPage() {
 
   // Check if item is selected in section
   const isItemSelected = (sectionType: SectionType, itemId: string) => {
-    const section = editingCV?.sections.find(s => s.sectionType === sectionType);
+    const section = editingCV?.sections?.find(s => s.sectionType === sectionType);
     return section?.itemIds?.includes(itemId) ?? false;
   };
 
   // Toggle item selection
   const toggleItemSelection = (sectionType: SectionType, itemId: string) => {
     if (!editingCV) return;
-    const section = editingCV.sections.find(s => s.sectionType === sectionType);
+    const section = editingCV.sections?.find(s => s.sectionType === sectionType);
     const currentItemIds = section?.itemIds || [];
     const newItemIds = currentItemIds.includes(itemId)
       ? currentItemIds.filter(id => id !== itemId)
       : [...currentItemIds, itemId];
 
+    // Update local form state so it stays in sync
+    setSectionForm(prev => ({ ...prev, itemIds: newItemIds }));
+
+    setIsTogglingItems(true);
     upsertSectionMutation.mutate({
       cvId: editingCV.id,
-      data: { sectionType, itemIds: newItemIds, included: true },
+      data: {
+        sectionType,
+        itemIds: newItemIds,
+        included: sectionForm.included,
+        sortOrder: sectionForm.sortOrder
+      },
     });
   };
 
@@ -852,30 +901,26 @@ export function CandidateCVPage() {
                           <Eye className="h-4 w-4" />
                           <span className="hidden sm:inline">Xem</span>
                         </Button>
-                        {cv.pdfUrl ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="flex-1 flex items-center justify-center gap-1"
-                            onClick={() => window.open(`/api/v1/files/minio/${cv.pdfUrl}`, "_blank")}
-                            title="Tải PDF"
-                          >
-                            <Download className="h-4 w-4" />
-                            <span className="hidden sm:inline">PDF</span>
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="flex-1 flex items-center justify-center gap-1"
-                            onClick={() => handleGeneratePDF(cv.id)}
-                            title="Tạo PDF"
-                            isLoading={generatingPDF?.cvId === cv.id}
-                          >
-                            <Loader2 className="h-4 w-4" />
-                            <span className="hidden sm:inline">Tạo PDF</span>
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex-1 flex items-center justify-center gap-1"
+                          onClick={() => cv.pdfUrl ? window.open(`/api/v1/files/minio/${cv.pdfUrl}`, "_blank") : handleGeneratePDF(cv.id)}
+                          title={cv.pdfUrl ? "Tải PDF" : "Tạo PDF"}
+                          isLoading={generatingPDF?.cvId === cv.id}
+                        >
+                          {cv.pdfUrl ? (
+                            <>
+                              <Download className="h-4 w-4" />
+                              <span className="hidden sm:inline">PDF</span>
+                            </>
+                          ) : (
+                            <>
+                              <Loader2 className="h-4 w-4" />
+                              <span className="hidden sm:inline">Tạo PDF</span>
+                            </>
+                          )}
+                        </Button>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {cv.isPublic && (
@@ -1221,8 +1266,8 @@ export function CandidateCVPage() {
                 </Card>
               )}
 
-              {/* Available Sections Grid */}
-              {!editingSection && (
+              {/* Available Sections Grid with Drag and Drop */}
+              {!editingSection && editingCV && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -1232,13 +1277,34 @@ export function CandidateCVPage() {
                     <CardDescription>Kéo thả để sắp xếp, click để chỉnh sửa từng phần</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      {SECTION_TYPES.map(({ type, label, icon, description }: { type: SectionType; label: string; icon: React.ReactNode; description: string }) => {
-                        const section = editingCV?.sections?.find(s => s.sectionType === type);
-                        const hasSection = !!section;
-                        const isIncluded = section?.included ?? true;
-                        const itemCount = section?.itemIds?.length || 0;
-                        const availableItems = getAvailableItems(type).length;
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={(event: DragEndEvent) => {
+                        const { active, over } = event;
+                        if (over && active.id !== over.id) {
+                          // Get current section order from editingCV
+                          const currentSections = editingCV?.sections || [];
+                          const sectionTypes = currentSections.map(s => s.sectionType);
+                          const newOrder = arrayMove(sectionTypes, sectionTypes.indexOf(active.id as SectionType), sectionTypes.indexOf(over.id as SectionType));
+                          reorderCVSectionsMutation.mutate({
+                            cvId: editingCV!.id,
+                            data: { sectionIds: newOrder.map((t) => editingCV!.sections.find(s => s.sectionType === t)?.id).filter(Boolean) as string[] }
+                          });
+                        }
+                      }}
+                    >
+                      <SortableContext
+                        items={editingCV.sections.map(s => s.sectionType)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <div className="space-y-3">
+                          {SECTION_TYPES.map(({ type, label, icon, description }: { type: SectionType; label: string; icon: React.ReactNode; description: string }) => {
+                            const section = editingCV?.sections?.find(s => s.sectionType === type);
+                            const hasSection = !!section;
+                            const isIncluded = section?.included ?? true;
+                            const itemCount = section?.itemIds?.length || 0;
+                            const availableItems = getAvailableItems(type).length;
 
                         return (
                           <div
@@ -1485,22 +1551,20 @@ export function CandidateCVPage() {
                       variant="outline"
                       size="sm"
                       leftIcon={<QrCode className="h-4 w-4" />}
-                      onClick={() => handlePreviewCV(selectedCVForPreview)}
+                      onClick={() => window.open(`${publicBaseUrl}/p/${selectedCVForPreview.publicToken}`, "_blank")}
                       className="gap-2"
                     >
-                      Xem QR
+                      Xem công khai
                     </Button>
-                    {selectedCVForPreview.pdfUrl && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        leftIcon={<Download className="h-4 w-4" />}
-                        onClick={() => handleDownloadPublicPdf(selectedCVForPreview.publicToken)}
-                        className="gap-2"
-                      >
-                        Tải PDF
-                      </Button>
-                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      leftIcon={<Download className="h-4 w-4" />}
+                      onClick={() => handleDownloadPublicPdf(selectedCVForPreview.publicToken)}
+                      className="gap-2"
+                    >
+                      Tải PDF
+                    </Button>
                   </div>
                 </div>
               </CardContent>

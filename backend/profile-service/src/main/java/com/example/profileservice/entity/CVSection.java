@@ -9,7 +9,9 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "cv_sections")
+@Table(name = "cv_sections", uniqueConstraints = {
+        @UniqueConstraint(name = "uq_cv_sections_cv_type", columnNames = {"cv_id", "section_type"})
+})
 @Getter
 @Setter
 @NoArgsConstructor
