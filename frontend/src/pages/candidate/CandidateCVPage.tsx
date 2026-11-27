@@ -380,6 +380,10 @@ export function CandidateCVPage() {
 
   const openSectionModal = (section?: CVSectionDto, cv?: CV) => {
     setSectionErrors({});
+    if (cv) {
+      setEditingCV(cv);
+      setActiveTab("editor");
+    }
     if (section) {
       setEditingSection(section);
       setSectionForm({
