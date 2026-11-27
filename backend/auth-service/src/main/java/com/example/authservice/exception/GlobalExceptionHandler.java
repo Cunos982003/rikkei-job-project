@@ -1,6 +1,10 @@
 package com.example.authservice.exception;
 
 import com.example.authservice.dto.ApiResponse;
+import com.example.authservice.metrics.AuthEndpoint;
+import com.example.authservice.metrics.AuthMetricsService;
+import com.example.authservice.metrics.AuthReason;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -24,9 +28,26 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    private final AuthMetricsService authMetricsService;
+
+    public GlobalExceptionHandler(AuthMetricsService authMetricsService) {
+        this.authMetricsService = authMetricsService;
+    }
+
+    private void recordAuthMetricIfApplicable(HttpServletRequest request, AuthReason reason) {
+        if (request == null) {
+            return;
+        }
+        AuthEndpoint endpoint = AuthEndpoint.fromUri(request.getRequestURI());
+        if (endpoint != null) {
+            authMetricsService.recordFailure(endpoint, reason);
+        }
+    }
+
     @ExceptionHandler(SsoException.class)
-    public ResponseEntity<ApiResponse<Void>> handleSsoException(SsoException ex) {
+    public ResponseEntity<ApiResponse<Void>> handleSsoException(SsoException ex, HttpServletRequest request) {
         log.warn("SSO error [{}]: {}", ex.getErrorCode().getCode(), ex.getMessage());
+        recordAuthMetricIfApplicable(request, AuthReason.fromErrorCode(ex.getErrorCode()));
         ErrorCode errorCode = ex.getErrorCode();
         String message = resolveVietnameseMessage(errorCode, ex.getMessage());
         return ResponseEntity.status(errorCode.getHttpStatus())
@@ -34,15 +55,17 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBadCredentials(BadCredentialsException ex) {
+    public ResponseEntity<ApiResponse<Void>> handleBadCredentials(BadCredentialsException ex, HttpServletRequest request) {
         log.warn("Bad credentials: {}", ex.getMessage());
+        recordAuthMetricIfApplicable(request, AuthReason.INVALID_CREDENTIALS);
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Email hoặc mật khẩu không chính xác"));
     }
 
     @ExceptionHandler(LockedException.class)
-    public ResponseEntity<ApiResponse<Void>> handleLocked(LockedException ex) {
+    public ResponseEntity<ApiResponse<Void>> handleLocked(LockedException ex, HttpServletRequest request) {
         log.warn("Account locked: {}", ex.getMessage());
+        recordAuthMetricIfApplicable(request, AuthReason.ACCOUNT_LOCKED);
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.error(HttpStatus.FORBIDDEN, "ACCOUNT_LOCKED", "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên"));
     }
@@ -62,7 +85,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<Map<String, Object>>> handleValidationException(MethodArgumentNotValidException ex) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> handleValidationException(MethodArgumentNotValidException ex, HttpServletRequest request) {
+        recordAuthMetricIfApplicable(request, AuthReason.VALIDATION_ERROR);
         List<Map<String, String>> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
                 .map(err -> Map.of(
                         "field", err.getField(),
@@ -80,8 +104,9 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(DataIntegrityViolationException ex, HttpServletRequest request) {
         log.error("Database constraint violation", ex);
+        recordAuthMetricIfApplicable(request, AuthReason.TICKET_ALREADY_USED);
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiResponse.error(HttpStatus.CONFLICT, ErrorCode.TICKET_ALREADY_USED.getCode(), "Dữ liệu đã tồn tại trong hệ thống hoặc vé đã được sử dụng"));
     }
@@ -109,8 +134,9 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
+    public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex, HttpServletRequest request) {
         log.error("Unhandled internal server error", ex);
+        recordAuthMetricIfApplicable(request, AuthReason.INTERNAL_ERROR);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL_ERROR.getCode(), "Đã xảy ra sự cố trên hệ thống máy chủ, vui lòng thử lại sau"));
     }
