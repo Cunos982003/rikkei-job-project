@@ -23,8 +23,9 @@ import {
   Target,
   LayoutDashboard,
   QrCode,
-  GripVertical,
+  Sparkles,
 } from "lucide-react";
+import { AIDraftCompareModal } from "../../components/cv/AIDraftCompareModal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
@@ -35,8 +36,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import {
   type CV,
   type CVSectionDto,
@@ -105,6 +105,13 @@ export function CandidateCVPage() {
   const [activeTab, setActiveTab] = useState<"list" | "editor" | "preview">("list");
   const [editingCV, setEditingCV] = useState<CV | null>(null);
   const [editingSection, setEditingSection] = useState<CVSectionDto | null>(null);
+  const [aiDraftTarget, setAiDraftTarget] = useState<{
+    cvId: string;
+    section: "SUMMARY" | "PROJECT";
+    sectionTitle: string;
+    projectId?: string | null;
+    currentText: string;
+  } | null>(null);
   const [selectedCVForPreview, setSelectedCVForPreview] = useState<CV | null>(null);
   const [cvForm, setCvForm] = useState<CreateCVRequest & { isPublic?: boolean }>({ title: "", targetPosition: "", template: "RIKKEI_STANDARD", isPublic: false });
   const [sectionForm, setSectionForm] = useState<UpdateCVSectionRequest>({
@@ -606,8 +613,28 @@ export function CandidateCVPage() {
     switch (sectionType) {
       case "SUMMARY":
         return (
-          <div className="text-sm whitespace-pre-wrap text-foreground/80">
-            {(data as SummaryPreview).summary || "Chưa có tóm tắt"}
+          <div className="space-y-2">
+            <div className="text-sm whitespace-pre-wrap text-foreground/80">
+              {(data as SummaryPreview).summary || "Chưa có tóm tắt"}
+            </div>
+            {editingCV && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                leftIcon={<Sparkles className="h-3.5 w-3.5 text-primary" />}
+                onClick={() =>
+                  setAiDraftTarget({
+                    cvId: editingCV.id,
+                    section: "SUMMARY",
+                    sectionTitle: "Giới thiệu bản thân",
+                    currentText: (data as SummaryPreview).summary || profileData?.data?.summary || "",
+                  })
+                }
+              >
+                AI viết giúp
+              </Button>
+            )}
           </div>
         );
       case "EDUCATION":
@@ -632,6 +659,28 @@ export function CandidateCVPage() {
                 {proj.role && <p className="text-xs text-muted">Vai trò: {proj.role}</p>}
                 {proj.techStack && <p className="text-xs text-muted">Công nghệ: {proj.techStack}</p>}
                 {proj.description && <p className="text-xs text-foreground/80">{proj.description}</p>}
+                {editingCV && proj.id && (
+                  <div className="pt-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-primary"
+                      leftIcon={<Sparkles className="h-3 w-3" />}
+                      onClick={() =>
+                        setAiDraftTarget({
+                          cvId: editingCV.id,
+                          section: "PROJECT",
+                          sectionTitle: `Dự án: ${proj.name}`,
+                          projectId: proj.id,
+                          currentText: proj.description || "",
+                        })
+                      }
+                    >
+                      AI viết giúp
+                    </Button>
+                  </div>
+                )}
                 <div className="flex gap-2 mt-1">
                   {proj.repoUrl && <a href={proj.repoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">Repo</a>}
                   {proj.demoUrl && <a href={proj.demoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">Demo</a>}
@@ -1134,6 +1183,49 @@ export function CandidateCVPage() {
                                         <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
                                         {subtitle && <p className="text-xs text-muted truncate">{subtitle}</p>}
                                       </div>
+                                      {sectionForm.sectionType === "PROJECTS" && editingCV && (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          className="shrink-0 gap-1"
+                                          leftIcon={<Sparkles className="h-3.5 w-3.5 text-primary" />}
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setAiDraftTarget({
+                                              cvId: editingCV.id,
+                                              section: "PROJECT",
+                                              sectionTitle: `Dự án: ${item.name || displayName}`,
+                                              projectId: item.id,
+                                              currentText: item.description || "",
+                                            });
+                                          }}
+                                        >
+                                          AI viết giúp
+                                        </Button>
+                                      )}
+                                      {sectionForm.sectionType === "SUMMARY" && editingCV && (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          className="shrink-0 gap-1"
+                                          leftIcon={<Sparkles className="h-3.5 w-3.5 text-primary" />}
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setAiDraftTarget({
+                                              cvId: editingCV.id,
+                                              section: "SUMMARY",
+                                              sectionTitle: "Giới thiệu bản thân",
+                                              currentText: item.summary || profileData?.data?.summary || "",
+                                            });
+                                          }}
+                                        >
+                                          AI viết giúp
+                                        </Button>
+                                      )}
                                       {sectionForm.sectionType === "SKILLS" && item.verificationStatus && (
                                         <Badge
                                           variant={item.verificationStatus === "Đã xác thực" ? "verified" : "outline"}
@@ -1195,7 +1287,7 @@ export function CandidateCVPage() {
                           const newOrder = arrayMove(sectionTypes, sectionTypes.indexOf(active.id as SectionType), sectionTypes.indexOf(over.id as SectionType));
                           reorderCVSectionsMutation.mutate({
                             cvId: editingCV!.id,
-                            data: { sectionIds: newOrder.map((t) => editingCV!.sections.find(s => s.sectionType === t)?.id).filter(Boolean) as string[] }
+                            data: { sectionIds: newOrder.map((t: SectionType) => editingCV!.sections.find(s => s.sectionType === t)?.id).filter(Boolean) as string[] }
                           });
                         }
                       }}
@@ -1212,24 +1304,91 @@ export function CandidateCVPage() {
                             const itemCount = section?.itemIds?.length || 0;
                             const availableItems = getAvailableItems(type).length;
 
-                            return (
-                              <SortableSectionItem
-                                key={type}
-                                sectionType={type}
-                                label={label}
-                                icon={icon}
-                                hasSection={hasSection}
-                                isIncluded={isIncluded}
-                                itemCount={itemCount}
-                                availableItems={availableItems}
-                                description={description}
-                                onEdit={() => editingCV && openSectionModal(section!, editingCV)}
-                                onDelete={() => editingCV && handleDeleteSection(editingCV.id, type)}
-                                onAdd={() => openSectionModal(undefined, editingCV || undefined, type)}
-                                editingCV={editingCV}
-                              />
-                            );
-                          })}
+                        return (
+                          <div
+                            key={type}
+                            className={`flex items-center gap-4 p-4 rounded-lg border transition-all ${
+                              hasSection ? "bg-slate-50 border-primary/20" : "bg-surface border-border hover:border-primary/50"
+                            }`}
+                          >
+                            <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
+                              {icon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-foreground">{label}</span>
+                                {hasSection && (
+                                  <Badge variant={isIncluded ? "default" : "outline"} size="sm">
+                                    {isIncluded ? "Đã bật" : "Đã ẩn"}
+                                  </Badge>
+                                )}
+                                {!hasSection && (
+                                  <Badge variant="outline" size="sm">Chưa thêm</Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted mt-0.5">{description}</p>
+                              {hasSection && (
+                                <p className="text-xs text-muted mt-1">
+                                  {itemCount} / {availableItems} mục được chọn
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {type === "SUMMARY" && editingCV && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  leftIcon={<Sparkles className="h-3.5 w-3.5 text-primary" />}
+                                  onClick={() =>
+                                    setAiDraftTarget({
+                                      cvId: editingCV.id,
+                                      section: "SUMMARY",
+                                      sectionTitle: "Giới thiệu bản thân",
+                                      currentText: profileData?.data?.summary || "",
+                                    })
+                                  }
+                                >
+                                  AI viết giúp
+                                </Button>
+                              )}
+                              {hasSection ? (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => editingCV && openSectionModal(section!, editingCV)}
+                                    className="gap-1"
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5" />
+                                    Chỉnh sửa
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 text-rose-500 hover:bg-rose-50"
+                                    onClick={() => editingCV && handleDeleteSection(editingCV.id, type)}
+                                    title="Xóa phần"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() => openSectionModal(undefined, editingCV || undefined)}
+                                  disabled={editingCV?.sections && editingCV.sections.length >= 6}
+                                  className="gap-1"
+                                >
+                                  <Plus className="h-3.5 w-3.5" />
+                                  Thêm
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                         </div>
                       </SortableContext>
                     </DndContext>
@@ -1413,126 +1572,23 @@ export function CandidateCVPage() {
           )}
         </div>
       )}
-    </div>
-  );
-}
 
-// SortableSectionItem Component for drag-and-drop
-interface SortableSectionItemProps {
-  sectionType: SectionType;
-  label: string;
-  icon: React.ReactNode;
-  hasSection: boolean;
-  isIncluded: boolean;
-  itemCount: number;
-  availableItems: number;
-  description: string;
-  onEdit: () => void;
-  onDelete: () => void;
-  onAdd: () => void;
-  editingCV: CV | null;
-}
-
-function SortableSectionItem({
-  sectionType,
-  label,
-  icon,
-  hasSection,
-  isIncluded,
-  itemCount,
-  availableItems,
-  description,
-  onEdit,
-  onDelete,
-  onAdd,
-  editingCV,
-}: SortableSectionItemProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: sectionType });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`flex items-center gap-4 p-4 rounded-lg border transition-all ${
-        hasSection ? "bg-slate-50 border-primary/20" : "bg-surface border-border hover:border-primary/50"
-      } ${isDragging ? "shadow-lg" : ""}`}
-    >
-      <button
-        {...attributes}
-        {...listeners}
-        className="p-2 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 active:scale-95 transition-colors cursor-grab active:cursor-grabbing"
-        aria-label={`Kéo để sắp xếp ${label}`}
-      >
-        <GripVertical className="h-5 w-5" />
-      </button>
-      <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
-        {icon}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-foreground">{label}</span>
-          {hasSection && (
-            <Badge variant={isIncluded ? "default" : "outline"} size="sm">
-              {isIncluded ? "Đã bật" : "Đã ẩn"}
-            </Badge>
-          )}
-          {!hasSection && (
-            <Badge variant="outline" size="sm">Chưa thêm</Badge>
-          )}
-        </div>
-        <p className="text-xs text-muted mt-0.5">{description}</p>
-        {hasSection && (
-          <p className="text-xs text-muted mt-1">
-            {itemCount} / {availableItems} mục được chọn
-          </p>
-        )}
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {hasSection ? (
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onEdit}
-              className="gap-1"
-            >
-              <Edit2 className="h-3.5 w-3.5" />
-              Chỉnh sửa
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 text-rose-500 hover:bg-rose-50"
-              onClick={onDelete}
-              title="Xóa phần"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </>
-        ) : (
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={onAdd}
-            disabled={editingCV?.sections && editingCV.sections.length >= 6}
-            className="gap-1"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Thêm
-          </Button>
-        )}
-      </div>
+      {aiDraftTarget && (
+        <AIDraftCompareModal
+          open={!!aiDraftTarget}
+          cvId={aiDraftTarget.cvId}
+          section={aiDraftTarget.section}
+          sectionTitle={aiDraftTarget.sectionTitle}
+          projectId={aiDraftTarget.projectId}
+          currentText={aiDraftTarget.currentText}
+          onClose={() => setAiDraftTarget(null)}
+          onAccepted={() => {
+            queryClient.invalidateQueries({ queryKey: candidateKeys.profile.cvs.all() });
+            queryClient.invalidateQueries({ queryKey: candidateKeys.profile.detail(user?.id) });
+            queryClient.invalidateQueries({ queryKey: candidateKeys.profile.portfolio(user?.id) });
+          }}
+        />
+      )}
     </div>
   );
 }

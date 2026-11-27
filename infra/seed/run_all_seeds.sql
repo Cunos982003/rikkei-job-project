@@ -21,6 +21,10 @@
 \c profile_db
 \i infra/seed/09_seed_contact_access_control.sql
 
+\echo '>>> [3c] Seeding cvs & cv_sections (47 CVs, 282 sections)...'
+\c profile_db
+\i infra/seed/10_seed_cvs.sql
+
 \echo '>>> [4] Seeding recruitment_db (180 recruitments, 420+ history, 46 rounds, 34 feedbacks, 18 offers, 6 employment_records + UT-06/UT-07)...'
 \c recruitment_db
 \i infra/seed/04_seed_recruitment_db.sql
@@ -51,5 +55,6 @@
 \echo '>>> [10] Seeding ai_db (160 recommendations, 16 chat sessions, 128 messages, 16 CV reviews, 140 usage logs, 51 quotas)...'
 \c ai_db
 \i infra/seed/07_seed_ai_db.sql
+\i infra/seed/11_seed_ai_drafts.sql
 
 \echo '>>> DONE! Toàn bộ 10 databases đã được đồng bộ cấu trúc và dữ liệu mẫu khớp 100%!'

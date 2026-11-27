@@ -102,6 +102,11 @@ spring:
               predicates:
                 - Path=/me/interview-practices,/me/interview-practices/**
               filters: *cors-response-filters
+            - id: ai-drafts-direct
+              uri: ${GATEWAY_AI_URL:http://localhost:8090}
+              predicates:
+                - Path=/cvs/*/ai-write,/cvs/*/ai-drafts,/ai-drafts/*/accept,/ai-drafts/*/discard
+              filters: *cors-response-filters
             - id: profile
               uri: ${GATEWAY_PROFILE_URL:http://localhost:8082}
               predicates:
