@@ -30,6 +30,12 @@ public class CV {
     @Column(name = "title", length = 200, nullable = false)
     private String title;
 
+    @Column(name = "target_position", length = 200)
+    private String targetPosition;
+
+    @Column(name = "template", length = 50, nullable = false)
+    private String template = "RIKKEI_STANDARD";
+
     @Column(name = "public_token", length = 64, nullable = false, unique = true)
     private String publicToken;
 

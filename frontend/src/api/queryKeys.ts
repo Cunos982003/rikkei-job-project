@@ -22,6 +22,7 @@ export const candidateKeys = {
       all: () => [...candidateKeys.profile.all(), "cvs"] as const,
       list: (userId?: string) => [...candidateKeys.profile.cvs.all(), "list", userId ?? "me"] as const,
       detail: (cvId: string) => [...candidateKeys.profile.cvs.all(), "detail", cvId] as const,
+      preview: (cvId: string) => [...candidateKeys.profile.cvs.all(), "preview", cvId] as const,
       public: (publicToken: string) => [...candidateKeys.profile.cvs.all(), "public", publicToken] as const,
     },
   },

@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -25,13 +26,20 @@ public class CVSection {
     @JoinColumn(name = "cv_id", nullable = false)
     private CV cv;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "section_type", length = 50, nullable = false)
-    private String sectionType;
+    private SectionType sectionType;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "content_json", columnDefinition = "jsonb", nullable = false)
-    private String contentJson;
+    @Column(name = "item_ids", columnDefinition = "jsonb", nullable = false)
+    @Builder.Default
+    private List<UUID> itemIds = List.of();
+
+    @Column(name = "included", nullable = false)
+    @Builder.Default
+    private boolean included = true;
 
     @Column(name = "sort_order", nullable = false)
+    @Builder.Default
     private int sortOrder = 0;
 }

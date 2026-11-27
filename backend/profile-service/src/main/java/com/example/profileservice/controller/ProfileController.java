@@ -8,6 +8,7 @@ import com.example.profileservice.dto.ReviewHistoryItemDto;
 import com.example.profileservice.dto.SelfSkillDto;
 import com.example.profileservice.dto.UpdateProfileRequest;
 import com.example.profileservice.entity.CandidateProfile;
+import com.example.profileservice.entity.SectionType;
 import com.example.profileservice.exception.ResourceNotFoundException;
 import com.example.profileservice.service.CVService;
 import com.example.profileservice.service.MinioFileUploadService;
@@ -356,7 +357,7 @@ public class ProfileController {
     public ResponseEntity<ApiResponse<Void>> deleteSection(
             @RequestHeader(value = "X-User-Id", required = false) UUID userId,
             @PathVariable UUID cvId,
-            @PathVariable String sectionType) {
+            @PathVariable SectionType sectionType) {
         UUID effectiveUserId = resolveUserId(userId);
         if (effectiveUserId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -378,6 +379,19 @@ public class ProfileController {
         }
         cvService.reorderCVSections(effectiveUserId, cvId, request);
         return ResponseEntity.ok(ApiResponse.success("Sắp xếp lại sections thành công", null));
+    }
+
+    @GetMapping("/me/cvs/{cvId}/preview")
+    public ResponseEntity<ApiResponse<CVDto.CVPreviewResponse>> getCVPreview(
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId,
+            @PathVariable UUID cvId) {
+        UUID effectiveUserId = resolveUserId(userId);
+        if (effectiveUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Chưa đăng nhập"));
+        }
+        CVDto.CVPreviewResponse preview = cvService.getCVPreview(effectiveUserId, cvId);
+        return ResponseEntity.ok(ApiResponse.success("Lấy xem trước CV thành công", preview));
     }
 
     @PostMapping("/me/cvs/{cvId}/generate-pdf")
@@ -403,7 +417,7 @@ public class ProfileController {
     public ResponseEntity<ApiResponse<CVDto>> getPublicCV(
             @PathVariable String publicToken) {
         CVDto cv = cvService.getCVByPublicToken(publicToken)
-                .orElseThrow(() -> new ResourceNotFoundException("CV không tồn tại hoặc không công khai"));
+                .orElseThrow(() -> new ResourceNotFoundException("Hồ sơ không công khai"));
         return ResponseEntity.ok(ApiResponse.success("Lấy CV công khai thành công", cv));
     }
 

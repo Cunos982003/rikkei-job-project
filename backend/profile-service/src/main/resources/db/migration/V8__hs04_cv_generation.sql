@@ -2,7 +2,7 @@
 -- Add CVs and CV sections tables
 
 -- CV table
-CREATE TABLE cvs (
+CREATE TABLE IF NOT EXISTS cvs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,
     title VARCHAR(200) NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE cvs (
 );
 
 -- CV sections table
-CREATE TABLE cv_sections (
+CREATE TABLE IF NOT EXISTS cv_sections (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     cv_id UUID NOT NULL REFERENCES cvs(id) ON DELETE CASCADE,
     section_type VARCHAR(50) NOT NULL CHECK (section_type IN ('personal_info','education','experience','skills','projects','certificates','summary')),
@@ -23,7 +23,7 @@ CREATE TABLE cv_sections (
 );
 
 -- Indexes
-CREATE INDEX idx_cvs_user_id ON cvs(user_id);
-CREATE INDEX idx_cvs_public_token ON cvs(public_token);
-CREATE INDEX idx_cv_sections_cv_id ON cv_sections(cv_id);
-CREATE UNIQUE INDEX uq_cv_sections_cv_type ON cv_sections(cv_id, section_type);
+CREATE INDEX IF NOT EXISTS idx_cvs_user_id ON cvs(user_id);
+CREATE INDEX IF NOT EXISTS idx_cvs_public_token ON cvs(public_token);
+CREATE INDEX IF NOT EXISTS idx_cv_sections_cv_id ON cv_sections(cv_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cv_sections_cv_type ON cv_sections(cv_id, section_type);

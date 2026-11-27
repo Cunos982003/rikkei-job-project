@@ -1,7 +1,15 @@
+buildscript {
+    dependencies {
+        classpath 'org.flywaydb:flyway-database-postgresql:11.10.3'
+        classpath 'org.postgresql:postgresql:42.7.3'
+    }
+}
+
 plugins {
     id 'java'
     id 'org.springframework.boot' version '4.1.2'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.flywaydb.flyway' version '11.10.3'
 }
 
 group = 'com.example'
@@ -111,3 +119,14 @@ task integrationTest(type: Test) {
 tasks.withType(JavaCompile) {
     options.annotationProcessorPath = configurations.annotationProcessor
 }
+
+flyway {
+    url = "${System.getenv('SPRING_DATASOURCE_URL') ?: 'jdbc:postgresql://localhost:5432/profile_db?characterEncoding=UTF-8'}"
+    user = "${System.getenv('SPRING_DATASOURCE_USERNAME') ?: 'postgres'}"
+    password = "${System.getenv('SPRING_DATASOURCE_PASSWORD') ?: 'postgres'}"
+    locations = ['classpath:db/migration']
+    baselineOnMigrate = true
+    baselineVersion = '2'
+    validateOnMigrate = false
+}
+

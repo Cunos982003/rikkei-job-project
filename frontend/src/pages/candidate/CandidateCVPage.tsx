@@ -20,107 +20,67 @@ import {
   Copy,
   Check,
   AlertCircle,
+  Target,
+  LayoutDashboard,
+  QrCode,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   type CV,
-  type CVSection,
-  type CVSectionType,
+  type CVSectionDto,
+  type SectionType,
   type CreateCVRequest,
   type UpdateCVRequest,
   type UpdateCVSectionRequest,
   type GeneratePDFResponse,
+  type CVPreviewResponse,
+  type SectionPreviewData,
+  type EducationPreview,
+  type ProjectPreview,
+  type CertificatePreview,
+  type SkillPreview,
+  type InternshipPreview,
+  type SummaryPreview,
   getMyCVs,
   createCV,
   updateCV,
   deleteCV,
   upsertCVSection,
   deleteCVSection,
+  getCVPreview,
   generateCVPDF,
+  downloadPublicPdf,
 } from "../../api/endpoints/profile.api";
 import type { ApiResponse } from "../../api/types/api";
 import { candidateKeys } from "../../api/queryKeys";
+import { QRCodeSVG } from "qrcode.react";
 
-const SECTION_TYPES: { type: CVSectionType; label: string; icon: React.ReactNode }[] = [
-  { type: "personal_info", label: "Thông tin cá nhân", icon: <FileText className="h-4 w-4" /> },
-  { type: "education", label: "Học vấn", icon: <FileText className="h-4 w-4" /> },
-  { type: "experience", label: "Kinh nghiệm làm việc", icon: <FileText className="h-4 w-4" /> },
-  { type: "skills", label: "Kỹ năng", icon: <FileText className="h-4 w-4" /> },
-  { type: "projects", label: "Dự án", icon: <FileText className="h-4 w-4" /> },
-  { type: "certificates", label: "Chứng chỉ", icon: <FileText className="h-4 w-4" /> },
-  { type: "summary", label: "Tóm tắt", icon: <FileText className="h-4 w-4" /> },
+const SECTION_TYPES: { type: SectionType; label: string; icon: React.ReactNode; description: string }[] = [
+  { type: "SUMMARY", label: "Tóm tắt", icon: <FileText className="h-4 w-4" />, description: "Mục tiêu nghề nghiệp, điểm mạnh chính" },
+  { type: "SKILLS", label: "Kỹ năng", icon: <Target className="h-4 w-4" />, description: "Kỹ năng chuyên môn, mềm, ngôn ngữ" },
+  { type: "EDUCATION", label: "Học vấn", icon: <LayoutDashboard className="h-4 w-4" />, description: "Trình độ đào tạo, chứng chỉ, khóa học" },
+  { type: "PROJECTS", label: "Dự án", icon: <LayoutDashboard className="h-4 w-4" />, description: "Dự án tiêu biểu, vai trò, công nghệ" },
+  { type: "CERTIFICATES", label: "Chứng chỉ", icon: <FileText className="h-4 w-4" />, description: "Chứng chỉ chuyên ngành, đào tạo" },
+  { type: "INTERNSHIP", label: "Thực tập", icon: <Target className="h-4 w-4" />, description: "Kinh nghiệm thực tập, đề tài, nhóm" },
 ];
 
-const SECTION_TEMPLATES: Record<CVSectionType, string> = {
-  personal_info: JSON.stringify({
-    fullName: "",
-    email: "",
-    phone: "",
-    address: "",
-    dob: "",
-    gender: "",
-    headline: "",
-  }, null, 2),
-  education: JSON.stringify({
-    educations: [
-      {
-        school: "",
-        major: "",
-        fromDate: "",
-        toDate: "",
-        gpa: "",
-        note: "",
-      },
-    ],
-  }, null, 2),
-  experience: JSON.stringify({
-    experiences: [
-      {
-        position: "",
-        company: "",
-        fromDate: "",
-        toDate: "",
-        description: "",
-      },
-    ],
-  }, null, 2),
-  skills: JSON.stringify({
-    skills: [
-      {
-        name: "",
-        level: "Cơ bản",
-      },
-    ],
-  }, null, 2),
-  projects: JSON.stringify({
-    projects: [
-      {
-        name: "",
-        role: "",
-        techStack: "",
-        description: "",
-        repoUrl: "",
-        demoUrl: "",
-      },
-    ],
-  }, null, 2),
-  certificates: JSON.stringify({
-    certificates: [
-      {
-        name: "",
-        issuer: "",
-        issuedAt: "",
-        expiresAt: "",
-      },
-    ],
-  }, null, 2),
-  summary: JSON.stringify({
-    summary: "",
-  }, null, 2),
-};
+const SECTION_ORDER = ["SUMMARY", "SKILLS", "EDUCATION", "PROJECTS", "CERTIFICATES", "INTERNSHIP"] as const;
 
-function getSectionLabel(type: CVSectionType): string {
+function getSectionLabel(type: SectionType): string {
   return SECTION_TYPES.find(s => s.type === type)?.label || type;
+}
+
+function getSectionIcon(type: SectionType): React.ReactNode {
+  return SECTION_TYPES.find(s => s.type === type)?.icon || <FileText className="h-4 w-4" />;
+}
+
+function sortSections(sections: CVSectionDto[]): CVSectionDto[] {
+  return [...sections].sort((a, b) => {
+    const orderA = SECTION_ORDER.indexOf(a.sectionType);
+    const orderB = SECTION_ORDER.indexOf(b.sectionType);
+    if (orderA !== orderB) return orderA - orderB;
+    return a.sortOrder - b.sortOrder;
+  });
 }
 
 export function CandidateCVPage() {
@@ -129,18 +89,20 @@ export function CandidateCVPage() {
 
   const [activeTab, setActiveTab] = useState<"list" | "editor" | "preview">("list");
   const [editingCV, setEditingCV] = useState<CV | null>(null);
-  const [editingSection, setEditingSection] = useState<CVSection | null>(null);
+  const [editingSection, setEditingSection] = useState<CVSectionDto | null>(null);
   const [selectedCVForPreview, setSelectedCVForPreview] = useState<CV | null>(null);
-  const [cvForm, setCvForm] = useState<CreateCVRequest>({ title: "" });
+  const [cvForm, setCvForm] = useState<CreateCVRequest>({ title: "", targetPosition: "", template: "RIKKEI_STANDARD" });
   const [sectionForm, setSectionForm] = useState<UpdateCVSectionRequest>({
-    sectionType: "personal_info",
-    contentJson: SECTION_TEMPLATES.personal_info,
+    sectionType: "SUMMARY",
+    itemIds: [],
+    included: true,
     sortOrder: 0,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sectionErrors, setSectionErrors] = useState<Record<string, string>>({});
   const [generatingPDF, setGeneratingPDF] = useState<{ cvId: string } | null>(null);
   const [copiedPublicUrl, setCopiedPublicUrl] = useState<string | null>(null);
+  const [previewData, setPreviewData] = useState<CVPreviewResponse | null>(null);
 
   // Fetch CVs
   const {
@@ -156,6 +118,23 @@ export function CandidateCVPage() {
   });
 
   const cvs = cvsData?.data ?? [];
+
+  // Preview query
+  const {
+    data: previewQueryData,
+    isLoading: previewQueryLoading,
+    refetch: refetchPreview,
+  } = useQuery({
+    queryKey: editingCV ? candidateKeys.profile.cvs.preview(editingCV.id) : [],
+    queryFn: () => getCVPreview(editingCV!.id),
+    enabled: Boolean(editingCV && activeTab === "editor"),
+    staleTime: 30 * 1000,
+  });
+
+  // Update preview data when query result changes
+  if (previewQueryData?.data) {
+    setPreviewData(previewQueryData.data);
+  }
 
   // Mutations
   const createCVMutation = useMutation({
@@ -173,7 +152,7 @@ export function CandidateCVPage() {
     mutationFn: ({ cvId, data }: { cvId: string; data: UpdateCVRequest }) => updateCV(cvId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: candidateKeys.profile.cvs.all() });
-      closeCVModal();
+      if (activeTab === "editor") refetchPreview();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
       setErrors({ form: error?.response?.data?.message || "Cập nhật CV thất bại" });
@@ -194,6 +173,7 @@ export function CandidateCVPage() {
     mutationFn: ({ cvId, data }: { cvId: string; data: UpdateCVSectionRequest }) => upsertCVSection(cvId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: candidateKeys.profile.cvs.all() });
+      if (activeTab === "editor") refetchPreview();
       closeSectionModal();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -202,9 +182,10 @@ export function CandidateCVPage() {
   });
 
   const deleteSectionMutation = useMutation({
-    mutationFn: ({ cvId, sectionType }: { cvId: string; sectionType: CVSectionType }) => deleteCVSection(cvId, sectionType),
+    mutationFn: ({ cvId, sectionType }: { cvId: string; sectionType: SectionType }) => deleteCVSection(cvId, sectionType),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: candidateKeys.profile.cvs.all() });
+      if (activeTab === "editor") refetchPreview();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
       setSectionErrors({ form: error?.response?.data?.message || "Xóa section thất bại" });
@@ -216,7 +197,6 @@ export function CandidateCVPage() {
     onSuccess: (res: ApiResponse<GeneratePDFResponse>) => {
       setGeneratingPDF(null);
       queryClient.invalidateQueries({ queryKey: candidateKeys.profile.cvs.all() });
-      // Open PDF in new tab
       if (res.data?.pdfUrl) {
         window.open(`/api/v1/files/minio/${res.data.pdfUrl}`, "_blank");
       }
@@ -238,33 +218,56 @@ export function CandidateCVPage() {
     },
   });
 
+  const downloadPublicPdfMutation = useMutation({
+    mutationFn: (publicToken: string) => downloadPublicPdf(publicToken),
+    onSuccess: (response, publicToken) => {
+      const blob = response.data;
+      if (blob) {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `CV-${publicToken}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+    },
+    onError: (error: { response?: { data?: { message?: string } } }) => {
+      setErrors({ form: error?.response?.data?.message || "Tải PDF thất bại" });
+    },
+  });
+
   // Handlers
   const closeCVModal = () => {
     setEditingCV(null);
-    setCvForm({ title: "" });
+    setCvForm({ title: "", targetPosition: "", template: "RIKKEI_STANDARD" });
     setErrors({});
     setActiveTab("list");
+    setPreviewData(null);
   };
 
   const closeSectionModal = () => {
     setEditingSection(null);
     setSectionForm({
-      sectionType: "personal_info",
-      contentJson: SECTION_TEMPLATES.personal_info,
+      sectionType: "SUMMARY",
+      itemIds: [],
+      included: true,
       sortOrder: 0,
     });
     setSectionErrors({});
-    setActiveTab("list");
   };
 
   const openCVModal = (cv?: CV) => {
     setErrors({});
     if (cv) {
       setEditingCV(cv);
-      setCvForm({ title: cv.title });
+      setCvForm({ title: cv.title, targetPosition: cv.targetPosition || "", template: cv.template || "RIKKEI_STANDARD" });
+      refetchPreview();
     } else {
       setEditingCV(null);
-      setCvForm({ title: "" });
+      setCvForm({ title: "", targetPosition: "", template: "RIKKEI_STANDARD" });
+      setPreviewData(null);
     }
     setActiveTab("editor");
   };
@@ -274,6 +277,7 @@ export function CandidateCVPage() {
     const nextErrors: Record<string, string> = {};
     if (!cvForm.title.trim()) nextErrors.title = "Tiêu đề CV không được để trống";
     if (cvForm.title.length > 200) nextErrors.title = "Tiêu đề tối đa 200 ký tự";
+    if (cvForm.targetPosition && cvForm.targetPosition.length > 200) nextErrors.targetPosition = "Vị trí mục tiêu tối đa 200 ký tự";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
@@ -290,31 +294,33 @@ export function CandidateCVPage() {
     }
   };
 
-  const openSectionModal = (section?: CVSection, cv?: CV) => {
+  const openSectionModal = (section?: CVSectionDto, cv?: CV) => {
     setSectionErrors({});
     if (section) {
       setEditingSection(section);
       setSectionForm({
         sectionType: section.sectionType,
-        contentJson: section.contentJson,
+        itemIds: section.itemIds || [],
+        included: section.included,
         sortOrder: section.sortOrder,
       });
     } else {
       setEditingSection(null);
+      const existingSections = cv?.sections || [];
+      const nextOrder = existingSections.length > 0 ? Math.max(...existingSections.map(s => s.sortOrder)) + 1 : 0;
       setSectionForm({
-        sectionType: "personal_info",
-        contentJson: SECTION_TEMPLATES.personal_info,
-        sortOrder: (cv?.sections?.length || 0),
+        sectionType: "SUMMARY",
+        itemIds: [],
+        included: true,
+        sortOrder: nextOrder,
       });
     }
-    setActiveTab("editor");
   };
 
   const handleSectionSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const nextErrors: Record<string, string> = {};
     if (!sectionForm.sectionType) nextErrors.sectionType = "Loại section không được để trống";
-    if (!sectionForm.contentJson.trim()) nextErrors.contentJson = "Nội dung section không được để trống";
     setSectionErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
@@ -322,7 +328,7 @@ export function CandidateCVPage() {
     upsertSectionMutation.mutate({ cvId: editingCV.id, data: sectionForm });
   };
 
-  const handleDeleteSection = (cvId: string, sectionType: CVSectionType) => {
+  const handleDeleteSection = (cvId: string, sectionType: SectionType) => {
     if (confirm("Bạn có chắc chắn muốn xóa section này?")) {
       deleteSectionMutation.mutate({ cvId, sectionType });
     }
@@ -347,94 +353,186 @@ export function CandidateCVPage() {
     copyPublicUrlMutation.mutate(publicUrl);
   };
 
-  const renderSectionContent = (section: CVSection) => {
-    try {
-      const content = JSON.parse(section.contentJson);
-      switch (section.sectionType) {
-        case "personal_info":
-          return (
-            <div className="space-y-2 text-sm">
-              {content.fullName && <p><strong>Họ tên:</strong> {content.fullName}</p>}
-              {content.email && <p><strong>Email:</strong> {content.email}</p>}
-              {content.phone && <p><strong>SĐT:</strong> {content.phone}</p>}
-              {content.address && <p><strong>Địa chỉ:</strong> {content.address}</p>}
-              {content.dob && <p><strong>Ngày sinh:</strong> {content.dob}</p>}
-              {content.gender && <p><strong>Giới tính:</strong> {content.gender}</p>}
-              {content.headline && <p><strong>Headline:</strong> {content.headline}</p>}
-            </div>
-          );
-        case "education":
-          return (
-            <div className="space-y-3">
-              {content.educations?.map((edu: any, idx: number) => (
-                <div key={idx} className="border-l-2 border-border pl-3 space-y-1">
-                  <p className="font-medium">{edu.school}</p>
-                  <p className="text-sm text-muted">{edu.major} | {edu.fromDate} - {edu.toDate || "Hiện tại"}</p>
-                  {edu.gpa && <p className="text-sm text-muted">GPA: {edu.gpa}</p>}
-                  {edu.note && <p className="text-sm text-muted">{edu.note}</p>}
+  const handleTogglePublic = (cv: CV) => {
+    updateCVMutation.mutate({ cvId: cv.id, data: { isPublic: !cv.isPublic } });
+  };
+
+  const handleDownloadPublicPdf = (publicToken: string) => {
+    downloadPublicPdfMutation.mutate(publicToken);
+  };
+
+  // Get available items for a section type from preview data
+  const getAvailableItems = (sectionType: SectionType) => {
+    if (!previewData) return [];
+    const sectionPreview = previewData.sections.find(s => s.sectionType === sectionType);
+    if (!sectionPreview) return [];
+    return Array.isArray(sectionPreview.data) ? sectionPreview.data : [];
+  };
+
+  // Check if item is selected in section
+  const isItemSelected = (sectionType: SectionType, itemId: string) => {
+    const section = editingCV?.sections.find(s => s.sectionType === sectionType);
+    return section?.itemIds?.includes(itemId) ?? false;
+  };
+
+  // Toggle item selection
+  const toggleItemSelection = (sectionType: SectionType, itemId: string) => {
+    if (!editingCV) return;
+    const section = editingCV.sections.find(s => s.sectionType === sectionType);
+    const currentItemIds = section?.itemIds || [];
+    const newItemIds = currentItemIds.includes(itemId)
+      ? currentItemIds.filter(id => id !== itemId)
+      : [...currentItemIds, itemId];
+
+    upsertSectionMutation.mutate({
+      cvId: editingCV.id,
+      data: { sectionType, itemIds: newItemIds, included: true },
+    });
+  };
+
+  // Get display name for item
+  const getItemDisplayName = (sectionType: SectionType, item: any): string => {
+    switch (sectionType) {
+      case "EDUCATION":
+        return item.school;
+      case "PROJECTS":
+        return item.name;
+      case "CERTIFICATES":
+        return item.name;
+      case "SKILLS":
+        return item.skillName;
+      case "INTERNSHIP":
+        return item.batchName || item.topicName || "Thực tập";
+      default:
+        return item.name || item.title || "Không tên";
+    }
+  };
+
+  // Get display subtitle for item
+  const getItemSubtitle = (sectionType: SectionType, item: any): string => {
+    switch (sectionType) {
+      case "EDUCATION":
+        return `${item.major} | ${item.fromDate} - ${item.toDate || "Hiện tại"}`;
+      case "PROJECTS":
+        return `${item.role || "Thành viên"} | ${item.techStack || "N/A"}`;
+      case "CERTIFICATES":
+        return `${item.issuer} | ${item.issuedAt}`;
+      case "SKILLS":
+        return `${item.level} • ${item.verificationStatus}`;
+      case "INTERNSHIP":
+        return `${item.topicName || ""} ${item.groupName ? `| ${item.groupName}` : ""}`;
+      default:
+        return "";
+    }
+  };
+
+  // Render preview section
+  const renderPreviewSection = (sectionPreview: SectionPreviewData) => {
+    if (!sectionPreview.included) return null;
+
+    const { sectionType, data } = sectionPreview;
+    const icon = getSectionIcon(sectionType);
+    const label = getSectionLabel(sectionType);
+
+    return (
+      <div key={sectionType} className="space-y-3">
+        <div className="flex items-center gap-2 pb-2 border-b border-border">
+          {icon}
+          <h3 className="text-base font-semibold text-foreground">{label}</h3>
+        </div>
+        <div className="pt-1 space-y-2">
+          {renderSectionContent(sectionType, data)}
+        </div>
+      </div>
+    );
+  };
+
+  // Render section content based on type
+  const renderSectionContent = (sectionType: SectionType, data: any) => {
+    switch (sectionType) {
+      case "SUMMARY":
+        return (
+          <div className="text-sm whitespace-pre-wrap text-foreground/80">
+            {(data as SummaryPreview).summary || "Chưa có tóm tắt"}
+          </div>
+        );
+      case "EDUCATION":
+        return (
+          <div className="space-y-3">
+            {(data as EducationPreview[])?.map((edu, idx) => (
+              <div key={idx} className="border-l-2 border-border pl-3 space-y-1">
+                <p className="font-medium text-sm">{edu.school}</p>
+                <p className="text-xs text-muted">{edu.major} | {edu.fromDate} - {edu.toDate || "Hiện tại"}</p>
+                {edu.gpa && <p className="text-xs text-muted">GPA: {edu.gpa}</p>}
+                {edu.note && <p className="text-xs text-muted">{edu.note}</p>}
+              </div>
+            )) || <p className="text-xs text-muted">Chưa có học vấn nào được chọn</p>}
+          </div>
+        );
+      case "PROJECTS":
+        return (
+          <div className="space-y-3">
+            {(data as ProjectPreview[])?.map((proj, idx) => (
+              <div key={idx} className="border-l-2 border-border pl-3 space-y-1">
+                <p className="font-medium text-sm">{proj.name}</p>
+                {proj.role && <p className="text-xs text-muted">Vai trò: {proj.role}</p>}
+                {proj.techStack && <p className="text-xs text-muted">Công nghệ: {proj.techStack}</p>}
+                {proj.description && <p className="text-xs text-foreground/80">{proj.description}</p>}
+                <div className="flex gap-2 mt-1">
+                  {proj.repoUrl && <a href={proj.repoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">Repo</a>}
+                  {proj.demoUrl && <a href={proj.demoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">Demo</a>}
                 </div>
-              ))}
-            </div>
-          );
-        case "experience":
-          return (
-            <div className="space-y-3">
-              {content.experiences?.map((exp: any, idx: number) => (
-                <div key={idx} className="border-l-2 border-border pl-3 space-y-1">
-                  <p className="font-medium">{exp.position}</p>
-                  <p className="text-sm text-muted">{exp.company} | {exp.fromDate} - {exp.toDate || "Hiện tại"}</p>
-                  {exp.description && <p className="text-sm">{exp.description}</p>}
-                </div>
-              ))}
-            </div>
-          );
-        case "skills":
-          return (
-            <div className="flex flex-wrap gap-2">
-              {content.skills?.map((skill: any, idx: number) => (
-                <Badge key={idx} variant="outline" size="sm">
-                  {skill.name} ({skill.level})
-                </Badge>
-              ))}
-            </div>
-          );
-        case "projects":
-          return (
-            <div className="space-y-3">
-              {content.projects?.map((proj: any, idx: number) => (
-                <div key={idx} className="border-l-2 border-border pl-3 space-y-1">
-                  <p className="font-medium">{proj.name}</p>
-                  {proj.role && <p className="text-sm text-muted">Vai trò: {proj.role}</p>}
-                  {proj.techStack && <p className="text-sm text-muted">Công nghệ: {proj.techStack}</p>}
-                  {proj.description && <p className="text-sm">{proj.description}</p>}
-                  {proj.repoUrl && <a href={proj.repoUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline">Repo</a>}
-                  {proj.demoUrl && <a href={proj.demoUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline ml-2">Demo</a>}
-                </div>
-              ))}
-            </div>
-          );
-        case "certificates":
-          return (
-            <div className="space-y-3">
-              {content.certificates?.map((cert: any, idx: number) => (
-                <div key={idx} className="border-l-2 border-border pl-3 space-y-1">
-                  <p className="font-medium">{cert.name}</p>
-                  <p className="text-sm text-muted">{cert.issuer} | {cert.issuedAt} {cert.expiresAt ? ` - {cert.expiresAt}` : ""}</p>
-                </div>
-              ))}
-            </div>
-          );
-        case "summary":
-          return (
-            <div className="text-sm whitespace-pre-wrap">
-              {content.summary}
-            </div>
-          );
-        default:
-          return <pre className="text-xs bg-slate-100 p-3 rounded overflow-auto">{section.contentJson}</pre>;
-      }
-    } catch {
-      return <pre className="text-xs bg-slate-100 p-3 rounded overflow-auto">{section.contentJson}</pre>;
+              </div>
+            )) || <p className="text-xs text-muted">Chưa có dự án nào được chọn</p>}
+          </div>
+        );
+      case "CERTIFICATES":
+        return (
+          <div className="space-y-3">
+            {(data as CertificatePreview[])?.map((cert, idx) => (
+              <div key={idx} className="border-l-2 border-border pl-3 space-y-1">
+                <p className="font-medium text-sm">{cert.name}</p>
+                <p className="text-xs text-muted">{cert.issuer} | {cert.issuedAt} {cert.expiresAt ? ` - ${cert.expiresAt}` : ""}</p>
+              </div>
+            )) || <p className="text-xs text-muted">Chưa có chứng chỉ nào được chọn</p>}
+          </div>
+        );
+      case "SKILLS":
+        return (
+          <div className="flex flex-wrap gap-2">
+            {(data as SkillPreview[])?.map((skill, idx) => (
+              <Badge key={idx} variant={skill.verificationStatus === "Đã xác thực" ? "verified" : "outline"} size="sm" className="gap-1">
+                {skill.skillName}
+                <span className="text-xs">{skill.level}</span>
+              </Badge>
+            )) || <p className="text-xs text-muted">Chưa có kỹ năng nào được chọn</p>}
+          </div>
+        );
+      case "INTERNSHIP":
+        return (
+          <div className="space-y-3">
+            {(data as InternshipPreview[])?.map((intern, idx) => (
+              <div key={idx} className="border-l-2 border-border pl-3 space-y-1">
+                <p className="font-medium text-sm">{intern.batchName || intern.topicName || "Thực tập"}</p>
+                {intern.topicName && <p className="text-xs text-muted">Đề tài: {intern.topicName}</p>}
+                {intern.groupName && <p className="text-xs text-muted">Nhóm: {intern.groupName}</p>}
+                {intern.startDate && intern.endDate && <p className="text-xs text-muted">{intern.startDate} - {intern.endDate}</p>}
+                {intern.finalScore && <p className="text-xs text-muted">Điểm: {intern.finalScore}</p>}
+                {intern.tasks && intern.tasks.length > 0 && (
+                  <div className="mt-1 space-y-1 ml-2 border-l border-border/50 pl-2">
+                    {intern.tasks.map((task, tIdx) => (
+                      <div key={tIdx} className="text-xs text-muted">
+                        {task.title} {task.acceptedScore && `(${task.acceptedScore})`}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )) || <p className="text-xs text-muted">Chưa có thực tập nào được chọn</p>}
+          </div>
+        );
+      default:
+        return <p className="text-xs text-muted">Loại section không được hỗ trợ</p>;
     }
   };
 
@@ -452,12 +550,14 @@ export function CandidateCVPage() {
       <div className="text-center py-12 p-6 rounded-2xl border border-dashed border-border bg-surface max-w-md mx-auto my-12 shadow-xs">
         <AlertCircle className="h-12 w-12 text-rose-500 mx-auto mb-3" />
         <h3 className="text-base font-bold text-foreground">Không thể tải danh sách CV</h3>
-        <Button variant="outline" size="sm" onClick={() => refetchCVs()} leftIcon={<Loader2 className="h-4 w-4" />}>
+        <Button variant="outline" size="sm" onClick={() => refetchCVs()} leftIcon={<Loader2 className="h-4 w-4" />} className="gap-2">
           Thử lại
         </Button>
       </div>
     );
   }
+
+  const publicBaseUrl = window.location.origin;
 
   return (
     <div className="space-y-6">
@@ -554,10 +654,17 @@ export function CandidateCVPage() {
                       </div>
                     </div>
 
+                    {cv.targetPosition && (
+                      <div className="flex items-center gap-2 text-xs text-muted">
+                        <Target className="h-3.5 w-3.5" />
+                        <span className="truncate max-w-[200px]">{cv.targetPosition}</span>
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-4 text-xs text-muted">
                       <span className="flex items-center gap-1">
                         <FileText className="h-3.5 w-3.5" />
-                        {cv.sections?.length || 0} sections
+                        {cv.sections?.length || 0} phần
                       </span>
                       {cv.pdfUrl && (
                         <span className="flex items-center gap-1 text-emerald-600">
@@ -620,12 +727,12 @@ export function CandidateCVPage() {
                             variant="outline"
                             size="sm"
                             className="flex-1 flex items-center justify-center gap-1"
-                            onClick={() => handleCopyPublicUrl(`${window.location.origin}/p/${cv.publicToken}`)}
+                            onClick={() => handleCopyPublicUrl(`${publicBaseUrl}/p/${cv.publicToken}`)}
                             title="Sao chép link công khai"
                           >
                             <ExternalLink className="h-4 w-4" />
                             <span className="hidden sm:inline">Chia sẻ</span>
-                            {copiedPublicUrl === `${window.location.origin}/p/${cv.publicToken}` && (
+                            {copiedPublicUrl === `${publicBaseUrl}/p/${cv.publicToken}` && (
                               <Check className="h-4 w-4 text-emerald-500" />
                             )}
                           </Button>
@@ -649,26 +756,27 @@ export function CandidateCVPage() {
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-xs font-medium text-muted flex items-center gap-1">
                             <FileText className="h-3.5 w-3.5" />
-                            Các section
+                            Các phần
                           </span>
                           <Button
                             variant="outline"
                             size="sm"
                             leftIcon={<Plus className="h-3 w-3" />}
                             onClick={() => openSectionModal(undefined, cv)}
-                            disabled={cv.sections.length >= 7}
+                            disabled={cv.sections.length >= 6}
                           >
-                            Thêm section
+                            Thêm phần
                           </Button>
                         </div>
                         <div className="space-y-2 max-h-60 overflow-y-auto">
-                          {cv.sections.map((section: CVSection) => (
+                          {sortSections(cv.sections).map((section: CVSectionDto) => (
                             <div key={section.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg text-xs">
                               <span className="flex items-center gap-1 truncate">
-                                <Badge variant="outline" size="sm" className="shrink-0">
+                                <Badge variant={section.included ? "default" : "outline"} size="sm" className="shrink-0">
                                   {getSectionLabel(section.sectionType)}
                                 </Badge>
                                 <span className="text-muted">#{section.sortOrder + 1}</span>
+                                {!section.included && <span className="text-rose-500">(ẩn)</span>}
                               </span>
                               <div className="flex items-center gap-1 shrink-0">
                                 <Button
@@ -703,8 +811,8 @@ export function CandidateCVPage() {
         </div>
       )}
 
-      {/* Editor View */}
-      {activeTab === "editor" && (
+      {/* Editor View - 2 Column Layout */}
+      {activeTab === "editor" && editingCV && (
         <div className="space-y-6">
           {/* CV Info Form */}
           <Card>
@@ -717,28 +825,36 @@ export function CandidateCVPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleCVSubmit} className="space-y-4">
-                <Input
-                  label="Tiêu đề CV *"
-                  value={cvForm.title}
-                  onChange={(e) => setCvForm({ ...cvForm, title: e.target.value })}
-                  placeholder="Ví dụ: CV Nguyễn Văn A - Java Developer"
-                  error={errors.title}
-                  maxLength={200}
-                />
-                {editingCV && (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="isPublic"
-                      checked={editingCV.isPublic}
-                      onChange={(e) => updateCVMutation.mutate({ cvId: editingCV.id, data: { isPublic: e.target.checked } })}
-                      className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                    />
-                    <label htmlFor="isPublic" className="text-sm text-foreground">
-                      Hiển thị công khai (có thể truy cập qua link /p/{"{"}publicToken{"}"})
-                    </label>
-                  </div>
-                )}
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Tiêu đề CV *"
+                    value={cvForm.title}
+                    onChange={(e) => setCvForm({ ...cvForm, title: e.target.value })}
+                    placeholder="Ví dụ: CV Nguyễn Văn A - Java Developer"
+                    error={errors.title}
+                    maxLength={200}
+                  />
+                  <Input
+                    label="Vị trí mục tiêu"
+                    value={cvForm.targetPosition}
+                    onChange={(event) => setCvForm({ ...cvForm, targetPosition: event.target.value })}
+                    placeholder="Ví dụ: Senior Java Developer"
+                    error={errors.targetPosition}
+                    maxLength={200}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isPublic"
+                    checked={editingCV.isPublic}
+                    onChange={() => handleTogglePublic(editingCV)}
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                  />
+                  <label htmlFor="isPublic" className="text-sm text-foreground">
+                    Hiển thị công khai (có thể truy cập qua link /p/{editingCV.publicToken})
+                  </label>
+                </div>
                 {errors.form && <p className="text-xs text-danger font-medium">{errors.form}</p>}
                 <div className="flex justify-end gap-3 pt-2">
                   <Button type="button" variant="outline" onClick={closeCVModal}>
@@ -758,122 +874,315 @@ export function CandidateCVPage() {
             </CardContent>
           </Card>
 
-          {/* Section Editor */}
-          {editingCV && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5 text-primary" />
-                  <span>{editingSection ? "Chỉnh sửa section" : "Thêm section mới"}</span>
-                </CardTitle>
-                <CardDescription>Chọn loại section và nhập nội dung (định dạng JSON)</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSectionSubmit} className="space-y-4">
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="w-full space-y-1.5">
-                      <label className="block text-sm font-medium text-foreground">Loại section *</label>
-                      <select
-                        value={sectionForm.sectionType}
-                        onChange={(e) => {
-                          const type = e.target.value as CVSectionType;
-                          setSectionForm(prev => ({
-                            ...prev,
-                            sectionType: type,
-                            contentJson: SECTION_TEMPLATES[type] || "{}",
-                          }));
-                        }}
-                        className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                      >
-                        {SECTION_TYPES.map(({ type, label }: { type: CVSectionType; label: string }) => (
-                          <option key={type} value={type}>{label}</option>
-                        ))}
-                      </select>
+          {/* 2 Column Layout: Section Manager + Live Preview */}
+          <div className="grid lg:grid-cols-12 gap-6">
+            {/* Left Column: Section Manager (8 cols on lg) */}
+            <div className="lg:col-span-8 space-y-6">
+              {/* Section Editor Modal */}
+              {editingSection && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Settings className="h-5 w-5 text-primary" />
+                      <span>{editingSection ? "Chỉnh sửa phần" : "Thêm phần mới"}</span>
+                    </CardTitle>
+                    <CardDescription>Chọn loại phần và các mục từ hồ sơ để đưa vào CV</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleSectionSubmit} className="space-y-4">
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="w-full space-y-1.5">
+                          <label className="block text-sm font-medium text-foreground">Loại phần *</label>
+                          <select
+                            value={sectionForm.sectionType}
+                            onChange={(event) => {
+                              const type = event.target.value as SectionType;
+                              setSectionForm(prev => ({
+                                ...prev,
+                                sectionType: type,
+                                itemIds: [], // Reset item selection when changing section type
+                              }));
+                            }}
+                            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                          >
+                            {SECTION_TYPES.map(({ type, label }: { type: SectionType; label: string }) => (
+                              <option key={type} value={type}>{label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="w-full space-y-1.5">
+                          <label className="block text-sm font-medium text-foreground">Thứ tự hiển thị</label>
+                          <input
+                            type="number"
+                            value={sectionForm.sortOrder}
+                            onChange={(e) => setSectionForm(prev => ({ ...prev, sortOrder: parseInt(e.target.value) || 0 }))}
+                            min="0"
+                            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="w-full space-y-1.5">
+                        <label className="block text-sm font-medium text-foreground">Bao gồm trong CV</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="included"
+                            checked={sectionForm.included}
+                            onChange={(e) => setSectionForm(prev => ({ ...prev, included: e.target.checked }))}
+                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                          />
+                          <label htmlFor="included" className="text-sm text-foreground">
+                            Hiển thị phần này trong CV (bỏ chọn để ẩn tạm thời)
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Item Selection */}
+                      <div className="w-full space-y-1.5">
+                        <label className="block text-sm font-medium text-foreground flex items-center justify-between">
+                          Chọn mục từ hồ sơ
+                          <span className="text-xs text-muted">
+                            Dữ liệu lấy trực tiếp từ hồ sơ, cập nhật tự động khi xuất PDF
+                          </span>
+                        </label>
+                        <div className="border border-border rounded-lg bg-surface max-h-64 overflow-y-auto p-2">
+                          {(() => {
+                            const availableItems = getAvailableItems(sectionForm.sectionType);
+                            if (availableItems.length === 0) {
+                              return (
+                                <p className="text-sm text-muted text-center py-8">
+                                  Chưa có dữ liệu cho phần này. Hãy cập nhật hồ sơ cá nhân trước.
+                                </p>
+                              );
+                            }
+                            return (
+                              <div className="space-y-1">
+                                {availableItems.map((item: any) => {
+                                  const itemId = item.id || item.skillId;
+                                  const displayName = getItemDisplayName(sectionForm.sectionType, item);
+                                  const subtitle = getItemSubtitle(sectionForm.sectionType, item);
+                                  const selected = isItemSelected(sectionForm.sectionType, itemId);
+                                  return (
+                                    <label
+                                      key={itemId}
+                                      className="flex items-center gap-3 p-2 hover:bg-slate-100 rounded cursor-pointer transition-colors"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={selected}
+                                        onChange={() => toggleItemSelection(sectionForm.sectionType, itemId)}
+                                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                                      />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
+                                        {subtitle && <p className="text-xs text-muted truncate">{subtitle}</p>}
+                                      </div>
+                                      {sectionForm.sectionType === "SKILLS" && item.verificationStatus && (
+                                        <Badge
+                                          variant={item.verificationStatus === "Đã xác thực" ? "verified" : "outline"}
+                                          size="sm"
+                                          className="shrink-0"
+                                        >
+                                          {item.verificationStatus}
+                                        </Badge>
+                                      )}
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+
+                      {sectionErrors.form && <p className="text-xs text-danger font-medium">{sectionErrors.form}</p>}
+                      <div className="flex justify-end gap-3 pt-2">
+                        <Button type="button" variant="outline" onClick={closeSectionModal}>
+                          <X className="h-4 w-4" />
+                          Hủy
+                        </Button>
+                        <Button
+                          type="submit"
+                          variant="primary"
+                          isLoading={upsertSectionMutation.isPending}
+                        >
+                          <Save className="h-4 w-4" />
+                          {editingSection ? "Cập nhật" : "Thêm"}
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Available Sections Grid */}
+              {!editingSection && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-primary" />
+                      <span>Quản lý các phần CV</span>
+                    </CardTitle>
+                    <CardDescription>Kéo thả để sắp xếp, click để chỉnh sửa từng phần</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {SECTION_TYPES.map(({ type, label, icon, description }: { type: SectionType; label: string; icon: React.ReactNode; description: string }) => {
+                        const section = editingCV.sections?.find(s => s.sectionType === type);
+                        const hasSection = !!section;
+                        const isIncluded = section?.included ?? true;
+                        const itemCount = section?.itemIds?.length || 0;
+                        const availableItems = getAvailableItems(type).length;
+
+                        return (
+                          <div
+                            key={type}
+                            className={`flex items-center gap-4 p-4 rounded-lg border transition-all ${
+                              hasSection ? "bg-slate-50 border-primary/20" : "bg-surface border-border hover:border-primary/50"
+                            }`}
+                          >
+                            <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
+                              {icon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-foreground">{label}</span>
+                                {hasSection && (
+                                  <Badge variant={isIncluded ? "default" : "outline"} size="sm">
+                                    {isIncluded ? "Đã bật" : "Đã ẩn"}
+                                  </Badge>
+                                )}
+                                {!hasSection && (
+                                  <Badge variant="outline" size="sm">Chưa thêm</Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted mt-0.5">{description}</p>
+                              {hasSection && (
+                                <p className="text-xs text-muted mt-1">
+                                  {itemCount} / {availableItems} mục được chọn
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {hasSection ? (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => openSectionModal(section!, editingCV)}
+                                    className="gap-1"
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5" />
+                                    Chỉnh sửa
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 text-rose-500 hover:bg-rose-50"
+                                    onClick={() => handleDeleteSection(editingCV.id, type)}
+                                    title="Xóa phần"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() => openSectionModal(undefined, editingCV)}
+                                  disabled={editingCV.sections && editingCV.sections.length >= 6}
+                                  className="gap-1"
+                                >
+                                  <Plus className="h-3.5 w-3.5" />
+                                  Thêm
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className="w-full space-y-1.5">
-                      <label className="block text-sm font-medium text-foreground">Thứ tự hiển thị</label>
-                      <input
-                        type="number"
-                        value={sectionForm.sortOrder}
-                        onChange={(e) => setSectionForm(prev => ({ ...prev, sortOrder: parseInt(e.target.value) || 0 }))}
-                        min="0"
-                        className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                      />
+                    {editingCV.sections && editingCV.sections.length >= 6 && (
+                      <p className="text-xs text-muted text-center mt-4">CV tối đa 6 phần (mỗi loại một phần)</p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Right Column: Live Preview (4 cols on lg) */}
+            <div className="lg:col-span-4">
+              <Card className="sticky top-6 h-[calc(100vh-8rem)] flex flex-col">
+                <CardHeader className="flex-shrink-0">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Eye className="h-5 w-5 text-primary" />
+                      <span>Xem trước</span>
+                    </CardTitle>
+                    <Badge variant={previewQueryLoading ? "default" : "verified"} size="sm" className="gap-1">
+                      <Loader2 className={`h-3 w-3 ${previewQueryLoading ? "animate-spin" : ""}`} />
+                      {previewQueryLoading ? "Đang tải..." : "Cập nhật tự động"}
+                    </Badge>
+                  </div>
+                  <CardDescription className="text-xs">A4 preview trên nền xám - dữ liệu live từ hồ sơ</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-auto p-0 bg-slate-100">
+                  {/* A4 Preview Area */}
+                  <div className="flex items-center justify-center min-h-[700px] p-4">
+                    <div className="w-full max-w-[210mm] bg-white shadow-xl" style={{ aspectRatio: "210/297" }}>
+                      <div className="p-6 h-full overflow-auto">
+                        {/* Preview Header */}
+                        <div className="mb-6 pb-4 border-b border-border">
+                          <h1 className="text-2xl font-bold text-foreground mb-1">{editingCV.title}</h1>
+                          {editingCV.targetPosition && (
+                            <p className="text-sm text-primary font-medium">{editingCV.targetPosition}</p>
+                          )}
+                        </div>
+
+                        {/* Preview Sections */}
+                        {previewData?.sections && previewData.sections.length > 0 ? (
+                          <div className="space-y-5">
+                            {previewData.sections
+                              .filter(s => s.included)
+                              .sort((a, b) => {
+                                const orderA = SECTION_ORDER.indexOf(a.sectionType);
+                                const orderB = SECTION_ORDER.indexOf(b.sectionType);
+                                if (orderA !== orderB) return orderA - orderB;
+                                return a.sortOrder - b.sortOrder;
+                              })
+                              .map((sectionPreview) => renderPreviewSection(sectionPreview))
+                            }
+                          </div>
+                        ) : (
+                          <div className="text-center py-12 text-muted">
+                            <FileText className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                            <p>Chưa có phần nào được bật</p>
+                            <p className="text-xs mt-1">Thêm và bật các phần từ bên trái để xem preview</p>
+                          </div>
+                        )}
+
+                        {/* QR Code in Preview */}
+                        {editingCV.isPublic && editingCV.publicToken && (
+                          <div className="mt-8 pt-4 border-t border-border text-center">
+                            <div className="inline-flex flex-col items-center gap-2 p-3 bg-slate-50 rounded-lg border border-border">
+                              <QRCodeSVG
+                                value={`${publicBaseUrl}/p/${editingCV.publicToken}`}
+                                size={80}
+                                level="M"
+                                includeMargin={true}
+                              />
+                              <p className="text-xs text-muted">Quét để xem CV công khai</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-
-                  <div className="w-full space-y-1.5">
-                    <label className="block text-sm font-medium text-foreground">Nội dung JSON *</label>
-                    <textarea
-                      value={sectionForm.contentJson}
-                      onChange={(e) => setSectionForm(prev => ({ ...prev, contentJson: e.target.value }))}
-                      rows={12}
-                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                      placeholder={SECTION_TEMPLATES[sectionForm.sectionType]}
-                      spellCheck={false}
-                    />
-                    <p className="text-xs text-muted">
-                      Xem mẫu cấu trúc JSON cho từng loại section. Hãy giữ đúng định dạng để hiển thị đúng khi xuất PDF.
-                    </p>
-                    {sectionErrors.contentJson && <p className="text-xs text-danger font-medium">{sectionErrors.contentJson}</p>}
-                    {sectionErrors.form && <p className="text-xs text-danger font-medium">{sectionErrors.form}</p>}
-                  </div>
-
-                  <div className="flex justify-end gap-3 pt-2">
-                    <Button type="button" variant="outline" onClick={() => { setEditingSection(null); setActiveTab("list"); }}>
-                      <X className="h-4 w-4" />
-                      Hủy
-                    </Button>
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      isLoading={upsertSectionMutation.isPending}
-                    >
-                      <Save className="h-4 w-4" />
-                      {editingSection ? "Cập nhật" : "Thêm"}
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Available Sections */}
-          {editingCV && !editingSection && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
-                  <span>Các loại section có sẵn</span>
-                </CardTitle>
-                <CardDescription>Chọn một loại section để thêm vào CV</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {SECTION_TYPES.map(({ type, label, icon }: { type: CVSectionType; label: string; icon: React.ReactNode }) => {
-                    const hasSection = editingCV.sections?.some(s => s.sectionType === type);
-                    return (
-                      <Button
-                        key={type}
-                        variant={hasSection ? "secondary" : "outline"}
-                        size="sm"
-                        className="h-24 flex flex-col items-center justify-center gap-2 text-left"
-                        onClick={() => openSectionModal(undefined, editingCV!)}
-                        disabled={hasSection || (editingCV.sections?.length || 0) >= 7}
-                      >
-                        <div className="text-2xl">{icon}</div>
-                        <span className="font-medium">{label}</span>
-                        {hasSection && <Badge variant="verified" size="sm">Đã có</Badge>}
-                      </Button>
-                    );
-                  })}
-                </div>
-                {editingCV.sections && editingCV.sections.length >= 7 && (
-                  <p className="text-xs text-muted text-center mt-4">CV tối đa 7 section (mỗi loại một section)</p>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       )}
 
@@ -895,6 +1204,7 @@ export function CandidateCVPage() {
                   size="sm"
                   leftIcon={<Download className="h-4 w-4" />}
                   onClick={() => window.open(`/api/v1/files/minio/${selectedCVForPreview.pdfUrl}`, "_blank")}
+                  className="gap-2"
                 >
                   Tải PDF
                 </Button>
@@ -905,14 +1215,19 @@ export function CandidateCVPage() {
           <Card className="bg-white">
             <CardContent className="p-8 max-w-3xl mx-auto">
               <div className="space-y-6">
-                {selectedCVForPreview.sections?.map((section: CVSection) => (
+                {selectedCVForPreview.sections?.map((section: CVSectionDto) => (
                   <div key={section.id} className="space-y-2">
                     <div className="flex items-center gap-2 pb-2 border-b border-border">
                       <FileText className="h-5 w-5 text-primary" />
                       <h3 className="text-lg font-semibold text-foreground">{getSectionLabel(section.sectionType)}</h3>
                     </div>
                     <div className="pt-2">
-                      {renderSectionContent(section)}
+                      <p className="text-sm text-muted">
+                        {section.included ? `${section.itemIds?.length || 0} mục được chọn` : "Đã ẩn"}
+                      </p>
+                      <p className="text-xs text-muted">
+                        Dữ liệu chi tiết sẽ hiển thị khi xuất PDF (đọc live từ hồ sơ)
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -926,21 +1241,44 @@ export function CandidateCVPage() {
           {selectedCVForPreview.isPublic && (
             <Card className="bg-primary/5 border-primary/20">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-4">
                   <div>
                     <p className="font-medium text-foreground">Link công khai CV</p>
                     <p className="text-sm text-muted truncate max-w-md">
-                      {window.location.origin}/p/{selectedCVForPreview.publicToken}
+                      {publicBaseUrl}/p/{selectedCVForPreview.publicToken}
                     </p>
                   </div>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    leftIcon={<Copy className="h-4 w-4" />}
-                    onClick={() => handleCopyPublicUrl(`${window.location.origin}/p/${selectedCVForPreview.publicToken}`)}
-                  >
-                    {copiedPublicUrl === `${window.location.origin}/p/${selectedCVForPreview.publicToken}` ? "Đã sao chép" : "Sao chép link"}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      leftIcon={<Copy className="h-4 w-4" />}
+                      onClick={() => handleCopyPublicUrl(`${publicBaseUrl}/p/${selectedCVForPreview.publicToken}`)}
+                      className="gap-2"
+                    >
+                      {copiedPublicUrl === `${publicBaseUrl}/p/${selectedCVForPreview.publicToken}` ? "Đã sao chép" : "Sao chép link"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      leftIcon={<QrCode className="h-4 w-4" />}
+                      onClick={() => handlePreviewCV(selectedCVForPreview)}
+                      className="gap-2"
+                    >
+                      Xem QR
+                    </Button>
+                    {selectedCVForPreview.pdfUrl && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        leftIcon={<Download className="h-4 w-4" />}
+                        onClick={() => handleDownloadPublicPdf(selectedCVForPreview.publicToken)}
+                        className="gap-2"
+                      >
+                        Tải PDF
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

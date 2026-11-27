@@ -641,45 +641,52 @@ export const profileApi = {
 
 // ===== HS-04 CV Types =====
 
-export type CVSectionType =
-  | 'personal_info'
-  | 'education'
-  | 'experience'
-  | 'skills'
-  | 'projects'
-  | 'certificates'
-  | 'summary';
+export type SectionType =
+  | 'SUMMARY'
+  | 'SKILLS'
+  | 'EDUCATION'
+  | 'PROJECTS'
+  | 'CERTIFICATES'
+  | 'INTERNSHIP';
 
-export interface CVSection {
+export interface CVSectionDto {
   id: string;
-  sectionType: CVSectionType;
-  contentJson: string;
+  sectionType: SectionType;
+  itemIds: string[];
+  included: boolean;
   sortOrder: number;
 }
 
 export interface CV {
   id: string;
   title: string;
+  targetPosition?: string;
+  template?: string;
   publicToken: string;
   isPublic: boolean;
   pdfUrl?: string;
   createdAt: string;
   updatedAt: string;
-  sections: CVSection[];
+  sections: CVSectionDto[];
 }
 
 export interface CreateCVRequest {
   title: string;
+  targetPosition?: string;
+  template?: string;
 }
 
 export interface UpdateCVRequest {
   title?: string;
+  targetPosition?: string;
+  template?: string;
   isPublic?: boolean;
 }
 
 export interface UpdateCVSectionRequest {
-  sectionType: CVSectionType;
-  contentJson: string;
+  sectionType: SectionType;
+  itemIds?: string[];
+  included?: boolean;
   sortOrder?: number;
 }
 
@@ -690,6 +697,94 @@ export interface ReorderCVSectionsRequest {
 export interface GeneratePDFResponse {
   pdfUrl: string;
   publicUrl: string;
+}
+
+// Preview types - reads live data from profile tables
+export interface PersonalInfoPreview {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  dob?: string;
+  gender?: string;
+  headline?: string;
+}
+
+export interface EducationPreview {
+  id: string;
+  school: string;
+  major: string;
+  fromDate?: string;
+  toDate?: string;
+  gpa?: string;
+  note?: string;
+}
+
+export interface ProjectPreview {
+  id: string;
+  name: string;
+  role?: string;
+  description?: string;
+  techStack?: string;
+  repoUrl?: string;
+  demoUrl?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface CertificatePreview {
+  id: string;
+  name: string;
+  issuer: string;
+  issuedAt?: string;
+  expiresAt?: string;
+}
+
+export interface SkillPreview {
+  skillId: string;
+  skillName: string;
+  level: string;
+  verifiedScore?: number;
+  selfScore?: number;
+  verificationStatus: string; // "Đã xác thực" or "Tự khai"
+}
+
+export interface InternshipTaskPreview {
+  title?: string;
+  acceptedScore?: string;
+  acceptedAt?: string;
+}
+
+export interface InternshipPreview {
+  id: string;
+  batchName?: string;
+  topicName?: string;
+  groupName?: string;
+  startDate?: string;
+  endDate?: string;
+  finalScore?: string;
+  tasks: InternshipTaskPreview[];
+}
+
+export interface SummaryPreview {
+  summary?: string;
+}
+
+export interface SectionPreviewData {
+  sectionType: SectionType;
+  included: boolean;
+  sortOrder: number;
+  data: PersonalInfoPreview | EducationPreview[] | ProjectPreview[] | CertificatePreview[] | SkillPreview[] | InternshipPreview[] | SummaryPreview;
+}
+
+export interface CVPreviewResponse {
+  id: string;
+  title: string;
+  targetPosition?: string;
+  template?: string;
+  publicToken: string;
+  isPublic: boolean;
+  sections: SectionPreviewData[];
 }
 
 // ===== HS-04 CV Endpoints =====
@@ -732,14 +827,14 @@ export const deleteCV = (cvId: string): Promise<ApiResponse<null>> => {
 /**
  * Cập nhật section của CV
  */
-export const upsertCVSection = (cvId: string, data: UpdateCVSectionRequest): Promise<ApiResponse<CVSection>> => {
-  return api.put<CVSection>(`/profiles/me/cvs/${cvId}/sections`, data);
+export const upsertCVSection = (cvId: string, data: UpdateCVSectionRequest): Promise<ApiResponse<CVSectionDto>> => {
+  return api.put<CVSectionDto>(`/profiles/me/cvs/${cvId}/sections`, data);
 };
 
 /**
  * Xóa section của CV
  */
-export const deleteCVSection = (cvId: string, sectionType: CVSectionType): Promise<ApiResponse<null>> => {
+export const deleteCVSection = (cvId: string, sectionType: SectionType): Promise<ApiResponse<null>> => {
   return api.delete<null>(`/profiles/me/cvs/${cvId}/sections/${sectionType}`);
 };
 
@@ -748,6 +843,13 @@ export const deleteCVSection = (cvId: string, sectionType: CVSectionType): Promi
  */
 export const reorderCVSections = (cvId: string, data: ReorderCVSectionsRequest): Promise<ApiResponse<null>> => {
   return api.put<null>(`/profiles/me/cvs/${cvId}/sections/order`, data);
+};
+
+/**
+ * Xem trước CV (đọc dữ liệu live từ profile)
+ */
+export const getCVPreview = (cvId: string): Promise<ApiResponse<CVPreviewResponse>> => {
+  return api.get<CVPreviewResponse>(`/profiles/me/cvs/${cvId}/preview`);
 };
 
 /**
@@ -762,4 +864,13 @@ export const generateCVPDF = (cvId: string): Promise<ApiResponse<GeneratePDFResp
  */
 export const getPublicCV = (publicToken: string): Promise<ApiResponse<CV>> => {
   return api.get<CV>(`/profiles/public/${publicToken}`);
+};
+
+/**
+ * Tải PDF công khai
+ */
+export const downloadPublicPdf = (publicToken: string): Promise<ApiResponse<Blob>> => {
+  return api.get<Blob>(`/profiles/public/${publicToken}/pdf`, {
+    responseType: 'blob',
+  });
 };

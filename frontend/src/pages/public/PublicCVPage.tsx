@@ -1,116 +1,140 @@
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, FileText, Eye, Download, AlertCircle, CheckCircle2, Smartphone } from "lucide-react";
-import { type CVSection, getPublicCV } from "../../api/endpoints/profile.api";
+import { Loader2, FileText, Eye, Download, AlertCircle, CheckCircle2, Smartphone, QrCode, ExternalLink } from "lucide-react";
+import {
+  type SectionType,
+  type SectionPreviewData,
+  type EducationPreview,
+  type ProjectPreview,
+  type CertificatePreview,
+  type SkillPreview,
+  type InternshipPreview,
+  type SummaryPreview,
+  getPublicCV,
+} from "../../api/endpoints/profile.api";
 import { candidateKeys } from "../../api/queryKeys";
 import { Card, CardContent } from "../../components/common/Card";
 import { Badge } from "../../components/common/Badge";
 import { Button } from "../../components/common/Button";
 import { QRCodeSVG } from "qrcode.react";
 
-function getSectionLabel(type: string): string {
-  const labels: Record<string, string> = {
-    personal_info: "Thông tin cá nhân",
-    education: "Học vấn",
-    experience: "Kinh nghiệm làm việc",
-    skills: "Kỹ năng",
-    projects: "Dự án",
-    certificates: "Chứng chỉ",
-    summary: "Tóm tắt",
-  };
-  return labels[type] || type;
+const SECTION_TYPES: { type: SectionType; label: string; icon: React.ReactNode }[] = [
+  { type: "SUMMARY", label: "Tóm tắt", icon: <FileText className="h-4 w-4" /> },
+  { type: "SKILLS", label: "Kỹ năng", icon: <FileText className="h-4 w-4" /> },
+  { type: "EDUCATION", label: "Học vấn", icon: <FileText className="h-4 w-4" /> },
+  { type: "PROJECTS", label: "Dự án", icon: <FileText className="h-4 w-4" /> },
+  { type: "CERTIFICATES", label: "Chứng chỉ", icon: <FileText className="h-4 w-4" /> },
+  { type: "INTERNSHIP", label: "Thực tập", icon: <FileText className="h-4 w-4" /> },
+];
+
+const SECTION_ORDER = ["SUMMARY", "SKILLS", "EDUCATION", "PROJECTS", "CERTIFICATES", "INTERNSHIP"] as const;
+
+function getSectionLabel(type: SectionType): string {
+  return SECTION_TYPES.find(s => s.type === type)?.label || type;
 }
 
-function renderSectionContent(section: CVSection) {
-  try {
-    const content = JSON.parse(section.contentJson);
-    switch (section.sectionType) {
-      case "personal_info":
-        return (
-          <div className="space-y-2 text-sm">
-            {content.fullName && <p><strong>Họ tên:</strong> {content.fullName}</p>}
-            {content.email && <p><strong>Email:</strong> {content.email}</p>}
-            {content.phone && <p><strong>SĐT:</strong> {content.phone}</p>}
-            {content.address && <p><strong>Địa chỉ:</strong> {content.address}</p>}
-            {content.dob && <p><strong>Ngày sinh:</strong> {content.dob}</p>}
-            {content.gender && <p><strong>Giới tính:</strong> {content.gender}</p>}
-            {content.headline && <p><strong>Headline:</strong> {content.headline}</p>}
-          </div>
-        );
-      case "education":
-        return (
-          <div className="space-y-3">
-            {content.educations?.map((edu: any, idx: number) => (
-              <div key={idx} className="border-l-2 border-border pl-3 space-y-1">
-                <p className="font-medium">{edu.school}</p>
-                <p className="text-sm text-muted">{edu.major} | {edu.fromDate} - {edu.toDate || "Hiện tại"}</p>
-                {edu.gpa && <p className="text-sm text-muted">GPA: {edu.gpa}</p>}
-                {edu.note && <p className="text-sm text-muted">{edu.note}</p>}
-              </div>
-            ))}
-          </div>
-        );
-      case "experience":
-        return (
-          <div className="space-y-3">
-            {content.experiences?.map((exp: any, idx: number) => (
-              <div key={idx} className="border-l-2 border-border pl-3 space-y-1">
-                <p className="font-medium">{exp.position}</p>
-                <p className="text-sm text-muted">{exp.company} | {exp.fromDate} - {exp.toDate || "Hiện tại"}</p>
-                {exp.description && <p className="text-sm">{exp.description}</p>}
-              </div>
-            ))}
-          </div>
-        );
-      case "skills":
-        return (
-          <div className="flex flex-wrap gap-2">
-            {content.skills?.map((skill: any, idx: number) => (
-              <Badge key={idx} variant="outline" size="sm">
-                {skill.name} ({skill.level})
-              </Badge>
-            ))}
-          </div>
-        );
-      case "projects":
-        return (
-          <div className="space-y-3">
-            {content.projects?.map((proj: any, idx: number) => (
-              <div key={idx} className="border-l-2 border-border pl-3 space-y-1">
-                <p className="font-medium">{proj.name}</p>
-                {proj.role && <p className="text-sm text-muted">Vai trò: {proj.role}</p>}
-                {proj.techStack && <p className="text-sm text-muted">Công nghệ: {proj.techStack}</p>}
-                {proj.description && <p className="text-sm">{proj.description}</p>}
-                {proj.repoUrl && <a href={proj.repoUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline">Repo</a>}
-                {proj.demoUrl && <a href={proj.demoUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline ml-2">Demo</a>}
-              </div>
-            ))}
-          </div>
-        );
-      case "certificates":
-        return (
-          <div className="space-y-3">
-            {content.certificates?.map((cert: any, idx: number) => (
-              <div key={idx} className="border-l-2 border-border pl-3 space-y-1">
-                <p className="font-medium">{cert.name}</p>
-                <p className="text-sm text-muted">{cert.issuer} | {cert.issuedAt} {cert.expiresAt ? ` - {cert.expiresAt}` : ""}</p>
-              </div>
-            ))}
-          </div>
-        );
-      case "summary":
-        return (
-          <div className="text-sm whitespace-pre-wrap">
-            {content.summary}
-          </div>
-        );
-      default:
-        return <pre className="text-xs bg-slate-100 p-3 rounded overflow-auto">{section.contentJson}</pre>;
-    }
-  } catch {
-    return <pre className="text-xs bg-slate-100 p-3 rounded overflow-auto">{section.contentJson}</pre>;
-  }
+function getSectionIcon(type: SectionType): React.ReactNode {
+  return SECTION_TYPES.find(s => s.type === type)?.icon || <FileText className="h-4 w-4" />;
 }
+
+function sortSections(sections: SectionPreviewData[]): SectionPreviewData[] {
+  return [...sections].sort((a, b) => {
+    const orderA = SECTION_ORDER.indexOf(a.sectionType);
+    const orderB = SECTION_ORDER.indexOf(b.sectionType);
+    if (orderA !== orderB) return orderA - orderB;
+    return a.sortOrder - b.sortOrder;
+  });
+}
+
+const renderSectionContent = (sectionPreview: SectionPreviewData) => {
+  const { sectionType, data } = sectionPreview;
+
+  switch (sectionType) {
+    case "SUMMARY":
+      return (
+        <div className="text-sm whitespace-pre-wrap text-foreground/80">
+          {(data as SummaryPreview).summary || "Chưa có tóm tắt"}
+        </div>
+      );
+    case "EDUCATION":
+      return (
+        <div className="space-y-3">
+          {(data as EducationPreview[])?.map((edu, idx) => (
+            <div key={idx} className="border-l-2 border-border pl-3 space-y-1">
+              <p className="font-medium text-sm">{edu.school}</p>
+              <p className="text-xs text-muted">{edu.major} | {edu.fromDate} - {edu.toDate || "Hiện tại"}</p>
+              {edu.gpa && <p className="text-xs text-muted">GPA: {edu.gpa}</p>}
+              {edu.note && <p className="text-xs text-muted">{edu.note}</p>}
+            </div>
+          )) || <p className="text-xs text-muted">Chưa có học vấn nào</p>}
+        </div>
+      );
+    case "PROJECTS":
+      return (
+        <div className="space-y-3">
+          {(data as ProjectPreview[])?.map((proj, idx) => (
+            <div key={idx} className="border-l-2 border-border pl-3 space-y-1">
+              <p className="font-medium text-sm">{proj.name}</p>
+              {proj.role && <p className="text-xs text-muted">Vai trò: {proj.role}</p>}
+              {proj.techStack && <p className="text-xs text-muted">Công nghệ: {proj.techStack}</p>}
+              {proj.description && <p className="text-xs text-foreground/80">{proj.description}</p>}
+              <div className="flex gap-2 mt-1">
+                {proj.repoUrl && <a href={proj.repoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">Repo</a>}
+                {proj.demoUrl && <a href={proj.demoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">Demo</a>}
+              </div>
+            </div>
+          )) || <p className="text-xs text-muted">Chưa có dự án nào</p>}
+        </div>
+      );
+    case "CERTIFICATES":
+      return (
+        <div className="space-y-3">
+          {(data as CertificatePreview[])?.map((cert, idx) => (
+            <div key={idx} className="border-l-2 border-border pl-3 space-y-1">
+              <p className="font-medium text-sm">{cert.name}</p>
+              <p className="text-xs text-muted">{cert.issuer} | {cert.issuedAt} {cert.expiresAt ? ` - ${cert.expiresAt}` : ""}</p>
+            </div>
+          )) || <p className="text-xs text-muted">Chưa có chứng chỉ nào</p>}
+        </div>
+      );
+    case "SKILLS":
+      return (
+        <div className="flex flex-wrap gap-2">
+          {(data as SkillPreview[])?.map((skill, idx) => (
+            <Badge key={idx} variant={skill.verificationStatus === "Đã xác thực" ? "verified" : "outline"} size="sm" className="gap-1">
+              {skill.skillName}
+              <span className="text-xs">{skill.level}</span>
+            </Badge>
+          )) || <p className="text-xs text-muted">Chưa có kỹ năng nào</p>}
+        </div>
+      );
+    case "INTERNSHIP":
+      return (
+        <div className="space-y-3">
+          {(data as InternshipPreview[])?.map((intern, idx) => (
+            <div key={idx} className="border-l-2 border-border pl-3 space-y-1">
+              <p className="font-medium text-sm">{intern.batchName || intern.topicName || "Thực tập"}</p>
+              {intern.topicName && <p className="text-xs text-muted">Đề tài: {intern.topicName}</p>}
+              {intern.groupName && <p className="text-xs text-muted">Nhóm: {intern.groupName}</p>}
+              {intern.startDate && intern.endDate && <p className="text-xs text-muted">{intern.startDate} - {intern.endDate}</p>}
+              {intern.finalScore && <p className="text-xs text-muted">Điểm: {intern.finalScore}</p>}
+              {intern.tasks && intern.tasks.length > 0 && (
+                <div className="mt-1 space-y-1 ml-2 border-l border-border/50 pl-2">
+                  {intern.tasks.map((task, tIdx) => (
+                    <div key={tIdx} className="text-xs text-muted">
+                      {task.title} {task.acceptedScore && `(${task.acceptedScore})`}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )) || <p className="text-xs text-muted">Chưa có thực tập nào</p>}
+        </div>
+      );
+    default:
+      return <p className="text-xs text-muted">Loại phần không được hỗ trợ</p>;
+  }
+};
 
 export function PublicCVPage() {
   const { publicToken } = useParams<{ publicToken: string }>();
@@ -141,7 +165,7 @@ export function PublicCVPage() {
             <div className="mx-auto mb-4 p-4 rounded-full bg-rose-100 w-16 h-16 flex items-center justify-center">
               <AlertCircle className="h-8 w-8 text-rose-500" />
             </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">Không tìm thấy CV</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-2">Hồ sơ không công khai</h3>
             <p className="text-muted text-sm mb-6">
               CV này không tồn tại hoặc chưa được công khai.
             </p>
@@ -156,6 +180,18 @@ export function PublicCVPage() {
 
   const cv = data.data;
 
+  // Fetch preview data for richer display
+  const { data: previewData } = useQuery({
+    queryKey: ["public", "cv", "preview", publicToken],
+    queryFn: async () => {
+      const res = await fetch(`/api/v1/profiles/public/${publicToken}/preview`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!publicToken && cv.isPublic,
+    retry: false,
+  });
+
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4">
       <div className="max-w-3xl mx-auto">
@@ -166,6 +202,9 @@ export function PublicCVPage() {
             CV công khai
           </div>
           <h1 className="text-3xl font-bold text-foreground mb-2">{cv.title}</h1>
+          {cv.targetPosition && (
+            <p className="text-primary font-medium mb-2">{cv.targetPosition}</p>
+          )}
           <Badge variant="verified" size="md" className="gap-1">
             <Eye className="h-3.5 w-3.5" />
             Đang công khai
@@ -193,22 +232,52 @@ export function PublicCVPage() {
         {/* CV Content */}
         <Card className="bg-white shadow-sm">
           <CardContent className="p-8">
-            <div className="space-y-8">
-              {cv.sections?.map((section: CVSection) => (
-                <div key={section.id} className="space-y-3">
-                  <div className="flex items-center gap-2 pb-3 border-b border-border">
-                    <FileText className="h-6 w-6 text-primary" />
-                    <h2 className="text-xl font-semibold text-foreground">{getSectionLabel(section.sectionType)}</h2>
+            {previewData?.data ? (
+              // Use preview data with live profile data
+              <div className="space-y-8">
+                {sortSections(previewData.data.sections)
+                  .filter((s: SectionPreviewData) => s.included)
+                  .map((sectionPreview) => (
+                    <div key={sectionPreview.sectionType} className="space-y-3">
+                      <div className="flex items-center gap-2 pb-3 border-b border-border">
+                        {getSectionIcon(sectionPreview.sectionType)}
+                        <h2 className="text-xl font-semibold text-foreground">{getSectionLabel(sectionPreview.sectionType)}</h2>
+                      </div>
+                      <div className="pt-2">
+                        {renderSectionContent(sectionPreview)}
+                      </div>
+                    </div>
+                  ))}
+                {(previewData.data.sections.length === 0 || previewData.data.sections.every((s: SectionPreviewData) => !s.included)) && (
+                  <p className="text-muted text-center py-8">CV này chưa có nội dung được bật</p>
+                )}
+              </div>
+            ) : (
+              // Fallback to stored CV data (for backward compatibility)
+              <div className="space-y-8">
+                {cv.sections?.map((section: any) => (
+                  <div key={section.id} className="space-y-3">
+                    <div className="flex items-center gap-2 pb-3 border-b border-border">
+                      <FileText className="h-6 w-6 text-primary" />
+                      <h2 className="text-xl font-semibold text-foreground">{getSectionLabel(section.sectionType)}</h2>
+                    </div>
+                    <div className="pt-2">
+                      {(() => {
+                        try {
+                          const content = JSON.parse(section.contentJson || "{}");
+                          return renderSectionContent({ sectionType: section.sectionType, included: true, sortOrder: section.sortOrder, data: content });
+                        } catch {
+                          return <pre className="text-xs bg-slate-100 p-3 rounded overflow-auto">{section.contentJson}</pre>;
+                        }
+                      })()}
+                    </div>
                   </div>
-                  <div className="pt-2">
-                    {renderSectionContent(section)}
-                  </div>
-                </div>
-              ))}
-              {(!cv.sections || cv.sections.length === 0) && (
-                <p className="text-muted text-center py-8">CV này chưa có nội dung</p>
-              )}
-            </div>
+                ))}
+                {(!cv.sections || cv.sections.length === 0) && (
+                  <p className="text-muted text-center py-8">CV này chưa có nội dung</p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -231,6 +300,40 @@ export function PublicCVPage() {
             </Button>
           </div>
         )}
+
+        {/* Share QR Code Section */}
+        <Card className="mt-8 bg-primary/5 border-primary/20">
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-center sm:text-left">
+                <p className="font-medium text-foreground mb-1">Chia sẻ CV này</p>
+                <p className="text-sm text-muted truncate max-w-xs sm:max-w-md">
+                  {window.location.href}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon={<ExternalLink className="h-4 w-4" />}
+                  onClick={() => navigator.clipboard.writeText(window.location.href)}
+                  className="gap-2"
+                >
+                  Sao chép link
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  leftIcon={<QrCode className="h-4 w-4" />}
+                  onClick={() => {}}
+                  className="gap-2"
+                >
+                  Mã QR
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
