@@ -23,7 +23,6 @@ import {
   Target,
   LayoutDashboard,
   QrCode,
-  GripVertical,
   Sparkles,
 } from "lucide-react";
 import { AIDraftCompareModal } from "../../components/cv/AIDraftCompareModal";
@@ -37,8 +36,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import {
   type CV,
   type CVSectionDto,
@@ -1289,7 +1287,7 @@ export function CandidateCVPage() {
                           const newOrder = arrayMove(sectionTypes, sectionTypes.indexOf(active.id as SectionType), sectionTypes.indexOf(over.id as SectionType));
                           reorderCVSectionsMutation.mutate({
                             cvId: editingCV!.id,
-                            data: { sectionIds: newOrder.map((t) => editingCV!.sections.find(s => s.sectionType === t)?.id).filter(Boolean) as string[] }
+                            data: { sectionIds: newOrder.map((t: SectionType) => editingCV!.sections.find(s => s.sectionType === t)?.id).filter(Boolean) as string[] }
                           });
                         }
                       }}
