@@ -1,5 +1,6 @@
 package com.example.profileservice.controller;
 
+import com.example.profileservice.service.CVService;
 import com.example.profileservice.service.FileUploadService;
 import com.example.profileservice.service.MinioFileUploadService;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,8 +34,10 @@ class FileControllerTest {
     void setup() {
         FileUploadService fileUploadService = new FileUploadService(uploadDir.toString());
         MinioFileUploadService minioFileUploadService = mock(MinioFileUploadService.class);
+        CVService cvService = mock(CVService.class);
         when(minioFileUploadService.getObject("/files/" + "test.pdf")).thenThrow(new IOException("Not found"));
-        mockMvc = MockMvcBuilders.standaloneSetup(new FileController(fileUploadService, minioFileUploadService)).build();
+        when(cvService.canAccessCVPdf(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).thenReturn(true);
+        mockMvc = MockMvcBuilders.standaloneSetup(new FileController(fileUploadService, minioFileUploadService, cvService)).build();
     }
 
     private static byte[] pdfOfSize(int size) {
