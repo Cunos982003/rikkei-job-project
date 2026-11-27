@@ -1391,7 +1391,9 @@ export function CandidateCVPage() {
                           </div>
                         );
                       })}
-                    </div>
+                        </div>
+                      </SortableContext>
+                    </DndContext>
                     {editingCV?.sections && editingCV.sections.length >= 6 && (
                       <p className="text-xs text-muted text-center mt-4">CV tối đa 6 phần (mỗi loại một phần)</p>
                     )}
@@ -1584,7 +1586,7 @@ export function CandidateCVPage() {
           onClose={() => setAiDraftTarget(null)}
           onAccepted={() => {
             queryClient.invalidateQueries({ queryKey: candidateKeys.profile.cvs.all() });
-            queryClient.invalidateQueries({ queryKey: candidateKeys.profile.me(user?.id) });
+            queryClient.invalidateQueries({ queryKey: candidateKeys.profile.detail(user?.id) });
             queryClient.invalidateQueries({ queryKey: candidateKeys.profile.portfolio(user?.id) });
           }}
         />
