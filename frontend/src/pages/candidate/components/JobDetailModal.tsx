@@ -11,6 +11,8 @@ import {
   formatSalary,
 } from "../../../utils/jobLabels";
 import { cn } from "../../../utils/cn";
+import { useAuthStore } from "../../../store/useAuthStore";
+import { MatchScorePanel } from "../../../components/match/MatchScorePanel";
 
 export interface JobDetailModalProps {
   job?: JobPostingItem | null;
@@ -33,6 +35,9 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   isApplied,
   appliedJobIds,
 }) => {
+  const { user } = useAuthStore();
+  const isCandidate = user?.role === "CANDIDATE";
+
   const currentJob = job || selectedJob;
   const isModalOpen = isOpen !== undefined ? isOpen : !!currentJob;
 
@@ -224,6 +229,9 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
             </div>
           )}
         </div>
+
+        {/* DN-06 Match Score Panel - Candidate Only */}
+        {isCandidate && <MatchScorePanel jobId={currentJob.id} mode="me" enabled={isModalOpen} />}
       </div>
     </Modal>
   );

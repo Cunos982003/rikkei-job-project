@@ -19,7 +19,6 @@ import { Button } from "../../components/common/Button";
 import { Card, CardContent } from "../../components/common/Card";
 import { Modal } from "../../components/common/Modal";
 import { JobStatusBadge } from "../../components/hr/JobStatusBadge";
-import { JobDetailModal } from "../../components/hr/JobDetailModal";
 import { LEVEL_LABELS, TYPE_LABELS } from "../../utils/jobLabels";
 import { cn } from "../../utils/cn";
 
@@ -30,19 +29,6 @@ export function HrJobsPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 10;
-
-  // Modal xem chi tiết tin
-  const [viewingJobId, setViewingJobId] = useState<string | null>(null);
-
-  const { data: viewingJobResponse } = useQuery({
-    queryKey: ["hr", "jobs", "detail", viewingJobId],
-    queryFn: async () => {
-      if (!viewingJobId) return null;
-      const res = await hrJobsApi.getJob(viewingJobId);
-      return res.data;
-    },
-    enabled: !!viewingJobId,
-  });
 
   // Modal đóng tin
   const [closingJob, setClosingJob] = useState<JobListItem | null>(null);
@@ -212,7 +198,7 @@ export function HrJobsPage() {
                   <tr key={job.id} className="hover:bg-slate-50/60 transition-colors">
                     <td
                       className="px-5 py-4 font-semibold text-foreground max-w-xs truncate cursor-pointer hover:text-primary transition-colors"
-                      onClick={() => setViewingJobId(job.id)}
+                      onClick={() => navigate(`/hr/jobs/${job.id}`)}
                     >
                       {job.title}
                     </td>
@@ -238,7 +224,7 @@ export function HrJobsPage() {
                           variant="outline"
                           size="sm"
                           leftIcon={<FileText className="h-3.5 w-3.5" />}
-                          onClick={() => setViewingJobId(job.id)}
+                          onClick={() => navigate(`/hr/jobs/${job.id}`)}
                         >
                           Chi tiết
                         </Button>
@@ -304,34 +290,6 @@ export function HrJobsPage() {
           )}
         </Card>
       )}
-
-      {/* Modal chi tiết tin tuyển dụng */}
-      <JobDetailModal
-        job={viewingJobResponse ?? null}
-        onClose={() => setViewingJobId(null)}
-        footer={
-          <div className="flex items-center justify-end gap-2 w-full">
-            <Button variant="outline" size="sm" onClick={() => setViewingJobId(null)}>
-              Đóng
-            </Button>
-            {viewingJobResponse &&
-              viewingJobResponse.status !== "PENDING" &&
-              viewingJobResponse.status !== "CLOSED" && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => {
-                    const id = viewingJobResponse.id;
-                    setViewingJobId(null);
-                    navigate(`/hr/jobs/${id}/edit`);
-                  }}
-                >
-                  Sửa tin
-                </Button>
-              )}
-          </div>
-        }
-      />
 
       {/* Modal xác nhận đóng tin */}
       <Modal

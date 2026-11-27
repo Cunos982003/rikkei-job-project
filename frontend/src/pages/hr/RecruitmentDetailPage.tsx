@@ -46,6 +46,7 @@ import {
   type InterviewSlotStatus,
 } from "@/api/endpoints/interviews.api";
 import { offersApi, type OfferStatus, type SendOfferPayload } from "@/api/endpoints/offers.api";
+import { MatchScorePanel } from "@/components/match/MatchScorePanel";
 
 const OFFER_STATUS_BADGE: Record<
   OfferStatus,
@@ -552,6 +553,16 @@ export function RecruitmentDetailPage() {
             <p className="text-[11px] text-muted leading-normal">
               Điểm số tính toán tự động dựa trên từ khóa kỹ năng, kinh nghiệm và yêu cầu công việc.
             </p>
+            {detail.recruitment.jobId && detail.candidateId && (
+              <div className="border-t border-border-subtle pt-4 text-left">
+                <MatchScorePanel
+                  jobId={detail.recruitment.jobId}
+                  mode="candidate"
+                  userId={detail.candidateId}
+                  title="Độ khớp kỹ năng (DN-06)"
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -1342,4 +1353,3 @@ export function RecruitmentDetailPage() {
     </div>
   );
 }
-
