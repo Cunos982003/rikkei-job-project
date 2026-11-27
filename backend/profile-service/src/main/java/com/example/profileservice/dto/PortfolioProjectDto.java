@@ -40,8 +40,10 @@ public class PortfolioProjectDto {
 
     private LocalDate endDate;
 
+    @Builder.Default
     private boolean visible = true;
 
+    @Builder.Default
     private int sortOrder = 0;
 
     private UUID internshipId;

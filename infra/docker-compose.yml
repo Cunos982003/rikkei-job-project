@@ -299,6 +299,7 @@ services:
   loki:
     image: grafana/loki:3.0.0
     container_name: rikkei_loki
+    user: "0"
     ports:
       - "3100:3100"
     volumes:
@@ -311,8 +312,9 @@ services:
     image: grafana/promtail:3.0.0
     container_name: rikkei_promtail
     volumes:
-      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml
-      - shared-logs:/var/log/rikkei
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail-positions:/tmp/promtail
     command: -config.file=/etc/promtail/config.yml
     depends_on:
       - loki
@@ -360,8 +362,6 @@ services:
     profiles: ["monitoring"]
     command:
       - "--nginx.scrape-uri=http://frontend:8080/nginx_status"
-    depends_on:
-      - frontend
     restart: unless-stopped
 
   prometheus:
@@ -383,6 +383,23 @@ services:
       - redis-exporter
     restart: unless-stopped
 
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: rikkei_grafana
+    profiles: ["monitoring"]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - loki
+    restart: unless-stopped
+
 volumes:
   pgdata:
   profile-uploads:
@@ -393,3 +410,5 @@ volumes:
   shared-logs:
   tempodata:
   prometheus-data:
+  promtail-positions:
+  grafana-data:

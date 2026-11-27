@@ -56,9 +56,11 @@ public class PortfolioProject {
     @Column(name = "end_date")
     private LocalDate endDate;
 
+    @Builder.Default
     @Column(name = "visible", nullable = false)
     private boolean visible = true;
 
+    @Builder.Default
     @Column(name = "sort_order", nullable = false)
     private int sortOrder = 0;
 

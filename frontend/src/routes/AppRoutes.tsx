@@ -14,6 +14,9 @@ const ResetPasswordPage = lazy(() => import("../pages/auth/ResetPasswordPage").t
 const UnauthorizedPage = lazy(() => import("../pages/common/UnauthorizedPage").then(m => ({ default: m.UnauthorizedPage })));
 const NotFoundPage = lazy(() => import("../pages/common/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 
+// HS-04 Public CV Page (no auth required)
+const PublicCVPage = lazy(() => import("../pages/public/PublicCVPage").then(m => ({ default: m.PublicCVPage })));
+
 // Feature Profile Pages
 const EvaluationsPage = lazy(() => import("../features/profile/EvaluationsPage"));
 const InternshipsPage = lazy(() => import("../features/profile/InternshipsPage"));
@@ -36,6 +39,7 @@ const CandidateLearningPage = lazy(() => import("../pages/candidate/CandidateLea
 const CandidateInterviewsPage = lazy(() => import("../pages/candidate/CandidateInterviewsPage").then(m => ({ default: m.CandidateInterviewsPage })));
 const CandidateOffersPage = lazy(() => import("../pages/candidate/CandidateOffersPage").then(m => ({ default: m.CandidateOffersPage })));
 const CandidateRecruitmentsPage = lazy(() => import("../pages/candidate/CandidateRecruitmentsPage").then(m => ({ default: m.CandidateRecruitmentsPage })));
+const CandidateCVPage = lazy(() => import("../pages/candidate/CandidateCVPage").then(m => ({ default: m.CandidateCVPage })));
 const CareerLayout = lazy(() => import("../features/career/CareerLayout").then(m => ({ default: m.CareerLayout })));
 const OverviewPage = lazy(() => import("../pages/career/OverviewPage").then(m => ({ default: m.OverviewPage })));
 const CareerAssistantPage = lazy(() => import("../pages/career/CareerAssistantPage").then(m => ({ default: m.CareerAssistantPage })));
@@ -66,6 +70,8 @@ const AdminBadgesPage = lazy(() => import("../pages/admin/AdminBadgesPage"));
 // TT-02: BỔ SUNG IMPORT 2 TRANG MỚI
 const HrInternsPage = lazy(() => import("../pages/hr/HrInternsPage"));
 const StaffPlacementPage = lazy(() => import("../pages/staff/StaffPlacementPage"));
+const HrJobDetailPage = lazy(() => import("../pages/hr/HrJobDetailPage").then(m => ({ default: m.HrJobDetailPage })));
+const StaffJobDetailPage = lazy(() => import("../pages/staff/StaffJobDetailPage").then(m => ({ default: m.StaffJobDetailPage })));
 
 // DT-04: Cán bộ theo dõi đào tạo bổ sung theo lớp, khoá
 const StaffUpskillingPage = lazy(() => import("../pages/staff/StaffUpskillingPage"));

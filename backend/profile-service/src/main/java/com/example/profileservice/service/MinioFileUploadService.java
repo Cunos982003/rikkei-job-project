@@ -106,8 +106,45 @@ public class MinioFileUploadService {
     }
 
     /**
+     * Store a file from InputStream with explicit content type.
+     * @param objectName the object name/path in MinIO
+     * @param inputStream the file content
+     * @param contentType the MIME type
+     * @return the URL the stored file is reachable at
+     */
+    public String store(String objectName, java.io.InputStream inputStream, String contentType) {
+        if (objectName == null || objectName.isBlank()) {
+            throw new InvalidFileException("Tên tệp không hợp lệ");
+        }
+        if (inputStream == null) {
+            throw new InvalidFileException("Nội dung tệp rỗng");
+        }
+
+        byte[] content;
+        try {
+            content = inputStream.readAllBytes();
+        } catch (Exception e) {
+            throw new InvalidFileException("Không thể đọc nội dung tệp: " + e.getMessage());
+        }
+
+        try {
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(objectName)
+                            .stream(new ByteArrayInputStream(content), content.length, -1)
+                            .contentType(contentType)
+                            .build());
+        } catch (Exception e) {
+            throw new InvalidFileException("Không thể lưu tệp: " + e.getMessage());
+        }
+
+        return "/api/v1/files/minio/" + objectName;
+    }
+
+    /**
      * Get an InputStream for a file stored in MinIO.
-     * @param storedName the stored name (e.g., "/files/{uuid}.jpg" or "/api/v1/files/minio/{uuid}.jpg")
+     * @param storedName the stored name (e.g., "/files/{uuid}.jpg", "/api/v1/files/minio/{uuid}.jpg", or "cvs/{uuid}.pdf")
      * @return InputStream of the file
      */
     public java.io.InputStream getObject(String storedName) {
@@ -123,8 +160,11 @@ public class MinioFileUploadService {
 
         log.debug("Getting file from MinIO. Input: {}, After stripping prefixes: {}", storedName, objectName);
 
-        // Validate the object name (UUID + extension) - accept both 32-char (no hyphens) and 36-char (with hyphens)
-        if (!objectName.matches("([0-9a-fA-F]{32}|[0-9a-fA-F-]{36})\\.(jpg|png)")) {
+        // Validate the object name:
+        // - Portfolio images: UUID + .jpg|.png (32-char no hyphens or 36-char with hyphens)
+        // - CV PDFs: cvs/ + UUID + .pdf (36-char with hyphens)
+        if (!objectName.matches("([0-9a-fA-F]{32}|[0-9a-fA-F-]{36})\\.(jpg|png)") &&
+            !objectName.matches("cvs/[0-9a-fA-F-]{36}\\.pdf")) {
             log.warn("Invalid filename format: {}", objectName);
             throw new InvalidFileException("Tên tệp không hợp lệ: " + objectName);
         }

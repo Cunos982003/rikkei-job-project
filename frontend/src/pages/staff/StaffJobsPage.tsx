@@ -22,7 +22,7 @@ import {
 import { staffJobsApi } from "../../api/endpoints/staffJobs.api";
 import { staffCompaniesApi } from "../../api/endpoints/staffCompanies.api";
 import type { JobResponse } from "../../api/endpoints/hrJobs.api";
-import { JobDetailModal } from "../../components/hr/JobDetailModal";
+import { useNavigate } from "react-router-dom";
 
 function formatSalary(min?: number | null, max?: number | null): string {
   if (min == null && max == null) return "Thoả thuận";
@@ -50,15 +50,13 @@ type StaffJobTab = "PENDING" | "APPROVED" | "REJECTED";
 
 export function StaffJobsPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Tabs trạng thái: PENDING (mặc định), APPROVED, REJECTED
   const [activeTab, setActiveTab] = useState<StaffJobTab>("PENDING");
 
   // Lọc theo doanh nghiệp
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
-
-  // Modal chi tiết
-  const [viewingJob, setViewingJob] = useState<JobResponse | null>(null);
 
   // Modal từ chối
   const [rejectingJob, setRejectingJob] = useState<JobResponse | null>(null);
@@ -101,7 +99,7 @@ export function StaffJobsPage() {
     mutationFn: (jobId: string) => staffJobsApi.approveJob(jobId),
     onSuccess: () => {
       toast.success("Phê duyệt tin tuyển dụng thành công!");
-      setViewingJob(null);
+      setRejectingJob(null);
       queryClient.invalidateQueries({ queryKey: ["staff", "jobs"] });
     },
     onError: (err: any) => {
@@ -117,7 +115,6 @@ export function StaffJobsPage() {
     onSuccess: () => {
       toast.success("Đã từ chối tin tuyển dụng.");
       setRejectingJob(null);
-      setViewingJob(null);
       setRejectReason("");
       queryClient.invalidateQueries({ queryKey: ["staff", "jobs"] });
     },
@@ -298,7 +295,7 @@ export function StaffJobsPage() {
                     <div>
                       <CardTitle
                         className="text-base cursor-pointer hover:text-primary transition-colors"
-                        onClick={() => setViewingJob(job)}
+                        onClick={() => navigate(`/staff/jobs/${job.id}`)}
                       >
                         <span>{job.title}</span>
                       </CardTitle>
@@ -373,15 +370,21 @@ export function StaffJobsPage() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border-subtle">
                     {activeTab !== "PENDING" || job.status !== "PENDING" || job.reviewedBy ? (
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-                        <span className="flex items-center gap-1.5 text-foreground font-medium">
-                          <UserCheck className="h-3.5 w-3.5 text-primary" />
-                          <span>Người kiểm duyệt: <strong>{job.reviewedBy || "Hoàng Thu Hà"}</strong></span>
-                        </span>
-                        <span className="text-muted/60 hidden sm:inline">•</span>
-                        <span className="flex items-center gap-1.5">
-                          <Clock className="h-3.5 w-3.5" />
-                          <span>Thời gian duyệt: {formatDateTime(job.reviewedAt || job.updatedAt)}</span>
-                        </span>
+                        {job.reviewedBy && (
+                          <span className="flex items-center gap-1.5 text-foreground font-medium">
+                            <UserCheck className="h-3.5 w-3.5 text-primary" />
+                            <span>Người kiểm duyệt: <strong>{job.reviewedBy}</strong></span>
+                          </span>
+                        )}
+                        {job.reviewedAt && (
+                          <>
+                            {job.reviewedBy && <span className="text-muted/60 hidden sm:inline">•</span>}
+                            <span className="flex items-center gap-1.5">
+                              <Clock className="h-3.5 w-3.5" />
+                              <span>Thời gian duyệt: {formatDateTime(job.reviewedAt)}</span>
+                            </span>
+                          </>
+                        )}
                       </div>
                     ) : (
                       <div />
@@ -392,7 +395,7 @@ export function StaffJobsPage() {
                         variant="outline"
                         size="sm"
                         leftIcon={<Eye className="h-4 w-4" />}
-                        onClick={() => setViewingJob(job)}
+                        onClick={() => navigate(`/staff/jobs/${job.id}`)}
                       >
                         Xem chi tiết
                       </Button>
@@ -428,56 +431,6 @@ export function StaffJobsPage() {
           })
         )}
       </div>
-
-      {/* Modal xem chi tiết tin JD */}
-      <JobDetailModal
-        job={viewingJob}
-        onClose={() => setViewingJob(null)}
-        footer={
-          viewingJob && (
-            <div className="flex items-center justify-end gap-2 w-full">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setViewingJob(null)}
-                disabled={approveMutation.isPending || rejectMutation.isPending}
-              >
-                Đóng
-              </Button>
-              {viewingJob.status === "PENDING" && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-danger border-rose-200 hover:bg-rose-50"
-                    leftIcon={<X className="h-4 w-4" />}
-                    disabled={approveMutation.isPending || rejectMutation.isPending}
-                    onClick={() => {
-                      const jobToReject = viewingJob;
-                      setViewingJob(null);
-                      handleOpenReject(jobToReject);
-                    }}
-                  >
-                    Từ chối (kèm lý do)
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    leftIcon={<Check className="h-4 w-4" />}
-                    disabled={approveMutation.isPending || rejectMutation.isPending}
-                    onClick={() => {
-                      handleApprove(viewingJob);
-                      setViewingJob(null);
-                    }}
-                  >
-                    {approveMutation.isPending ? "Đang xử lý..." : "Phê duyệt tin JD"}
-                  </Button>
-                </>
-              )}
-            </div>
-          )
-        }
-      />
 
       {/* Modal từ chối kèm lý do */}
       <Modal
@@ -519,11 +472,13 @@ export function StaffJobsPage() {
             Lý do từ chối <span className="text-danger">*</span>
           </label>
           <textarea
+            maxLength={1000}
             className="w-full p-2.5 text-xs rounded-lg border border-border bg-surface text-foreground outline-none focus:border-danger focus:ring-1 focus:ring-danger/20 resize-none h-24"
             placeholder="Ví dụ: Mô tả công việc chưa rõ ràng, mức lương chưa phù hợp với cấp bậc..."
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
           />
+          <p className="text-right text-[11px] text-muted">{rejectReason.length}/1000</p>
         </div>
       </Modal>
     </div>
