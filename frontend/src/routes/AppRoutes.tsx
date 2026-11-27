@@ -65,8 +65,6 @@ const StaffContactAccessLogsPage = lazy(() => import("../pages/staff/StaffContac
 
 // Admin Pages
 const AdminSkillsPage = lazy(() => import("../pages/admin/AdminSkillsPage").then(m => ({ default: m.AdminSkillsPage })));
-
-// DG-03: Admin Badge Management
 const AdminBadgesPage = lazy(() => import("../pages/admin/AdminBadgesPage"));
 
 // TT-02: BỔ SUNG IMPORT 2 TRANG MỚI
@@ -78,6 +76,9 @@ const StaffJobDetailPage = lazy(() => import("../pages/staff/StaffJobDetailPage"
 // DT-04: Cán bộ theo dõi đào tạo bổ sung theo lớp, khoá
 const StaffUpskillingPage = lazy(() => import("../pages/staff/StaffUpskillingPage"));
 
+// UT-05: Báo cáo tuyển dụng (Đã sửa lại đường dẫn chuẩn theo file của bạn)
+const RecruitmentReportPage = lazy(() => import("../pages/RecruitmentReportPage"));
+
 function RootRedirect() {
     const { user, isAuthenticated } = useAuthStore();
 
@@ -88,16 +89,12 @@ function RootRedirect() {
     switch (normalizeRole(user.role)) {
         case "HR":
             return <Navigate to="/hr/company" replace />;
-
         case "MENTOR":
             return <Navigate to="/mentor/students" replace />;
-
         case "STAFF":
             return <Navigate to="/staff/companies" replace />;
-
         case "ADMIN":
             return <Navigate to="/admin/skills" replace />;
-
         case "CANDIDATE":
         default:
             return <Navigate to="/candidate/jobs" replace />;
@@ -108,420 +105,107 @@ export function AppRoutes() {
     return (
         <Suspense fallback={<RouteLoadingFallback />}>
             <Routes>
-            {/* Authentication */}
-            <Route element={<AuthLayout />}>
-                <Route path="/login" element={<LoginPage />} />
-                <Route
-                    path="/reset-password"
-                    element={<ResetPasswordPage />}
-                />
-            </Route>
+                {/* Authentication */}
+                <Route element={<AuthLayout />}>
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/reset-password" element={<ResetPasswordPage />} />
+                </Route>
 
-            <Route
-                path="/unauthorized"
-                element={<UnauthorizedPage />}
-            />
+                <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-            {/* Public CV Page - no auth required (HS-04) */}
-            <Route path="/p/:publicToken" element={<PublicCVPage />} />
+                <Route element={<ProtectedRoute />}>
+                    <Route element={<MainLayout />}>
+                        <Route path="/" element={<RootRedirect />} />
+                        <Route path="/profile" element={<RootRedirect />} />
 
-            <Route element={<ProtectedRoute />}>
-                <Route element={<MainLayout />}>
-                    <Route path="/" element={<RootRedirect />} />
-                    <Route path="/profile" element={<RootRedirect />} />
-
-                    {/* =========================
-                        CANDIDATE
-                    ========================= */}
-                    <Route
-                        element={
-                            <RoleGuard allowedRoles={["CANDIDATE"]} />
-                        }
-                    >
-                        <Route
-                            path="/candidate/profile"
-                            element={<CandidateProfilePage />}
-                        />
-
-                        <Route
-                            path="/candidate/jobs"
-                            element={<CandidateJobsPage />}
-                        />
-
-                        <Route
-                            path="/candidate/jobs/:id"
-                            element={<CandidateJobDetailPage />}
-                        />
-
-                        <Route
-                            path="/candidate/jobs/saved"
-                            element={<CandidateSavedJobsPage />}
-                        />
-
-                        <Route
-                            path="/candidate/interview-practice"
-                            element={<Navigate to="/candidate/career/interviews" replace />}
-                        />
-
-                        <Route
-                            path="/candidate/interview-practice/:id"
-                            element={<InterviewPracticePage />}
-                        />
-
-                        <Route
-                            path="/candidate/career/interviews/:id"
-                            element={<InterviewPracticePage />}
-                        />
-
-                        <Route
-                            path="/candidate/interview-practices"
-                            element={<Navigate to="/candidate/career/interviews" replace />}
-                        />
-
-                        <Route
-                            path="/candidate/career"
-                            element={<CareerLayout />}
-                        >
-                            <Route index element={<OverviewPage />} />
-                            <Route path="assistant" element={<CareerAssistantPage />} />
-                            <Route path="recommendations" element={<RecommendationsPage />} />
-                            <Route path="skills" element={<SkillsPage />} />
-                            <Route path="interviews" element={<InterviewPracticeListPage />} />
+                        {/* CANDIDATE */}
+                        <Route element={<RoleGuard allowedRoles={["CANDIDATE"]} />}>
+                            <Route path="/candidate/profile" element={<CandidateProfilePage />} />
+                            <Route path="/candidate/jobs" element={<CandidateJobsPage />} />
+                            <Route path="/candidate/jobs/:id" element={<CandidateJobDetailPage />} />
+                            <Route path="/candidate/jobs/saved" element={<CandidateSavedJobsPage />} />
+                            <Route path="/candidate/interview-practice" element={<Navigate to="/candidate/career/interviews" replace />} />
+                            <Route path="/candidate/interview-practice/:id" element={<InterviewPracticePage />} />
+                            <Route path="/candidate/career/interviews/:id" element={<InterviewPracticePage />} />
+                            <Route path="/candidate/interview-practices" element={<Navigate to="/candidate/career/interviews" replace />} />
+                            <Route path="/candidate/career" element={<CareerLayout />}>
+                                <Route index element={<OverviewPage />} />
+                                <Route path="assistant" element={<CareerAssistantPage />} />
+                                <Route path="recommendations" element={<RecommendationsPage />} />
+                                <Route path="skills" element={<SkillsPage />} />
+                                <Route path="interviews" element={<InterviewPracticeListPage />} />
+                            </Route>
+                            <Route path="/candidate/recruitments" element={<CandidateRecruitmentsPage />} />
+                            <Route path="/candidate/applications" element={<CandidateRecruitmentsPage />} />
+                            <Route path="/candidate/interviews" element={<CandidateInterviewsPage />} />
+                            <Route path="/candidate/offers" element={<CandidateOffersPage />} />
+                            <Route path="/candidate/learning" element={<CandidateLearningPage />} />
+                            <Route path="/candidate/evaluations" element={<EvaluationsPage />} />
+                            <Route path="/profile/evaluations" element={<EvaluationsPage />} />
+                            <Route path="/profile/skills" element={<SkillProfilePage />} />
+                            <Route path="/profile/internships" element={<InternshipsPage />} />
+                            <Route path="/profile/self-assessment" element={<SelfAssessmentPage />} />
+                            <Route path="/profile/skill-comparison" element={<SkillComparisonPage />} />
                         </Route>
 
-                        <Route
-                            path="/candidate/recruitments"
-                            element={<CandidateRecruitmentsPage />}
-                        />
+                        {/* HR */}
+                        <Route element={<RoleGuard allowedRoles={["HR"]} />}>
+                            <Route path="/hr/company" element={<HrCompanyPage />} />
+                            <Route path="/hr/jobs" element={<HrJobsPage />} />
+                            <Route path="/hr/jobs/new" element={<HrJobFormPage />} />
+                            <Route path="/hr/jobs/:id/edit" element={<HrJobFormPage />} />
+                            <Route path="/hr/applications" element={<HrApplicationsPage />} />
+                            <Route path="/hr/candidates" element={<FeaturePlaceholderPage title="Tìm kiếm ứng viên công khai" description="Tính năng tìm kiếm và xem hồ sơ ứng viên theo điểm số kỹ năng đã xác thực." badge="Đang kết nối Matching Engine" moduleName="Phân hệ Nhà Tuyển Dụng" backPath="/hr/jobs" icon="sparkles" />} />
+                            <Route path="/hr/interviews" element={<HrInterviewSchedulePage />} />
+                            <Route path="/hr/applications/:id" element={<RecruitmentDetailPage />} />
+                            <Route path="/hr/recruitments/:id" element={<RecruitmentDetailPage />} />
+                            <Route path="/hr/ioc" element={<FeaturePlaceholderPage title="Đăng ký nhu cầu thực tập IOC" description="Tính năng đăng ký số lượng và chỉ tiêu tuyển thực tập sinh theo các đợt IOC từ Rikkei Education." badge="Chờ kết nối LMS-PM" moduleName="Phân hệ Thực tập IOC" backPath="/hr/company" icon="layers" />} />
+                            <Route path="/hr/interns" element={<HrInternsPage />} />
 
-                        <Route
-                            path="/candidate/applications"
-                            element={<CandidateRecruitmentsPage />}
-                        />
+                            {/* UT-05: Route Báo cáo tuyển dụng HR */}
+                            <Route path="/hr/reports" element={<RecruitmentReportPage />} />
+                        </Route>
 
-                        <Route
-                            path="/candidate/interviews"
-                            element={<CandidateInterviewsPage />}
-                        />
+                        {/* MENTOR */}
+                        <Route element={<RoleGuard allowedRoles={["MENTOR"]} />}>
+                            <Route path="/mentor/students" element={<MentorStudentsPage />} />
+                            <Route path="/mentor/evaluations" element={<MentorTaskListPage />} />
+                            <Route path="/mentor/evaluations/:id" element={<MentorEvaluationFormPage />} />
+                        </Route>
 
-                        <Route
-                            path="/candidate/offers"
-                            element={<CandidateOffersPage />}
-                        />
+                        {/* STAFF & ADMIN */}
+                        <Route element={<RoleGuard allowedRoles={["STAFF", "ADMIN"]} />}>
+                            <Route path="/staff/jobs" element={<StaffJobsPage />} />
+                            <Route path="/staff/companies" element={<StaffCompaniesPage />} />
+                            <Route path="/staff/companies/:id" element={<StaffCompanyDetailPage />} />
+                            <Route path="/staff/recruitments" element={<StaffRecruitmentsPage />} />
+                            <Route path="/staff/recruitments/:id" element={<RecruitmentDetailPage />} />
+                            <Route path="/staff/ioc" element={<FeaturePlaceholderPage title="Quản lý đợt thực tập IOC" description="Phân hệ quản trị đợt thực tập và tiến độ các nhóm dự án IOC đồng bộ từ LMS-PM." badge="Chờ kết nối LMS-PM" moduleName="Cán bộ Vận hành Tuyển sinh" backPath="/staff/jobs" icon="layers" />} />
+                            <Route path="/staff/unlock-contacts" element={<FeaturePlaceholderPage title="Mở khóa thông tin liên hệ PII" description="Quy trình cán bộ phê duyệt mở khóa Email và Số điện thoại của ứng viên cho doanh nghiệp đối tác." badge="Bảo vệ dữ liệu cá nhân" moduleName="Cán bộ Tuyển sinh & Hướng nghiệp" backPath="/staff/candidates" icon="key" />} />
+                            <Route path="/staff/candidates" element={<StaffCandidatesPage />} />
+                            <Route path="/staff/candidates/:userId" element={<StaffCandidateDetailPage />} />
+                            <Route path="/staff/placements" element={<StaffPlacementPage />} />
+                            <Route path="/staff/upskilling" element={<StaffUpskillingPage />} />
+                            <Route path="/staff/contact-requests" element={<StaffContactRequestsPage />} />
+                            <Route path="/staff/contact-access-logs" element={<StaffContactAccessLogsPage />} />
 
-                        <Route
-                            path="/candidate/learning"
-                            element={<CandidateLearningPage />}
-                        />
+                            {/* UT-05: Route Báo cáo tuyển dụng STAFF */}
+                            <Route path="/staff/reports" element={<RecruitmentReportPage />} />
+                        </Route>
 
-                        <Route
-                            path="/candidate/cv"
-                            element={<CandidateCVPage />}
-                        />
-
-                        <Route
-                            path="/candidate/evaluations"
-                            element={<EvaluationsPage />}
-                        />
-
-                        <Route
-                            path="/profile/evaluations"
-                            element={<EvaluationsPage />}
-                        />
-
-                        <Route
-                            path="/profile/skills"
-                            element={<SkillProfilePage />}
-                        />
-
-                        <Route
-                            path="/profile/internships"
-                            element={<InternshipsPage />}
-                        />
-
-                        <Route
-                            path="/profile/self-assessment"
-                            element={<SelfAssessmentPage />}
-                        />
-
-                        <Route
-                            path="/profile/skill-comparison"
-                            element={<SkillComparisonPage />}
-                        />
-                    </Route>
-
-                    {/* =========================
-                        HR
-                    ========================= */}
-                    <Route
-                        element={<RoleGuard allowedRoles={["HR"]} />}
-                    >
-                        <Route
-                            path="/hr/company"
-                            element={<HrCompanyPage />}
-                        />
-
-                        <Route
-                            path="/hr/jobs"
-                            element={<HrJobsPage />}
-                        />
-
-                        <Route
-                            path="/hr/jobs/new"
-                            element={<HrJobFormPage />}
-                        />
-
-                        <Route
-                            path="/hr/jobs/:id/edit"
-                            element={<HrJobFormPage />}
-                        />
-
-                        <Route
-                            path="/hr/jobs/:id"
-                            element={<HrJobDetailPage />}
-                        />
-
-                        <Route
-                            path="/hr/applications"
-                            element={<HrApplicationsPage />}
-                        />
-
-                        <Route
-                            path="/hr/candidates"
-                            element={
-                                <FeaturePlaceholderPage
-                                    title="Tìm kiếm ứng viên công khai"
-                                    description="Tính năng tìm kiếm và xem hồ sơ ứng viên theo điểm số kỹ năng đã xác thực."
-                                    badge="Đang kết nối Matching Engine"
-                                    moduleName="Phân hệ Nhà Tuyển Dụng"
-                                    backPath="/hr/jobs"
-                                    icon="sparkles"
-                                />
-                            }
-                        />
-
-                        <Route
-                            path="/hr/interviews"
-                            element={<HrInterviewSchedulePage />}
-                        />
-
-                        <Route
-                            path="/hr/applications/:id"
-                            element={<RecruitmentDetailPage />}
-                        />
-
-                        <Route
-                            path="/hr/recruitments/:id"
-                            element={<RecruitmentDetailPage />}
-                        />
-
-                        <Route
-                            path="/hr/ioc"
-                            element={
-                                <FeaturePlaceholderPage
-                                    title="Đăng ký nhu cầu thực tập IOC"
-                                    description="Tính năng đăng ký số lượng và chỉ tiêu tuyển thực tập sinh theo các đợt IOC từ Rikkei Education."
-                                    badge="Chờ kết nối LMS-PM"
-                                    moduleName="Phân hệ Thực tập IOC"
-                                    backPath="/hr/company"
-                                    icon="layers"
-                                />
-                            }
-                        />
-
-                        {/* TT-02: BỔ SUNG ROUTE THỰC TẬP SINH CỦA HR */}
-                        <Route
-                            path="/hr/interns"
-                            element={<HrInternsPage />}
-                        />
-                    </Route>
-
-                    {/* =========================
-                        MENTOR
-                    ========================= */}
-                    <Route
-                        element={
-                            <RoleGuard allowedRoles={["MENTOR"]} />
-                        }
-                    >
-                        <Route
-                            path="/mentor/students"
-                            element={<MentorStudentsPage />}
-                        />
-
-                        <Route
-                            path="/mentor/evaluations"
-                            element={<MentorTaskListPage />}
-                        />
-
-                        <Route
-                            path="/mentor/evaluations/:id"
-                            element={<MentorEvaluationFormPage />}
-                        />
-                    </Route>
-
-                    {/* =========================
-                        STAFF & ADMIN
-                    ========================= */}
-                    <Route
-                        element={
-                            <RoleGuard
-                                allowedRoles={["STAFF", "ADMIN"]}
-                            />
-                        }
-                    >
-                        <Route
-                            path="/staff/jobs"
-                            element={<StaffJobsPage />}
-                        />
-
-                        <Route
-                            path="/staff/jobs/:id"
-                            element={<StaffJobDetailPage />}
-                        />
-
-                        <Route
-                            path="/staff/companies"
-                            element={<StaffCompaniesPage />}
-                        />
-
-                        <Route
-                            path="/staff/companies/:id"
-                            element={<StaffCompanyDetailPage />}
-                        />
-
-                        {/* ĐÃ XÓA DÒNG ROUTE BỊ TRÙNG /staff/companies Ở ĐÂY */}
-
-                        <Route
-                            path="/staff/recruitments"
-                            element={<StaffRecruitmentsPage />}
-                        />
-
-                        <Route
-                            path="/staff/recruitments/:id"
-                            element={<RecruitmentDetailPage />}
-                        />
-
-                        <Route
-                            path="/staff/ioc"
-                            element={
-                                <FeaturePlaceholderPage
-                                    title="Quản lý đợt thực tập IOC"
-                                    description="Phân hệ quản trị đợt thực tập và tiến độ các nhóm dự án IOC đồng bộ từ LMS-PM."
-                                    badge="Chờ kết nối LMS-PM"
-                                    moduleName="Cán bộ Vận hành Tuyển sinh"
-                                    backPath="/staff/jobs"
-                                    icon="layers"
-                                />
-                            }
-                        />
-
-                        <Route
-                            path="/staff/unlock-contacts"
-                            element={
-                                <FeaturePlaceholderPage
-                                    title="Mở khóa thông tin liên hệ PII"
-                                    description="Quy trình cán bộ phê duyệt mở khóa Email và Số điện thoại của ứng viên cho doanh nghiệp đối tác."
-                                    badge="Bảo vệ dữ liệu cá nhân"
-                                    moduleName="Cán bộ Tuyển sinh & Hướng nghiệp"
-                                    backPath="/staff/candidates"
-                                    icon="key"
-                                />
-                            }
-                        />
-
-                        <Route
-                            path="/staff/candidates"
-                            element={<StaffCandidatesPage />}
-                        />
-
-                        <Route
-                            path="/staff/candidates/:userId"
-                            element={<StaffCandidateDetailPage />}
-                        />
-
-                        {/* TT-02: BỔ SUNG ROUTE GHÉP THỰC TẬP CHO STAFF */}
-                        <Route
-                            path="/staff/placements"
-                            element={<StaffPlacementPage />}
-                        />
-
-                        {/* DT-04: Cán bộ theo dõi đào tạo bổ sung theo lớp, khoá */}
-                        <Route
-                            path="/staff/upskilling"
-                            element={<StaffUpskillingPage />}
-                        />
-
-                        {/* UT-03: Contact Access Control */}
-                        <Route
-                            path="/staff/contact-requests"
-                            element={<StaffContactRequestsPage />}
-                        />
-
-                        <Route
-                            path="/staff/contact-access-logs"
-                            element={<StaffContactAccessLogsPage />}
-                        />
-                    </Route>
-
-                    {/* =========================
-                        ADMIN
-                    ========================= */}
-                    <Route
-                        element={
-                            <RoleGuard allowedRoles={["ADMIN"]} />
-                        }
-                    >
-                        {/* DG-01: Quản lý kỹ năng */}
-                        <Route
-                            path="/admin/skills"
-                            element={<AdminSkillsPage />}
-                        />
-
-                        {/* DG-03: Quản lý huy hiệu Candidate */}
-                        <Route
-                            path="/admin/badges"
-                            element={<AdminBadgesPage />}
-                        />
-
-                        {/* Các chức năng quản trị khác */}
-                        <Route
-                            path="/admin/overrides"
-                            element={
-                                <FeaturePlaceholderPage
-                                    title="Hàng chờ báo sai bằng chứng"
-                                    description="Tiếp nhận và xử lý các khiếu nại của ứng viên về điểm số và bằng chứng năng lực."
-                                    badge="Chờ kết nối evidence-service"
-                                    moduleName="Quản trị Hệ thống"
-                                    backPath="/admin/skills"
-                                    icon="shield"
-                                />
-                            }
-                        />
-
-                        <Route
-                            path="/admin/audit-logs"
-                            element={
-                                <FeaturePlaceholderPage
-                                    title="Nhật ký thao tác hệ thống (Audit Logs)"
-                                    description="Truy vấn nhật ký kiểm toán bất biến append-only ghi nhận các thao tác nhạy cảm."
-                                    badge="Chờ kết nối audit-service"
-                                    moduleName="Quản trị Hệ thống"
-                                    backPath="/admin/skills"
-                                    icon="shield"
-                                />
-                            }
-                        />
+                        {/* ADMIN */}
+                        <Route element={<RoleGuard allowedRoles={["ADMIN"]} />}>
+                            <Route path="/admin/skills" element={<AdminSkillsPage />} />
+                            <Route path="/admin/badges" element={<AdminBadgesPage />} />
+                            <Route path="/admin/overrides" element={<FeaturePlaceholderPage title="Hàng chờ báo sai bằng chứng" description="Tiếp nhận và xử lý các khiếu nại của ứng viên về điểm số và bằng chứng năng lực." badge="Chờ kết nối evidence-service" moduleName="Quản trị Hệ thống" backPath="/admin/skills" icon="shield" />} />
+                            <Route path="/admin/audit-logs" element={<FeaturePlaceholderPage title="Nhật ký thao tác hệ thống (Audit Logs)" description="Truy vấn nhật ký kiểm toán bất biến append-only ghi nhận các thao tác nhạy cảm." badge="Chờ kết nối audit-service" moduleName="Quản trị Hệ thống" backPath="/admin/skills" icon="shield" />} />
+                        </Route>
                     </Route>
                 </Route>
-            </Route>
 
-            {/* 404 */}
-            <Route
-                path="*"
-                element={<NotFoundPage />}
-            />
-        </Routes>
+                {/* 404 */}
+                <Route path="*" element={<NotFoundPage />} />
+            </Routes>
         </Suspense>
     );
 }
