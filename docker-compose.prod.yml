@@ -125,7 +125,7 @@ services:
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED: ${SMTP_STARTTLS:-false}
       MAIL_FROM: ${MAIL_FROM:?Set MAIL_FROM in .env.prod}
       MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
-      SPRING_FLYWAY_ENABLED: "false"
+      SPRING_FLYWAY_ENABLED: "true"
     volumes:
       - profile-uploads:/app/uploads
     depends_on:
@@ -154,7 +154,7 @@ services:
       MAIL_FROM: ${MAIL_FROM:?Set MAIL_FROM in .env.prod}
       EMAIL_ENABLED: "true"
       MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
-      SPRING_FLYWAY_ENABLED: "false"
+      SPRING_FLYWAY_ENABLED: "true"
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:?Set APP_CORS_ALLOWED_ORIGINS in .env.prod}
       AUTH_BASE_URL: http://auth-service:8081
       PROFILE_SERVICE_URL: http://profile-service:8082
@@ -185,7 +185,7 @@ services:
       RECRUITMENT_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.prod}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.prod}
       JOB_SERVICE_URL: http://job-service:8085
-      SPRING_FLYWAY_ENABLED: "false"
+      SPRING_FLYWAY_ENABLED: "true"
       PROFILE_SERVICE_URL: http://profile-service:8082
       AI_CAREER_SERVICE_URL: http://ai-career-service:8090
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?Set INTERNAL_SERVICE_TOKEN in .env.prod}
@@ -226,7 +226,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.prod}
       PROFILE_SERVICE_URL: http://profile-service:8082
       JOB_SERVICE_URL: http://job-service:8085
-      SPRING_FLYWAY_ENABLED: "false"
+      SPRING_FLYWAY_ENABLED: "true"
     depends_on:
       postgres:
         condition: service_healthy
@@ -263,7 +263,7 @@ services:
       AI_CLAUDE_MODEL: ${AI_CLAUDE_MODEL:-claude-3-5-haiku-latest}
       PROFILE_SERVICE_URL: http://profile-service:8082
       JOB_SERVICE_URL: http://job-service:8085
-      SPRING_FLYWAY_ENABLED: "false"
+      SPRING_FLYWAY_ENABLED: "true"
     depends_on:
       postgres:
         condition: service_healthy
