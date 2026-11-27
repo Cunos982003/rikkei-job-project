@@ -46,7 +46,7 @@ public class FileController {
                 .body(new FileSystemResource(path));
     }
 
-    @GetMapping("/minio/{storedName}")
+    @GetMapping("/minio/{storedName:.+}")
     public ResponseEntity<Resource> downloadFromMinio(@PathVariable String storedName) {
         InputStream inputStream = minioFileUploadService.getObject("/files/" + storedName);
         return ResponseEntity.ok()

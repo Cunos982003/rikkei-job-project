@@ -70,6 +70,7 @@ public class SecurityConfig {
                                 "/api/v1/candidate-directory/**",
                                 "/api/v1/learning/target-positions", "/api/v1/learning/target-positions/**",
                                 "/api/v1/files/**",
+                                "/api/v1/profiles/public/**",
                                 "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwt, UsernamePasswordAuthenticationFilter.class)

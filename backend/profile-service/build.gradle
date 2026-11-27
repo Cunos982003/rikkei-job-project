@@ -1,7 +1,15 @@
+buildscript {
+    dependencies {
+        classpath 'org.flywaydb:flyway-database-postgresql:11.10.3'
+        classpath 'org.postgresql:postgresql:42.7.3'
+    }
+}
+
 plugins {
     id 'java'
     id 'org.springframework.boot' version '4.1.2'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.flywaydb.flyway' version '11.10.3'
 }
 
 group = 'com.example'
@@ -16,6 +24,7 @@ java {
 
 repositories {
     mavenCentral()
+    maven { url 'https://repo.itextsupport.com/releases' }
 }
 
 dependencies {
@@ -42,6 +51,15 @@ dependencies {
 
     // MinIO/S3 client for object storage
     implementation 'io.minio:minio:8.5.14'
+
+    // PDF generation (iText7) - correct artifact IDs
+    implementation 'com.itextpdf:itext7-core:7.1.18'
+    implementation 'com.itextpdf:layout:7.1.18'
+    implementation 'com.itextpdf:pdfa:7.1.18'
+
+    // QR code generation (ZXing)
+    implementation 'com.google.zxing:core:3.5.2'
+    implementation 'com.google.zxing:javase:3.5.2'
 
     // JWT dependencies
     implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
@@ -101,3 +119,14 @@ task integrationTest(type: Test) {
 tasks.withType(JavaCompile) {
     options.annotationProcessorPath = configurations.annotationProcessor
 }
+
+flyway {
+    url = "${System.getenv('SPRING_DATASOURCE_URL') ?: 'jdbc:postgresql://localhost:5432/profile_db?characterEncoding=UTF-8'}"
+    user = "${System.getenv('SPRING_DATASOURCE_USERNAME') ?: 'postgres'}"
+    password = "${System.getenv('SPRING_DATASOURCE_PASSWORD') ?: 'postgres'}"
+    locations = ['classpath:db/migration']
+    baselineOnMigrate = true
+    baselineVersion = '2'
+    validateOnMigrate = false
+}
+
