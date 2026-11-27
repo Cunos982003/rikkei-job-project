@@ -163,30 +163,6 @@ export function JobDetailView({ job, actions, backTo, viewer }: JobDetailViewPro
               <SectionTitle title="Quyền lợi được hưởng" emerald />
               <p className="whitespace-pre-line pl-4 text-sm leading-relaxed text-slate-700">{job.benefits?.trim() || "Chưa có nội dung"}</p>
             </div>
-            <div className="space-y-3">
-              <SectionTitle title="Kỹ năng chuyên môn và điểm chuẩn tối thiểu" />
-              {skills.length > 0 ? (
-                <div className="grid grid-cols-1 gap-3 pl-4 sm:grid-cols-2">
-                  {skills.map((skill) => {
-                    const score = Math.max(0, Math.min(100, skill.minScore || 0));
-                    return (
-                      <div key={skill.skillId || skill.skillCode || skill.skillName} className="rounded-2xl border border-border bg-slate-50/70 p-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="text-xs font-bold text-foreground">{skill.skillName || skill.skillCode}</p>
-                            <p className="mt-1 text-[11px] text-muted">tối thiểu {skill.minScore} điểm</p>
-                          </div>
-                          <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${skill.required ? "border border-rose-200 bg-rose-50 text-rose-700" : "border border-blue-200 bg-blue-50 text-blue-700"}`}>
-                            {skill.required ? "Bắt buộc" : "Ưu tiên"}
-                          </span>
-                        </div>
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-primary" style={{ width: `${score}%` }} /></div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : <p className="pl-4 text-xs text-muted">Chưa có nội dung</p>}
-            </div>
             {locationText && (
               <div className="space-y-3">
                 <SectionTitle title="Địa điểm làm việc" />
@@ -208,6 +184,33 @@ export function JobDetailView({ job, actions, backTo, viewer }: JobDetailViewPro
               {job.deadline && <InfoRow icon={<CalendarDays />} label="Hạn nộp" value={formatDate(job.deadline)} />}
               {job.createdAt && <InfoRow icon={<Clock />} label="Ngày tạo" value={formatDateTime(job.createdAt)} />}
               {job.updatedAt && <InfoRow icon={<ShieldCheck />} label="Cập nhật lần cuối" value={formatDateTime(job.updatedAt)} />}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-3xl">
+            <CardHeader><CardTitle className="text-sm">Kỹ năng chuyên môn và điểm chuẩn tối thiểu</CardTitle></CardHeader>
+            <CardContent className="space-y-3 pt-1 text-xs">
+              {skills.length > 0 ? (
+                <div className="grid grid-cols-1 gap-3">
+                  {skills.map((skill) => {
+                    const score = Math.max(0, Math.min(100, skill.minScore || 0));
+                    return (
+                      <div key={skill.skillId || skill.skillCode || skill.skillName} className="rounded-2xl border border-border bg-slate-50/70 p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-xs font-bold text-foreground">{skill.skillName || skill.skillCode}</p>
+                            <p className="mt-1 text-[11px] text-muted">tối thiểu {skill.minScore} điểm</p>
+                          </div>
+                          <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${skill.required ? "border border-rose-200 bg-rose-50 text-rose-700" : "border border-blue-200 bg-blue-50 text-blue-700"}`}>
+                            {skill.required ? "Bắt buộc" : "Ưu tiên"}
+                          </span>
+                        </div>
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-primary" style={{ width: `${score}%` }} /></div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : <p className="pl-4 text-xs text-muted">Chưa có nội dung</p>}
             </CardContent>
           </Card>
 

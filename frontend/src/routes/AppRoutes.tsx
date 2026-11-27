@@ -38,7 +38,6 @@ const CandidateOffersPage = lazy(() => import("../pages/candidate/CandidateOffer
 const CandidateRecruitmentsPage = lazy(() => import("../pages/candidate/CandidateRecruitmentsPage").then(m => ({ default: m.CandidateRecruitmentsPage })));
 const CareerLayout = lazy(() => import("../features/career/CareerLayout").then(m => ({ default: m.CareerLayout })));
 const OverviewPage = lazy(() => import("../pages/career/OverviewPage").then(m => ({ default: m.OverviewPage })));
-const CareerAssistantPage = lazy(() => import("../pages/career/CareerAssistantPage").then(m => ({ default: m.CareerAssistantPage })));
 const RecommendationsPage = lazy(() => import("../pages/career/RecommendationsPage").then(m => ({ default: m.RecommendationsPage })));
 const SkillsPage = lazy(() => import("../pages/career/SkillsPage").then(m => ({ default: m.SkillsPage })));
 const HrCompanyPage = lazy(() => import("../pages/hr/HrCompanyPage").then(m => ({ default: m.HrCompanyPage })));
@@ -70,9 +69,6 @@ const HrInternsPage = lazy(() => import("../pages/hr/HrInternsPage"));
 const StaffPlacementPage = lazy(() => import("../pages/staff/StaffPlacementPage"));
 const HrJobDetailPage = lazy(() => import("../pages/hr/HrJobDetailPage").then(m => ({ default: m.HrJobDetailPage })));
 const StaffJobDetailPage = lazy(() => import("../pages/staff/StaffJobDetailPage").then(m => ({ default: m.StaffJobDetailPage })));
-
-// DT-04: Cán bộ theo dõi đào tạo bổ sung theo lớp, khoá
-const StaffUpskillingPage = lazy(() => import("../pages/staff/StaffUpskillingPage"));
 
 function RootRedirect() {
     const { user, isAuthenticated } = useAuthStore();
@@ -176,7 +172,6 @@ export function AppRoutes() {
                             element={<CareerLayout />}
                         >
                             <Route index element={<OverviewPage />} />
-                            <Route path="assistant" element={<CareerAssistantPage />} />
                             <Route path="recommendations" element={<RecommendationsPage />} />
                             <Route path="skills" element={<SkillsPage />} />
                             <Route path="interviews" element={<InterviewPracticeListPage />} />
@@ -432,12 +427,6 @@ export function AppRoutes() {
                         <Route
                             path="/staff/placements"
                             element={<StaffPlacementPage />}
-                        />
-
-                        {/* DT-04: Cán bộ theo dõi đào tạo bổ sung theo lớp, khoá */}
-                        <Route
-                            path="/staff/upskilling"
-                            element={<StaffUpskillingPage />}
                         />
 
                         {/* UT-03: Contact Access Control */}
