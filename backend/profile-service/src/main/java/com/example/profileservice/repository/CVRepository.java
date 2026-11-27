@@ -23,4 +23,13 @@ public interface CVRepository extends JpaRepository<CV, UUID> {
 
     @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM CV c WHERE c.userId = :userId AND c.publicToken = :publicToken")
     boolean existsByUserIdAndPublicToken(@Param("userId") UUID userId, @Param("publicToken") String publicToken);
+
+    @Query("SELECT DISTINCT c FROM CV c LEFT JOIN FETCH c.sections s WHERE c.userId = :userId ORDER BY c.createdAt DESC, s.sortOrder ASC")
+    List<CV> findByUserIdWithSectionsOrderByCreatedAtDesc(@Param("userId") UUID userId);
+
+    @Query("SELECT DISTINCT c FROM CV c LEFT JOIN FETCH c.sections s WHERE c.publicToken = :publicToken")
+    Optional<CV> findByPublicTokenWithSections(@Param("publicToken") String publicToken);
+
+    @Query("SELECT DISTINCT c FROM CV c LEFT JOIN FETCH c.sections s WHERE c.id = :cvId")
+    Optional<CV> findByIdWithSections(@Param("cvId") UUID cvId);
 }

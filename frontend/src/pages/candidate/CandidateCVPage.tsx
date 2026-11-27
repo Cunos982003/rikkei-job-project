@@ -23,8 +23,20 @@ import {
   Target,
   LayoutDashboard,
   QrCode,
+  GripVertical,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   type CV,
   type CVSectionDto,
@@ -41,6 +53,7 @@ import {
   type SkillPreview,
   type InternshipPreview,
   type SummaryPreview,
+  type ReorderCVSectionsRequest,
   getMyCVs,
   createCV,
   updateCV,
@@ -50,6 +63,7 @@ import {
   getCVPreview,
   generateCVPDF,
   downloadPublicPdf,
+  reorderCVSections,
 } from "../../api/endpoints/profile.api";
 import { profileApi } from "../../api/endpoints/profile.api";
 import type { ApiResponse } from "../../api/types/api";
@@ -104,6 +118,13 @@ export function CandidateCVPage() {
   const [generatingPDF, setGeneratingPDF] = useState<{ cvId: string } | null>(null);
   const [copiedPublicUrl, setCopiedPublicUrl] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<CVPreviewResponse | null>(null);
+  const [isTogglingItems, setIsTogglingItems] = useState(false);
+
+  // DnD sensors - must be at top level (Rules of Hooks)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   // Fetch CVs
   const {
@@ -214,6 +235,7 @@ export function CandidateCVPage() {
       if (activeTab === "editor" && response.data) {
         setEditingCV(prev => prev ? { ...prev, ...response.data } : null);
         refetchPreview();
+        closeCVModal(); // Return to list view after successful update
       }
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -252,7 +274,11 @@ export function CandidateCVPage() {
         });
         refetchPreview();
       }
-      closeSectionModal();
+      // Only close modal if not just toggling items (which uses a different flow)
+      if (editingSection && !isTogglingItems) {
+        closeSectionModal();
+      }
+      setIsTogglingItems(false);
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
       setSectionErrors({ form: error?.response?.data?.message || "Cập nhật section thất bại" });
@@ -322,10 +348,24 @@ export function CandidateCVPage() {
     },
   });
 
+  const reorderCVSectionsMutation = useMutation({
+    mutationFn: ({ cvId, data }: { cvId: string; data: ReorderCVSectionsRequest }) =>
+      reorderCVSections(cvId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: candidateKeys.profile.cvs.all() });
+      if (activeTab === "editor" && editingCV) {
+        refetchPreview();
+      }
+    },
+    onError: (error: { response?: { data?: { message?: string } } }) => {
+      setErrors({ form: error?.response?.data?.message || "Sắp xếp lại thất bại" });
+    },
+  });
+
   // Handlers
   const closeCVModal = () => {
     setEditingCV(null);
-    setCvForm({ title: "", targetPosition: "", template: "RIKKEI_STANDARD" });
+    setCvForm({ title: "", targetPosition: "", template: "RIKKEI_STANDARD", isPublic: false });
     setErrors({});
     setActiveTab("list");
     setPreviewData(null);
@@ -346,11 +386,11 @@ export function CandidateCVPage() {
     setErrors({});
     if (cv) {
       setEditingCV(cv);
-      setCvForm({ title: cv.title, targetPosition: cv.targetPosition || "", template: cv.template || "RIKKEI_STANDARD" });
-      refetchPreview();
+      setCvForm({ title: cv.title, targetPosition: cv.targetPosition || "", template: cv.template || "RIKKEI_STANDARD", isPublic: cv.isPublic });
+      // refetchPreview will be triggered by the query's enabled condition when editingCV changes
     } else {
       setEditingCV(null);
-      setCvForm({ title: "", targetPosition: "", template: "RIKKEI_STANDARD" });
+      setCvForm({ title: "", targetPosition: "", template: "RIKKEI_STANDARD", isPublic: false });
       setPreviewData(null);
     }
     setActiveTab("editor");
@@ -378,7 +418,7 @@ export function CandidateCVPage() {
     }
   };
 
-  const openSectionModal = (section?: CVSectionDto, cv?: CV) => {
+  const openSectionModal = (section?: CVSectionDto, cv?: CV, sectionType?: SectionType) => {
     setSectionErrors({});
     if (cv) {
       setEditingCV(cv);
@@ -393,11 +433,11 @@ export function CandidateCVPage() {
         sortOrder: section.sortOrder,
       });
     } else {
-      setEditingSection(null);
+      setEditingSection({ sectionType: sectionType || "SUMMARY" } as CVSectionDto);
       const existingSections = cv?.sections || [];
       const nextOrder = existingSections.length > 0 ? Math.max(...existingSections.map(s => s.sortOrder)) + 1 : 0;
       setSectionForm({
-        sectionType: "SUMMARY",
+        sectionType: sectionType || "SUMMARY",
         itemIds: [],
         included: true,
         sortOrder: nextOrder,
@@ -476,22 +516,31 @@ export function CandidateCVPage() {
 
   // Check if item is selected in section
   const isItemSelected = (sectionType: SectionType, itemId: string) => {
-    const section = editingCV?.sections.find(s => s.sectionType === sectionType);
+    const section = editingCV?.sections?.find(s => s.sectionType === sectionType);
     return section?.itemIds?.includes(itemId) ?? false;
   };
 
   // Toggle item selection
   const toggleItemSelection = (sectionType: SectionType, itemId: string) => {
     if (!editingCV) return;
-    const section = editingCV.sections.find(s => s.sectionType === sectionType);
+    const section = editingCV.sections?.find(s => s.sectionType === sectionType);
     const currentItemIds = section?.itemIds || [];
     const newItemIds = currentItemIds.includes(itemId)
       ? currentItemIds.filter(id => id !== itemId)
       : [...currentItemIds, itemId];
 
+    // Update local form state so it stays in sync
+    setSectionForm(prev => ({ ...prev, itemIds: newItemIds }));
+
+    setIsTogglingItems(true);
     upsertSectionMutation.mutate({
       cvId: editingCV.id,
-      data: { sectionType, itemIds: newItemIds, included: true },
+      data: {
+        sectionType,
+        itemIds: newItemIds,
+        included: sectionForm.included,
+        sortOrder: sectionForm.sortOrder
+      },
     });
   };
 
@@ -801,30 +850,26 @@ export function CandidateCVPage() {
                           <Eye className="h-4 w-4" />
                           <span className="hidden sm:inline">Xem</span>
                         </Button>
-                        {cv.pdfUrl ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="flex-1 flex items-center justify-center gap-1"
-                            onClick={() => window.open(`/api/v1/files/minio/${cv.pdfUrl}`, "_blank")}
-                            title="Tải PDF"
-                          >
-                            <Download className="h-4 w-4" />
-                            <span className="hidden sm:inline">PDF</span>
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="flex-1 flex items-center justify-center gap-1"
-                            onClick={() => handleGeneratePDF(cv.id)}
-                            title="Tạo PDF"
-                            isLoading={generatingPDF?.cvId === cv.id}
-                          >
-                            <Loader2 className="h-4 w-4" />
-                            <span className="hidden sm:inline">Tạo PDF</span>
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex-1 flex items-center justify-center gap-1"
+                          onClick={() => cv.pdfUrl ? window.open(`/api/v1/files/minio/${cv.pdfUrl}`, "_blank") : handleGeneratePDF(cv.id)}
+                          title={cv.pdfUrl ? "Tải PDF" : "Tạo PDF"}
+                          isLoading={generatingPDF?.cvId === cv.id}
+                        >
+                          {cv.pdfUrl ? (
+                            <>
+                              <Download className="h-4 w-4" />
+                              <span className="hidden sm:inline">PDF</span>
+                            </>
+                          ) : (
+                            <>
+                              <Loader2 className="h-4 w-4" />
+                              <span className="hidden sm:inline">Tạo PDF</span>
+                            </>
+                          )}
+                        </Button>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {cv.isPublic && (
@@ -1127,8 +1172,8 @@ export function CandidateCVPage() {
                 </Card>
               )}
 
-              {/* Available Sections Grid */}
-              {!editingSection && (
+              {/* Available Sections Grid with Drag and Drop */}
+              {!editingSection && editingCV && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -1138,82 +1183,56 @@ export function CandidateCVPage() {
                     <CardDescription>Kéo thả để sắp xếp, click để chỉnh sửa từng phần</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      {SECTION_TYPES.map(({ type, label, icon, description }: { type: SectionType; label: string; icon: React.ReactNode; description: string }) => {
-                        const section = editingCV?.sections?.find(s => s.sectionType === type);
-                        const hasSection = !!section;
-                        const isIncluded = section?.included ?? true;
-                        const itemCount = section?.itemIds?.length || 0;
-                        const availableItems = getAvailableItems(type).length;
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={(event: DragEndEvent) => {
+                        const { active, over } = event;
+                        if (over && active.id !== over.id) {
+                          // Get current section order from editingCV
+                          const currentSections = editingCV?.sections || [];
+                          const sectionTypes = currentSections.map(s => s.sectionType);
+                          const newOrder = arrayMove(sectionTypes, sectionTypes.indexOf(active.id as SectionType), sectionTypes.indexOf(over.id as SectionType));
+                          reorderCVSectionsMutation.mutate({
+                            cvId: editingCV!.id,
+                            data: { sectionIds: newOrder.map((t) => editingCV!.sections.find(s => s.sectionType === t)?.id).filter(Boolean) as string[] }
+                          });
+                        }
+                      }}
+                    >
+                      <SortableContext
+                        items={editingCV.sections.map(s => s.sectionType)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <div className="space-y-3">
+                          {SECTION_TYPES.map(({ type, label, icon, description }: { type: SectionType; label: string; icon: React.ReactNode; description: string }) => {
+                            const section = editingCV?.sections?.find(s => s.sectionType === type);
+                            const hasSection = !!section;
+                            const isIncluded = section?.included ?? true;
+                            const itemCount = section?.itemIds?.length || 0;
+                            const availableItems = getAvailableItems(type).length;
 
-                        return (
-                          <div
-                            key={type}
-                            className={`flex items-center gap-4 p-4 rounded-lg border transition-all ${
-                              hasSection ? "bg-slate-50 border-primary/20" : "bg-surface border-border hover:border-primary/50"
-                            }`}
-                          >
-                            <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
-                              {icon}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-foreground">{label}</span>
-                                {hasSection && (
-                                  <Badge variant={isIncluded ? "default" : "outline"} size="sm">
-                                    {isIncluded ? "Đã bật" : "Đã ẩn"}
-                                  </Badge>
-                                )}
-                                {!hasSection && (
-                                  <Badge variant="outline" size="sm">Chưa thêm</Badge>
-                                )}
-                              </div>
-                              <p className="text-xs text-muted mt-0.5">{description}</p>
-                              {hasSection && (
-                                <p className="text-xs text-muted mt-1">
-                                  {itemCount} / {availableItems} mục được chọn
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              {hasSection ? (
-                                <>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => editingCV && openSectionModal(section!, editingCV)}
-                                    className="gap-1"
-                                  >
-                                    <Edit2 className="h-3.5 w-3.5" />
-                                    Chỉnh sửa
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 w-7 text-rose-500 hover:bg-rose-50"
-                                    onClick={() => editingCV && handleDeleteSection(editingCV.id, type)}
-                                    title="Xóa phần"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                </>
-                              ) : (
-                                <Button
-                                  variant="primary"
-                                  size="sm"
-                                  onClick={() => openSectionModal(undefined, editingCV || undefined)}
-                                  disabled={editingCV?.sections && editingCV.sections.length >= 6}
-                                  className="gap-1"
-                                >
-                                  <Plus className="h-3.5 w-3.5" />
-                                  Thêm
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                            return (
+                              <SortableSectionItem
+                                key={type}
+                                sectionType={type}
+                                label={label}
+                                icon={icon}
+                                hasSection={hasSection}
+                                isIncluded={isIncluded}
+                                itemCount={itemCount}
+                                availableItems={availableItems}
+                                description={description}
+                                onEdit={() => editingCV && openSectionModal(section!, editingCV)}
+                                onDelete={() => editingCV && handleDeleteSection(editingCV.id, type)}
+                                onAdd={() => openSectionModal(undefined, editingCV || undefined, type)}
+                                editingCV={editingCV}
+                              />
+                            );
+                          })}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
                     {editingCV?.sections && editingCV.sections.length >= 6 && (
                       <p className="text-xs text-muted text-center mt-4">CV tối đa 6 phần (mỗi loại một phần)</p>
                     )}
@@ -1373,22 +1392,20 @@ export function CandidateCVPage() {
                       variant="outline"
                       size="sm"
                       leftIcon={<QrCode className="h-4 w-4" />}
-                      onClick={() => handlePreviewCV(selectedCVForPreview)}
+                      onClick={() => window.open(`${publicBaseUrl}/p/${selectedCVForPreview.publicToken}`, "_blank")}
                       className="gap-2"
                     >
-                      Xem QR
+                      Xem công khai
                     </Button>
-                    {selectedCVForPreview.pdfUrl && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        leftIcon={<Download className="h-4 w-4" />}
-                        onClick={() => handleDownloadPublicPdf(selectedCVForPreview.publicToken)}
-                        className="gap-2"
-                      >
-                        Tải PDF
-                      </Button>
-                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      leftIcon={<Download className="h-4 w-4" />}
+                      onClick={() => handleDownloadPublicPdf(selectedCVForPreview.publicToken)}
+                      className="gap-2"
+                    >
+                      Tải PDF
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -1396,6 +1413,126 @@ export function CandidateCVPage() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// SortableSectionItem Component for drag-and-drop
+interface SortableSectionItemProps {
+  sectionType: SectionType;
+  label: string;
+  icon: React.ReactNode;
+  hasSection: boolean;
+  isIncluded: boolean;
+  itemCount: number;
+  availableItems: number;
+  description: string;
+  onEdit: () => void;
+  onDelete: () => void;
+  onAdd: () => void;
+  editingCV: CV | null;
+}
+
+function SortableSectionItem({
+  sectionType,
+  label,
+  icon,
+  hasSection,
+  isIncluded,
+  itemCount,
+  availableItems,
+  description,
+  onEdit,
+  onDelete,
+  onAdd,
+  editingCV,
+}: SortableSectionItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: sectionType });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-4 p-4 rounded-lg border transition-all ${
+        hasSection ? "bg-slate-50 border-primary/20" : "bg-surface border-border hover:border-primary/50"
+      } ${isDragging ? "shadow-lg" : ""}`}
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className="p-2 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 active:scale-95 transition-colors cursor-grab active:cursor-grabbing"
+        aria-label={`Kéo để sắp xếp ${label}`}
+      >
+        <GripVertical className="h-5 w-5" />
+      </button>
+      <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-foreground">{label}</span>
+          {hasSection && (
+            <Badge variant={isIncluded ? "default" : "outline"} size="sm">
+              {isIncluded ? "Đã bật" : "Đã ẩn"}
+            </Badge>
+          )}
+          {!hasSection && (
+            <Badge variant="outline" size="sm">Chưa thêm</Badge>
+          )}
+        </div>
+        <p className="text-xs text-muted mt-0.5">{description}</p>
+        {hasSection && (
+          <p className="text-xs text-muted mt-1">
+            {itemCount} / {availableItems} mục được chọn
+          </p>
+        )}
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        {hasSection ? (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onEdit}
+              className="gap-1"
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+              Chỉnh sửa
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 text-rose-500 hover:bg-rose-50"
+              onClick={onDelete}
+              title="Xóa phần"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </>
+        ) : (
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={onAdd}
+            disabled={editingCV?.sections && editingCV.sections.length >= 6}
+            className="gap-1"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Thêm
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

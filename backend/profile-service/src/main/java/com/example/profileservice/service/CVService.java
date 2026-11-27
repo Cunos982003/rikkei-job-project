@@ -9,8 +9,6 @@ import org.springframework.security.access.AccessDeniedException;
 import com.example.profileservice.repository.CVRepository;
 import com.example.profileservice.repository.CVSectionRepository;
 import com.example.profileservice.service.MinioFileUploadService;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.itextpdf.io.font.FontProgramFactory;
 import com.itextpdf.io.font.PdfEncodings;
 import com.itextpdf.io.image.ImageDataFactory;
 import com.itextpdf.kernel.colors.ColorConstants;
@@ -25,34 +23,35 @@ import com.itextpdf.layout.borders.SolidBorder;
 import com.itextpdf.layout.element.*;
 import com.itextpdf.layout.property.TextAlignment;
 import com.itextpdf.layout.property.UnitValue;
-import com.itextpdf.layout.property.VerticalAlignment;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CVService {
 
     private final CVRepository cvRepository;
     private final CVSectionRepository sectionRepository;
     private final ProfileDataService profileDataService;
     private final MinioFileUploadService minioFileUploadService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${app.public-base-url:http://localhost:8080}")
     private String publicBaseUrl;
@@ -62,14 +61,14 @@ public class CVService {
 
     @Transactional(readOnly = true)
     public List<CVDto> getMyCVs(UUID userId) {
-        return cvRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+        return cvRepository.findByUserIdWithSectionsOrderByCreatedAtDesc(userId).stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public CVDto getMyCV(UUID userId, UUID cvId) {
-        CV cv = cvRepository.findById(cvId)
+        CV cv = cvRepository.findByIdWithSections(cvId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy CV"));
         if (!cv.getUserId().equals(userId)) {
             throw new AccessDeniedException("Không có quyền truy cập CV này");
@@ -79,9 +78,21 @@ public class CVService {
 
     @Transactional(readOnly = true)
     public java.util.Optional<CVDto> getCVByPublicToken(String publicToken) {
-        return cvRepository.findByPublicToken(publicToken)
+        return cvRepository.findByPublicTokenWithSections(publicToken)
                 .filter(CV::isPublic)
                 .map(this::toDto);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean canAccessCVPdf(UUID userId, UUID cvId) {
+        return cvRepository.findById(cvId)
+                .map(cv -> {
+                    if (userId != null && cv.getUserId().equals(userId)) {
+                        return true; // User owns the CV
+                    }
+                    return cv.isPublic(); // CV is public
+                })
+                .orElse(false);
     }
 
     @Transactional
@@ -204,8 +215,8 @@ public class CVService {
         dto.setPdfUrl(cv.getPdfUrl());
         dto.setCreatedAt(cv.getCreatedAt());
         dto.setUpdatedAt(cv.getUpdatedAt());
-        List<CVSection> sections = sectionRepository.findByCvIdOrderBySortOrderAsc(cv.getId());
-        dto.setSections(sections.stream().map(this::toSectionDto).collect(Collectors.toList()));
+        // Sections are already fetched via LEFT JOIN FETCH in repository queries
+        dto.setSections(cv.getSections().stream().map(this::toSectionDto).collect(Collectors.toList()));
         return dto;
     }
 
@@ -221,14 +232,14 @@ public class CVService {
 
     @Transactional(readOnly = true)
     public CVDto.CVPreviewResponse getCVPreview(UUID userId, UUID cvId) {
-        CV cv = cvRepository.findById(cvId)
+        CV cv = cvRepository.findByIdWithSections(cvId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy CV"));
         if (!cv.getUserId().equals(userId)) {
             throw new AccessDeniedException("Không có quyền truy cập CV này");
         }
 
-        List<CVSection> sections = sectionRepository.findByCvIdOrderBySortOrderAsc(cvId);
-        List<CVDto.SectionPreviewData> previewSections = sections.stream()
+        // Sections are already fetched via LEFT JOIN FETCH
+        List<CVDto.SectionPreviewData> previewSections = cv.getSections().stream()
                 .filter(CVSection::isIncluded)
                 .map(this::buildSectionPreview)
                 .collect(Collectors.toList());
@@ -265,7 +276,7 @@ public class CVService {
 
     @Transactional
     public CVDto.GeneratePDFResponse generatePDF(UUID userId, UUID cvId) throws IOException {
-        CV cv = cvRepository.findById(cvId)
+        CV cv = cvRepository.findByIdWithSections(cvId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy CV"));
         if (!cv.getUserId().equals(userId)) {
             throw new AccessDeniedException("Không có quyền truy cập CV này");
@@ -278,20 +289,23 @@ public class CVService {
         Document document = new Document(pdfDoc, PageSize.A4);
         document.setMargins(36, 36, 72, 36); // top, right, bottom, left
 
-        // Register Vietnamese-compatible font (Noto Sans)
-        PdfFont vietnameseFont = PdfFontFactory.createFont(
-                "fonts/NotoSans-Vietnamese.ttf",
-                PdfEncodings.IDENTITY_H,
-                true
-        );
+        // Register Vietnamese-compatible font (Noto Sans) from classpath
+        PdfFont vietnameseFont;
+        try (InputStream fontStream = new ClassPathResource("fonts/NotoSans-Vietnamese.ttf").getInputStream()) {
+            byte[] fontBytes = fontStream.readAllBytes();
+            vietnameseFont = PdfFontFactory.createFont(fontBytes, PdfEncodings.IDENTITY_H, true);
+        } catch (IOException e) {
+            log.warn("Could not load NotoSans-Vietnamese.ttf from classpath, falling back to Helvetica", e);
+            vietnameseFont = PdfFontFactory.createFont(com.itextpdf.io.font.FontConstants.HELVETICA, PdfEncodings.IDENTITY_H, true);
+        }
         document.setFont(vietnameseFont);
 
         // Add CV header
         addCVHeader(document, cv);
 
         // Add content from sections (reading live data)
-        List<CVSection> sections = sectionRepository.findByCvIdOrderBySortOrderAsc(cvId);
-        for (CVSection section : sections) {
+        // Sections are already fetched via LEFT JOIN FETCH
+        for (CVSection section : cv.getSections()) {
             if (!section.isIncluded()) continue;
             addSectionToDocument(document, section);
         }
@@ -388,7 +402,7 @@ public class CVService {
             }
         } catch (Exception e) {
             // Log error but continue with other sections
-            System.err.println("Error rendering section " + section.getSectionType() + ": " + e.getMessage());
+            log.error("Error rendering section {}: {}", section.getSectionType(), e.getMessage(), e);
         }
     }
 
@@ -606,7 +620,8 @@ public class CVService {
                     .setWidth(80)
                     .setHeight(80);
 
-            // Add QR code at bottom right of last page
+            // Add QR code at bottom right of last page using fixed position
+            // This avoids creating an extra blank page because it's positioned absolutely
             int pageCount = pdfDoc.getNumberOfPages();
             qrImage.setFixedPosition(pageCount,
                     PageSize.A4.getWidth() - 116, // right margin 36
@@ -626,7 +641,7 @@ public class CVService {
             document.add(qrImage);
             document.add(qrLabel);
         } catch (Exception e) {
-            System.err.println("Error generating QR code: " + e.getMessage());
+            log.error("Error generating QR code: {}", e.getMessage(), e);
         }
     }
 }

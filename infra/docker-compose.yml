@@ -73,8 +73,12 @@ services:
       JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
       GATEWAY_AUTH_URL: http://auth-service:8081
       GATEWAY_PROFILE_URL: http://profile-service:8082
+      GATEWAY_EVIDENCE_URL: http://evidence-service:8083
+      GATEWAY_ASSESSMENT_URL: http://assessment-service:8084
       GATEWAY_JOB_URL: http://job-service:8085
       GATEWAY_RECRUITMENT_URL: http://recruitment-service:8086
+      GATEWAY_NOTIFICATION_URL: http://notification-service:8087
+      GATEWAY_AUDIT_URL: http://audit-service:8088
       GATEWAY_LEARNING_URL: http://learning-service:8089
       GATEWAY_AI_URL: http://ai-career-service:8090
     depends_on:
@@ -261,6 +265,86 @@ services:
         condition: service_healthy
     ports:
       - "8090:8090"
+    restart: unless-stopped
+
+  notification-service:
+    build:
+      context: ..
+      dockerfile: backend/notification-service/Dockerfile
+    env_file:
+      - .env
+    profiles: ["app"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/notification_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    ports:
+      - "8087:8087"
+    restart: unless-stopped
+
+  evidence-service:
+    build:
+      context: ..
+      dockerfile: backend/evidence-service/Dockerfile
+    env_file:
+      - .env
+    profiles: ["app"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/evidence_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    restart: unless-stopped
+
+  assessment-service:
+    build:
+      context: ..
+      dockerfile: backend/assessment-service/Dockerfile
+    env_file:
+      - .env
+    profiles: ["app"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/assessment_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8084:8084"
+    restart: unless-stopped
+
+  audit-service:
+    build:
+      context: ..
+      dockerfile: backend/audit-service/Dockerfile
+    env_file:
+      - .env
+    profiles: ["app"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/audit_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8088:8088"
     restart: unless-stopped
 
   frontend:
