@@ -1,0 +1,287 @@
+openapi: 3.0.3
+info:
+  title: Profile Service - External Records Sync & Manual Override API (NT-05)
+  description: OpenAPI 3.0.3 cho tính năng kết nối dữ liệu nguồn ngoài (LMS, Khảo thí EXAM, LMS-PM IOC) và can thiệp sửa tay của cán bộ vận hành.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1
+    description: API Gateway
+  - url: http://localhost:8082/api/v1
+    description: Profile Service Direct
+
+paths:
+  /staff/sync/{userId}:
+    post:
+      summary: Kích hoạt đồng bộ lại dữ liệu cho một ứng viên (STAFF)
+      description: |
+        Kéo dữ liệu học tập từ LMS (`/lms/students/{id}/results`), thi cử từ EXAM (`/exam/students/{id}/results`),
+        và thực tập từ PM (`/pm/students/{id}/internships`).
+        Upsert vào bảng `external_records` theo `source_key`, bảo toàn các trường đã có `manual_overrides`,
+        tự động tính toán lại điểm kỹ năng (HS-01) và ghi nhận kết quả vào `sync_runs`.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: X-User-Id
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: X-User-Role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [STAFF, ADMIN]
+      responses:
+        '200':
+          description: Đồng bộ thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncRunResponse'
+        '500':
+          description: Đồng bộ thất bại (ví dụ mock server tắt)
+        '403':
+          description: Không có quyền STAFF
+
+  /staff/sync/trigger-nightly:
+    post:
+      summary: Chạy thủ công Job đêm đồng bộ cho toàn bộ ứng viên (STAFF)
+      description: Thực thi quét toàn bộ ứng viên trong hệ thống và đồng bộ dữ liệu với trigger NIGHTLY.
+      parameters:
+        - name: X-User-Id
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: X-User-Role
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [STAFF, ADMIN]
+      responses:
+        '200':
+          description: Kích hoạt thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncRunResponse'
+
+  /staff/sync-runs:
+    get:
+      summary: Lấy lịch sử các lần chạy đồng bộ (STAFF)
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ALL, SUCCESS, FAILED, RUNNING]
+        - name: userId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Lấy danh sách thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SyncRunItem'
+                      total:
+                        type: integer
+                      page:
+                        type: integer
+                      size:
+                        type: integer
+
+  /staff/external-records:
+    get:
+      summary: Lấy danh sách bản ghi nguồn ngoài của ứng viên (STAFF)
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: source
+          in: query
+          schema:
+            type: string
+            enum: [ALL, LMS, EXAM, PM]
+      responses:
+        '200':
+          description: Lấy danh sách thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ExternalRecordDetail'
+
+  /staff/external-records/{id}/override:
+    put:
+      summary: Cán bộ can thiệp sửa tay một trường bản ghi ngoài (STAFF)
+      description: |
+        Ghi đè giá trị của một trường trong payload của bản ghi ngoài, lưu lý do và ID cán bộ vào bảng `manual_overrides`.
+        Khi đồng bộ lại từ nguồn ngoài, trường này sẽ được bảo toàn không bị ghi đè.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID bản ghi external_record
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [field, value, reason]
+              properties:
+                field:
+                  type: string
+                  example: "score"
+                value:
+                  type: string
+                  example: "9.5"
+                reason:
+                  type: string
+                  example: "Phúc khảo điểm thi môn Java Core theo đơn số 123"
+      responses:
+        '200':
+          description: Can thiệp sửa tay thành công
+        '400':
+          description: Dữ liệu không hợp lệ
+        '404':
+          description: Không tìm thấy bản ghi
+
+components:
+  schemas:
+    SyncRunResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/SyncRunItem'
+
+    SyncRunItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        trigger:
+          type: string
+          enum: [NIGHTLY, ON_OPEN, MANUAL]
+          example: "MANUAL"
+        userId:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum: [RUNNING, SUCCESS, FAILED]
+          example: "SUCCESS"
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        error:
+          type: string
+          nullable: true
+        counts:
+          type: object
+          properties:
+            lms:
+              type: integer
+              example: 4
+            exam:
+              type: integer
+              example: 2
+            pm:
+              type: integer
+              example: 1
+            total:
+              type: integer
+              example: 7
+
+    ExternalRecordDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        source:
+          type: string
+          enum: [LMS, EXAM, PM]
+          example: "LMS"
+        sourceKey:
+          type: string
+          example: "LMS_std-001_JV-01"
+        payload:
+          type: object
+        syncedAt:
+          type: string
+          format: date-time
+        isOverridden:
+          type: boolean
+          example: true
+        overrides:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              value:
+                type: string
+              reason:
+                type: string
+              staffId:
+                type: string
+                format: uuid
+              createdAt:
+                type: string
+                format: date-time
