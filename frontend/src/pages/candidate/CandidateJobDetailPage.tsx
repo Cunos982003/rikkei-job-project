@@ -26,6 +26,8 @@ import { Badge } from "../../components/common/Badge";
 import { QuickCompetenceDrawer } from "./components/QuickCompetenceDrawer";
 import { ApplyJobModal } from "./components/ApplyJobModal";
 import { cn } from "../../utils/cn";
+import { useAuthStore } from "../../store/useAuthStore";
+import { MatchScorePanel } from "../../components/match/MatchScorePanel";
 
 // Fallback jobs nếu chưa kết nối server
 const FALLBACK_JOBS: JobPostingItem[] = [
@@ -54,7 +56,7 @@ const FALLBACK_JOBS: JobPostingItem[] = [
     requirements:
       "• Tốt nghiệp hoặc sắp tốt nghiệp Đại học/Học viện chuyên ngành CNTT, Phần mềm hoặc liên quan.\n• Nắm vững kiến thức nền tảng Java Core, OOP, Collection, Concurrency cơ bản.\n• Đã từng làm việc với Spring Boot, Spring Data JPA, Hibernate và RESTful API.\n• Hiểu biết về cơ sở dữ liệu quan hệ (PostgreSQL, MySQL), có khả năng viết truy vấn SQL tối ưu.\n• Kỹ năng sử dụng Git cơ bản, tinh thần trách nhiệm cao, ham học hỏi và sẵn sàng nghiên cứu công nghệ mới.",
     benefits:
-      "• Mức lương cạnh tranh từ 12 - 18 triệu theo năng lực thực tế, xét tăng lương định kỳ 2 lần/năm.\n• Thưởng dự án hấp dẫn, thưởng tháng lương thứ 13, thưởng các ngày lễ Tết.\n• Được Mentor Senior dày dặn kinh nghiệm kèm cặp 1-1 trong suốt thời gian làm việc.\n• Công ty tài trợ 100% học phí và lệ phí thi các chứng chỉ quốc tế (AWS, Oracle Java...).\n• Gói bảo hiểm sức khỏe Rikkei Care cao cấp, khám sức khỏe định kỳ hàng năm.\n• Du lịch nghỉ mát 1-2 lần/năm, teambuilding hàng quý, môi trường trẻ trung, cởi mở.",
+      "• Mức lương cạnh tranh từ 12 - 18 triệu theo năng lực thực tế, xét tăng lương định kỳ 2 lần/năm.\n• Thưởng dự án hấp dẫn, thưởng tháng lương thứ 13, thưởng các ngày lễ Tết.\n• Được Mentor Senior dày dạn kinh nghiệm kèm cặp 1-1 trong suốt thời gian làm việc.\n• Công ty tài trợ 100% học phí và lệ phí thi các chứng chỉ quốc tế (AWS, Oracle Java...).\n• Gói bảo hiểm sức khỏe Rikkei Care cao cấp, khám sức khỏe định kỳ hàng năm.\n• Du lịch nghỉ mát 1-2 lần/năm, teambuilding hàng quý, môi trường trẻ trung, cởi mở.",
     status: "PUBLISHED",
     createdAt: "2026-10-15T08:00:00Z",
   },
@@ -130,6 +132,9 @@ export function CandidateJobDetailPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const { user } = useAuthStore();
+  const isCandidate = user?.role === "CANDIDATE";
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(() => searchParams.get("analyze") === "true");
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
@@ -378,7 +383,8 @@ export function CandidateJobDetailPage() {
               <Button
                 variant="primary"
                 size="md"
-                onClick={() => setIsApplyModalOpen(true)}
+                onClick={() => setIsApplyModalOpen(true)
+                }
                 leftIcon={<Send className="h-4 w-4" />}
                 className="flex-1 md:w-48 justify-center shadow-md font-bold text-sm"
               >
@@ -603,6 +609,10 @@ export function CandidateJobDetailPage() {
               </div>
             </div>
           </div>
+
+          {isCandidate && (
+            <MatchScorePanel jobId={job.id} mode="me" />
+          )}
         </div>
       </div>
 

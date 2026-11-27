@@ -68,6 +68,8 @@ const AdminBadgesPage = lazy(() => import("../pages/admin/AdminBadgesPage"));
 // TT-02: BỔ SUNG IMPORT 2 TRANG MỚI
 const HrInternsPage = lazy(() => import("../pages/hr/HrInternsPage"));
 const StaffPlacementPage = lazy(() => import("../pages/staff/StaffPlacementPage"));
+const HrJobDetailPage = lazy(() => import("../pages/hr/HrJobDetailPage").then(m => ({ default: m.HrJobDetailPage })));
+const StaffJobDetailPage = lazy(() => import("../pages/staff/StaffJobDetailPage").then(m => ({ default: m.StaffJobDetailPage })));
 
 // DT-04: Cán bộ theo dõi đào tạo bổ sung theo lớp, khoá
 const StaffUpskillingPage = lazy(() => import("../pages/staff/StaffUpskillingPage"));
@@ -263,6 +265,11 @@ export function AppRoutes() {
                         />
 
                         <Route
+                            path="/hr/jobs/:id"
+                            element={<HrJobDetailPage />}
+                        />
+
+                        <Route
                             path="/hr/applications"
                             element={<HrApplicationsPage />}
                         />
@@ -354,6 +361,11 @@ export function AppRoutes() {
                         <Route
                             path="/staff/jobs"
                             element={<StaffJobsPage />}
+                        />
+
+                        <Route
+                            path="/staff/jobs/:id"
+                            element={<StaffJobDetailPage />}
                         />
 
                         <Route

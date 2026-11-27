@@ -87,3 +87,8 @@ export const notificationKeys = {
 };
 
 
+export const matchKeys = {
+  all: ["match"] as const,
+  me: (jobId: string) => [...matchKeys.all, "me", jobId] as const,
+  candidate: (jobId: string, userId: string) => [...matchKeys.all, "candidate", jobId, userId] as const,
+};

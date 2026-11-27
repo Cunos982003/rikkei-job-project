@@ -206,7 +206,7 @@ public class ContactAccessService {
     }
 
     // DTO
-    @lombok.Value @lombok.Builder
+    @lombok.Value @lombok.Builder @lombok.AllArgsConstructor
     public static class ContactResponse {
         String email;
         String phone;
