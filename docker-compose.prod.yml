@@ -285,7 +285,7 @@ services:
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.16.0
     environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_EXPORTER_USER:-pg_exporter}:${POSTGRES_EXPORTER_PASSWORD:-pg_exporter_readonly}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env.prod}?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_EXPORTER_USER:-prometheus_exporter}:${POSTGRES_EXPORTER_PASSWORD:-prometheus_exporter_readonly}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env.prod}?sslmode=disable"
     depends_on:
       postgres:
         condition: service_healthy

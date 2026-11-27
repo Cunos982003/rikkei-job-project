@@ -338,7 +338,7 @@ services:
     container_name: rikkei_postgres_exporter
     profiles: ["monitoring"]
     environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_EXPORTER_USER:-pg_exporter}:${POSTGRES_EXPORTER_PASSWORD:-pg_exporter_readonly}@postgres:5432/${POSTGRES_DB:-rikkei_jobs}?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_EXPORTER_USER:-prometheus_exporter}:${POSTGRES_EXPORTER_PASSWORD:-prometheus_exporter_readonly}@postgres:5432/${POSTGRES_DB:-rikkei_jobs}?sslmode=disable"
     depends_on:
       postgres:
         condition: service_healthy
