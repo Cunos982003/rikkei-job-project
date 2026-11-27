@@ -10,6 +10,8 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.example.ai_career_service.dto.SkillGapResponse;
+import com.example.ai_career_service.mapper.JobRecommendationMapper;
+import com.example.ai_career_service.mapper.SkillGapMapper;
 import com.example.ai_career_service.model.JobRecommendation;
 import com.example.ai_career_service.provider.AIProvider;
 import com.example.ai_career_service.repository.JobRecommendationRepository;
@@ -44,6 +46,15 @@ class CareerServiceTests {
 
     private final Executor directExecutor = Runnable::run;
 
+    private CareerService createService() {
+        return new CareerService(
+                dataSource,
+                repository,
+                aiProvider,
+                new JobRecommendationMapper(new SkillGapMapper()),
+                directExecutor);
+    }
+
     @Test
     void ranksResultsAndUsesAiOnlyForTopFive() {
         List<RecommendationSnapshot.EligibleJob> jobs = java.util.stream.IntStream.rangeClosed(1, 7)
@@ -62,7 +73,7 @@ class CareerServiceTests {
         when(repository.save(any(JobRecommendation.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(aiProvider.generateExplanation(any())).thenReturn("AI explanation");
 
-        CareerService service = new CareerService(dataSource, repository, aiProvider, directExecutor);
+        CareerService service = createService();
         var recommendations = service.getRecommendations(USER_ID, 10);
 
         assertThat(recommendations).extracting("jobId")
@@ -91,7 +102,7 @@ class CareerServiceTests {
         doThrow(new IllegalStateException("provider unavailable"))
                 .when(aiProvider).generateExplanation(any());
 
-        CareerService service = new CareerService(dataSource, repository, aiProvider, directExecutor);
+        CareerService service = createService();
         var recommendation = service.getRecommendations(USER_ID, 10).get(0);
 
         assertThat(recommendation.score()).isEqualTo(100);
@@ -118,10 +129,11 @@ class CareerServiceTests {
         when(repository.save(any(JobRecommendation.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(aiProvider.generateExplanation(any())).thenReturn("Skills need improvement");
 
-        CareerService service = new CareerService(dataSource, repository, aiProvider, directExecutor);
+        CareerService service = createService();
         var recommendation = service.getRecommendations(USER_ID, 10).get(0);
 
-        assertThat(recommendation.score()).isEqualTo(37.5);
+        assertThat(recommendation.score()).isEqualTo(52.5);
+        assertThat(recommendation.belowMinimum()).isFalse();
         assertThat(recommendation.missingRequiredSkills()).containsExactly("Java");
         assertThat(recommendation.skillGaps()).containsExactly(
                 new SkillGapResponse(
@@ -155,7 +167,7 @@ class CareerServiceTests {
         when(repository.save(any(JobRecommendation.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(aiProvider.generateExplanation(any())).thenReturn("Refreshed explanation");
 
-        CareerService service = new CareerService(dataSource, repository, aiProvider, directExecutor);
+        CareerService service = createService();
         var recommendations = service.getRecommendations(USER_ID, 10);
 
         assertThat(recommendations).hasSize(1);
@@ -182,7 +194,7 @@ class CareerServiceTests {
                         List.of(new RecommendationSnapshot.VerifiedSkill("Java", 40)),
                         List.of(betterJob, requestedJob)));
 
-        CareerService service = new CareerService(dataSource, repository, aiProvider, directExecutor);
+        CareerService service = createService();
 
         assertThat(service.getMatchScore(USER_ID, jobId(2))).isEqualTo(50);
         verifyNoInteractions(aiProvider, repository);
@@ -201,7 +213,7 @@ class CareerServiceTests {
                         List.of(new RecommendationSnapshot.VerifiedSkill("Python", 80)),
                         List.of(requestedJob)));
 
-        CareerService service = new CareerService(dataSource, repository, aiProvider, directExecutor);
+        CareerService service = createService();
 
         assertThat(service.getMatchScore(USER_ID, jobId(1))).isEqualTo(0);
         verifyNoInteractions(aiProvider, repository);
@@ -217,7 +229,7 @@ class CareerServiceTests {
         when(dataSource.loadSnapshot(USER_ID))
                 .thenReturn(new RecommendationSnapshot("profile-v1", List.of(), List.of(otherJob)));
 
-        CareerService service = new CareerService(dataSource, repository, aiProvider, directExecutor);
+        CareerService service = createService();
 
         assertThatThrownBy(() -> service.getMatchScore(USER_ID, jobId(2)))
                 .isInstanceOf(ResponseStatusException.class)
@@ -231,7 +243,7 @@ class CareerServiceTests {
         var missingCandidate = new ResponseStatusException(HttpStatus.NOT_FOUND, "Candidate not found");
         when(dataSource.loadSnapshot(USER_ID)).thenThrow(missingCandidate);
 
-        CareerService service = new CareerService(dataSource, repository, aiProvider, directExecutor);
+        CareerService service = createService();
 
         assertThatThrownBy(() -> service.getMatchScore(USER_ID, jobId(1)))
                 .isSameAs(missingCandidate)

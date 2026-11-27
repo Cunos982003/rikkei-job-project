@@ -11,6 +11,13 @@ public class MockProvider implements AIProvider {
     }
 
     @Override
+    public String generateDraft(String prompt) {
+        return """
+                {"content":"Ứng viên có nền tảng chuyên môn phù hợp với vị trí ứng tuyển.","skills":[]}
+                """;
+    }
+
+    @Override
     public String chat(String systemPrompt, String userPrompt) {
         String sysLower = systemPrompt != null ? systemPrompt.toLowerCase() : "";
         String userLower = userPrompt != null ? userPrompt.toLowerCase() : "";

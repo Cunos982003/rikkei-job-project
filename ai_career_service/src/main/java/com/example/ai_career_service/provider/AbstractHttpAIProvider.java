@@ -15,6 +15,9 @@ abstract class AbstractHttpAIProvider implements AIProvider {
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration CHAT_TIMEOUT = Duration.ofSeconds(30);
+    private static final String EXPLANATION_SYSTEM_PROMPT =
+            "Bạn là trợ lý tuyển dụng. Giải thích ngắn gọn bằng tiếng Việt (tối đa 60 từ) "
+                    + "mức độ phù hợp của ứng viên với công việc dựa trên kỹ năng đã xác thực và kỹ năng còn thiếu.";
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(REQUEST_TIMEOUT)
@@ -31,11 +34,26 @@ abstract class AbstractHttpAIProvider implements AIProvider {
 
     @Override
     public final String generateExplanation(RecommendationPrompt prompt) {
+        return generateText(EXPLANATION_SYSTEM_PROMPT, prompt.toUserPrompt(), 180);
+    }
+
+    @Override
+    public final String generateDraft(String prompt) {
+        return generateText(
+                "Bạn là trợ lý viết CV. Chỉ sử dụng dữ kiện có trong dữ liệu đầu vào. "
+                        + "Không suy đoán hoặc thêm thông tin. Trả về duy nhất JSON hợp lệ với dạng "
+                        + "{\"content\":\"nội dung nháp\",\"skills\":[\"mọi tên kỹ năng/công nghệ "
+                        + "được nhắc trong nội dung\"]}.",
+                prompt,
+                700);
+    }
+
+    private String generateText(String systemPrompt, String userPrompt, int maxOutputTokens) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("The selected AI provider API key is not configured");
         }
         try {
-            HttpRequest request = createRequest(prompt.toUserPrompt());
+            HttpRequest request = createRequest(systemPrompt, userPrompt, maxOutputTokens);
             HttpResponse<String> response = httpClient.send(
                     request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
@@ -71,10 +89,13 @@ abstract class AbstractHttpAIProvider implements AIProvider {
         }
     }
 
-    protected abstract HttpRequest createRequest(String prompt) throws IOException;
+    protected abstract HttpRequest createRequest(
+            String systemPrompt,
+            String userPrompt,
+            int maxOutputTokens) throws IOException;
 
     protected HttpRequest createChatRequest(String systemPrompt, String userPrompt) throws IOException {
-        return createRequest((systemPrompt != null && !systemPrompt.isBlank() ? systemPrompt + "\n\n" : "") + userPrompt);
+        return createRequest(systemPrompt != null ? systemPrompt : "", userPrompt, 1024);
     }
 
     protected abstract String extractText(JsonNode response);

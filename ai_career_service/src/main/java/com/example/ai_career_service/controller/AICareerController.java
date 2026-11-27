@@ -3,6 +3,7 @@ package com.example.ai_career_service.controller;
 import com.example.ai_career_service.dto.ApiResponse;
 import com.example.ai_career_service.dto.JobRecommendationResponse;
 import com.example.ai_career_service.service.CareerService;
+import com.example.ai_career_service.utils.AuthenticatedCandidate;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.security.Principal;

@@ -9,6 +9,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.CreationTimestamp;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -43,6 +44,7 @@ public class JobRecommendation {
     private String explanation;
 
     @Column(name = "created_at", nullable = false)
+    @CreationTimestamp 
     private Instant createdAt;
 
     @Column(name = "input_hash", nullable = false, length = 64)
