@@ -2,8 +2,8 @@ package com.example.profileservice.entity;
 
 import com.example.profileservice.common.domain.UserId;
 import com.example.profileservice.common.domain.Visibility;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import com.example.profileservice.common.event.DomainEvent;
 import com.example.profileservice.common.event.ProfileCreatedEvent;
 import com.example.profileservice.common.event.ProfileUpdatedEvent;
@@ -11,7 +11,6 @@ import com.example.profileservice.common.event.ProfileVisibilityChangedEvent;
 import com.example.profileservice.entity.visibility.StateTransition;
 import com.example.profileservice.entity.visibility.VisibilityState;
 import com.example.profileservice.entity.visibility.VisibilityStateFactory;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.persistence.Transient;
 import lombok.*;
