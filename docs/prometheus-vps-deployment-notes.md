@@ -10,7 +10,7 @@ Tài liệu này tổng hợp các điểm cần kiểm tra và xử lý trướ
 - Khi bổ sung các container monitoring vào `docker-compose.prod.yml`, **không được mở `ports:` ra host**, vì script kiểm tra `infra/tests/validate-production-compose.ps1` bắt buộc chỉ duy nhất `frontend` được publish port (`127.0.0.1:8080`).
 - Nếu cần truy cập UI Prometheus từ máy cá nhân, dùng SSH tunnel tới mạng nội bộ Docker thay vì mở port công khai.
 
-## 2. Tạo user PostgreSQL read-only (`pg_exporter`) trên VPS
+## 2. Tạo user PostgreSQL read-only (`prometheus_exporter`) trên VPS
 
 - Script `infra/init-db/02-create-monitoring-user.sql` chỉ tự chạy bởi `docker-entrypoint-initdb.d` khi volume `pgdata` **trống** (lần khởi tạo cluster đầu tiên).
 - Trong `docker-compose.prod.yml`, `auth-service` đang đặt `SPRING_FLYWAY_ENABLED: "false"`, nên migration `backend/auth-service/src/main/resources/db/migration/V6__create_monitoring_readonly_user.sql` **sẽ không tự chạy** trên VPS.
@@ -21,7 +21,7 @@ Tài liệu này tổng hợp các điểm cần kiểm tra và xử lý trướ
     psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" < infra/init-db/02-create-monitoring-user.sql
   ```
 
-- Nên đổi mật khẩu mặc định `pg_exporter_readonly` sang mật khẩu mạnh riêng trong `.env.prod` (và truyền qua biến môi trường cho `DATA_SOURCE_NAME` của `postgres-exporter`).
+- Nên đổi mật khẩu mặc định `prometheus_exporter_readonly` sang mật khẩu mạnh riêng trong `.env.prod` (và truyền qua biến môi trường cho `DATA_SOURCE_NAME` của `postgres-exporter`).
 
 ## 3. Bật `stub_status` và chặn `/actuator/prometheus` trong Nginx
 
