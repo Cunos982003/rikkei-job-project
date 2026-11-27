@@ -1,8 +1,8 @@
 package com.example.ai_career_service.service;
 
 import com.example.ai_career_service.dto.JobRecommendationResponse;
-import com.example.ai_career_service.dto.SkillGapResponse;
 import com.example.ai_career_service.dto.prompt.RecommendationPrompt;
+import com.example.ai_career_service.mapper.JobRecommendationMapper;
 import com.example.ai_career_service.model.JobRecommendation;
 import com.example.ai_career_service.provider.AIProvider;
 import com.example.ai_career_service.repository.JobRecommendationRepository;
@@ -35,6 +35,7 @@ public class CareerService {
     private final RecommendationDataSource dataSource;
     private final JobRecommendationRepository repository;
     private final AIProvider aiProvider;
+    private final JobRecommendationMapper recommendationMapper;
     private final Executor aiExecutor;
 
     public List<JobRecommendationResponse> getRecommendations(UUID userId, int limit) {

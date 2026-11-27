@@ -6,6 +6,8 @@ public interface AIProvider {
     String generateExplanation(
             RecommendationPrompt prompt);
 
+    String generateDraft(String prompt);
+
     default String chat(String systemPrompt, String userPrompt) {
         throw new UnsupportedOperationException("chat() not implemented for " + getClass().getSimpleName());
     }

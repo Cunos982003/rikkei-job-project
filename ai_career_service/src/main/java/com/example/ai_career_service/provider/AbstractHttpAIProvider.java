@@ -31,11 +31,26 @@ abstract class AbstractHttpAIProvider implements AIProvider {
 
     @Override
     public final String generateExplanation(RecommendationPrompt prompt) {
+        return generateText(EXPLANATION_SYSTEM_PROMPT, prompt.toUserPrompt(), 180);
+    }
+
+    @Override
+    public final String generateDraft(String prompt) {
+        return generateText(
+                "Bạn là trợ lý viết CV. Chỉ sử dụng dữ kiện có trong dữ liệu đầu vào. "
+                        + "Không suy đoán hoặc thêm thông tin. Trả về duy nhất JSON hợp lệ với dạng "
+                        + "{\"content\":\"nội dung nháp\",\"skills\":[\"mọi tên kỹ năng/công nghệ "
+                        + "được nhắc trong nội dung\"]}.",
+                prompt,
+                700);
+    }
+
+    private String generateText(String systemPrompt, String userPrompt, int maxOutputTokens) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("The selected AI provider API key is not configured");
         }
         try {
-            HttpRequest request = createRequest(prompt.toUserPrompt());
+            HttpRequest request = createRequest(systemPrompt, userPrompt, maxOutputTokens);
             HttpResponse<String> response = httpClient.send(
                     request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
