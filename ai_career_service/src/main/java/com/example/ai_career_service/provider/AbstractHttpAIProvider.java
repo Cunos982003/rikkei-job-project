@@ -15,6 +15,9 @@ abstract class AbstractHttpAIProvider implements AIProvider {
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration CHAT_TIMEOUT = Duration.ofSeconds(30);
+    private static final String EXPLANATION_SYSTEM_PROMPT =
+            "Bạn là trợ lý tuyển dụng. Giải thích ngắn gọn bằng tiếng Việt (tối đa 60 từ) "
+                    + "mức độ phù hợp của ứng viên với công việc dựa trên kỹ năng đã xác thực và kỹ năng còn thiếu.";
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(REQUEST_TIMEOUT)
@@ -86,10 +89,13 @@ abstract class AbstractHttpAIProvider implements AIProvider {
         }
     }
 
-    protected abstract HttpRequest createRequest(String prompt) throws IOException;
+    protected abstract HttpRequest createRequest(
+            String systemPrompt,
+            String userPrompt,
+            int maxOutputTokens) throws IOException;
 
     protected HttpRequest createChatRequest(String systemPrompt, String userPrompt) throws IOException {
-        return createRequest((systemPrompt != null && !systemPrompt.isBlank() ? systemPrompt + "\n\n" : "") + userPrompt);
+        return createRequest(systemPrompt != null ? systemPrompt : "", userPrompt, 1024);
     }
 
     protected abstract String extractText(JsonNode response);

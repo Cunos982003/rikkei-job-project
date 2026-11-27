@@ -1,6 +1,7 @@
 package com.example.ai_career_service.service;
 
 import com.example.ai_career_service.dto.JobRecommendationResponse;
+import com.example.ai_career_service.dto.SkillGapResponse;
 import com.example.ai_career_service.dto.prompt.RecommendationPrompt;
 import com.example.ai_career_service.mapper.JobRecommendationMapper;
 import com.example.ai_career_service.model.JobRecommendation;
@@ -174,6 +175,7 @@ public class CareerService {
                 job != null ? job.title() : null,
                 job != null ? job.companyName() : null,
                 recommendation.getScore(),
+                match.belowMinimum(),
                 recommendation.getExplanation(),
                 recommendation.getCreatedAt(),
                 match.missingRequiredSkills(),
@@ -191,7 +193,7 @@ public class CareerService {
             RecommendationSnapshot snapshot,
             RecommendationSnapshot.EligibleJob job,
             boolean aiExplanation) {
-        String canonical = "dn06-v1|" + snapshot.profileRevision() + "|" + job.jobRevision()
+        String canonical = "dn06-v2|" + snapshot.profileRevision() + "|" + job.jobRevision()
                 + "|aiExplanation=" + aiExplanation + "|"
                 + snapshot.verifiedSkills().stream()
                         .sorted(java.util.Comparator.comparing(RecommendationSnapshot.VerifiedSkill::name))

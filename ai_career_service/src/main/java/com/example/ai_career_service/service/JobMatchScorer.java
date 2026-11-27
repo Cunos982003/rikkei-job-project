@@ -1,10 +1,18 @@
 package com.example.ai_career_service.service;
 
-import java.util.List;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public final class JobMatchScorer {
+
+    private static final BigDecimal REQUIRED_WEIGHT = BigDecimal.valueOf(70);
+    private static final BigDecimal PREFERRED_WEIGHT = BigDecimal.valueOf(30);
+    private static final BigDecimal FULL_WEIGHT = BigDecimal.valueOf(100);
+    private static final int DIVISION_SCALE = 10;
 
     private JobMatchScorer() {
     }
@@ -14,34 +22,36 @@ public final class JobMatchScorer {
             List<RecommendationSnapshot.SkillRequirement> requirements) {
         Map<String, Integer> verifiedIndexes = verifiedIndexes(verifiedSkills);
 
-        List<SkillGap> gaps = requirements.stream()
-                .map(requirement -> {
-                    Integer verifiedIndex = verifiedIndexes.get(normalize(requirement.name()));
-                    int gap = Math.max(0, requirement.requiredIndex() - (verifiedIndex == null ? 0 : verifiedIndex));
-                    return new SkillGap(
-                            requirement.name(),
-                            verifiedIndex,
-                            requirement.requiredIndex(),
-                            gap,
-                            requirement.type());
-                })
-                .toList();
+        List<SkillGap> gaps = new ArrayList<>(requirements.size());
+        List<BigDecimal> requiredRatios = new ArrayList<>();
+        List<BigDecimal> preferredRatios = new ArrayList<>();
+        boolean belowMinimum = false;
 
-        double score = requirements.isEmpty()
-                ? 0
-                : requirements.stream()
-                        .mapToDouble(requirement -> {
-                            Integer verifiedIndex = verifiedIndexes.get(normalize(requirement.name()));
-                            if (verifiedIndex == null) {
-                                return 0;
-                            }
-                            if (requirement.requiredIndex() == 0) {
-                                return 100;
-                            }
-                            return Math.min(100, verifiedIndex * 100.0 / requirement.requiredIndex());
-                        })
-                        .average()
-                        .orElse(0);
+        for (RecommendationSnapshot.SkillRequirement requirement : requirements) {
+            Integer verifiedIndex = verifiedIndexes.get(normalize(requirement.name()));
+            int candidateScore = verifiedIndex == null ? 0 : verifiedIndex;
+            int minScore = requirement.requiredIndex();
+            int gap = Math.max(0, minScore - candidateScore);
+
+            gaps.add(new SkillGap(
+                    requirement.name(),
+                    verifiedIndex,
+                    minScore,
+                    gap,
+                    requirement.type()));
+
+            BigDecimal ratio = computeSkillRatio(candidateScore, minScore);
+            if (requirement.type() == RecommendationSnapshot.RequirementType.REQUIRED) {
+                requiredRatios.add(ratio);
+                if (minScore > 0 && candidateScore * 2 < minScore) {
+                    belowMinimum = true;
+                }
+            } else {
+                preferredRatios.add(ratio);
+            }
+        }
+
+        double score = computeWeightedScore(requiredRatios, preferredRatios);
 
         List<String> missingRequiredSkills = gaps.stream()
                 .filter(gap -> gap.type() == RecommendationSnapshot.RequirementType.REQUIRED)
@@ -49,7 +59,38 @@ public final class JobMatchScorer {
                 .map(SkillGap::name)
                 .toList();
 
-        return new MatchResult(score, missingRequiredSkills, gaps);
+        return new MatchResult(score, belowMinimum, missingRequiredSkills, List.copyOf(gaps));
+    }
+
+    private static BigDecimal computeSkillRatio(int candidateScore, int minScore) {
+        if (minScore <= 0) {
+            return BigDecimal.ONE;
+        }
+        BigDecimal ratio = BigDecimal.valueOf(candidateScore)
+                .divide(BigDecimal.valueOf(minScore), DIVISION_SCALE, RoundingMode.HALF_UP);
+        return ratio.compareTo(BigDecimal.ONE) > 0 ? BigDecimal.ONE : ratio;
+    }
+
+    private static double computeWeightedScore(
+            List<BigDecimal> requiredRatios,
+            List<BigDecimal> preferredRatios) {
+        BigDecimal totalScore;
+        if (!requiredRatios.isEmpty() && !preferredRatios.isEmpty()) {
+            totalScore = average(requiredRatios).multiply(REQUIRED_WEIGHT)
+                    .add(average(preferredRatios).multiply(PREFERRED_WEIGHT));
+        } else if (!requiredRatios.isEmpty()) {
+            totalScore = average(requiredRatios).multiply(FULL_WEIGHT);
+        } else if (!preferredRatios.isEmpty()) {
+            totalScore = average(preferredRatios).multiply(FULL_WEIGHT);
+        } else {
+            totalScore = BigDecimal.ZERO;
+        }
+        return totalScore.setScale(1, RoundingMode.HALF_UP).doubleValue();
+    }
+
+    private static BigDecimal average(List<BigDecimal> ratios) {
+        BigDecimal sum = ratios.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        return sum.divide(BigDecimal.valueOf(ratios.size()), DIVISION_SCALE, RoundingMode.HALF_UP);
     }
 
     static Map<String, Integer> verifiedIndexes(List<RecommendationSnapshot.VerifiedSkill> verifiedSkills) {
@@ -67,7 +108,15 @@ public final class JobMatchScorer {
         return name.trim().toLowerCase(java.util.Locale.ROOT);
     }
 
-    public record MatchResult(double score, List<String> missingRequiredSkills, List<SkillGap> skillGaps) {
+    public record MatchResult(
+            double score,
+            boolean belowMinimum,
+            List<String> missingRequiredSkills,
+            List<SkillGap> skillGaps) {
+
+        public MatchResult(double score, List<String> missingRequiredSkills, List<SkillGap> skillGaps) {
+            this(score, false, missingRequiredSkills, skillGaps);
+        }
     }
 
     public record SkillGap(

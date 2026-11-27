@@ -9,10 +9,23 @@ public record JobRecommendationResponse(
         String jobTitle,
         String companyName,
         double score,
+        boolean belowMinimum,
         String explanation,
         Instant createdAt,
         List<String> missingRequiredSkills,
         List<SkillGapResponse> skillGaps) {
+
+    public JobRecommendationResponse(
+            UUID jobId,
+            String jobTitle,
+            String companyName,
+            double score,
+            String explanation,
+            Instant createdAt,
+            List<String> missingRequiredSkills,
+            List<SkillGapResponse> skillGaps) {
+        this(jobId, jobTitle, companyName, score, false, explanation, createdAt, missingRequiredSkills, skillGaps);
+    }
 
     public JobRecommendationResponse(
             UUID jobId,
@@ -21,6 +34,6 @@ public record JobRecommendationResponse(
             Instant createdAt,
             List<String> missingRequiredSkills,
             List<SkillGapResponse> skillGaps) {
-        this(jobId, null, null, score, explanation, createdAt, missingRequiredSkills, skillGaps);
+        this(jobId, null, null, score, false, explanation, createdAt, missingRequiredSkills, skillGaps);
     }
 }

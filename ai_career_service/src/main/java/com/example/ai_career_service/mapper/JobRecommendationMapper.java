@@ -17,7 +17,10 @@ public class JobRecommendationMapper {
             JobMatchScorer.MatchResult match) {
         return new JobRecommendationResponse(
                 recommendation.getJobId(),
+                null,
+                null,
                 recommendation.getScore(),
+                match.belowMinimum(),
                 recommendation.getExplanation(),
                 recommendation.getCreatedAt(),
                 match.missingRequiredSkills(),
