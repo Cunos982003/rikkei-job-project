@@ -89,7 +89,7 @@ services:
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED: ${SMTP_STARTTLS:-false}
       MAIL_FROM: ${MAIL_FROM:?Set MAIL_FROM in .env.prod}
       RESET_PASSWORD_URL: ${RESET_PASSWORD_URL:?Set RESET_PASSWORD_URL in .env.prod}
-      SPRING_FLYWAY_ENABLED: "false"
+      SPRING_FLYWAY_ENABLED: "true"
     depends_on:
       postgres:
         condition: service_healthy
@@ -282,8 +282,52 @@ services:
       - "8025:8025"
     restart: unless-stopped
 
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.16.0
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_EXPORTER_USER:-pg_exporter}:${POSTGRES_EXPORTER_PASSWORD:-pg_exporter_readonly}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env.prod}?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.67.0
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env.prod}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.4.0
+    command:
+      - "--nginx.scrape-uri=http://frontend:8080/nginx_status"
+    depends_on:
+      - frontend
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    volumes:
+      - ./infra/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    depends_on:
+      - postgres-exporter
+      - redis-exporter
+      - nginx-exporter
+    restart: unless-stopped
+
 volumes:
   pgdata:
   profile-uploads:
   job-uploads:
   recruitment-uploads:
+  prometheus-data:
