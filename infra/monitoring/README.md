@@ -36,3 +36,27 @@ Thư mục này chứa cấu hình cho:
 
 3. **Áp dụng cấu hình mới**:
    - Reload Prometheus (`POST http://prometheus:9090/-/reload` hoặc khởi động lại container `prometheus`) và kiểm tra target chuyển sang `UP`.
+
+---
+
+## Log tập trung (Loki + Promtail + Grafana)
+
+- **Retention**: Loki cấu hình tự động xóa log quá **14 ngày** (`retention_period: 336h` với `compactor.retention_enabled: true` trong `loki/loki-config.yml`), lưu trên volume riêng `lokidata`.
+- **Promtail**: Thu log từ toàn bộ Docker container qua `/var/run/docker.sock`, parse JSON từ `COMMON-02` và chỉ đưa `service`, `level` thành label (không đưa `traceId` thành label để tránh cardinality cao).
+- **Grafana**: Tự động provision datasource `Prometheus` và `Loki`, kèm dashboard mẫu `Rikkei Jobs - Centralized Logs (Loki)`.
+
+### Các câu truy vấn LogQL mẫu trong Grafana (Explore / Dashboard)
+
+- **Lọc theo `service` và `level`**:
+  ```logql
+  {service="recruitment-service", level="ERROR"}
+  ```
+- **Truy vết toàn bộ luồng theo `traceId` (không đưa `traceId` vào label)**:
+  ```logql
+  {service=~".+"} |= "<traceId>" | json | traceId="<traceId>"
+  ```
+- **Tìm lỗi `500` hoặc `INVALID_TRANSITION` trên một service**:
+  ```logql
+  {service="recruitment-service"} |= "INVALID_TRANSITION" | json
+  ```
+

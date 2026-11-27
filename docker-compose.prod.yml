@@ -325,9 +325,44 @@ services:
       - nginx-exporter
     restart: unless-stopped
 
+  loki:
+    image: grafana/loki:3.0.0
+    volumes:
+      - ./infra/monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - lokidata:/tmp/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    volumes:
+      - ./infra/monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail-positions:/tmp/promtail
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./infra/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+    restart: unless-stopped
+
 volumes:
   pgdata:
   profile-uploads:
   job-uploads:
   recruitment-uploads:
   prometheus-data:
+  lokidata:
+  promtail-positions:
+  grafana-data:
