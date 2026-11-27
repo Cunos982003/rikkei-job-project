@@ -17,18 +17,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Upload Docker Compose to VPS
+      - name: Upload Docker Compose and Infra Configs to VPS
         uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
-          source: "docker-compose.prod.yml"
+          source: "docker-compose.prod.yml,infra/monitoring,infra/docker,infra/init-db"
           target: "/home/ubuntu/rikkei-job-project"
           overwrite: true
 
-      - name: Verify uploaded Docker Compose
+      - name: Verify uploaded files
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -38,11 +38,11 @@ jobs:
           script: |
             cd /home/ubuntu/rikkei-job-project
 
-            echo "=== Uploaded file ==="
-            ls -l docker-compose.prod.yml
+            echo "=== Uploaded files ==="
+            ls -l docker-compose.prod.yml infra/monitoring/prometheus/prometheus.yml infra/docker/frontend.prod.conf
 
             echo "=== File checksum ==="
-            sha256sum docker-compose.prod.yml
+            sha256sum docker-compose.prod.yml infra/monitoring/prometheus/prometheus.yml infra/docker/frontend.prod.conf
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.2.2
@@ -76,6 +76,13 @@ jobs:
               --env-file .env.prod \
               -f docker-compose.prod.yml \
               up -d --remove-orphans
+
+            echo "=== Reload config-mounted services ==="
+
+            docker compose \
+              --env-file .env.prod \
+              -f docker-compose.prod.yml \
+              up -d --force-recreate --no-deps frontend prometheus
 
             echo "=== Cleanup ==="
 
