@@ -87,6 +87,7 @@ public class SecurityConfig {
                 // Public endpoints - MUST come before HttpMethod-specific matchers
                 .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                 .requestMatchers("/api/v1/candidates/**", "/api/v1/candidate-directory/**", "/api/v1/skills/**", "/api/v1/skill-catalog/**").permitAll()
+                .requestMatchers("/api/v1/profiles/public/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
